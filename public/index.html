@@ -907,80 +907,65 @@ body {
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-// CONFIG
+// CONFIG — solo la URL del servidor, nada sensible aquí
 // ═══════════════════════════════════════════════════════════════
-const SUPABASE_URL = 'https://tllpmdhkdlqoqpnqmuwn.supabase.co';
-const ANON_KEY     = 'sb_publishable_PqQsGWYjDAu8oq9ABB1hnQ_658qW8RB';
-
-// SERVICE ROLE KEY — necesaria para escritura (bypassa RLS)
-// ⚠ IMPORTANTE: en producción mueve esto a una variable de entorno
-// o a un backend proxy. Para un panel privado en tu servidor es aceptable.
-const SERVICE_KEY  = 'REEMPLAZA_CON_TU_SERVICE_ROLE_KEY';
-
-// PINes de acceso — cámbialos antes de desplegar
-const PINS = {
-  '__admin__': '0000',    // superadmin: acceso a todos los restaurantes
-  'bonzas':    '1111',    // pin del cliente Bonzas
-  'malparados':'2222',    // pin del cliente Malparados
-};
-
-// URL base de tu servidor de imágenes Docker
-// Ej: 'https://imgs.verificame.click'
-const IMG_SERVER = 'REEMPLAZA_CON_URL_DE_TU_SERVIDOR_IMGS';
+const API = ''; // vacío = misma URL donde está servido el panel
 
 // ═══════════════════════════════════════════════════════════════
 // ESTADO
 // ═══════════════════════════════════════════════════════════════
+let token       = sessionStorage.getItem('menuAdminToken') || null;
 let state = {
-  rol: null,            // 'admin' | 'cliente'
+  rol: sessionStorage.getItem('menuAdminRol') || null,
   restauranteSlug: null,
-  restaurante: null,    // objeto completo de la BD
-  restaurantes: [],     // todos (solo admin)
+  restaurante: null,
+  restaurantes: [],
   categorias: [],
   productos: [],
   catFiltro: 'all',
   editingProduct: null,
-  pendingImgUrl: null,  // URL de img subida pendiente de guardar
+  pendingImgUrl: null,
 };
 
 // ═══════════════════════════════════════════════════════════════
 // API HELPERS
 // ═══════════════════════════════════════════════════════════════
-async function sbRead(tabla, params = '') {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?${params}`, {
-    headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` }
-  });
-  if (!r.ok) throw new Error(`Error leyendo ${tabla}`);
-  return r.json();
-}
-
-async function sbWrite(method, tabla, params = '', body = null) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?${params}`, {
+async function apiFetch(method, endpoint, body = null, isFormData = false) {
+  const opts = {
     method,
-    headers: {
-      'apikey': SERVICE_KEY,
-      'Authorization': `Bearer ${SERVICE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=minimal'
-    },
-    body: body ? JSON.stringify(body) : null
-  });
-  if (!r.ok) {
-    const err = await r.text();
-    throw new Error(err);
+    headers: { 'Authorization': `Bearer ${token}` }
+  };
+  if (body && !isFormData) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  } else if (body && isFormData) {
+    opts.body = body; // FormData, no content-type header
   }
-  return true;
+  const res = await fetch(`${API}${endpoint}`, opts);
+  if (res.status === 401) { logout(); return null; }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Error desconocido' }));
+    throw new Error(err.error || 'Error en el servidor');
+  }
+  return res.json();
 }
 
 // ═══════════════════════════════════════════════════════════════
 // LOGIN
 // ═══════════════════════════════════════════════════════════════
 async function loadRestos() {
+  // Solo cargamos los restaurantes para mostrar los botones
+  // Lo hacemos con el endpoint público de Supabase anon (solo lectura de nombres)
+  // Para no exponer nada sensible, pedimos solo slug y nombre
   try {
-    const restos = await sbRead('restaurantes', 'select=id,nombre,slug&order=nombre.asc');
-    state.restaurantes = restos;
+    const res = await fetch('https://tllpmdhkdlqoqpnqmuwn.supabase.co/rest/v1/restaurantes?select=nombre,slug&order=nombre.asc', {
+      headers: {
+        'apikey': 'sb_publishable_PqQsGWYjDAu8oq9ABB1hnQ_658qW8RB',
+        'Authorization': 'Bearer sb_publishable_PqQsGWYjDAu8oq9ABB1hnQ_658qW8RB'
+      }
+    });
+    const restos = await res.json();
     const grid = document.getElementById('restoGrid');
-    // insertar antes del botón admin
     const adminBtn = grid.querySelector('.admin-btn');
     restos.forEach(r => {
       const btn = document.createElement('button');
@@ -1006,27 +991,43 @@ function clearPinError() {
   document.getElementById('pinInput').classList.remove('error');
 }
 
-function doLogin() {
+async function doLogin() {
   if (!selectedSlug) {
     document.getElementById('loginError').textContent = 'Selecciona un restaurante';
     return;
   }
   const pin = document.getElementById('pinInput').value;
-  const correctPin = PINS[selectedSlug];
-  if (!correctPin || pin !== correctPin) {
-    document.getElementById('pinInput').classList.add('error');
-    document.getElementById('loginError').textContent = 'PIN incorrecto';
-    document.getElementById('pinInput').value = '';
-    return;
+  if (!pin) { document.getElementById('loginError').textContent = 'Ingresa el PIN'; return; }
+
+  try {
+    const res = await fetch(`${API}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: selectedSlug, pin })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      document.getElementById('pinInput').classList.add('error');
+      document.getElementById('loginError').textContent = data.error || 'PIN incorrecto';
+      document.getElementById('pinInput').value = '';
+      return;
+    }
+    token = data.token;
+    sessionStorage.setItem('menuAdminToken', token);
+    sessionStorage.setItem('menuAdminRol', data.rol);
+    state.rol = data.rol;
+    state.restauranteSlug = selectedSlug;
+    enterApp();
+  } catch(e) {
+    document.getElementById('loginError').textContent = 'Error de conexión';
   }
-  // Login exitoso
-  state.rol = selectedSlug === '__admin__' ? 'admin' : 'cliente';
-  state.restauranteSlug = selectedSlug;
-  enterApp();
 }
 
 function logout() {
-  state = { restaurantes: state.restaurantes, productos: [], categorias: [], catFiltro: 'all', editingProduct: null, pendingImgUrl: null };
+  token = null;
+  sessionStorage.removeItem('menuAdminToken');
+  sessionStorage.removeItem('menuAdminRol');
+  state = { restaurantes: [], productos: [], categorias: [], catFiltro: 'all', editingProduct: null, pendingImgUrl: null };
   selectedSlug = null;
   document.getElementById('pinInput').value = '';
   document.querySelectorAll('.resto-btn').forEach(b => b.classList.remove('selected'));
@@ -1035,10 +1036,7 @@ function logout() {
   document.getElementById('loginScreen').style.display = 'flex';
 }
 
-function switchResto() {
-  if (state.rol !== 'admin') return;
-  logout();
-}
+function switchResto() { logout(); }
 
 // ═══════════════════════════════════════════════════════════════
 // APP
@@ -1047,7 +1045,6 @@ async function enterApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appScreen').style.display = 'block';
 
-  // Topbar
   const badge = document.getElementById('topbarBadge');
   badge.textContent = state.rol === 'admin' ? 'SUPERADMIN' : 'EDITOR';
   badge.className = 'topbar-badge' + (state.rol === 'admin' ? ' admin' : '');
@@ -1059,23 +1056,19 @@ async function enterApp() {
 
 async function loadRestauranteData() {
   try {
-    if (state.restauranteSlug === '__admin__') {
-      // Admin ve el primer restaurante por defecto — puedes expandir esto
-      state.restaurante = state.restaurantes[0];
-      state.restauranteSlug = state.restaurante.slug;
-    } else {
-      const data = await sbRead('restaurantes', `slug=eq.${state.restauranteSlug}&select=*`);
-      state.restaurante = data[0];
-    }
+    const restos = await apiFetch('GET', '/api/restaurantes');
+    if (!restos) return;
+    state.restaurantes = restos;
+
+    // Si es cliente ya tiene un solo restaurante; si es admin toma el primero
+    state.restaurante = restos.find(r => r.slug === state.restauranteSlug) || restos[0];
+    state.restauranteSlug = state.restaurante.slug;
 
     document.getElementById('topbarResto').textContent = state.restaurante.nombre.toUpperCase();
     document.documentElement.style.setProperty('--accent', state.restaurante.color_primario || '#cdfefe');
 
-    state.categorias = await sbRead('categorias',
-      `restaurante_id=eq.${state.restaurante.id}&select=*&order=orden.asc`);
-
-    state.productos = await sbRead('productos',
-      `restaurante_id=eq.${state.restaurante.id}&select=*&order=precio_numerico.asc`);
+    state.categorias = await apiFetch('GET', `/api/categorias?restaurante_id=${state.restaurante.id}`);
+    state.productos   = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
 
     renderCatFilter();
     renderProducts();
@@ -1108,8 +1101,7 @@ function renderCatFilter() {
   all.onclick = () => setFilter('all', all);
   wrap.appendChild(all);
   state.categorias.forEach(cat => {
-    const tieneProductos = state.productos.some(p => p.categoria_id === cat.id);
-    if (!tieneProductos) return;
+    if (!state.productos.some(p => p.categoria_id === cat.id)) return;
     const chip = document.createElement('button');
     chip.className = 'cat-chip';
     chip.textContent = `${cat.emoji || ''} ${cat.nombre}`.trim();
@@ -1138,18 +1130,15 @@ function renderProducts() {
     list.innerHTML = '<div class="empty-state">Sin productos en esta categoría</div>';
     return;
   }
-
   list.innerHTML = '';
   prods.forEach(p => {
     const cat = state.categorias.find(c => c.id === p.categoria_id);
     const row = document.createElement('div');
     row.className = 'product-row' + (p.disponible ? '' : ' unavailable');
     row.id = 'row-' + p.id;
-
     const imgEl = p.imagen_url
       ? `<img class="prod-img" src="${p.imagen_url}" alt="${p.nombre}" onclick="openEditModal('${p.id}')" onerror="this.outerHTML='<div class=\'prod-img-placeholder\' onclick=\'openEditModal(\"${p.id}\")\'>+</div>'">`
       : `<div class="prod-img-placeholder" onclick="openEditModal('${p.id}')">+</div>`;
-
     row.innerHTML = `
       ${imgEl}
       <div>
@@ -1168,25 +1157,23 @@ function renderProducts() {
         </label>
       </div>
       <div></div>
-      <div>
-        <button class="btn-edit" onclick="openEditModal('${p.id}')">Editar</button>
-      </div>
+      <div><button class="btn-edit" onclick="openEditModal('${p.id}')">Editar</button></div>
     `;
     list.appendChild(row);
   });
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ACCIONES RÁPIDAS (inline)
+// ACCIONES RÁPIDAS
 // ═══════════════════════════════════════════════════════════════
 async function quickSavePrice(id, input) {
   const prod = state.productos.find(p => p.id === id);
   if (!prod || input.value === prod.precio) return;
   try {
-    await sbWrite('PATCH', 'productos', `id=eq.${id}`,
-      { precio: input.value, precio_numerico: parseFloat(input.value.replace(/[^0-9.]/g,'')) || prod.precio_numerico }
-    );
+    const precioNum = parseFloat(input.value.replace(/[^0-9.]/g, '')) || prod.precio_numerico;
+    await apiFetch('PATCH', `/api/productos/${id}`, { precio: input.value, precio_numerico: precioNum });
     prod.precio = input.value;
+    prod.precio_numerico = precioNum;
     input.classList.add('saved');
     setTimeout(() => input.classList.remove('saved'), 1500);
     showToast('Precio actualizado', 'success');
@@ -1198,11 +1185,10 @@ async function quickSavePrice(id, input) {
 
 async function quickToggleDisponible(id, disponible) {
   try {
-    await sbWrite('PATCH', 'productos', `id=eq.${id}`, { disponible });
+    await apiFetch('PATCH', `/api/productos/${id}`, { disponible });
     const prod = state.productos.find(p => p.id === id);
     if (prod) prod.disponible = disponible;
-    const row = document.getElementById('row-' + id);
-    if (row) row.classList.toggle('unavailable', !disponible);
+    document.getElementById('row-' + id)?.classList.toggle('unavailable', !disponible);
     showToast(disponible ? 'Producto activado' : 'Producto desactivado', 'success');
   } catch(e) {
     showToast('Error al actualizar disponibilidad', 'error');
@@ -1210,7 +1196,7 @@ async function quickToggleDisponible(id, disponible) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MODAL EDICIÓN COMPLETA
+// MODAL EDICIÓN
 // ═══════════════════════════════════════════════════════════════
 function openEditModal(id) {
   const p = state.productos.find(pr => pr.id === id);
@@ -1230,8 +1216,7 @@ function openEditModal(id) {
     document.getElementById('editDisponibleLabel').textContent = this.checked ? 'Disponible' : 'No disponible';
   };
 
-  // Imagen
-  const preview = document.getElementById('imgEditPreview');
+  const preview     = document.getElementById('imgEditPreview');
   const placeholder = document.getElementById('imgEditPlaceholder');
   if (p.imagen_url) {
     preview.src = p.imagen_url;
@@ -1259,26 +1244,23 @@ function handleModalBg(e) {
   if (e.target.id === 'editModal') closeEditModal();
 }
 
-function triggerImgUpload() {
-  document.getElementById('imgFileInput').click();
-}
+function triggerImgUpload() { document.getElementById('imgFileInput').click(); }
 
 async function handleProductImgUpload(input) {
   const file = input.files[0];
   if (!file) return;
   const status = document.getElementById('imgUploadStatus');
   status.textContent = 'Subiendo imagen...';
-
+  status.style.color = 'var(--text-muted)';
   try {
     const compressed = await compressImage(file, 800, 0.82);
-    const url = await uploadToServer(compressed, 'productos');
+    const url = await uploadImg(compressed, 'productos');
     state.pendingImgUrl = url;
-
     const preview = document.getElementById('imgEditPreview');
     preview.src = url;
     preview.style.display = 'block';
     document.getElementById('imgEditPlaceholder').style.display = 'none';
-    status.textContent = '✓ Imagen lista para guardar';
+    status.textContent = '✓ Lista para guardar';
     status.style.color = 'var(--success)';
   } catch(e) {
     status.textContent = 'Error al subir imagen';
@@ -1290,7 +1272,6 @@ async function saveProduct() {
   const btn = document.getElementById('btnSave');
   btn.disabled = true;
   btn.textContent = 'Guardando...';
-
   const id = document.getElementById('editProductId').value;
   const body = {
     nombre:               document.getElementById('editNombre').value.trim(),
@@ -1301,18 +1282,15 @@ async function saveProduct() {
     disponible:           document.getElementById('editDisponible').checked,
   };
   if (state.pendingImgUrl) body.imagen_url = state.pendingImgUrl;
-
   try {
-    await sbWrite('PATCH', 'productos', `id=eq.${id}`, body);
-    // Actualizar estado local
+    const updated = await apiFetch('PATCH', `/api/productos/${id}`, body);
     const idx = state.productos.findIndex(p => p.id === id);
-    if (idx !== -1) state.productos[idx] = { ...state.productos[idx], ...body };
+    if (idx !== -1) state.productos[idx] = { ...state.productos[idx], ...updated };
     renderProducts();
     closeEditModal();
     showToast('Producto guardado', 'success');
   } catch(e) {
-    showToast('Error al guardar', 'error');
-    console.error(e);
+    showToast('Error al guardar: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Guardar cambios';
@@ -1323,15 +1301,15 @@ async function saveProduct() {
 // PROMO
 // ═══════════════════════════════════════════════════════════════
 function renderPromo() {
-  const r = state.restaurante;
-  const toggle = document.getElementById('promoToggle');
-  const dot    = document.getElementById('promoDot');
-  const txt    = document.getElementById('promoStatusText');
+  const r       = state.restaurante;
+  const toggle  = document.getElementById('promoToggle');
+  const dot     = document.getElementById('promoDot');
+  const txt     = document.getElementById('promoStatusText');
   const preview = document.getElementById('promoImgPreview');
   const none    = document.getElementById('promoImgNone');
 
-  toggle.checked = r.promo_activa;
-  dot.className  = 'status-dot' + (r.promo_activa ? ' on' : '');
+  toggle.checked  = r.promo_activa;
+  dot.className   = 'status-dot' + (r.promo_activa ? ' on' : '');
   txt.textContent = r.promo_activa ? 'Activa' : 'Inactiva';
 
   if (r.promo_imagen_url) {
@@ -1347,7 +1325,7 @@ function renderPromo() {
 async function togglePromo() {
   const activa = document.getElementById('promoToggle').checked;
   try {
-    await sbWrite('PATCH', 'restaurantes', `id=eq.${state.restaurante.id}`, { promo_activa: activa });
+    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { promo_activa: activa });
     state.restaurante.promo_activa = activa;
     renderPromo();
     showToast(activa ? 'Promo activada' : 'Promo desactivada', 'success');
@@ -1363,14 +1341,13 @@ async function handlePromoUpload(input) {
   const status = document.getElementById('promoUploadStatus');
   status.textContent = 'Subiendo...';
   status.style.color = 'var(--text-muted)';
-
   try {
     const compressed = await compressImage(file, 1200, 0.85);
-    const url = await uploadToServer(compressed, 'promos');
-    await sbWrite('PATCH', 'restaurantes', `id=eq.${state.restaurante.id}`, { promo_imagen_url: url });
+    const url = await uploadImg(compressed, 'promos');
+    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { promo_imagen_url: url });
     state.restaurante.promo_imagen_url = url;
     renderPromo();
-    status.textContent = '✓ Imagen de promo actualizada';
+    status.textContent = '✓ Imagen actualizada';
     status.style.color = 'var(--success)';
     showToast('Imagen de promo guardada', 'success');
   } catch(e) {
@@ -1384,7 +1361,7 @@ async function handlePromoUpload(input) {
 // IMÁGENES — compresión + upload al servidor
 // ═══════════════════════════════════════════════════════════════
 function compressImage(file, maxWidth, quality) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = e => {
       const img = new Image();
@@ -1402,21 +1379,13 @@ function compressImage(file, maxWidth, quality) {
   });
 }
 
-async function uploadToServer(blob, folder = 'productos') {
-  if (!IMG_SERVER || IMG_SERVER.startsWith('REEMPLAZA')) {
-    throw new Error('IMG_SERVER no configurado');
-  }
+async function uploadImg(blob, folder = 'productos') {
   const formData = new FormData();
   formData.append('file', blob, `img_${Date.now()}.jpg`);
   formData.append('folder', folder);
-
-  const res = await fetch(`${IMG_SERVER}/upload`, {
-    method: 'POST',
-    body: formData
-  });
-  if (!res.ok) throw new Error('Upload failed');
-  const data = await res.json();
-  return data.url; // el servidor devuelve { url: 'https://...' }
+  const data = await apiFetch('POST', '/api/upload', formData, true);
+  if (!data || !data.url) throw new Error('No se recibió URL');
+  return data.url;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1432,9 +1401,13 @@ function showToast(msg, type = 'info') {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ARRANQUE
+// ARRANQUE — si hay token en sesión, entrar directo
 // ═══════════════════════════════════════════════════════════════
-loadRestos();
+if (token && state.rol) {
+  enterApp();
+} else {
+  loadRestos();
+}
 </script>
 </body>
 </html>
