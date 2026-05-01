@@ -278,7 +278,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v3</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v4</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="logout()" style="display:none">Cambiar</button>
@@ -475,6 +475,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
 <script>
 const API = '';
+
+// ── UTILIDADES ────────────────────────────────────────────────
+function formatPrecio(num) {
+  const n = parseFloat(num);
+  if (!n && n !== 0) return '—';
+  return '$ ' + Math.round(n).toLocaleString('es-CO');
+}
+
 let token = sessionStorage.getItem('menuAdminToken') || null;
 let state = {
   rol: sessionStorage.getItem('menuAdminRol') || null,
