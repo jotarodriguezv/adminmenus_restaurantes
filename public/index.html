@@ -112,20 +112,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
 /* ── TABLA PRODUCTOS ── */
 .products-table{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
-.table-header{display:grid;grid-template-columns:72px 1fr 130px 90px 72px 52px;padding:10px 16px;
+.table-header{display:grid;grid-template-columns:84px 1fr 130px 90px 72px 52px;padding:10px 16px;
   border-bottom:1px solid var(--border);background:var(--card);}
 .th{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
-.product-row{display:grid;grid-template-columns:72px 1fr 130px 90px 72px 52px;padding:12px 16px;
+.product-row{display:grid;grid-template-columns:84px 1fr 130px 90px 72px 52px;padding:10px 16px;
   border-bottom:1px solid var(--border);align-items:center;transition:background .15s;}
 .product-row:last-child{border-bottom:none;}
 .product-row:hover{background:rgba(61,214,140,0.03);}
 .product-row.unavailable{opacity:.4;}
 
-.prod-img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:transform .2s;}
-.prod-img:hover{transform:scale(1.06);}
-.prod-img-placeholder{width:56px;height:56px;border-radius:8px;border:1px dashed var(--border2);
+.prod-img{width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:transform .2s;}
+.prod-img:hover{transform:scale(1.05);}
+.prod-img-placeholder{width:68px;height:68px;border-radius:8px;border:1px dashed var(--border2);
   background:var(--card);display:flex;align-items:center;justify-content:center;
-  cursor:pointer;font-size:20px;transition:border-color .2s;color:var(--text-dim);}
+  cursor:pointer;font-size:22px;transition:border-color .2s;color:var(--text-dim);}
 .prod-img-placeholder:hover{border-color:var(--accent);}
 .prod-name{font-size:14px;font-weight:500;color:var(--text);padding-right:10px;line-height:1.3;}
 .prod-cat{font-family:var(--sans);font-size:12px;color:var(--text-muted);margin-top:3px;}
@@ -204,7 +204,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .form-check{display:flex;align-items:center;gap:10px;padding:10px 0;}
 
-.img-edit-wrap{position:relative;width:100%;aspect-ratio:4/3;background:var(--card);
+.img-edit-wrap{position:relative;width:80%;margin:0 auto;aspect-ratio:4/3;background:var(--card);
   border:1px dashed var(--border2);border-radius:var(--radius);overflow:hidden;
   cursor:pointer;transition:border-color .2s;margin-bottom:6px;}
 .img-edit-wrap:hover{border-color:var(--accent);}
@@ -238,12 +238,39 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .confirm-name{font-weight:600;color:var(--danger);}
 
 @media(max-width:680px){
-  .table-header{grid-template-columns:52px 1fr 100px 60px;}
-  .table-header .th:nth-child(5),.table-header .th:nth-child(6){display:none;}
-  .product-row{grid-template-columns:52px 1fr 100px 60px;}
-  .product-row>*:nth-child(5),.product-row>*:nth-child(6){display:none;}
+  /* Tabla móvil: foto + info + acciones en dos filas */
+  .table-header{display:none;}
+  .product-row{
+    grid-template-columns:64px 1fr auto;
+    grid-template-rows:auto auto;
+    gap:0;
+    padding:12px 14px;
+  }
+  /* Fila 1: foto | info | toggle */
+  .product-row>*:nth-child(1){grid-column:1;grid-row:1;} /* img */
+  .product-row>*:nth-child(2){grid-column:2;grid-row:1;padding:0 10px;} /* info */
+  .product-row>*:nth-child(3){display:none;} /* precio — se ve en el modal */
+  .product-row>*:nth-child(4){grid-column:3;grid-row:1;} /* toggle */
+  /* Fila 2: vacío | precio + botones */
+  .product-row>*:nth-child(5){
+    grid-column:2/4;grid-row:2;
+    display:flex;align-items:center;gap:8px;
+    padding-top:8px;
+    border-top:1px solid var(--border);
+    margin-top:10px;
+  }
+  .product-row>*:nth-child(6){display:none;} /* basurero integrado en fila 2 */
+  /* Precio visible en móvil como texto antes de los botones */
+  .prod-precio-movil{font-family:var(--mono);font-size:12px;color:var(--accent);flex:1;}
+  /* Imágenes más separadas del nombre */
+  .prod-img,.prod-img-placeholder{width:56px;height:56px;margin-right:0;}
+  .prod-name{font-size:13px;margin-bottom:2px;}
+  .prod-cat{font-size:11px;}
   .content{padding:14px 12px 80px;}
   .form-row{grid-template-columns:1fr;}
+  .img-edit-wrap{width:100%;}
+  /* Botones en móvil más grandes para touch */
+  .btn-edit,.btn-del{padding:8px 14px;font-size:12px;}
 }
 </style>
 </head>
@@ -278,7 +305,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v4</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v5</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="logout()" style="display:none">Cambiar</button>
@@ -662,23 +689,28 @@ function renderProducts() {
     chk.addEventListener('change',function(){quickToggle(p.id,this.checked);});
     const sldr=document.createElement('span'); sldr.className='toggle-slider';
     lbl.appendChild(chk); lbl.appendChild(sldr); toggleDiv.appendChild(lbl);
-    // Botón editar
-    const editDiv=document.createElement('div');
+    // Botón editar + eliminar en un div (fila 2 en móvil)
+    const actionsDiv=document.createElement('div');
+    // Precio en móvil (visible solo en móvil via CSS)
+    const precioMovil=document.createElement('span');
+    precioMovil.className='prod-precio-movil';
+    precioMovil.textContent=p.precio||formatPrecio(p.precio_numerico);
     const editBtn=document.createElement('button');
     editBtn.className='btn-edit'; editBtn.type='button'; editBtn.textContent='Editar';
     editBtn.addEventListener('click',function(){openEditProductModal(p.id);});
-    editDiv.appendChild(editBtn);
-    // Botón eliminar
-    const delDiv=document.createElement('div');
     const delBtn=document.createElement('button');
     delBtn.className='btn-del'; delBtn.type='button'; delBtn.title='Eliminar'; delBtn.textContent='🗑';
     delBtn.addEventListener('click',function(){confirmDelete('producto',p.id,p.nombre);});
-    delDiv.appendChild(delBtn);
+    actionsDiv.appendChild(precioMovil);
+    actionsDiv.appendChild(editBtn);
+    actionsDiv.appendChild(delBtn);
+    // Div vacío para columna 6 (desktop muestra basurero separado, móvil lo oculta)
+    const emptyDiv=document.createElement('div');
     // Click en imagen también abre modal
     imgDiv.style.cursor='pointer';
     imgDiv.addEventListener('click',function(){openEditProductModal(p.id);});
     row.appendChild(imgDiv); row.appendChild(infoDiv); row.appendChild(precioDiv);
-    row.appendChild(toggleDiv); row.appendChild(editDiv); row.appendChild(delDiv);
+    row.appendChild(toggleDiv); row.appendChild(actionsDiv); row.appendChild(emptyDiv);
     list.appendChild(row);
   });
 }
