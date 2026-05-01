@@ -91,35 +91,47 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 
 /* ── FILTRO CATS ── */
-.cat-filter{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;margin-bottom:14px;}
-.cat-filter::-webkit-scrollbar{display:none;}
-.cat-chip{flex-shrink:0;padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:transparent;
-  color:var(--text-muted);font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;
-  cursor:pointer;transition:all .18s;white-space:nowrap;}
+.cat-filter{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;
+  padding-bottom:6px;margin-bottom:14px;cursor:grab;}
+.cat-filter:active{cursor:grabbing;}
+.cat-filter::-webkit-scrollbar{height:3px;}
+.cat-filter::-webkit-scrollbar-track{background:transparent;}
+.cat-filter::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.cat-chip{flex-shrink:0;padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;
+  color:var(--text-muted);font-family:var(--sans);font-size:12px;font-weight:500;
+  cursor:pointer;transition:all .18s;white-space:nowrap;user-select:none;}
 .cat-chip:hover{border-color:var(--border2);color:var(--text);}
 .cat-chip.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
 
+/* ── CONTROLES PRODUCTOS ── */
+.products-controls{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.sort-select{padding:7px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  color:var(--text-muted);font-family:var(--sans);font-size:12px;outline:none;cursor:pointer;transition:border-color .2s;}
+.sort-select:focus{border-color:var(--accent);}
+.sort-select option{background:var(--card);}
+
 /* ── TABLA PRODUCTOS ── */
 .products-table{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
-.table-header{display:grid;grid-template-columns:64px 1fr 120px 90px 80px 80px;padding:9px 16px;
+.table-header{display:grid;grid-template-columns:72px 1fr 130px 90px 72px 52px;padding:10px 16px;
   border-bottom:1px solid var(--border);background:var(--card);}
-.th{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);}
-.product-row{display:grid;grid-template-columns:64px 1fr 120px 90px 80px 80px;padding:10px 16px;
+.th{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
+.product-row{display:grid;grid-template-columns:72px 1fr 130px 90px 72px 52px;padding:12px 16px;
   border-bottom:1px solid var(--border);align-items:center;transition:background .15s;}
 .product-row:last-child{border-bottom:none;}
 .product-row:hover{background:rgba(61,214,140,0.03);}
 .product-row.unavailable{opacity:.4;}
 
-.prod-img{width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;}
-.prod-img-placeholder{width:48px;height:48px;border-radius:6px;border:1px dashed var(--border2);
+.prod-img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:transform .2s;}
+.prod-img:hover{transform:scale(1.06);}
+.prod-img-placeholder{width:56px;height:56px;border-radius:8px;border:1px dashed var(--border2);
   background:var(--card);display:flex;align-items:center;justify-content:center;
-  cursor:pointer;font-size:18px;transition:border-color .2s;color:var(--text-dim);}
+  cursor:pointer;font-size:20px;transition:border-color .2s;color:var(--text-dim);}
 .prod-img-placeholder:hover{border-color:var(--accent);}
-.prod-name{font-size:13px;font-weight:500;color:var(--text);padding-right:10px;line-height:1.3;}
-.prod-cat{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+.prod-name{font-size:14px;font-weight:500;color:var(--text);padding-right:10px;line-height:1.3;}
+.prod-cat{font-family:var(--sans);font-size:12px;color:var(--text-muted);margin-top:3px;}
 
-.price-input{width:100%;padding:6px 9px;background:var(--card);border:1px solid var(--border);
-  border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color .2s;}
+.price-input{width:100%;padding:8px 10px;background:var(--card);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s;}
 .price-input:focus{border-color:var(--accent);}
 .price-input.saved{border-color:var(--success);}
 
@@ -135,8 +147,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .btn-edit{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;
   color:var(--text-muted);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .18s;white-space:nowrap;}
 .btn-edit:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
-.btn-del{padding:5px 8px;border-radius:6px;border:1px solid transparent;background:transparent;
-  color:var(--text-dim);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .18s;}
+.btn-del{padding:6px 9px;border-radius:6px;border:1px solid transparent;background:transparent;
+  color:var(--text-muted);font-size:15px;cursor:pointer;transition:all .18s;line-height:1;}
 .btn-del:hover{border-color:var(--danger);color:var(--danger);background:var(--danger-dim);}
 
 /* ── CATEGORÍAS LIST ── */
@@ -281,8 +293,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
     <!-- TAB PRODUCTOS -->
     <div id="tabProductos">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <div class="products-controls">
         <button class="btn-sm accent" onclick="openNewProductModal()">+ Nuevo producto</button>
+        <select class="sort-select" id="sortSelect" onchange="renderProducts()">
+          <option value="precio_asc">Precio: menor a mayor</option>
+          <option value="precio_desc">Precio: mayor a menor</option>
+          <option value="nombre_az">Nombre: A → Z</option>
+          <option value="nombre_za">Nombre: Z → A</option>
+          <option value="categoria">Por categoría</option>
+        </select>
       </div>
       <div class="cat-filter" id="catFilter"></div>
       <div class="products-table">
@@ -366,14 +385,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <label class="form-label">Categoría</label>
         <select class="form-select" id="editCategoria"></select>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Precio (texto)</label>
-          <input type="text" class="form-input" id="editPrecio" placeholder="$ 22.000">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Precio numérico</label>
-          <input type="number" class="form-input" id="editPrecioNum" placeholder="22000">
+      <div class="form-group">
+        <label class="form-label">Precio <span style="color:var(--text-dim);font-weight:400">(solo el número, ej: 22000)</span></label>
+        <input type="number" class="form-input" id="editPrecioNum" placeholder="22000" min="0" step="100"
+          oninput="document.getElementById('precioPreview').textContent=formatPrecio(this.value)">
+        <div style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-muted)">
+          Vista previa: <span id="precioPreview" style="color:var(--accent)">—</span>
         </div>
       </div>
       <div class="form-group">
@@ -565,10 +582,13 @@ function renderCatFilter() {
     if (!state.productos.some(p=>p.categoria_id===cat.id)) return;
     wrap.appendChild(mkChip(`${cat.emoji||''} ${cat.nombre}`.trim(), cat.id, false));
   });
+  initCatFilterDrag();
 }
 function mkChip(label,catId,active) {
   const c=document.createElement('button'); c.className='cat-chip'+(active?' active':'');
-  c.textContent=label; c.onclick=()=>setFilter(catId,c); return c;
+  c.textContent=label;
+  if(catId!=='all') c.dataset.catId=catId;
+  c.onclick=()=>setFilter(catId,c); return c;
 }
 function setFilter(catId,btn) {
   state.catFiltro=catId;
@@ -643,8 +663,8 @@ function openNewProductModal() {
   document.getElementById('productModalTitle').textContent='Nuevo producto';
   document.getElementById('editProductId').value='';
   document.getElementById('editNombre').value='';
-  document.getElementById('editPrecio').value='';
   document.getElementById('editPrecioNum').value='';
+  document.getElementById('precioPreview').textContent='—';
   document.getElementById('editDesc').value='';
   document.getElementById('editDescAvanzada').value='';
   document.getElementById('editDisponible').checked=true;
@@ -663,8 +683,8 @@ function openEditProductModal(id) {
   document.getElementById('productModalTitle').textContent='Editar producto';
   document.getElementById('editProductId').value=p.id;
   document.getElementById('editNombre').value=p.nombre||'';
-  document.getElementById('editPrecio').value=p.precio||'';
   document.getElementById('editPrecioNum').value=p.precio_numerico||'';
+  document.getElementById('precioPreview').textContent=formatPrecio(p.precio_numerico);
   document.getElementById('editDesc').value=p.descripcion||'';
   document.getElementById('editDescAvanzada').value=p.descripcion_avanzada||'';
   document.getElementById('editDisponible').checked=p.disponible;
@@ -703,11 +723,14 @@ async function saveProduct() {
   const id=document.getElementById('editProductId').value;
   const catId=document.getElementById('editCategoria').value;
   if(!catId){showToast('Selecciona una categoría','error');btn.disabled=false;btn.textContent='Guardar';return;}
+  const precioNum=parseFloat(document.getElementById('editPrecioNum').value)||0;
+  const precioTexto=formatPrecio(precioNum);
+  const filtroActual=state.catFiltro; // conservar filtro activo
   const body={
     nombre:document.getElementById('editNombre').value.trim(),
     categoria_id:catId,
-    precio:document.getElementById('editPrecio').value.trim(),
-    precio_numerico:parseFloat(document.getElementById('editPrecioNum').value)||0,
+    precio:precioTexto,
+    precio_numerico:precioNum,
     descripcion:document.getElementById('editDesc').value.trim()||null,
     descripcion_avanzada:document.getElementById('editDescAvanzada').value.trim()||null,
     disponible:document.getElementById('editDisponible').checked,
@@ -724,7 +747,14 @@ async function saveProduct() {
       const nuevo=await apiFetch('POST','/api/productos',body);
       state.productos.push(nuevo);
     }
-    renderCatFilter(); renderProducts();
+    // Restaurar filtro y re-renderizar sin perder la selección
+    state.catFiltro=filtroActual;
+    renderCatFilter();
+    // Marcar el chip activo correcto
+    document.querySelectorAll('.cat-chip').forEach(chip=>{
+      chip.classList.toggle('active', chip.dataset.catId===filtroActual||(filtroActual==='all'&&chip.dataset.catId===undefined));
+    });
+    renderProducts();
     closeModal('productModal');
     showToast(id?'Producto guardado':'Producto creado','success');
   } catch(e) { showToast('Error: '+e.message,'error'); }
@@ -736,7 +766,7 @@ function renderCatList() {
   const list=document.getElementById('catList');
   if(!state.categorias.length){list.innerHTML='<div class="empty-state">Sin categorías</div>';return;}
   list.innerHTML='';
-  state.categorias.forEach(cat=>{
+  state.categorias.forEach((cat,idx)=>{
     const count=state.productos.filter(p=>p.categoria_id===cat.id).length;
     const row=document.createElement('div'); row.className='cat-row';
     row.innerHTML=`
@@ -799,6 +829,25 @@ async function saveCat() {
     showToast(id?'Categoría actualizada':'Categoría creada','success');
   } catch(e) { showToast('Error: '+e.message,'error'); }
   finally { btn.disabled=false; btn.textContent='Guardar'; }
+}
+
+// ── MOVER CATEGORÍA ──────────────────────────────────────────
+async function moveCat(id, dir) {
+  const idx=state.categorias.findIndex(c=>c.id===id);
+  const other=state.categorias[idx+dir]; if(!other) return;
+  const cat=state.categorias[idx];
+  // Intercambiar orden
+  const newOrdenCat=other.orden, newOrdenOther=cat.orden;
+  try {
+    await Promise.all([
+      apiFetch('PATCH',`/api/categorias/${cat.id}`,{orden:newOrdenCat}),
+      apiFetch('PATCH',`/api/categorias/${other.id}`,{orden:newOrdenOther}),
+    ]);
+    cat.orden=newOrdenCat; other.orden=newOrdenOther;
+    state.categorias.sort((a,b)=>a.orden-b.orden);
+    renderCatList(); renderCatFilter();
+    showToast('Orden actualizado','success');
+  } catch(e) { showToast('Error al reordenar','error'); }
 }
 
 // ── ELIMINAR ──────────────────────────────────────────────────
@@ -899,6 +948,19 @@ function handleModalBg(e,id) { if(e.target.id===id) closeModal(id); }
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape') ['productModal','catModal','confirmModal'].forEach(closeModal);
 });
+
+// ── SCROLL DRAG EN CAT-FILTER ────────────────────────────────
+function initCatFilterDrag() {
+  const el=document.getElementById('catFilter');
+  if(!el) return;
+  let isDown=false,startX,scrollLeft;
+  el.addEventListener('mousedown',e=>{isDown=true;startX=e.pageX-el.offsetLeft;scrollLeft=el.scrollLeft;});
+  el.addEventListener('mouseleave',()=>isDown=false);
+  el.addEventListener('mouseup',()=>isDown=false);
+  el.addEventListener('mousemove',e=>{if(!isDown)return;e.preventDefault();
+    const x=e.pageX-el.offsetLeft;el.scrollLeft=scrollLeft-(x-startX);});
+  el.addEventListener('wheel',e=>{e.preventDefault();el.scrollLeft+=e.deltaY;},{passive:false});
+}
 
 // ── TOAST ─────────────────────────────────────────────────────
 let toastTimer=null;
