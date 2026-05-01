@@ -585,10 +585,12 @@ function renderCatFilter() {
   initCatFilterDrag();
 }
 function mkChip(label,catId,active) {
-  const c=document.createElement('button'); c.className='cat-chip'+(active?' active':'');
+  const c=document.createElement('button');
+  c.className='cat-chip'+(active?' active':'');
   c.textContent=label;
-  if(catId!=='all') c.dataset.catId=catId;
-  c.onclick=()=>setFilter(catId,c); return c;
+  c.dataset.filterId=catId;
+  c.onclick=()=>setFilter(catId,c);
+  return c;
 }
 function setFilter(catId,btn) {
   state.catFiltro=catId;
@@ -747,12 +749,11 @@ async function saveProduct() {
       const nuevo=await apiFetch('POST','/api/productos',body);
       state.productos.push(nuevo);
     }
-    // Restaurar filtro y re-renderizar sin perder la selección
     state.catFiltro=filtroActual;
     renderCatFilter();
-    // Marcar el chip activo correcto
+    // Restaurar chip activo visualmente
     document.querySelectorAll('.cat-chip').forEach(chip=>{
-      chip.classList.toggle('active', chip.dataset.catId===filtroActual||(filtroActual==='all'&&chip.dataset.catId===undefined));
+      chip.classList.toggle('active', chip.dataset.filterId===filtroActual);
     });
     renderProducts();
     closeModal('productModal');
