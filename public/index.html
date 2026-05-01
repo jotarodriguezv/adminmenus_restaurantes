@@ -152,11 +152,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .btn-del:hover{border-color:var(--danger);color:var(--danger);background:var(--danger-dim);}
 
 /* ── CATEGORÍAS LIST ── */
-.cat-list{display:flex;flex-direction:column;gap:1px;}
-.cat-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--radius);border:1px solid var(--border);}
-.cat-emoji{font-size:18px;width:28px;text-align:center;}
-.cat-name{flex:1;font-size:13px;font-weight:500;}
-.cat-meta{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;}
+.cat-list{display:flex;flex-direction:column;gap:6px;}
+.cat-row{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);border-radius:var(--radius);border:1px solid var(--border);}
+.cat-emoji{font-size:22px;width:32px;text-align:center;}
+.cat-name{flex:1;font-size:15px;font-weight:500;color:var(--text);}
+.cat-meta{font-family:var(--sans);font-size:12px;color:var(--text-muted);margin-top:2px;}
 
 /* ── PROMO ── */
 .promo-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
@@ -278,6 +278,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v3</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="logout()" style="display:none">Cambiar</button>
@@ -600,44 +601,80 @@ function setFilter(catId,btn) {
 
 // ── PRODUCTOS ─────────────────────────────────────────────────
 function renderProducts() {
-  const list = document.getElementById('productList');
-  const prods = state.catFiltro==='all' ? state.productos : state.productos.filter(p=>p.categoria_id===state.catFiltro);
-  if (!prods.length) { list.innerHTML='<div class="empty-state">Sin productos</div>'; return; }
+  const list=document.getElementById('productList');
+  const filtered=state.catFiltro==='all'
+    ?state.productos
+    :state.productos.filter(p=>p.categoria_id===state.catFiltro);
+  const sort=document.getElementById('sortSelect')?.value||'precio_asc';
+  const prods=[...filtered];
+  if(sort==='precio_asc')  prods.sort((a,b)=>a.precio_numerico-b.precio_numerico);
+  if(sort==='precio_desc') prods.sort((a,b)=>b.precio_numerico-a.precio_numerico);
+  if(sort==='nombre_az')   prods.sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  if(sort==='nombre_za')   prods.sort((a,b)=>b.nombre.localeCompare(a.nombre,'es'));
+  if(sort==='categoria') {
+    prods.sort((a,b)=>{
+      const ca=state.categorias.find(c=>c.id===a.categoria_id);
+      const cb=state.categorias.find(c=>c.id===b.categoria_id);
+      const od=(ca?.orden??99)-(cb?.orden??99);
+      return od!==0?od:a.nombre.localeCompare(b.nombre,'es');
+    });
+  }
+  if(!prods.length){list.innerHTML='<div class="empty-state">Sin productos</div>';return;}
   list.innerHTML='';
   prods.forEach(p=>{
-    const cat = state.categorias.find(c=>c.id===p.categoria_id);
-    const row = document.createElement('div');
+    const cat=state.categorias.find(c=>c.id===p.categoria_id);
+    const row=document.createElement('div');
     row.className='product-row'+(p.disponible?'':' unavailable');
     row.id='row-'+p.id;
-    const imgId = `img-${p.id}`;
-    row.innerHTML=`
-      <div id="${imgId}">${p.imagen_url
-        ? `<img class="prod-img" src="${p.imagen_url}" alt="" onclick="openEditProductModal('${p.id}')">`
-        : `<div class="prod-img-placeholder" onclick="openEditProductModal('${p.id}')">+</div>`}
-      </div>
-      <div><div class="prod-name">${p.nombre}</div><div class="prod-cat">${cat?cat.nombre:''}</div></div>
-      <div><input class="price-input" id="price-${p.id}" value="${p.precio}" onblur="quickSavePrice('${p.id}',this)"></div>
-      <div style="display:flex;align-items:center;justify-content:center;">
-        <label class="toggle"><input type="checkbox" ${p.disponible?'checked':''} onchange="quickToggle('${p.id}',this.checked)"><span class="toggle-slider"></span></label>
-      </div>
-      <div><button class="btn-edit" onclick="openEditProductModal('${p.id}')">Editar</button></div>
-      <div><button class="btn-del" onclick="confirmDelete('producto','${p.id}','${p.nombre.replace(/'/g,"\\'")}')">✕</button></div>
-    `;
+    // Imagen
+    const imgDiv=document.createElement('div');
+    if(p.imagen_url){
+      const im=document.createElement('img');
+      im.className='prod-img'; im.src=p.imagen_url; im.alt='';
+      imgDiv.appendChild(im);
+    } else {
+      const ph=document.createElement('div');
+      ph.className='prod-img-placeholder'; ph.textContent='+';
+      imgDiv.appendChild(ph);
+    }
+    // Info
+    const infoDiv=document.createElement('div');
+    const nm=document.createElement('div'); nm.className='prod-name'; nm.textContent=p.nombre;
+    const ct=document.createElement('div'); ct.className='prod-cat'; ct.textContent=cat?cat.nombre:'';
+    infoDiv.appendChild(nm); infoDiv.appendChild(ct);
+    // Precio
+    const precioDiv=document.createElement('div');
+    precioDiv.style.cssText='font-family:var(--mono);font-size:13px;color:var(--accent)';
+    precioDiv.textContent=p.precio||formatPrecio(p.precio_numerico);
+    // Toggle disponible
+    const toggleDiv=document.createElement('div');
+    toggleDiv.style.cssText='display:flex;align-items:center;justify-content:center;';
+    const lbl=document.createElement('label'); lbl.className='toggle';
+    const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=p.disponible;
+    chk.addEventListener('change',function(){quickToggle(p.id,this.checked);});
+    const sldr=document.createElement('span'); sldr.className='toggle-slider';
+    lbl.appendChild(chk); lbl.appendChild(sldr); toggleDiv.appendChild(lbl);
+    // Botón editar
+    const editDiv=document.createElement('div');
+    const editBtn=document.createElement('button');
+    editBtn.className='btn-edit'; editBtn.type='button'; editBtn.textContent='Editar';
+    editBtn.addEventListener('click',function(){openEditProductModal(p.id);});
+    editDiv.appendChild(editBtn);
+    // Botón eliminar
+    const delDiv=document.createElement('div');
+    const delBtn=document.createElement('button');
+    delBtn.className='btn-del'; delBtn.type='button'; delBtn.title='Eliminar'; delBtn.textContent='🗑';
+    delBtn.addEventListener('click',function(){confirmDelete('producto',p.id,p.nombre);});
+    delDiv.appendChild(delBtn);
+    // Click en imagen también abre modal
+    imgDiv.style.cursor='pointer';
+    imgDiv.addEventListener('click',function(){openEditProductModal(p.id);});
+    row.appendChild(imgDiv); row.appendChild(infoDiv); row.appendChild(precioDiv);
+    row.appendChild(toggleDiv); row.appendChild(editDiv); row.appendChild(delDiv);
     list.appendChild(row);
   });
 }
 
-async function quickSavePrice(id,input) {
-  const prod=state.productos.find(p=>p.id===id);
-  if (!prod||input.value===prod.precio) return;
-  try {
-    const pn=parseFloat(input.value.replace(/[^0-9.]/g,''))||prod.precio_numerico;
-    await apiFetch('PATCH',`/api/productos/${id}`,{precio:input.value,precio_numerico:pn});
-    prod.precio=input.value; prod.precio_numerico=pn;
-    input.classList.add('saved'); setTimeout(()=>input.classList.remove('saved'),1500);
-    showToast('Precio actualizado','success');
-  } catch(e) { showToast('Error al guardar','error'); input.value=prod.precio; }
-}
 
 async function quickToggle(id,disponible) {
   try {
