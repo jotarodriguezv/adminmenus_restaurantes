@@ -121,6 +121,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .product-row:hover{background:rgba(61,214,140,0.03);}
 .product-row.unavailable{opacity:.4;}
 .prod-precio-movil{display:none;}
+.btn-del-movil{display:none;}
 
 .prod-img{width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:transform .2s;}
 .prod-img:hover{transform:scale(1.05);}
@@ -261,6 +262,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
   }
   .product-row>*:nth-child(6){display:none;}
   .prod-precio-movil{display:block;font-family:var(--mono);font-size:13px;color:var(--accent);flex:1;}
+  .btn-del-movil{display:block;}
+  .product-row>*:nth-child(6){display:none;} /* ocultar basurero desktop en móvil */
   .prod-img,.prod-img-placeholder{width:54px;height:54px;}
   .prod-name{font-size:13px;}
   .prod-cat{font-size:11px;}
@@ -304,7 +307,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v6</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v7</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="logout()" style="display:none">Cambiar</button>
@@ -690,29 +693,25 @@ function renderProducts() {
     lbl.appendChild(chk); lbl.appendChild(sldr); toggleDiv.appendChild(lbl);
     // Col 5: botón editar (desktop) / acciones (móvil col 1-3 fila 2)
     const actionsDiv=document.createElement('div');
+    // Precio solo visible en móvil (CSS lo oculta en desktop)
     const precioMovil=document.createElement('span');
     precioMovil.className='prod-precio-movil';
     precioMovil.textContent=p.precio||formatPrecio(p.precio_numerico);
     const editBtn=document.createElement('button');
     editBtn.className='btn-edit'; editBtn.type='button'; editBtn.textContent='Editar';
     editBtn.addEventListener('click',function(){openEditProductModal(p.id);});
-    const delBtnInline=document.createElement('button');
-    delBtnInline.className='btn-del'; delBtnInline.type='button';
-    delBtnInline.title='Eliminar'; delBtnInline.textContent='🗑';
-    delBtnInline.addEventListener('click',function(){confirmDelete('producto',p.id,p.nombre);});
+    // Basurero solo visible en móvil (en desktop la col 6 tiene el suyo)
+    const delBtnMovil=document.createElement('button');
+    delBtnMovil.className='btn-del btn-del-movil'; delBtnMovil.type='button';
+    delBtnMovil.title='Eliminar'; delBtnMovil.textContent='🗑';
+    delBtnMovil.addEventListener('click',function(){confirmDelete('producto',p.id,p.nombre);});
     actionsDiv.appendChild(precioMovil);
     actionsDiv.appendChild(editBtn);
-    actionsDiv.appendChild(delBtnInline);
-    // Col 6: basurero standalone (desktop) / oculto en móvil
-    const delDiv=document.createElement('div');
-    const delBtn=document.createElement('button');
-    delBtn.className='btn-del'; delBtn.type='button'; delBtn.title='Eliminar'; delBtn.textContent='🗑';
-    delBtn.addEventListener('click',function(){confirmDelete('producto',p.id,p.nombre);});
-    delDiv.appendChild(delBtn);
+    actionsDiv.appendChild(delBtnMovil);
     imgDiv.style.cursor='pointer';
     imgDiv.addEventListener('click',function(){openEditProductModal(p.id);});
     row.appendChild(imgDiv); row.appendChild(infoDiv); row.appendChild(precioDiv);
-    row.appendChild(toggleDiv); row.appendChild(actionsDiv); row.appendChild(delDiv);
+    row.appendChild(toggleDiv); row.appendChild(actionsDiv);
     list.appendChild(row);
   });
 }
