@@ -112,16 +112,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
 /* ── TABLA PRODUCTOS ── */
 .products-table{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
-.table-header{display:grid;grid-template-columns:84px 1fr 130px 90px 80px 48px;padding:10px 16px;
+.table-header{display:grid;grid-template-columns:84px 1fr 130px 90px 140px;padding:10px 16px;
   border-bottom:1px solid var(--border);background:var(--card);}
 .th{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
-.product-row{display:grid;grid-template-columns:84px 1fr 130px 90px 80px 48px;padding:10px 16px;
+.product-row{display:grid;grid-template-columns:84px 1fr 130px 90px 140px;padding:10px 16px;
   border-bottom:1px solid var(--border);align-items:center;transition:background .15s;gap:0;}
 .product-row:last-child{border-bottom:none;}
 .product-row:hover{background:rgba(61,214,140,0.03);}
 .product-row.unavailable{opacity:.4;}
 .prod-precio-movil{display:none;}
-.btn-del-movil{display:none !important;}
 
 .prod-img{width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:transform .2s;}
 .prod-img:hover{transform:scale(1.05);}
@@ -247,20 +246,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     padding:12px 14px;
     row-gap:0;column-gap:0;
   }
-  /* Fila 1: foto | info | toggle */
   .product-row>*:nth-child(1){grid-column:1;grid-row:1;}
   .product-row>*:nth-child(2){grid-column:2;grid-row:1;padding:0 10px;}
-  .product-row>*:nth-child(3){grid-column:3;grid-row:1;} /* precio desktop → toggle en móvil NO, precio oculto */
   .product-row>*:nth-child(3){display:none;}
-  .product-row>*:nth-child(4){grid-column:3;grid-row:1;} /* toggle */
-  /* Fila 2: acciones (precio móvil + editar + basurero) */
+  .product-row>*:nth-child(4){grid-column:3;grid-row:1;}
   .product-row>*:nth-child(5){
     grid-column:1/4;grid-row:2;
     display:flex;align-items:center;gap:10px;
     padding-top:10px;margin-top:10px;
     border-top:1px solid var(--border);
   }
-  .product-row>*:nth-child(6){display:none;}
   .prod-precio-movil{display:block;font-family:var(--mono);font-size:13px;color:var(--accent);flex:1;}
   .btn-del-movil{display:block;}
   .prod-img,.prod-img-placeholder{width:54px;height:54px;}
@@ -306,7 +301,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v8</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v9</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="logout()" style="display:none">Cambiar</button>
@@ -339,8 +334,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           <span class="th">Producto</span>
           <span class="th">Precio</span>
           <span class="th">Disponible</span>
-          <span class="th"></span>
-          <span class="th"></span>
+          <span class="th">Acciones</span>
         </div>
         <div id="productList"><div class="empty-state">Cargando...</div></div>
       </div>
