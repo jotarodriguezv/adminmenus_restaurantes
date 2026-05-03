@@ -301,7 +301,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v10</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v11</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="logout()" style="display:none">Cambiar</button>
@@ -398,7 +398,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           <div id="imgEditPlaceholder" class="img-placeholder-text">Sin imagen · haz clic para subir</div>
         </div>
         <input type="file" id="imgFileInput" accept="image/*" style="display:none" onchange="handleProductImgUpload(this)">
-        <div id="imgUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted)"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+          <div id="imgUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
+          <button type="button" id="btnQuitarFoto" onclick="quitarFoto()"
+            style="display:none;padding:5px 10px;border-radius:6px;border:1px solid var(--danger);
+            background:transparent;color:var(--danger);font-family:var(--mono);font-size:9px;
+            letter-spacing:1px;cursor:pointer;white-space:nowrap;">
+            🗑 Quitar foto
+          </button>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Nombre</label>
@@ -744,6 +752,7 @@ function openNewProductModal() {
   document.getElementById('editDisponibleLabel').textContent='Disponible';
   document.getElementById('imgEditPreview').style.display='none';
   document.getElementById('imgEditPlaceholder').style.display='flex';
+  document.getElementById('btnQuitarFoto').style.display='none';
   document.getElementById('imgUploadStatus').textContent='';
   document.getElementById('imgFileInput').value='';
   fillCatSelect();
@@ -767,8 +776,14 @@ function openEditProductModal(id) {
   };
   const prev=document.getElementById('imgEditPreview');
   const ph=document.getElementById('imgEditPlaceholder');
-  if(p.imagen_url){prev.src=p.imagen_url;prev.style.display='block';ph.style.display='none';}
-  else{prev.style.display='none';ph.style.display='flex';}
+  const btnQuitar=document.getElementById('btnQuitarFoto');
+  if(p.imagen_url){
+    prev.src=p.imagen_url; prev.style.display='block'; ph.style.display='none';
+    btnQuitar.style.display='block';
+  } else {
+    prev.style.display='none'; ph.style.display='flex';
+    btnQuitar.style.display='none';
+  }
   document.getElementById('imgUploadStatus').textContent='';
   document.getElementById('imgFileInput').value='';
   fillCatSelect(p.categoria_id);
@@ -786,8 +801,20 @@ async function handleProductImgUpload(input) {
     const prev=document.getElementById('imgEditPreview');
     prev.src=url; prev.style.display='block';
     document.getElementById('imgEditPlaceholder').style.display='none';
+    document.getElementById('btnQuitarFoto').style.display='block';
     st.textContent='✓ Lista para guardar'; st.style.color='var(--success)';
   } catch(e) { st.textContent='Error al subir'; st.style.color='var(--danger)'; }
+}
+
+function quitarFoto() {
+  // Marcar imagen para eliminar al guardar
+  state.pendingImgUrl = '__remove__';
+  const prev=document.getElementById('imgEditPreview');
+  prev.style.display='none'; prev.src='';
+  document.getElementById('imgEditPlaceholder').style.display='flex';
+  document.getElementById('btnQuitarFoto').style.display='none';
+  const st=document.getElementById('imgUploadStatus');
+  st.textContent='Foto eliminada al guardar'; st.style.color='var(--warn)';
 }
 
 async function saveProduct() {
@@ -808,7 +835,8 @@ async function saveProduct() {
     descripcion_avanzada:document.getElementById('editDescAvanzada').value.trim()||null,
     disponible:document.getElementById('editDisponible').checked,
   };
-  if(state.pendingImgUrl) body.imagen_url=state.pendingImgUrl;
+  if(state.pendingImgUrl==='__remove__') body.imagen_url=null;
+  else if(state.pendingImgUrl) body.imagen_url=state.pendingImgUrl;
   try {
     if(id) {
       const updated=await apiFetch('PATCH',`/api/productos/${id}`,body);
