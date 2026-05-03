@@ -24,7 +24,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // ── Multer ────────────────────────────────────────────────────
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const sub = req.body.folder || 'productos';
+    // Leer folder desde query params (?folder=promos) porque en multipart
+    // req.body aún no está disponible cuando multer procesa el archivo
+    const sub = req.query.folder || 'productos';
     const dir = path.join(__dirname, 'uploads', sub);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
@@ -177,7 +179,7 @@ app.delete('/api/productos/:id', auth, async (req, res) => {
 // ── IMÁGENES ──────────────────────────────────────────────────
 app.post('/api/upload', auth, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió imagen' });
-  const sub = req.body.folder || 'productos';
+  const sub = req.query.folder || 'productos';
   const url = `${process.env.BASE_URL}/uploads/${sub}/${req.file.filename}`;
   res.json({ url, filename: req.file.filename });
 });
