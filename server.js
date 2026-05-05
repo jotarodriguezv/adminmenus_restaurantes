@@ -84,10 +84,21 @@ app.get('/api/restaurantes', auth, async (req, res) => {
   res.json(data);
 });
 
+app.post('/api/restaurantes', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  const { nombre, slug, color_primario, color_secundario, activo } = req.body;
+  if (!nombre || !slug) return res.status(400).json({ error: 'Nombre y slug requeridos' });
+  const { data, error } = await supabase.from('restaurantes')
+    .insert([{ nombre, slug, color_primario: color_primario||'#3dd68c', color_secundario: color_secundario||'#a374af', activo: activo!==false, promo_activa: false }])
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   if (!canAccessRestaurante(req.user, req.params.id))
     return res.status(403).json({ error: 'Sin permiso' });
-  const permitidos = ['promo_activa', 'promo_imagen_url', 'color_primario', 'color_secundario', 'nombre', 'logo_url', 'fondo_url'];
+  const permitidos = ['promo_activa', 'promo_imagen_url', 'color_primario', 'color_secundario', 'nombre', 'logo_url', 'fondo_url', 'activo'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
   const { data, error } = await supabase.from('restaurantes').update(body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
