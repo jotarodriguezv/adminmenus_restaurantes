@@ -380,7 +380,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v12</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v13</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="volverAlAdmin()" style="display:none">← Restaurantes</button>
@@ -1215,7 +1215,7 @@ async function cargarListaRestos() {
       toggleBtn.className='btn-sm'+(activo?' danger':'');
       toggleBtn.textContent=activo?'Suspender':'Activar';
       toggleBtn.style.cssText=activo?'':'border-color:var(--success);color:var(--success);';
-      toggleBtn.onclick=()=>toggleSuspension(r.id,!activo,card,r.nombre);
+      toggleBtn.onclick=()=>toggleSuspension(r.id,!activo,r.nombre);
       // Botón editar
       const editBtn=document.createElement('button');
       editBtn.className='btn-sm accent'; editBtn.textContent='Editar menú';
@@ -1227,11 +1227,11 @@ async function cargarListaRestos() {
   } catch(e) { list.innerHTML='<div class="empty-state">Error cargando restaurantes</div>'; }
 }
 
-async function toggleSuspension(id, suspender, card, nombre) {
+async function toggleSuspension(id, nuevoActivo, nombre) {
   try {
-    await apiFetch('PATCH',`/api/restaurantes/${id}`,{activo:!suspender});
-    showToast(`${nombre} ${suspender?'suspendido':'activado'}`, suspender?'error':'success');
-    await cargarListaRestos(); // recargar lista
+    await apiFetch('PATCH',`/api/restaurantes/${id}`,{activo:nuevoActivo});
+    showToast(`${nombre} ${nuevoActivo?'activado':'suspendido'}`, nuevoActivo?'success':'error');
+    await cargarListaRestos();
   } catch(e) { showToast('Error al cambiar estado','error'); }
 }
 
