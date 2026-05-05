@@ -235,6 +235,30 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .toast.info{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);}
 
 .empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);font-family:var(--mono);font-size:11px;letter-spacing:1px;}
+
+/* ── VISTA SUPERADMIN ── */
+#adminScreen{display:none;min-height:100vh;}
+.admin-topbar{background:rgba(8,15,10,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;}
+.admin-topbar-title{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);letter-spacing:2px;}
+.admin-content{padding:24px 20px 80px;max-width:900px;margin:0 auto;}
+
+.resto-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:18px 20px;display:flex;align-items:center;gap:14px;transition:border-color .2s;margin-bottom:10px;}
+.resto-card:hover{border-color:var(--border2);}
+.resto-card-info{flex:1;}
+.resto-card-name{font-size:15px;font-weight:500;color:var(--text);margin-bottom:3px;}
+.resto-card-slug{font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1px;}
+.resto-card-actions{display:flex;align-items:center;gap:8px;}
+.status-badge{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;
+  padding:3px 8px;border-radius:4px;}
+.status-badge.activo{background:var(--success-dim);color:var(--success);border:1px solid var(--success);}
+.status-badge.suspendido{background:var(--danger-dim);color:var(--danger);border:1px solid var(--danger);}
+
+.new-resto-card{background:var(--panel);border:1px dashed var(--border2);border-radius:var(--r-lg);padding:24px;margin-bottom:24px;}
+.color-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.color-preview{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);flex-shrink:0;}
+.color-input-wrap{display:flex;align-items:center;gap:10px;}
 .confirm-text{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:4px;}
 .confirm-name{font-weight:600;color:var(--danger);}
 
@@ -295,16 +319,71 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
   </div>
 </div>
 
+<!-- ADMIN SCREEN (superadmin) -->
+<div id="adminScreen">
+  <div class="admin-topbar">
+    <div class="admin-topbar-title">⚙ PANEL SUPERADMIN</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-sm danger" onclick="logout()">Salir</button>
+    </div>
+  </div>
+  <div class="admin-content">
+
+    <!-- Nuevo restaurante -->
+    <div class="new-resto-card">
+      <div class="section-title" style="margin-bottom:16px;">+ Nuevo restaurante</div>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Nombre</label>
+          <input type="text" class="form-input" id="newRestoNombre" placeholder="Pizzería Italiana">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Slug <span style="color:var(--text-dim)">(sin espacios)</span></label>
+          <input type="text" class="form-input" id="newRestoSlug" placeholder="pizzeria-italiana"
+            oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'-')">
+        </div>
+      </div>
+      <div class="color-row" style="margin-bottom:16px;">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Color primario</label>
+          <div class="color-input-wrap">
+            <div class="color-preview" id="prevColor1" style="background:#3dd68c"></div>
+            <input type="text" class="form-input" id="newRestoColor1" value="#3dd68c" maxlength="7"
+              oninput="document.getElementById('prevColor1').style.background=this.value">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Color secundario</label>
+          <div class="color-input-wrap">
+            <div class="color-preview" id="prevColor2" style="background:#a374af"></div>
+            <input type="text" class="form-input" id="newRestoColor2" value="#a374af" maxlength="7"
+              oninput="document.getElementById('prevColor2').style.background=this.value">
+          </div>
+        </div>
+      </div>
+      <button class="btn-save" style="width:auto;padding:11px 24px;" onclick="crearRestaurante()">Crear restaurante</button>
+      <div id="newRestoStatus" style="margin-top:10px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+    </div>
+
+    <!-- Lista de restaurantes -->
+    <div class="section-card">
+      <div class="section-title">Restaurantes registrados</div>
+      <div id="adminRestoList"><div class="empty-state">Cargando...</div></div>
+    </div>
+
+  </div>
+</div>
+
 <!-- APP -->
 <div id="appScreen">
   <div class="topbar">
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v11</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v12</div>
     </div>
     <div class="topbar-right">
-      <button class="btn-sm" id="btnSwitchResto" onclick="logout()" style="display:none">Cambiar</button>
+      <button class="btn-sm" id="btnSwitchResto" onclick="volverAlAdmin()" style="display:none">← Restaurantes</button>
       <button class="btn-sm danger" onclick="logout()">Salir</button>
     </div>
   </div>
@@ -563,7 +642,11 @@ async function doLogin() {
     sessionStorage.setItem('menuAdminSlug', slug);
     state.rol = data.rol;
     state.restauranteSlug = slug;
-    enterApp();
+    if(data.rol==='admin') {
+      enterAdmin();
+    } else {
+      enterApp();
+    }
   } catch(e) { document.getElementById('loginError').textContent = 'Error de conexión'; }
 }
 
@@ -575,12 +658,14 @@ function logout() {
   document.getElementById('pinInput').value='';
   document.getElementById('loginError').textContent='';
   document.getElementById('appScreen').style.display='none';
+  document.getElementById('adminScreen').style.display='none';
   document.getElementById('loginScreen').style.display='flex';
 }
 
 // ── APP ───────────────────────────────────────────────────────
 async function enterApp() {
   document.getElementById('loginScreen').style.display='none';
+  document.getElementById('adminScreen').style.display='none';
   document.getElementById('appScreen').style.display='block';
   const badge = document.getElementById('topbarBadge');
   badge.textContent = state.rol==='admin' ? 'SUPERADMIN' : 'EDITOR';
@@ -1098,9 +1183,100 @@ function showToast(msg,type='info') {
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
 }
 
+// ── FUNCIONES SUPERADMIN ─────────────────────────────────────
+async function enterAdmin() {
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appScreen').style.display='none';
+  document.getElementById('adminScreen').style.display='block';
+  await cargarListaRestos();
+}
+
+async function cargarListaRestos() {
+  const list=document.getElementById('adminRestoList');
+  list.innerHTML='<div class="empty-state">Cargando...</div>';
+  try {
+    const restos=await apiFetch('GET','/api/restaurantes');
+    if(!restos||!restos.length){list.innerHTML='<div class="empty-state">Sin restaurantes</div>';return;}
+    list.innerHTML='';
+    restos.forEach(r=>{
+      const card=document.createElement('div'); card.className='resto-card';
+      const activo=r.activo!==false; // null o true = activo
+      card.innerHTML=`
+        <div class="resto-card-info">
+          <div class="resto-card-name">${r.nombre}</div>
+          <div class="resto-card-slug">${r.slug}</div>
+        </div>
+        <div class="resto-card-actions">
+          <span class="status-badge ${activo?'activo':'suspendido'}">${activo?'Activo':'Suspendido'}</span>
+        </div>
+      `;
+      // Botón suspender/activar
+      const toggleBtn=document.createElement('button');
+      toggleBtn.className='btn-sm'+(activo?' danger':'');
+      toggleBtn.textContent=activo?'Suspender':'Activar';
+      toggleBtn.style.cssText=activo?'':'border-color:var(--success);color:var(--success);';
+      toggleBtn.onclick=()=>toggleSuspension(r.id,!activo,card,r.nombre);
+      // Botón editar
+      const editBtn=document.createElement('button');
+      editBtn.className='btn-sm accent'; editBtn.textContent='Editar menú';
+      editBtn.onclick=()=>entrarARestaurante(r.slug);
+      card.querySelector('.resto-card-actions').appendChild(toggleBtn);
+      card.querySelector('.resto-card-actions').appendChild(editBtn);
+      list.appendChild(card);
+    });
+  } catch(e) { list.innerHTML='<div class="empty-state">Error cargando restaurantes</div>'; }
+}
+
+async function toggleSuspension(id, suspender, card, nombre) {
+  try {
+    await apiFetch('PATCH',`/api/restaurantes/${id}`,{activo:!suspender});
+    showToast(`${nombre} ${suspender?'suspendido':'activado'}`, suspender?'error':'success');
+    await cargarListaRestos(); // recargar lista
+  } catch(e) { showToast('Error al cambiar estado','error'); }
+}
+
+async function crearRestaurante() {
+  const nombre=document.getElementById('newRestoNombre').value.trim();
+  const slug=document.getElementById('newRestoSlug').value.trim();
+  const color1=document.getElementById('newRestoColor1').value.trim();
+  const color2=document.getElementById('newRestoColor2').value.trim();
+  const status=document.getElementById('newRestoStatus');
+
+  if(!nombre||!slug){status.textContent='Nombre y slug son obligatorios';status.style.color='var(--danger)';return;}
+  if(!/^[a-z0-9-]+$/.test(slug)){status.textContent='El slug solo puede tener letras minúsculas, números y guiones';status.style.color='var(--danger)';return;}
+
+  status.textContent='Creando...'; status.style.color='var(--text-muted)';
+  try {
+    await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false});
+    status.textContent='✓ Restaurante creado correctamente'; status.style.color='var(--success)';
+    document.getElementById('newRestoNombre').value='';
+    document.getElementById('newRestoSlug').value='';
+    showToast('Restaurante creado','success');
+    await cargarListaRestos();
+  } catch(e) { status.textContent='Error: '+e.message; status.style.color='var(--danger)'; }
+}
+
+function entrarARestaurante(slug) {
+  state.restauranteSlug=slug;
+  sessionStorage.setItem('menuAdminSlug',slug);
+  document.getElementById('adminScreen').style.display='none';
+  enterApp();
+}
+
+function volverAlAdmin() {
+  document.getElementById('appScreen').style.display='none';
+  enterAdmin();
+}
+
 // ── ARRANQUE ──────────────────────────────────────────────────
 if(token && state.rol && state.restauranteSlug) {
-  enterApp();
+  if(state.rol==='admin' && !sessionStorage.getItem('menuAdminEditingResto')) {
+    enterAdmin();
+  } else {
+    enterApp();
+  }
+} else if(token && state.rol==='admin') {
+  enterAdmin();
 } else {
   document.getElementById('loginScreen').style.display='flex';
 }
