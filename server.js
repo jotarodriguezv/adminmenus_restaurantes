@@ -98,7 +98,7 @@ app.post('/api/restaurantes', auth, async (req, res) => {
 app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   if (!canAccessRestaurante(req.user, req.params.id))
     return res.status(403).json({ error: 'Sin permiso' });
-  const permitidos = ['promo_activa', 'promo_imagen_url', 'color_primario', 'color_secundario', 'nombre', 'logo_url', 'fondo_url', 'activo'];
+  const permitidos = ['promo_activa', 'promo_imagen_url', 'color_primario', 'color_secundario', 'nombre', 'logo_url', 'fondo_url', 'activo', 'atributos'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
   const { data, error } = await supabase.from('restaurantes').update(body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
