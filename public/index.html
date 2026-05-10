@@ -235,6 +235,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .toast.info{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);}
 
 .empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);font-family:var(--mono);font-size:11px;letter-spacing:1px;}
+.topping-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;
+  border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;}
+.topping-chip .chip-del{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;
+  padding:0;line-height:1;transition:color .18s;}
+.topping-chip .chip-del:hover{color:var(--danger);}
 
 /* ── VISTA SUPERADMIN ── */
 #adminScreen{display:none;min-height:100vh;}
@@ -380,7 +385,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v13</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v14</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="volverAlAdmin()" style="display:none">← Restaurantes</button>
@@ -391,6 +396,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <button class="tab-btn active" onclick="switchTab('productos',this)">Productos</button>
     <button class="tab-btn" onclick="switchTab('categorias',this)">Categorías</button>
     <button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
+    <button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
   </div>
   <div class="content">
 
@@ -427,6 +433,34 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           <button class="btn-sm accent" onclick="openNewCatModal()">+ Nueva categoría</button>
         </div>
         <div class="cat-list" id="catList"><div class="empty-state">Cargando...</div></div>
+      </div>
+    </div>
+
+    <!-- TAB TOPPINGS -->
+    <div id="tabToppings" class="hidden">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">Toppings Platino <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(sin costo adicional)</span></div>
+          <button class="btn-sm accent" onclick="addTopping('platino')">+ Añadir</button>
+        </div>
+        <div id="listToppingsPlatino" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
+      </div>
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">Toppings Premium <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(precio adicional)</span></div>
+          <button class="btn-sm accent" onclick="addTopping('premium')">+ Añadir</button>
+        </div>
+        <div id="listToppingsPremium" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
+      </div>
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">Salsas <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(sin costo adicional)</span></div>
+          <button class="btn-sm accent" onclick="addTopping('salsas')">+ Añadir</button>
+        </div>
+        <div id="listToppingsSalsas" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
+      </div>
+      <div style="text-align:right;">
+        <button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveToppings()">Guardar cambios</button>
       </div>
     </div>
 
@@ -562,6 +596,31 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
   </div>
 </div>
 
+<!-- MODAL AÑADIR TOPPING -->
+<div class="modal-bg" id="toppingModal" onclick="handleModalBg(event,'toppingModal')">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-head">
+      <span class="modal-title" id="toppingModalTitle">Nuevo topping</span>
+      <button class="modal-close" onclick="closeModal('toppingModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="toppingTipo">
+      <div class="form-group">
+        <label class="form-label">Nombre</label>
+        <input type="text" class="form-input" id="toppingNombre" placeholder="Ej: Aguacate">
+      </div>
+      <div class="form-group" id="toppingPrecioGroup">
+        <label class="form-label">Precio adicional</label>
+        <input type="number" class="form-input" id="toppingPrecio" placeholder="4000" min="0" step="500">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('toppingModal')">Cancelar</button>
+      <button class="btn-save" onclick="confirmAddTopping()">Añadir</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CONFIRMAR ELIMINAR -->
 <div class="modal-bg" id="confirmModal" onclick="handleModalBg(event,'confirmModal')">
   <div class="modal-box" style="max-width:380px;">
@@ -685,6 +744,10 @@ async function loadData() {
     state.categorias = await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
     renderCatFilter(); renderProducts(); renderCatList(); renderPromo();
+    // Mostrar tab toppings si el restaurante tiene atributos configurados
+    const attr = state.restaurante?.atributos || {};
+    const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
+    document.getElementById('tabBtnToppings').style.display = hasToppings ? 'block' : 'none';
   } catch(e) { showToast('Error cargando datos','error'); }
 }
 
@@ -692,9 +755,10 @@ async function loadData() {
 function switchTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['tabProductos','tabCategorias','tabPromo'].forEach(id=>{
+  ['tabProductos','tabCategorias','tabPromo','tabToppings'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
+  if (tab === 'toppings') renderToppings();
 }
 
 // ── FILTRO ────────────────────────────────────────────────────
@@ -1181,6 +1245,86 @@ function showToast(msg,type='info') {
   const t=document.getElementById('toast');
   t.textContent=msg; t.className=`toast ${type} show`;
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── TOPPINGS ─────────────────────────────────────────────────
+let toppingState = { platino: [], premium: [], salsas: [] };
+
+function renderToppings() {
+  if (!state.restaurante?.atributos) return;
+  const attr = state.restaurante.atributos || {};
+  toppingState.platino = [...(attr.toppings_platino || [])];
+  toppingState.premium = [...(attr.toppings_premium || [])];
+  toppingState.salsas  = [...(attr.salsas || [])];
+  renderToppingList('listToppingsPlatino', toppingState.platino, 'platino');
+  renderToppingList('listToppingsPremium', toppingState.premium, 'premium');
+  renderToppingList('listToppingsSalsas',  toppingState.salsas,  'salsas');
+}
+
+function renderToppingList(containerId, items, tipo) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!items.length) { wrap.innerHTML = '<span style="font-size:12px;color:var(--text-dim);">Sin elementos</span>'; return; }
+  items.forEach((item, idx) => {
+    const chip = document.createElement('div');
+    chip.className = 'topping-chip';
+    const label = tipo === 'premium'
+      ? `${item.nombre} · $${item.precio.toLocaleString('es-CO')}`
+      : item;
+    chip.innerHTML = `<span>${label}</span><button class="chip-del" title="Eliminar">✕</button>`;
+    chip.querySelector('.chip-del').onclick = () => {
+      if (tipo === 'premium') toppingState.premium.splice(idx, 1);
+      else if (tipo === 'platino') toppingState.platino.splice(idx, 1);
+      else toppingState.salsas.splice(idx, 1);
+      renderToppingList(containerId, tipo==='premium'?toppingState.premium:tipo==='platino'?toppingState.platino:toppingState.salsas, tipo);
+    };
+    wrap.appendChild(chip);
+  });
+}
+
+function addTopping(tipo) {
+  document.getElementById('toppingTipo').value = tipo;
+  document.getElementById('toppingNombre').value = '';
+  document.getElementById('toppingPrecio').value = tipo === 'premium' ? '4000' : '';
+  document.getElementById('toppingPrecioGroup').style.display = tipo === 'premium' ? 'block' : 'none';
+  const titles = { platino: 'Nuevo Topping Platino', premium: 'Nuevo Topping Premium', salsas: 'Nueva Salsa' };
+  document.getElementById('toppingModalTitle').textContent = titles[tipo];
+  openModal('toppingModal');
+  setTimeout(() => document.getElementById('toppingNombre').focus(), 100);
+}
+
+function confirmAddTopping() {
+  const tipo   = document.getElementById('toppingTipo').value;
+  const nombre = document.getElementById('toppingNombre').value.trim();
+  if (!nombre) { showToast('Escribe un nombre', 'error'); return; }
+  if (tipo === 'premium') {
+    const precio = parseFloat(document.getElementById('toppingPrecio').value) || 0;
+    toppingState.premium.push({ nombre, precio });
+    renderToppingList('listToppingsPremium', toppingState.premium, 'premium');
+  } else if (tipo === 'platino') {
+    toppingState.platino.push(nombre);
+    renderToppingList('listToppingsPlatino', toppingState.platino, 'platino');
+  } else {
+    toppingState.salsas.push(nombre);
+    renderToppingList('listToppingsSalsas', toppingState.salsas, 'salsas');
+  }
+  closeModal('toppingModal');
+  showToast('Añadido · recuerda guardar', 'info');
+}
+
+async function saveToppings() {
+  const atributos = {
+    ...(state.restaurante.atributos || {}),
+    toppings_platino: toppingState.platino,
+    toppings_premium: toppingState.premium,
+    salsas:           toppingState.salsas,
+  };
+  try {
+    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
+    state.restaurante.atributos = atributos;
+    showToast('Toppings guardados', 'success');
+  } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
 }
 
 // ── FUNCIONES SUPERADMIN ─────────────────────────────────────
