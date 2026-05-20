@@ -278,6 +278,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .color-input-wrap{display:flex;align-items:center;gap:10px;}
 .confirm-text{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:4px;}
 .confirm-name{font-weight:600;color:var(--danger);}
+.search-input {
+  flex: 1;
+  min-width: 180px;
+  padding: 7px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 12px;
+  outline: none;
+  transition: border-color .2s;
+}
+.search-input:focus {
+  border-color: var(--accent);
+}
 
 @media(max-width:680px){
   .table-header{display:none;}
@@ -308,22 +324,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
   .btn-edit,.btn-del{padding:8px 14px;font-size:12px;}
   .products-controls{gap:8px;}
   .sort-select{font-size:11px;padding:6px 8px;}
-  .search-input {
-    flex: 1;
-    min-width: 180px;
-    padding: 7px 12px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 12px;
-    outline: none;
-    transition: border-color .2s;
-  }
-  .search-input:focus {
-    border-color: var(--accent);
-  }
 }
 </style>
 </head>
@@ -413,7 +413,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v16</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v17</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="volverAlAdmin()" style="display:none">← Restaurantes</button>
@@ -432,15 +432,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div id="tabProductos">
       <div class="products-controls">
         <button class="btn-sm accent" onclick="openNewProductModal()">+ Nuevo producto</button>
+        <input
+          type="search"
+          class="search-input"
+          id="searchInput"
+          placeholder="Buscar por nombre, categoría o precio…"
+          oninput="renderProducts()"
+        >
         <select class="sort-select" id="sortSelect" onchange="renderProducts()">
-          <input
-            type="search"
-            class="search-input"
-            id="searchInput"
-            placeholder="Buscar por nombre, categoría o precio…"
-            style="flex:1; min-width:180px;"
-            oninput="renderProducts()"
-          >
           <option value="precio_asc">Precio: menor a mayor</option>
           <option value="precio_desc">Precio: mayor a menor</option>
           <option value="nombre_az">Nombre: A → Z</option>
