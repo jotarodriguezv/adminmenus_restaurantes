@@ -148,9 +148,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .btn-edit{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;
   color:var(--text-muted);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .18s;white-space:nowrap;}
 .btn-edit:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
-.btn-del{padding:6px 9px;border-radius:6px;border:1px solid transparent;background:transparent;
-  color:var(--text-muted);font-size:15px;cursor:pointer;transition:all .18s;line-height:1;}
-.btn-del:hover{border-color:var(--danger);color:var(--danger);background:var(--danger-dim);}
+.btn-del {
+  padding: 7px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--danger);
+  background: var(--danger-dim);
+  color: var(--danger);
+  font-size: 15px;
+  cursor: pointer;
+  transition: all .18s;
+  line-height: 1;
+}
+.btn-del:hover {
+  background: var(--danger);
+  color: #fff;
+}
 
 /* ── CATEGORÍAS LIST ── */
 .cat-list{display:flex;flex-direction:column;gap:6px;}
@@ -405,6 +417,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div class="products-controls">
         <button class="btn-sm accent" onclick="openNewProductModal()">+ Nuevo producto</button>
         <select class="sort-select" id="sortSelect" onchange="renderProducts()">
+          <input
+            type="search"
+            class="sort-select"
+            id="searchInput"
+            placeholder="Buscar por nombre, categoría o precio…"
+            style="flex:1; min-width:180px;"
+            oninput="renderProducts()"
+          >
           <option value="precio_asc">Precio: menor a mayor</option>
           <option value="precio_desc">Precio: mayor a menor</option>
           <option value="nombre_az">Nombre: A → Z</option>
@@ -788,12 +808,24 @@ function setFilter(catId,btn) {
 
 // ── PRODUCTOS ─────────────────────────────────────────────────
 function renderProducts() {
-  const list=document.getElementById('productList');
-  const filtered=state.catFiltro==='all'
-    ?state.productos
-    :state.productos.filter(p=>p.categoria_id===state.catFiltro);
-  const sort=document.getElementById('sortSelect')?.value||'precio_asc';
-  const prods=[...filtered];
+  const list = document.getElementById('productList');
+  const filtered = state.catFiltro === 'all'
+    ? state.productos
+    : state.productos.filter(p => p.categoria_id === state.catFiltro);
+
+  // -- BÚSQUEDA --
+  const q = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+  const searched = !q ? filtered : filtered.filter(p => {
+    const cat = state.categorias.find(c => c.id === p.categoria_id);
+    return (
+      p.nombre.toLowerCase().includes(q) ||
+      (cat?.nombre || '').toLowerCase().includes(q) ||
+      String(p.precio_numerico || '').includes(q)
+    );
+  });
+
+  const sort = document.getElementById('sortSelect')?.value || 'precio_asc';
+  const prods = [...searched];  // ← antes decía [...filtered]
   if(sort==='precio_asc')  prods.sort((a,b)=>a.precio_numerico-b.precio_numerico);
   if(sort==='precio_desc') prods.sort((a,b)=>b.precio_numerico-a.precio_numerico);
   if(sort==='nombre_az')   prods.sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
