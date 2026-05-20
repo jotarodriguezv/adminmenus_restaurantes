@@ -149,7 +149,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
   color:var(--text-muted);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .18s;white-space:nowrap;}
 .btn-edit:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
 .btn-del {
-  padding: 7px 11px;
+  padding: 6px 9px;
   border-radius: 6px;
   border: 1px solid var(--danger);
   background: var(--danger-dim);
@@ -308,6 +308,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
   .btn-edit,.btn-del{padding:8px 14px;font-size:12px;}
   .products-controls{gap:8px;}
   .sort-select{font-size:11px;padding:6px 8px;}
+  .search-input {
+    flex: 1;
+    min-width: 180px;
+    padding: 7px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 12px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .search-input:focus {
+    border-color: var(--accent);
+  }
 }
 </style>
 </head>
@@ -397,7 +413,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v15</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v16</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="volverAlAdmin()" style="display:none">← Restaurantes</button>
@@ -419,7 +435,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
         <select class="sort-select" id="sortSelect" onchange="renderProducts()">
           <input
             type="search"
-            class="sort-select"
+            class="search-input"
             id="searchInput"
             placeholder="Buscar por nombre, categoría o precio…"
             style="flex:1; min-width:180px;"
