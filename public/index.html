@@ -158,6 +158,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
   cursor: pointer;
   transition: all .18s;
   line-height: 1;
+  margin-left: 6px;
 }
 .btn-del:hover {
   background: var(--danger);
@@ -321,7 +322,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
   .content{padding:14px 12px 80px;}
   .form-row{grid-template-columns:1fr;}
   .img-edit-wrap{width:100%;}
-  .btn-edit,.btn-del{padding:8px 14px;font-size:12px;}
+  .btn-edit { padding: 8px 14px; font-size: 12px; }
+  .btn-del  { padding: 6px 9px;  font-size: 12px; margin-left: 6px; }
   .products-controls{gap:8px;}
   .sort-select{font-size:11px;padding:6px 8px;}
 }
@@ -413,7 +415,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="topbar-left">
       <div class="topbar-badge" id="topbarBadge">EDITOR</div>
       <div class="topbar-resto" id="topbarResto">—</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v17</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v18</div>
     </div>
     <div class="topbar-right">
       <button class="btn-sm" id="btnSwitchResto" onclick="volverAlAdmin()" style="display:none">← Restaurantes</button>
