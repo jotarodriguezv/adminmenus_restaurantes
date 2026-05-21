@@ -166,7 +166,7 @@ app.post('/api/productos', auth, async (req, res) => {
 app.patch('/api/productos/:id', auth, async (req, res) => {
   const { data: prod } = await supabase.from('productos').select('restaurante_id').eq('id', req.params.id).single();
   if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
-  const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden'];
+  const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden', 'atributos'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
   const { data, error } = await supabase.from('productos').update(body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
