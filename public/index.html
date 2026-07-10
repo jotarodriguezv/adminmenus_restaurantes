@@ -476,6 +476,7 @@
 				<button class="tab-btn" id="tabBtnApariencia" onclick="switchTab('apariencia',this)" style="display:none">Apariencia</button>
 				<button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
 				<button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
+				<button class="tab-btn" id="tabBtnPedidos" onclick="switchTab('pedidos',this)" style="display:none">Pedidos</button>
 			</div>
 			<div class="content">
 
@@ -610,6 +611,7 @@
 							<select class="form-select" id="apNavModelo">
 								<option value="topnav">Topnav — header centrado + menú horizontal</option>
 								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
+								<option value="carrito">Carrito — pedido por WhatsApp</option>
 							</select>
 						</div>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
@@ -703,6 +705,21 @@
 						</label>
 						<div id="promoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 					</div>
+				</div>
+
+				<!-- TAB PEDIDOS (solo modelo carrito) -->
+				<div id="tabPedidos" class="hidden">
+					<div class="section-card">
+						<div class="section-title">WhatsApp para recibir pedidos</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label class="form-label">Número <span style="color:var(--text-dim)">(solo dígitos, con código de país, sin +)</span></label>
+							<input type="text" class="form-input" id="pedidosWhatsapp" placeholder="573001234567">
+						</div>
+					</div>
+					<div style="text-align:right;">
+						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="savePedidos()">Guardar</button>
+					</div>
+					<div id="pedidosStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 				</div>
 			</div>
 		</div>
@@ -988,10 +1005,13 @@ async function loadData() {
     // logo, colores, fuentes, modelo de página ni CSS personalizado.
     document.getElementById('tabBtnApariencia').style.display = state.rol === 'admin' ? 'block' : 'none';
     if (state.rol === 'admin') renderApariencia();
-    // Mostrar tab toppings si el restaurante tiene atributos configurados
+    // Toppings y Pedidos son del modelo "carrito" (o si ya tenía toppings de antes)
     const attr = state.restaurante?.atributos || {};
+    const esCarrito = attr.nav === 'carrito';
     const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
-    document.getElementById('tabBtnToppings').style.display = hasToppings ? 'block' : 'none';
+    document.getElementById('tabBtnToppings').style.display = (esCarrito || hasToppings) ? 'block' : 'none';
+    document.getElementById('tabBtnPedidos').style.display = esCarrito ? 'block' : 'none';
+    if (esCarrito) renderPedidos();
   } catch(e) { showToast('Error cargando datos','error'); }
 }
 
@@ -1000,7 +1020,7 @@ function switchTab(tab, btn) {
   if (tab === 'apariencia' && state.rol !== 'admin') return;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings'].forEach(id=>{
+  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
@@ -1716,6 +1736,25 @@ async function saveToppings() {
     state.restaurante.atributos = atributos;
     showToast('Toppings guardados', 'success');
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
+}
+
+// ── PEDIDOS (WhatsApp, modelo carrito) ─────────────────────────
+function renderPedidos() {
+  document.getElementById('pedidosWhatsapp').value = state.restaurante.atributos?.whatsapp_pedidos || '';
+}
+
+async function savePedidos() {
+  const whatsapp_pedidos = document.getElementById('pedidosWhatsapp').value.trim().replace(/[^0-9]/g, '');
+  const st = document.getElementById('pedidosStatus');
+  if (!whatsapp_pedidos) { st.textContent = 'Ingresa un número válido'; st.style.color = 'var(--danger)'; return; }
+  const atributos = { ...(state.restaurante.atributos || {}), whatsapp_pedidos };
+  try {
+    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
+    state.restaurante.atributos = atributos;
+    document.getElementById('pedidosWhatsapp').value = whatsapp_pedidos;
+    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    showToast('Número de pedidos guardado', 'success');
+  } catch(e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; }
 }
 
 // ── FUNCIONES SUPERADMIN ─────────────────────────────────────
