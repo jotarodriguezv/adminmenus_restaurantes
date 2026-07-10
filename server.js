@@ -111,11 +111,30 @@ app.patch('/api/restaurantes/:id/pin', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Campos de nivel superior que cada rol puede tocar en un restaurante.
+// El cliente NUNCA debe poder cambiar marca/estructura (eso es Apariencia,
+// oculta en la UI pero antes también alcanzable a mano por API).
+const CAMPOS_RESTAURANTE_ADMIN   = ['promo_activa', 'promo_imagen_url', 'color_primario', 'color_secundario', 'nombre', 'logo_url', 'fondo_url', 'activo', 'atributos'];
+const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'atributos'];
+// Dentro de "atributos" (JSON libre), el cliente solo puede tocar estas claves
+// (toppings y el WhatsApp de pedidos). nav, fuentes, redes, css_custom, etc. quedan fuera.
+const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos'];
+
 app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   if (!canAccessRestaurante(req.user, req.params.id))
     return res.status(403).json({ error: 'Sin permiso' });
-  const permitidos = ['promo_activa', 'promo_imagen_url', 'color_primario', 'color_secundario', 'nombre', 'logo_url', 'fondo_url', 'activo', 'atributos'];
+
+  const permitidos = req.user.rol === 'admin' ? CAMPOS_RESTAURANTE_ADMIN : CAMPOS_RESTAURANTE_CLIENTE;
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
+
+  if (body.atributos && req.user.rol !== 'admin') {
+    // Nunca confiar en el objeto "atributos" completo que manda el cliente:
+    // se reconstruye a partir de lo que ya existe + solo las claves permitidas.
+    const { data: actual } = await supabase.from('restaurantes').select('atributos').eq('id', req.params.id).single();
+    const entrantes = Object.fromEntries(Object.entries(body.atributos).filter(([k]) => ATRIBUTOS_CLIENTE_PERMITIDOS.includes(k)));
+    body.atributos = { ...(actual?.atributos || {}), ...entrantes };
+  }
+
   const { data, error } = await supabase.from('restaurantes').update(body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
   const { pin_hash, ...safe } = data;
