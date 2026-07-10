@@ -441,6 +441,10 @@
 							</div>
 						</div>
 					</div>
+					<div class="form-group" style="margin-bottom:16px;">
+						<label class="form-label">PIN de acceso <span style="color:var(--text-dim)">(el que le compartes al cliente para entrar)</span></label>
+						<input type="text" class="form-input" id="newRestoPin" placeholder="Mínimo 4 caracteres" maxlength="20">
+					</div>
 					<button class="btn-save" style="width:auto;padding:11px 24px;" onclick="crearRestaurante()">Crear restaurante</button>
 					<div id="newRestoStatus" style="margin-top:10px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 				</div>
@@ -830,6 +834,28 @@
     <div class="modal-foot">
       <button class="btn-cancel" onclick="closeModal('toppingModal')">Cancelar</button>
       <button class="btn-save" onclick="confirmAddTopping()">Añadir</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CAMBIAR PIN -->
+<div class="modal-bg" id="pinModal" onclick="handleModalBg(event,'pinModal')">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-head">
+      <span class="modal-title">Cambiar PIN</span>
+      <button class="modal-close" onclick="closeModal('pinModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pinRestoId">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;" id="pinRestoNombre"></p>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Nuevo PIN</label>
+        <input type="text" class="form-input" id="newPinValue" placeholder="Mínimo 4 caracteres" maxlength="20">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('pinModal')">Cancelar</button>
+      <button class="btn-save" onclick="confirmCambiarPin()">Guardar PIN</button>
     </div>
   </div>
 </div>
@@ -1724,8 +1750,13 @@ async function cargarListaRestos() {
       const editBtn=document.createElement('button');
       editBtn.className='btn-sm accent'; editBtn.textContent='Editar menú';
       editBtn.onclick=()=>entrarARestaurante(r.slug);
+      // Botón cambiar PIN
+      const pinBtn=document.createElement('button');
+      pinBtn.className='btn-sm'; pinBtn.textContent='Cambiar PIN';
+      pinBtn.onclick=()=>cambiarPin(r.id,r.nombre);
       card.querySelector('.resto-card-actions').appendChild(toggleBtn);
       card.querySelector('.resto-card-actions').appendChild(editBtn);
+      card.querySelector('.resto-card-actions').appendChild(pinBtn);
       list.appendChild(card);
     });
   } catch(e) { list.innerHTML='<div class="empty-state">Error cargando restaurantes</div>'; }
@@ -1744,20 +1775,42 @@ async function crearRestaurante() {
   const slug=document.getElementById('newRestoSlug').value.trim();
   const color1=document.getElementById('newRestoColor1').value.trim();
   const color2=document.getElementById('newRestoColor2').value.trim();
+  const pin=document.getElementById('newRestoPin').value.trim();
   const status=document.getElementById('newRestoStatus');
 
   if(!nombre||!slug){status.textContent='Nombre y slug son obligatorios';status.style.color='var(--danger)';return;}
   if(!/^[a-z0-9-]+$/.test(slug)){status.textContent='El slug solo puede tener letras minúsculas, números y guiones';status.style.color='var(--danger)';return;}
+  if(!pin||pin.length<4){status.textContent='El PIN debe tener mínimo 4 caracteres';status.style.color='var(--danger)';return;}
 
   status.textContent='Creando...'; status.style.color='var(--text-muted)';
   try {
-    await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false});
+    await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin});
     status.textContent='✓ Restaurante creado correctamente'; status.style.color='var(--success)';
     document.getElementById('newRestoNombre').value='';
     document.getElementById('newRestoSlug').value='';
+    document.getElementById('newRestoPin').value='';
     showToast('Restaurante creado','success');
     await cargarListaRestos();
   } catch(e) { status.textContent='Error: '+e.message; status.style.color='var(--danger)'; }
+}
+
+function cambiarPin(id, nombre) {
+  document.getElementById('pinRestoId').value=id;
+  document.getElementById('pinRestoNombre').textContent=`Restaurante: ${nombre}`;
+  document.getElementById('newPinValue').value='';
+  openModal('pinModal');
+  setTimeout(()=>document.getElementById('newPinValue').focus(),100);
+}
+
+async function confirmCambiarPin() {
+  const id=document.getElementById('pinRestoId').value;
+  const pin=document.getElementById('newPinValue').value.trim();
+  if(!pin||pin.length<4){showToast('El PIN debe tener mínimo 4 caracteres','error');return;}
+  try {
+    await apiFetch('PATCH',`/api/restaurantes/${id}/pin`,{pin});
+    showToast('PIN actualizado','success');
+    closeModal('pinModal');
+  } catch(e) { showToast('Error: '+e.message,'error'); }
 }
 
 function entrarARestaurante(slug) {
