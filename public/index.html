@@ -473,7 +473,7 @@
 			<div class="tabs">
 				<button class="tab-btn active" onclick="switchTab('productos',this)">Productos</button>
 				<button class="tab-btn" onclick="switchTab('categorias',this)">Categorías</button>
-				<button class="tab-btn" onclick="switchTab('apariencia',this)">Apariencia</button>
+				<button class="tab-btn" id="tabBtnApariencia" onclick="switchTab('apariencia',this)" style="display:none">Apariencia</button>
 				<button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
 				<button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
 			</div>
@@ -983,7 +983,11 @@ async function loadData() {
     document.getElementById('topbarResto').textContent = state.restaurante.nombre.toUpperCase();
     state.categorias = await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
-    renderCatFilter(); renderProducts(); renderCatList(); renderPromo(); renderApariencia();
+    renderCatFilter(); renderProducts(); renderCatList(); renderPromo();
+    // Apariencia es solo para superadmin: el cliente no debe poder tocar
+    // logo, colores, fuentes, modelo de página ni CSS personalizado.
+    document.getElementById('tabBtnApariencia').style.display = state.rol === 'admin' ? 'block' : 'none';
+    if (state.rol === 'admin') renderApariencia();
     // Mostrar tab toppings si el restaurante tiene atributos configurados
     const attr = state.restaurante?.atributos || {};
     const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
@@ -993,6 +997,7 @@ async function loadData() {
 
 // ── TABS ──────────────────────────────────────────────────────
 function switchTab(tab, btn) {
+  if (tab === 'apariencia' && state.rol !== 'admin') return;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings'].forEach(id=>{
