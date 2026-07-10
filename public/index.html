@@ -469,6 +469,7 @@
 			<div class="tabs">
 				<button class="tab-btn active" onclick="switchTab('productos',this)">Productos</button>
 				<button class="tab-btn" onclick="switchTab('categorias',this)">Categorías</button>
+				<button class="tab-btn" onclick="switchTab('apariencia',this)">Apariencia</button>
 				<button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
 				<button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
 			</div>
@@ -519,6 +520,128 @@
 							<div class="empty-state">Cargando...</div>
 						</div>
 					</div>
+				</div>
+
+				<!-- TAB APARIENCIA -->
+				<div id="tabApariencia" class="hidden">
+					<div class="section-card">
+						<div class="section-title">Colores</div>
+						<div class="color-row" style="margin-bottom:4px;">
+							<div class="form-group" style="margin-bottom:0">
+								<label class="form-label">Color primario</label>
+								<div class="color-input-wrap">
+									<div class="color-preview" id="apPrevColor1" style="background:#3dd68c"></div>
+									<input type="text" class="form-input" id="apColor1" maxlength="7"
+									oninput="document.getElementById('apPrevColor1').style.background=this.value">
+								</div>
+							</div>
+							<div class="form-group" style="margin-bottom:0">
+								<label class="form-label">Color secundario</label>
+								<div class="color-input-wrap">
+									<div class="color-preview" id="apPrevColor2" style="background:#a374af"></div>
+									<input type="text" class="form-input" id="apColor2" maxlength="7"
+									oninput="document.getElementById('apPrevColor2').style.background=this.value">
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Logo</div>
+						<div style="margin-bottom:12px;">
+							<img id="apLogoPreview" class="promo-img-preview" src="" style="display:none">
+							<span id="apLogoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin logo configurado</span>
+						</div>
+						<label class="upload-zone">
+							<input type="file" accept="image/*" onchange="handleLogoUpload(this)">
+							<div class="upload-zone-text">
+								<span>Haz clic para subir</span> el logo<br>
+								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · idealmente cuadrado</span>
+							</div>
+						</label>
+						<div id="apLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Imagen de fondo</div>
+						<div style="margin-bottom:12px;">
+							<img id="apFondoPreview" class="promo-img-preview" src="" style="display:none">
+							<span id="apFondoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin fondo configurado</span>
+						</div>
+						<label class="upload-zone">
+							<input type="file" accept="image/*" onchange="handleFondoUpload(this)">
+							<div class="upload-zone-text">
+								<span>Haz clic para subir</span> imagen de fondo<br>
+								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG</span>
+							</div>
+						</label>
+						<div id="apFondoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						<div class="form-group" style="margin-top:14px;margin-bottom:0">
+							<label class="form-label">Estilo del fondo</label>
+							<select class="form-select" id="apFondoTipo">
+								<option value="cover-fixed">Cubrir pantalla, fijo</option>
+								<option value="repeat-scroll">Repetir, con scroll</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Tipografía</div>
+						<div class="form-row">
+							<div class="form-group">
+								<label class="form-label">Fuente títulos <span style="color:var(--text-dim)">(nombre en Google Fonts)</span></label>
+								<input type="text" class="form-input" id="apFuenteTitulo" placeholder="Bebas Neue">
+							</div>
+							<div class="form-group">
+								<label class="form-label">Fuente cuerpo <span style="color:var(--text-dim)">(nombre en Google Fonts)</span></label>
+								<input type="text" class="form-input" id="apFuenteCuerpo" placeholder="Poppins">
+							</div>
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Modelo de página</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label class="form-label">Navegación</label>
+							<select class="form-select" id="apNavModelo">
+								<option value="topnav">Topnav — header centrado + menú horizontal</option>
+								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
+							</select>
+						</div>
+						<div class="form-group" style="margin-top:14px;margin-bottom:0">
+							<label class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(solo modelo topnav)</span></label>
+							<input type="text" class="form-input" id="apSubtitulo" placeholder="Carta Digital · 2026">
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-header">
+							<div class="section-title">Redes sociales</div>
+							<label class="toggle"><input type="checkbox" id="apSocialBar"><span class="toggle-slider"></span></label>
+						</div>
+						<div class="form-group">
+							<label class="form-label">Instagram <span style="color:var(--text-dim)">(URL completa)</span></label>
+							<input type="text" class="form-input" id="apSocialInstagram" placeholder="https://instagram.com/tu_restaurante">
+						</div>
+						<div class="form-group">
+							<label class="form-label">TikTok <span style="color:var(--text-dim)">(URL completa)</span></label>
+							<input type="text" class="form-input" id="apSocialTiktok" placeholder="https://tiktok.com/@tu_restaurante">
+						</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label class="form-label">WhatsApp <span style="color:var(--text-dim)">(solo número, con código de país)</span></label>
+							<input type="text" class="form-input" id="apSocialWhatsapp" placeholder="573001234567">
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">CSS personalizado <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(avanzado, casos especiales)</span></div>
+						<textarea class="form-textarea" id="apCssCustom" style="min-height:120px;font-family:var(--mono);font-size:11px;" placeholder=".hero-title { letter-spacing: 8px; }"></textarea>
+					</div>
+
+					<div style="text-align:right;">
+						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveApariencia()">Guardar apariencia</button>
+					</div>
+					<div id="apArienciaStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 				</div>
 
 				<!-- TAB TOPPINGS -->
@@ -834,7 +957,7 @@ async function loadData() {
     document.getElementById('topbarResto').textContent = state.restaurante.nombre.toUpperCase();
     state.categorias = await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
-    renderCatFilter(); renderProducts(); renderCatList(); renderPromo();
+    renderCatFilter(); renderProducts(); renderCatList(); renderPromo(); renderApariencia();
     // Mostrar tab toppings si el restaurante tiene atributos configurados
     const attr = state.restaurante?.atributos || {};
     const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
@@ -846,7 +969,7 @@ async function loadData() {
 function switchTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['tabProductos','tabCategorias','tabPromo','tabToppings'].forEach(id=>{
+  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
@@ -1335,6 +1458,94 @@ async function handlePromoUpload(input) {
     st.textContent='✓ Imagen actualizada'; st.style.color='var(--success)';
     showToast('Imagen de promo guardada','success');
   } catch(e) { st.textContent='Error al subir'; st.style.color='var(--danger)'; }
+}
+
+// ── APARIENCIA ────────────────────────────────────────────────
+function renderApariencia() {
+  const r = state.restaurante;
+  const at = r.atributos || {};
+
+  document.getElementById('apColor1').value = r.color_primario || '';
+  document.getElementById('apPrevColor1').style.background = r.color_primario || '#3dd68c';
+  document.getElementById('apColor2').value = r.color_secundario || '';
+  document.getElementById('apPrevColor2').style.background = r.color_secundario || '#a374af';
+
+  const logoPrev = document.getElementById('apLogoPreview');
+  const logoNone = document.getElementById('apLogoNone');
+  if (r.logo_url) { logoPrev.src = r.logo_url; logoPrev.style.display = 'block'; logoNone.style.display = 'none'; }
+  else { logoPrev.style.display = 'none'; logoNone.style.display = 'block'; }
+
+  const fondoPrev = document.getElementById('apFondoPreview');
+  const fondoNone = document.getElementById('apFondoNone');
+  if (r.fondo_url) { fondoPrev.src = r.fondo_url; fondoPrev.style.display = 'block'; fondoNone.style.display = 'none'; }
+  else { fondoPrev.style.display = 'none'; fondoNone.style.display = 'block'; }
+  document.getElementById('apFondoTipo').value = at.fondo_tipo || 'cover-fixed';
+
+  document.getElementById('apFuenteTitulo').value = at.fuente_titulo || '';
+  document.getElementById('apFuenteCuerpo').value = at.fuente_cuerpo || '';
+
+  document.getElementById('apNavModelo').value = at.nav || 'topnav';
+  document.getElementById('apSubtitulo').value = at.subtitulo || '';
+
+  document.getElementById('apSocialBar').checked = !!at.social_bar;
+  document.getElementById('apSocialInstagram').value = at.social_instagram || '';
+  document.getElementById('apSocialTiktok').value = at.social_tiktok || '';
+  document.getElementById('apSocialWhatsapp').value = at.social_whatsapp || '';
+
+  document.getElementById('apCssCustom').value = at.css_custom || '';
+}
+
+async function handleLogoUpload(input) {
+  const file = input.files[0]; if (!file) return;
+  const st = document.getElementById('apLogoUploadStatus');
+  st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
+  try {
+    const blob = await compressImage(file, 500, .9);
+    const url = await uploadImg(blob, 'logos');
+    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: url });
+    state.restaurante.logo_url = url; renderApariencia();
+    st.textContent = '✓ Logo actualizado'; st.style.color = 'var(--success)';
+    showToast('Logo guardado', 'success');
+  } catch (e) { st.textContent = 'Error al subir'; st.style.color = 'var(--danger)'; }
+}
+
+async function handleFondoUpload(input) {
+  const file = input.files[0]; if (!file) return;
+  const st = document.getElementById('apFondoUploadStatus');
+  st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
+  try {
+    const blob = await compressImage(file, 1600, .85);
+    const url = await uploadImg(blob, 'fondos');
+    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { fondo_url: url });
+    state.restaurante.fondo_url = url; renderApariencia();
+    st.textContent = '✓ Fondo actualizado'; st.style.color = 'var(--success)';
+    showToast('Fondo guardado', 'success');
+  } catch (e) { st.textContent = 'Error al subir'; st.style.color = 'var(--danger)'; }
+}
+
+async function saveApariencia() {
+  const color_primario = document.getElementById('apColor1').value.trim();
+  const color_secundario = document.getElementById('apColor2').value.trim();
+  const atributos = {
+    ...(state.restaurante.atributos || {}),
+    fondo_tipo: document.getElementById('apFondoTipo').value,
+    fuente_titulo: document.getElementById('apFuenteTitulo').value.trim(),
+    fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
+    nav: document.getElementById('apNavModelo').value,
+    subtitulo: document.getElementById('apSubtitulo').value.trim(),
+    social_bar: document.getElementById('apSocialBar').checked,
+    social_instagram: document.getElementById('apSocialInstagram').value.trim(),
+    social_tiktok: document.getElementById('apSocialTiktok').value.trim(),
+    social_whatsapp: document.getElementById('apSocialWhatsapp').value.trim(),
+    css_custom: document.getElementById('apCssCustom').value,
+  };
+  const st = document.getElementById('apArienciaStatus');
+  try {
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { color_primario, color_secundario, atributos });
+    state.restaurante = data;
+    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    showToast('Apariencia guardada', 'success');
+  } catch (e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; showToast('Error: ' + e.message, 'error'); }
 }
 
 // ── IMÁGENES ──────────────────────────────────────────────────
