@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const multer  = require('multer');
 const jwt     = require('jsonwebtoken');
+const bcrypt  = require('bcryptjs');
 const cors    = require('cors');
 const path    = require('path');
 const fs      = require('fs');
@@ -61,18 +62,20 @@ function canAccessRestaurante(user, restauranteId) {
 app.post('/api/login', async (req, res) => {
   const { slug, pin } = req.body;
   if (!slug || !pin) return res.status(400).json({ error: 'Faltan datos' });
-  const envKey = `PIN_${slug.toUpperCase().replace(/-/g, '_')}`;
-  if (!process.env[envKey] || pin !== process.env[envKey])
-    return res.status(401).json({ error: 'Credenciales incorrectas' });
-  const rol = slug === 'admin' ? 'admin' : 'cliente';
-  let restauranteId = null;
-  if (rol === 'cliente') {
-    const { data } = await supabase.from('restaurantes').select('id').eq('slug', slug).single();
-    if (!data) return res.status(404).json({ error: 'Restaurante no encontrado' });
-    restauranteId = data.id;
+
+  if (slug === 'admin') {
+    if (!process.env.PIN_ADMIN || pin !== process.env.PIN_ADMIN)
+      return res.status(401).json({ error: 'Credenciales incorrectas' });
+    const token = jwt.sign({ slug, rol: 'admin', restauranteId: null }, process.env.JWT_SECRET, { expiresIn: '8h' });
+    return res.json({ token, rol: 'admin', restauranteId: null });
   }
-  const token = jwt.sign({ slug, rol, restauranteId }, process.env.JWT_SECRET, { expiresIn: '8h' });
-  res.json({ token, rol, restauranteId });
+
+  const { data } = await supabase.from('restaurantes').select('id, pin_hash').eq('slug', slug).single();
+  if (!data || !data.pin_hash || !(await bcrypt.compare(pin, data.pin_hash)))
+    return res.status(401).json({ error: 'Credenciales incorrectas' });
+
+  const token = jwt.sign({ slug, rol: 'cliente', restauranteId: data.id }, process.env.JWT_SECRET, { expiresIn: '8h' });
+  res.json({ token, rol: 'cliente', restauranteId: data.id });
 });
 
 // ── RESTAURANTES ──────────────────────────────────────────────
@@ -81,18 +84,31 @@ app.get('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol === 'cliente') q = q.eq('id', req.user.restauranteId);
   const { data, error } = await q;
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(data.map(({ pin_hash, ...r }) => r));
 });
 
 app.post('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
-  const { nombre, slug, color_primario, color_secundario, activo } = req.body;
+  const { nombre, slug, color_primario, color_secundario, activo, pin } = req.body;
   if (!nombre || !slug) return res.status(400).json({ error: 'Nombre y slug requeridos' });
+  if (!pin || pin.length < 4) return res.status(400).json({ error: 'PIN requerido (mínimo 4 caracteres)' });
+  const pin_hash = await bcrypt.hash(pin, 10);
   const { data, error } = await supabase.from('restaurantes')
-    .insert([{ nombre, slug, color_primario: color_primario||'#3dd68c', color_secundario: color_secundario||'#a374af', activo: activo!==false, promo_activa: false }])
+    .insert([{ nombre, slug, color_primario: color_primario||'#3dd68c', color_secundario: color_secundario||'#a374af', activo: activo!==false, promo_activa: false, pin_hash }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  const { pin_hash: _omit, ...safe } = data;
+  res.json(safe);
+});
+
+app.patch('/api/restaurantes/:id/pin', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  const { pin } = req.body;
+  if (!pin || pin.length < 4) return res.status(400).json({ error: 'PIN requerido (mínimo 4 caracteres)' });
+  const pin_hash = await bcrypt.hash(pin, 10);
+  const { error } = await supabase.from('restaurantes').update({ pin_hash }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
 });
 
 app.patch('/api/restaurantes/:id', auth, async (req, res) => {
@@ -102,7 +118,8 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
   const { data, error } = await supabase.from('restaurantes').update(body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  const { pin_hash, ...safe } = data;
+  res.json(safe);
 });
 
 // ── CATEGORÍAS ────────────────────────────────────────────────
