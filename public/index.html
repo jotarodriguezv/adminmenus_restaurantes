@@ -591,6 +591,26 @@
 					</div>
 
 					<div class="section-card">
+						<div class="section-title">Color de fondo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(se usa solo si no hay imagen de fondo arriba)</span></div>
+						<div class="form-group" style="margin-bottom:14px">
+							<label class="form-label">Color</label>
+							<div class="color-input-wrap">
+								<div class="color-preview" id="apPrevFondoColor" style="background:#0a0a0f"></div>
+								<input type="text" class="form-input" id="apFondoColor" maxlength="7" placeholder="#0a0a0f"
+								oninput="document.getElementById('apPrevFondoColor').style.background=this.value">
+							</div>
+						</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label class="form-label">Intensidad</label>
+							<select class="form-select" id="apFondoIntensidad">
+								<option value="solido">Sólido (color plano)</option>
+								<option value="sutil">Degradado sutil</option>
+								<option value="marcado">Degradado marcado</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="section-card">
 						<div class="section-title">Tipografía</div>
 						<div class="form-row">
 							<div class="form-group">
@@ -1535,6 +1555,9 @@ function renderApariencia() {
   if (r.fondo_url) { fondoPrev.src = r.fondo_url; fondoPrev.style.display = 'block'; fondoNone.style.display = 'none'; }
   else { fondoPrev.style.display = 'none'; fondoNone.style.display = 'block'; }
   document.getElementById('apFondoTipo').value = at.fondo_tipo || 'cover-fixed';
+  document.getElementById('apFondoColor').value = at.fondo_color || '#0a0a0f';
+  document.getElementById('apPrevFondoColor').style.background = at.fondo_color || '#0a0a0f';
+  document.getElementById('apFondoIntensidad').value = at.fondo_intensidad || 'solido';
 
   document.getElementById('apFuenteTitulo').value = at.fuente_titulo || '';
   document.getElementById('apFuenteCuerpo').value = at.fuente_cuerpo || '';
@@ -1585,6 +1608,8 @@ async function saveApariencia() {
   const atributos = {
     ...(state.restaurante.atributos || {}),
     fondo_tipo: document.getElementById('apFondoTipo').value,
+    fondo_color: document.getElementById('apFondoColor').value.trim() || '#0a0a0f',
+    fondo_intensidad: document.getElementById('apFondoIntensidad').value,
     fuente_titulo: document.getElementById('apFuenteTitulo').value.trim(),
     fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
     nav: document.getElementById('apNavModelo').value,
