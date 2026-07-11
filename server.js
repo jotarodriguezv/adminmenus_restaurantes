@@ -114,7 +114,7 @@ app.patch('/api/restaurantes/:id/pin', auth, async (req, res) => {
 // Campos de nivel superior que cada rol puede tocar en un restaurante.
 // El cliente NUNCA debe poder cambiar marca/estructura (eso es Apariencia,
 // oculta en la UI pero antes también alcanzable a mano por API).
-const CAMPOS_RESTAURANTE_ADMIN   = ['promo_activa', 'promo_imagen_url', 'color_primario', 'color_secundario', 'nombre', 'logo_url', 'fondo_url', 'activo', 'atributos'];
+const CAMPOS_RESTAURANTE_ADMIN   = ['promo_activa', 'promo_imagen_url', 'color_primario', 'color_secundario', 'nombre', 'slug', 'logo_url', 'fondo_url', 'activo', 'atributos'];
 const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'atributos'];
 // Dentro de "atributos" (JSON libre), el cliente solo puede tocar estas claves
 // (toppings y el WhatsApp de pedidos). nav, fuentes, redes, css_custom, etc. quedan fuera.
@@ -126,6 +126,13 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
 
   const permitidos = req.user.rol === 'admin' ? CAMPOS_RESTAURANTE_ADMIN : CAMPOS_RESTAURANTE_CLIENTE;
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
+
+  if (body.slug) {
+    if (!/^[a-z0-9-]+$/.test(body.slug))
+      return res.status(400).json({ error: 'Slug inválido: solo minúsculas, números y guiones' });
+    const { data: choque } = await supabase.from('restaurantes').select('id').eq('slug', body.slug).neq('id', req.params.id).maybeSingle();
+    if (choque) return res.status(409).json({ error: 'Ese slug ya está en uso por otro restaurante' });
+  }
 
   if (body.atributos && req.user.rol !== 'admin') {
     // Nunca confiar en el objeto "atributos" completo que manda el cliente:
