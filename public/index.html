@@ -626,6 +626,10 @@
 							<label class="toggle"><input type="checkbox" id="apSocialBar"><span class="toggle-slider"></span></label>
 						</div>
 						<div class="form-group">
+							<label class="form-label">Facebook <span style="color:var(--text-dim)">(URL completa)</span></label>
+							<input type="text" class="form-input" id="apSocialFacebook" placeholder="https://facebook.com/tu_restaurante">
+						</div>
+						<div class="form-group">
 							<label class="form-label">Instagram <span style="color:var(--text-dim)">(URL completa)</span></label>
 							<input type="text" class="form-input" id="apSocialInstagram" placeholder="https://instagram.com/tu_restaurante">
 						</div>
@@ -1539,6 +1543,7 @@ function renderApariencia() {
   document.getElementById('apSubtitulo').value = at.subtitulo || '';
 
   document.getElementById('apSocialBar').checked = !!at.social_bar;
+  document.getElementById('apSocialFacebook').value = at.social_facebook || '';
   document.getElementById('apSocialInstagram').value = at.social_instagram || '';
   document.getElementById('apSocialTiktok').value = at.social_tiktok || '';
   document.getElementById('apSocialWhatsapp').value = at.social_whatsapp || '';
@@ -1585,6 +1590,7 @@ async function saveApariencia() {
     nav: document.getElementById('apNavModelo').value,
     subtitulo: document.getElementById('apSubtitulo').value.trim(),
     social_bar: document.getElementById('apSocialBar').checked,
+    social_facebook: document.getElementById('apSocialFacebook').value.trim(),
     social_instagram: document.getElementById('apSocialInstagram').value.trim(),
     social_tiktok: document.getElementById('apSocialTiktok').value.trim(),
     social_whatsapp: document.getElementById('apSocialWhatsapp').value.trim(),
