@@ -783,6 +783,94 @@
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="savePedidos()">Guardar</button>
 					</div>
 					<div id="pedidosStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+
+					<div class="section-card">
+						<div class="section-title">Métodos de pago</div>
+
+						<div class="form-check" style="margin-bottom:0">
+							<label class="toggle"><input type="checkbox" id="mpEfectivo"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Efectivo</span>
+						</div>
+						<div class="form-check" style="margin-top:10px;margin-bottom:0">
+							<label class="toggle"><input type="checkbox" id="mpTarjeta"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Tarjeta (datáfono al entregar)</span>
+						</div>
+
+						<div style="border-top:1px solid var(--border);margin:16px 0;"></div>
+
+						<div class="form-check" style="margin-bottom:10px">
+							<label class="toggle"><input type="checkbox" id="mpNequiActivo" onchange="document.getElementById('mpNequiCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Nequi</span>
+						</div>
+						<div id="mpNequiCampos" style="display:none;margin-bottom:16px;">
+							<div class="form-row">
+								<div class="form-group" style="margin-bottom:0">
+									<label class="form-label">Teléfono</label>
+									<input type="text" class="form-input" id="mpNequiTelefono" placeholder="3001234567">
+								</div>
+								<div class="form-group" style="margin-bottom:0">
+									<label class="form-label">Nombre del titular</label>
+									<input type="text" class="form-input" id="mpNequiTitular" placeholder="Juan Pérez">
+								</div>
+							</div>
+						</div>
+
+						<div class="form-check" style="margin-bottom:10px">
+							<label class="toggle"><input type="checkbox" id="mpDaviplataActivo" onchange="document.getElementById('mpDaviplataCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Daviplata</span>
+						</div>
+						<div id="mpDaviplataCampos" style="display:none;margin-bottom:16px;">
+							<div class="form-row">
+								<div class="form-group" style="margin-bottom:0">
+									<label class="form-label">Teléfono</label>
+									<input type="text" class="form-input" id="mpDaviplataTelefono" placeholder="3001234567">
+								</div>
+								<div class="form-group" style="margin-bottom:0">
+									<label class="form-label">Nombre del titular</label>
+									<input type="text" class="form-input" id="mpDaviplataTitular" placeholder="Juan Pérez">
+								</div>
+							</div>
+						</div>
+
+						<div class="form-check" style="margin-bottom:10px">
+							<label class="toggle"><input type="checkbox" id="mpBancolombiaActivo" onchange="document.getElementById('mpBancolombiaCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Transferencia bancaria</span>
+						</div>
+						<div id="mpBancolombiaCampos" style="display:none;margin-bottom:16px;">
+							<div class="form-row">
+								<div class="form-group">
+									<label class="form-label">Número de cuenta</label>
+									<input type="text" class="form-input" id="mpBancolombiaNumero" placeholder="1234567890">
+								</div>
+								<div class="form-group">
+									<label class="form-label">Tipo de cuenta</label>
+									<select class="form-select" id="mpBancolombiaTipo">
+										<option value="ahorros">Ahorros</option>
+										<option value="corriente">Corriente</option>
+									</select>
+								</div>
+							</div>
+							<div class="form-group" style="margin-bottom:0">
+								<label class="form-label">Nombre del titular</label>
+								<input type="text" class="form-input" id="mpBancolombiaTitular" placeholder="Juan Pérez">
+							</div>
+						</div>
+
+						<div class="form-check" style="margin-bottom:10px">
+							<label class="toggle"><input type="checkbox" id="mpBrebActivo" onchange="document.getElementById('mpBrebCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Llave Bre-B</span>
+						</div>
+						<div id="mpBrebCampos" style="display:none;margin-bottom:0;">
+							<div class="form-group" style="margin-bottom:0">
+								<label class="form-label">Llave Bre-B</label>
+								<input type="text" class="form-input" id="mpBrebLlave" placeholder="Número, celular o llave alfanumérica">
+							</div>
+						</div>
+					</div>
+					<div style="text-align:right;">
+						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveMetodosPago()">Guardar métodos de pago</button>
+					</div>
+					<div id="mpStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 				</div>
 			</div>
 		</div>
@@ -1074,7 +1162,7 @@ async function loadData() {
     const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
     document.getElementById('tabBtnToppings').style.display = (esCarrito || hasToppings) ? 'block' : 'none';
     document.getElementById('tabBtnPedidos').style.display = esCarrito ? 'block' : 'none';
-    if (esCarrito) renderPedidos();
+    if (esCarrito) { renderPedidos(); renderMetodosPago(); }
   } catch(e) { showToast('Error cargando datos','error'); }
 }
 
@@ -1875,6 +1963,72 @@ async function savePedidos() {
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     showToast('Número de pedidos guardado', 'success');
   } catch(e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; }
+}
+
+// ── MÉTODOS DE PAGO (modelo carrito) ───────────────────────────
+function renderMetodosPago() {
+  const mp = state.restaurante.atributos?.metodos_pago || {};
+
+  document.getElementById('mpEfectivo').checked = mp.efectivo?.activo !== false;
+  document.getElementById('mpTarjeta').checked = !!mp.tarjeta?.activo;
+
+  document.getElementById('mpNequiActivo').checked = !!mp.nequi?.activo;
+  document.getElementById('mpNequiTelefono').value = mp.nequi?.telefono || '';
+  document.getElementById('mpNequiTitular').value = mp.nequi?.titular || '';
+  document.getElementById('mpNequiCampos').style.display = mp.nequi?.activo ? 'block' : 'none';
+
+  document.getElementById('mpDaviplataActivo').checked = !!mp.daviplata?.activo;
+  document.getElementById('mpDaviplataTelefono').value = mp.daviplata?.telefono || '';
+  document.getElementById('mpDaviplataTitular').value = mp.daviplata?.titular || '';
+  document.getElementById('mpDaviplataCampos').style.display = mp.daviplata?.activo ? 'block' : 'none';
+
+  document.getElementById('mpBancolombiaActivo').checked = !!mp.bancolombia?.activo;
+  document.getElementById('mpBancolombiaNumero').value = mp.bancolombia?.numero_cuenta || '';
+  document.getElementById('mpBancolombiaTipo').value = mp.bancolombia?.tipo_cuenta || 'ahorros';
+  document.getElementById('mpBancolombiaTitular').value = mp.bancolombia?.titular || '';
+  document.getElementById('mpBancolombiaCampos').style.display = mp.bancolombia?.activo ? 'block' : 'none';
+
+  document.getElementById('mpBrebActivo').checked = !!mp.breb?.activo;
+  document.getElementById('mpBrebLlave').value = mp.breb?.llave || '';
+  document.getElementById('mpBrebCampos').style.display = mp.breb?.activo ? 'block' : 'none';
+}
+
+async function saveMetodosPago() {
+  const metodos_pago = {
+    efectivo: { activo: document.getElementById('mpEfectivo').checked },
+    tarjeta: { activo: document.getElementById('mpTarjeta').checked },
+    nequi: {
+      activo: document.getElementById('mpNequiActivo').checked,
+      telefono: document.getElementById('mpNequiTelefono').value.trim(),
+      titular: document.getElementById('mpNequiTitular').value.trim()
+    },
+    daviplata: {
+      activo: document.getElementById('mpDaviplataActivo').checked,
+      telefono: document.getElementById('mpDaviplataTelefono').value.trim(),
+      titular: document.getElementById('mpDaviplataTitular').value.trim()
+    },
+    bancolombia: {
+      activo: document.getElementById('mpBancolombiaActivo').checked,
+      numero_cuenta: document.getElementById('mpBancolombiaNumero').value.trim(),
+      tipo_cuenta: document.getElementById('mpBancolombiaTipo').value,
+      titular: document.getElementById('mpBancolombiaTitular').value.trim()
+    },
+    breb: {
+      activo: document.getElementById('mpBrebActivo').checked,
+      llave: document.getElementById('mpBrebLlave').value.trim()
+    }
+  };
+  const atributos = { ...(state.restaurante.atributos || {}), metodos_pago };
+  const st = document.getElementById('mpStatus');
+  try {
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
+    state.restaurante = data;
+    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    showToast('Métodos de pago guardados', 'success');
+  } catch (e) {
+    st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)';
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 // ── FUNCIONES SUPERADMIN ─────────────────────────────────────
