@@ -734,6 +734,7 @@
 					</div>
 
 					<div style="text-align:right;">
+						<button class="btn-cancel" style="width:auto;padding:11px 20px;" onclick="abrirVistaPrevia()">👁 Vista previa (sin guardar)</button>
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveApariencia()">Guardar apariencia</button>
 					</div>
 					<div id="apArienciaStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
@@ -1803,27 +1804,35 @@ async function handleFondoUpload(input) {
   } catch (e) { st.textContent = 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
 
-async function saveApariencia() {
-  const color_primario = document.getElementById('apColor1').value.trim();
-  const color_secundario = document.getElementById('apColor2').value.trim();
-  const atributos = {
-    ...(state.restaurante.atributos || {}),
-    color_surface: document.getElementById('apColorSurface').value.trim(),
-    color_card: document.getElementById('apColorCard').value.trim(),
-    fondo_tipo: document.getElementById('apFondoTipo').value,
-    fondo_color: document.getElementById('apFondoColor').value.trim() || '#0a0a0f',
-    fondo_intensidad: document.getElementById('apFondoIntensidad').value,
-    fuente_titulo: document.getElementById('apFuenteTitulo').value.trim(),
-    fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
-    nav: document.getElementById('apNavModelo').value,
-    subtitulo: document.getElementById('apSubtitulo').value.trim(),
-    social_bar: document.getElementById('apSocialBar').checked,
-    social_facebook: document.getElementById('apSocialFacebook').value.trim(),
-    social_instagram: document.getElementById('apSocialInstagram').value.trim(),
-    social_tiktok: document.getElementById('apSocialTiktok').value.trim(),
-    social_whatsapp: document.getElementById('apSocialWhatsapp').value.trim(),
-    css_custom: document.getElementById('apCssCustom').value,
+// Recolecta lo que hay en el formulario de Apariencia sin guardar nada —
+// lo usan tanto saveApariencia() como la vista previa.
+function recolectarApariencia() {
+  return {
+    color_primario: document.getElementById('apColor1').value.trim(),
+    color_secundario: document.getElementById('apColor2').value.trim(),
+    atributos: {
+      ...(state.restaurante.atributos || {}),
+      color_surface: document.getElementById('apColorSurface').value.trim(),
+      color_card: document.getElementById('apColorCard').value.trim(),
+      fondo_tipo: document.getElementById('apFondoTipo').value,
+      fondo_color: document.getElementById('apFondoColor').value.trim() || '#0a0a0f',
+      fondo_intensidad: document.getElementById('apFondoIntensidad').value,
+      fuente_titulo: document.getElementById('apFuenteTitulo').value.trim(),
+      fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
+      nav: document.getElementById('apNavModelo').value,
+      subtitulo: document.getElementById('apSubtitulo').value.trim(),
+      social_bar: document.getElementById('apSocialBar').checked,
+      social_facebook: document.getElementById('apSocialFacebook').value.trim(),
+      social_instagram: document.getElementById('apSocialInstagram').value.trim(),
+      social_tiktok: document.getElementById('apSocialTiktok').value.trim(),
+      social_whatsapp: document.getElementById('apSocialWhatsapp').value.trim(),
+      css_custom: document.getElementById('apCssCustom').value,
+    }
   };
+}
+
+async function saveApariencia() {
+  const { color_primario, color_secundario, atributos } = recolectarApariencia();
   const st = document.getElementById('apArienciaStatus');
   try {
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { color_primario, color_secundario, atributos });
@@ -1831,6 +1840,16 @@ async function saveApariencia() {
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     showToast('Apariencia guardada', 'success');
   } catch (e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── VISTA PREVIA (sin guardar) ─────────────────────────────────
+// Cambia esto si tu dominio público cambia alguna vez.
+const VMENUS_PUBLIC_URL = 'https://menu.vmenus.co';
+
+function abrirVistaPrevia() {
+  const draft = recolectarApariencia();
+  const url = `${VMENUS_PUBLIC_URL}/${state.restaurante.slug}?preview=${encodeURIComponent(JSON.stringify(draft))}`;
+  window.open(url, '_blank');
 }
 
 // ── IMÁGENES ──────────────────────────────────────────────────
