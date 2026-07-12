@@ -87,14 +87,27 @@ app.get('/api/restaurantes', auth, async (req, res) => {
   res.json(data.map(({ pin_hash, ...r }) => r));
 });
 
+// Al clonar apariencia de otro restaurante, solo se copian estas claves de
+// "atributos" (look & feel puro). Nunca pagos, redes, contenido ni PIN.
+const ATRIBUTOS_CLONABLES = ['nav', 'fuente_titulo', 'fuente_cuerpo', 'color_surface', 'color_card', 'fondo_tipo', 'fondo_color', 'fondo_intensidad', 'css_custom'];
+
 app.post('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
-  const { nombre, slug, color_primario, color_secundario, activo, pin } = req.body;
+  const { nombre, slug, color_primario, color_secundario, activo, pin, clonar_de } = req.body;
   if (!nombre || !slug) return res.status(400).json({ error: 'Nombre y slug requeridos' });
   if (!pin || pin.length < 4) return res.status(400).json({ error: 'PIN requerido (mínimo 4 caracteres)' });
   const pin_hash = await bcrypt.hash(pin, 10);
+
+  let atributos = {};
+  if (clonar_de) {
+    const { data: origen } = await supabase.from('restaurantes').select('atributos').eq('id', clonar_de).single();
+    if (origen?.atributos) {
+      atributos = Object.fromEntries(Object.entries(origen.atributos).filter(([k]) => ATRIBUTOS_CLONABLES.includes(k)));
+    }
+  }
+
   const { data, error } = await supabase.from('restaurantes')
-    .insert([{ nombre, slug, color_primario: color_primario||'#3dd68c', color_secundario: color_secundario||'#a374af', activo: activo!==false, promo_activa: false, pin_hash }])
+    .insert([{ nombre, slug, color_primario: color_primario||'#3dd68c', color_secundario: color_secundario||'#a374af', activo: activo!==false, promo_activa: false, pin_hash, atributos }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   const { pin_hash: _omit, ...safe } = data;
