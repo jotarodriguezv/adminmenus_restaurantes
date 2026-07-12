@@ -258,5 +258,74 @@ app.delete('/api/upload/:folder/:filename', auth, (req, res) => {
   res.status(404).json({ error: 'Archivo no encontrado' });
 });
 
+// ── ANALÍTICA ─────────────────────────────────────────────────
+// Registro de eventos: sin auth (lo llama el sitio público, que no
+// tiene credenciales). Solo inserta, nunca lee.
+app.post('/api/track', async (req, res) => {
+  const { restaurante_id, tipo, producto_id } = req.body;
+  if (!restaurante_id || !['visita', 'clic'].includes(tipo))
+    return res.status(400).json({ error: 'Datos inválidos' });
+  if (tipo === 'clic' && !producto_id)
+    return res.status(400).json({ error: 'Falta producto_id' });
+  const { error } = await supabase.from('eventos_analitica')
+    .insert([{ restaurante_id, tipo, producto_id: producto_id || null }]);
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(204).end();
+});
+
+// Consulta agregada: sí requiere auth y respeta el mismo control de acceso
+// que el resto (un cliente solo ve sus propias estadísticas).
+app.get('/api/estadisticas', auth, async (req, res) => {
+  const { restaurante_id, desde, hasta } = req.query;
+  if (!restaurante_id || !desde || !hasta) return res.status(400).json({ error: 'Faltan parámetros' });
+  if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+
+  const desdeInicio = `${desde}T00:00:00`;
+  const hastaFin = `${hasta}T23:59:59`;
+
+  const [visitasRes, clicsRes] = await Promise.all([
+    supabase.from('eventos_analitica').select('created_at')
+      .eq('restaurante_id', restaurante_id).eq('tipo', 'visita')
+      .gte('created_at', desdeInicio).lte('created_at', hastaFin),
+    supabase.from('eventos_analitica').select('producto_id, created_at')
+      .eq('restaurante_id', restaurante_id).eq('tipo', 'clic')
+      .gte('created_at', desdeInicio).lte('created_at', hastaFin)
+  ]);
+  if (visitasRes.error) return res.status(500).json({ error: visitasRes.error.message });
+  if (clicsRes.error) return res.status(500).json({ error: clicsRes.error.message });
+  const visitas = visitasRes.data;
+  const clics = clicsRes.data;
+
+  const visitasPorDia = {};
+  visitas.forEach(v => {
+    const dia = v.created_at.slice(0, 10);
+    visitasPorDia[dia] = (visitasPorDia[dia] || 0) + 1;
+  });
+
+  const clicsPorProducto = {};
+  clics.forEach(c => {
+    if (!c.producto_id) return;
+    clicsPorProducto[c.producto_id] = (clicsPorProducto[c.producto_id] || 0) + 1;
+  });
+
+  let nombres = {};
+  const productIds = Object.keys(clicsPorProducto);
+  if (productIds.length) {
+    const { data: prods } = await supabase.from('productos').select('id, nombre').in('id', productIds);
+    (prods || []).forEach(p => { nombres[p.id] = p.nombre; });
+  }
+  const rankingProductos = Object.entries(clicsPorProducto)
+    .map(([producto_id, clics]) => ({ producto_id, nombre: nombres[producto_id] || '(producto eliminado)', clics }))
+    .sort((a, b) => b.clics - a.clics);
+
+  res.json({
+    totalVisitas: visitas.length,
+    totalClics: clics.length,
+    tasaInteraccion: visitas.length ? +(clics.length / visitas.length * 100).toFixed(1) : 0,
+    visitasPorDia,
+    rankingProductos
+  });
+});
+
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.listen(PORT, () => console.log(`✅ Panel corriendo en puerto ${PORT}`));
