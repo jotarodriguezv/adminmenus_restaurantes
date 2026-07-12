@@ -423,6 +423,12 @@
 							oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'-')">
 						</div>
 					</div>
+					<div class="form-group" style="margin-bottom:16px;">
+						<label class="form-label">Copiar apariencia de <span style="color:var(--text-dim)">(opcional — colores, fuentes, modelo de página, fondo. Nunca copia logo, pagos, redes ni contenido)</span></label>
+						<select class="form-select" id="newRestoClonar" onchange="aplicarClonPreview(this.value)">
+							<option value="">Ninguno — empezar en blanco</option>
+						</select>
+					</div>
 					<div class="color-row" style="margin-bottom:16px;">
 						<div class="form-group" style="margin-bottom:0">
 							<label class="form-label">Color primario</label>
@@ -2066,6 +2072,14 @@ async function cargarListaRestos() {
     const restos=await apiFetch('GET','/api/restaurantes');
     if(!restos||!restos.length){list.innerHTML='<div class="empty-state">Sin restaurantes</div>';return;}
     list.innerHTML='';
+    state.listaRestos = restos;
+    const clonarSelect = document.getElementById('newRestoClonar');
+    clonarSelect.innerHTML = '<option value="">Ninguno — empezar en blanco</option>';
+    restos.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id; opt.textContent = r.nombre;
+      clonarSelect.appendChild(opt);
+    });
     restos.forEach(r=>{
       const card=document.createElement('div'); card.className='resto-card';
       const activo=r.activo!==false; // null o true = activo
@@ -2108,12 +2122,25 @@ async function toggleSuspension(id, nuevoActivo, nombre) {
   } catch(e) { showToast('Error al cambiar estado','error'); }
 }
 
+function aplicarClonPreview(id) {
+  if (!id) return;
+  const origen = (state.listaRestos || []).find(r => r.id === id);
+  if (!origen) return;
+  const c1 = origen.color_primario || '#3dd68c';
+  const c2 = origen.color_secundario || '#a374af';
+  document.getElementById('newRestoColor1').value = c1;
+  document.getElementById('prevColor1').style.background = c1;
+  document.getElementById('newRestoColor2').value = c2;
+  document.getElementById('prevColor2').style.background = c2;
+}
+
 async function crearRestaurante() {
   const nombre=document.getElementById('newRestoNombre').value.trim();
   const slug=document.getElementById('newRestoSlug').value.trim();
   const color1=document.getElementById('newRestoColor1').value.trim();
   const color2=document.getElementById('newRestoColor2').value.trim();
   const pin=document.getElementById('newRestoPin').value.trim();
+  const clonar_de=document.getElementById('newRestoClonar').value || undefined;
   const status=document.getElementById('newRestoStatus');
 
   if(!nombre||!slug){status.textContent='Nombre y slug son obligatorios';status.style.color='var(--danger)';return;}
@@ -2122,11 +2149,12 @@ async function crearRestaurante() {
 
   status.textContent='Creando...'; status.style.color='var(--text-muted)';
   try {
-    await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin});
+    await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de});
     status.textContent='✓ Restaurante creado correctamente'; status.style.color='var(--success)';
     document.getElementById('newRestoNombre').value='';
     document.getElementById('newRestoSlug').value='';
     document.getElementById('newRestoPin').value='';
+    document.getElementById('newRestoClonar').value='';
     showToast('Restaurante creado','success');
     await cargarListaRestos();
   } catch(e) { status.textContent='Error: '+e.message; status.style.color='var(--danger)'; }
