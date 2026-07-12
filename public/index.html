@@ -486,6 +486,7 @@
 				<button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
 				<button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
 				<button class="tab-btn" id="tabBtnPedidos" onclick="switchTab('pedidos',this)" style="display:none">Pedidos</button>
+				<button class="tab-btn" onclick="switchTab('estadisticas',this)">Estadísticas</button>
 			</div>
 			<div class="content">
 
@@ -906,6 +907,41 @@
 					</div>
 					<div id="mpStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 				</div>
+
+				<!-- TAB ESTADÍSTICAS -->
+				<div id="tabEstadisticas" class="hidden">
+					<div class="section-card">
+						<div class="section-title">Rango de fechas</div>
+						<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+							<button class="cat-chip" data-rango="hoy" onclick="seleccionarRango('hoy')">Hoy</button>
+							<button class="cat-chip" data-rango="7" onclick="seleccionarRango('7')">7 días</button>
+							<button class="cat-chip" data-rango="30" onclick="seleccionarRango('30')">30 días</button>
+							<button class="cat-chip" data-rango="todo" onclick="seleccionarRango('todo')">Todo</button>
+							<span style="color:var(--text-dim);font-size:11px;margin-left:6px;">o rango libre:</span>
+							<input type="date" class="form-input" id="estDesde" style="width:auto;padding:7px 10px;font-size:12px;" onchange="seleccionarRango('custom')">
+							<span style="color:var(--text-dim);">–</span>
+							<input type="date" class="form-input" id="estHasta" style="width:auto;padding:7px 10px;font-size:12px;" onchange="seleccionarRango('custom')">
+						</div>
+					</div>
+
+					<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;" id="estKpis"></div>
+
+					<div class="section-card">
+						<div class="section-title">Visitas por día</div>
+						<div id="estChartVisitas"></div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-header">
+							<div class="section-title">Productos con más clics</div>
+							<div style="display:flex;gap:6px;">
+								<button class="btn-sm" id="btnVistaGrafica" onclick="cambiarVistaRanking('grafica')">Gráfica</button>
+								<button class="btn-sm accent" id="btnVistaLista" onclick="cambiarVistaRanking('lista')">Lista</button>
+							</div>
+						</div>
+						<div id="estRankingContenido"></div>
+					</div>
+				</div>
 			</div>
 		</div>
 
@@ -1177,6 +1213,7 @@ async function enterApp() {
 }
 
 async function loadData() {
+  estadisticasCargadas = false;
   try {
     const restos = await apiFetch('GET','/api/restaurantes');
     if (!restos) return;
@@ -1205,10 +1242,11 @@ function switchTab(tab, btn) {
   if (tab === 'apariencia' && state.rol !== 'admin') return;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos'].forEach(id=>{
+  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabEstadisticas'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
+  if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
 }
 
 // ── FILTRO ────────────────────────────────────────────────────
@@ -1920,6 +1958,115 @@ function showToast(msg,type='info') {
   const t=document.getElementById('toast');
   t.textContent=msg; t.className=`toast ${type} show`;
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── ESTADÍSTICAS ────────────────────────────────────────────────
+let estadisticasCargadas = false;
+let estadoRango = { tipo: '7', desde: null, hasta: null };
+let vistaRanking = 'lista';
+let ultimaEstadistica = null;
+
+function fmtISO(d) { return d.toISOString().slice(0, 10); }
+
+function seleccionarRango(tipo) {
+  const hoy = new Date();
+  if (tipo === 'custom') {
+    const desde = document.getElementById('estDesde').value;
+    const hasta = document.getElementById('estHasta').value;
+    if (!desde || !hasta) return;
+    estadoRango = { tipo: 'custom', desde, hasta };
+  } else {
+    let desde;
+    if (tipo === 'hoy') desde = new Date(hoy);
+    else if (tipo === 'todo') desde = new Date(2020, 0, 1);
+    else { desde = new Date(hoy); desde.setDate(desde.getDate() - (parseInt(tipo, 10) - 1)); }
+    estadoRango = { tipo, desde: fmtISO(desde), hasta: fmtISO(hoy) };
+    document.getElementById('estDesde').value = estadoRango.desde;
+    document.getElementById('estHasta').value = estadoRango.hasta;
+  }
+  document.querySelectorAll('#tabEstadisticas .cat-chip').forEach(c => c.classList.toggle('active', c.dataset.rango === estadoRango.tipo));
+  cargarEstadisticas();
+}
+
+async function cargarEstadisticas() {
+  try {
+    const data = await apiFetch('GET', `/api/estadisticas?restaurante_id=${state.restaurante.id}&desde=${estadoRango.desde}&hasta=${estadoRango.hasta}`);
+    ultimaEstadistica = data;
+    renderKpis(data);
+    renderGraficaVisitas(data.visitasPorDia, estadoRango.desde, estadoRango.hasta);
+    renderRanking(data.rankingProductos);
+  } catch (e) { showToast('Error cargando estadísticas', 'error'); }
+}
+
+function renderKpis(data) {
+  const tile = (label, valor, color) => `
+    <div class="section-card" style="text-align:center;padding:18px;">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">${label}</div>
+      <div style="font-size:28px;font-weight:700;color:${color};">${valor}</div>
+    </div>`;
+  document.getElementById('estKpis').innerHTML =
+    tile('Visitas', data.totalVisitas.toLocaleString('es-CO'), 'var(--text)') +
+    tile('Clics en productos', data.totalClics.toLocaleString('es-CO'), 'var(--text)') +
+    tile('Tasa de interacción', data.tasaInteraccion + '%', 'var(--accent)');
+}
+
+function renderGraficaVisitas(visitasPorDia, desde, hasta) {
+  const dias = [];
+  let cur = new Date(desde + 'T00:00:00');
+  const fin = new Date(hasta + 'T00:00:00');
+  while (cur <= fin) { dias.push(fmtISO(cur)); cur.setDate(cur.getDate() + 1); }
+
+  const cont = document.getElementById('estChartVisitas');
+  if (!dias.length) { cont.innerHTML = '<div class="empty-state">Sin datos</div>'; return; }
+
+  const max = Math.max(1, ...dias.map(d => visitasPorDia[d] || 0));
+  const corta = d => new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+
+  cont.innerHTML = `
+    <div style="display:flex;align-items:flex-end;gap:3px;height:120px;overflow-x:auto;padding-bottom:4px;">
+      ${dias.map(d => {
+        const v = visitasPorDia[d] || 0;
+        const alturaPct = Math.max(4, Math.round(v / max * 100));
+        return `<div title="${corta(d)}: ${v} visita${v === 1 ? '' : 's'}" style="flex-shrink:0;width:14px;height:${alturaPct}%;background:var(--accent);border-radius:3px 3px 0 0;min-height:3px;"></div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:var(--text-dim);font-family:var(--mono);">
+      <span>${corta(dias[0])}</span>
+      <span>${corta(dias[dias.length - 1])}</span>
+    </div>`;
+}
+
+function renderRanking(ranking) {
+  const cont = document.getElementById('estRankingContenido');
+  if (!ranking.length) { cont.innerHTML = '<div class="empty-state">Sin clics registrados en este rango</div>'; return; }
+
+  if (vistaRanking === 'grafica') {
+    const max = ranking[0].clics;
+    cont.innerHTML = ranking.slice(0, 10).map(r => `
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+          <span style="color:var(--text);">${r.nombre}</span>
+          <span style="color:var(--text-muted);font-family:var(--mono);">${r.clics}</span>
+        </div>
+        <div style="background:var(--card);border-radius:4px;height:10px;overflow:hidden;">
+          <div style="background:var(--accent);height:100%;border-radius:4px;width:${Math.max(4, Math.round(r.clics / max * 100))}%;"></div>
+        </div>
+      </div>`).join('');
+  } else {
+    cont.innerHTML = ranking.map((r, i) => `
+      <div style="display:grid;grid-template-columns:32px 1fr 50px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border);gap:8px;">
+        <span style="color:var(--text-dim);font-family:var(--mono);font-size:12px;">#${i + 1}</span>
+        <span style="color:var(--text);font-size:13px;">${r.nombre}</span>
+        <span style="color:var(--accent);font-family:var(--mono);font-size:13px;text-align:right;">${r.clics}</span>
+      </div>`).join('');
+  }
+}
+
+function cambiarVistaRanking(v) {
+  vistaRanking = v;
+  document.getElementById('btnVistaGrafica').className = 'btn-sm' + (v === 'grafica' ? ' accent' : '');
+  document.getElementById('btnVistaLista').className = 'btn-sm' + (v === 'lista' ? ' accent' : '');
+  if (ultimaEstadistica) renderRanking(ultimaEstadistica.rankingProductos);
 }
 
 // ── TOPPINGS ─────────────────────────────────────────────────
