@@ -162,6 +162,22 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   res.json(safe);
 });
 
+// Solo superadmin. Borra en cascada categorías, productos y eventos de
+// estadísticas de ese restaurante antes de borrar el restaurante mismo
+// (no depende de que la base de datos tenga ON DELETE CASCADE configurado).
+// No borra archivos subidos (logo, fondos, fotos de producto) — quedan
+// huérfanos en disco, aceptado a propósito por ahora.
+app.delete('/api/restaurantes/:id', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  const id = req.params.id;
+  await supabase.from('eventos_analitica').delete().eq('restaurante_id', id);
+  await supabase.from('productos').delete().eq('restaurante_id', id);
+  await supabase.from('categorias').delete().eq('restaurante_id', id);
+  const { error } = await supabase.from('restaurantes').delete().eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 // ── CATEGORÍAS ────────────────────────────────────────────────
 app.get('/api/categorias', auth, async (req, res) => {
   const rid = req.query.restaurante_id;
