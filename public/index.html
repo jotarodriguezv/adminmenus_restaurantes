@@ -708,8 +708,12 @@
 							</select>
 						</div>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
-							<label class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(solo modelo topnav)</span></label>
+							<label class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(frase debajo del nombre)</span></label>
 							<input type="text" class="form-input" id="apSubtitulo" placeholder="Carta Digital · 2026">
+						</div>
+						<div class="form-group" style="margin-top:14px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+							<label class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo + nombre + subtítulo, solo modelos sidebar/carrito — en topnav siempre se muestra)</span></label>
+							<label class="toggle"><input type="checkbox" id="apMostrarHero"><span class="toggle-slider"></span></label>
 						</div>
 					</div>
 
@@ -1815,6 +1819,7 @@ function renderApariencia() {
 
   document.getElementById('apNavModelo').value = at.nav || 'topnav';
   document.getElementById('apSubtitulo').value = at.subtitulo || '';
+  document.getElementById('apMostrarHero').checked = !!at.mostrar_hero;
 
   document.getElementById('apSocialBar').checked = !!at.social_bar;
   document.getElementById('apSocialFacebook').value = at.social_facebook || '';
@@ -1870,6 +1875,7 @@ function recolectarApariencia() {
       fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
       nav: document.getElementById('apNavModelo').value,
       subtitulo: document.getElementById('apSubtitulo').value.trim(),
+      mostrar_hero: document.getElementById('apMostrarHero').checked,
       social_bar: document.getElementById('apSocialBar').checked,
       social_facebook: document.getElementById('apSocialFacebook').value.trim(),
       social_instagram: document.getElementById('apSocialInstagram').value.trim(),
