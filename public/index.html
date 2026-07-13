@@ -2300,6 +2300,20 @@ async function marcarComoPagado(id, nombre) {
   } catch (e) { showToast('Error al registrar el pago', 'error'); }
 }
 
+async function eliminarRestaurante(id, nombre) {
+  const ok = confirm(
+    `Vas a eliminar "${nombre}" de forma permanente.\n\n` +
+    `Esto borra su menú (categorías y productos) y sus estadísticas — no se puede deshacer.\n\n` +
+    `¿Seguro que quieres continuar?`
+  );
+  if (!ok) return;
+  try {
+    await apiFetch('DELETE', `/api/restaurantes/${id}`);
+    showToast(`${nombre} eliminado`, 'success');
+    await cargarListaRestos();
+  } catch (e) { showToast('Error al eliminar: ' + e.message, 'error'); }
+}
+
 async function cargarListaRestos() {
   const list=document.getElementById('adminRestoList');
   list.innerHTML='<div class="empty-state">Cargando...</div>';
@@ -2347,10 +2361,15 @@ async function cargarListaRestos() {
       pagoBtn.className='btn-sm'; pagoBtn.style.cssText='border-color:var(--success);color:var(--success);';
       pagoBtn.textContent='✓ Pagó';
       pagoBtn.onclick=()=>marcarComoPagado(r.id,r.nombre);
+      // Botón eliminar restaurante
+      const delBtn=document.createElement('button');
+      delBtn.className='btn-sm danger'; delBtn.textContent='Eliminar';
+      delBtn.onclick=()=>eliminarRestaurante(r.id,r.nombre);
       card.querySelector('.resto-card-actions').appendChild(toggleBtn);
       card.querySelector('.resto-card-actions').appendChild(editBtn);
       card.querySelector('.resto-card-actions').appendChild(pinBtn);
       card.querySelector('.resto-card-actions').appendChild(pagoBtn);
+      card.querySelector('.resto-card-actions').appendChild(delBtn);
       list.appendChild(card);
     });
   } catch(e) { list.innerHTML='<div class="empty-state">Error cargando restaurantes</div>'; }
