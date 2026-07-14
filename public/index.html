@@ -705,6 +705,7 @@
 								<option value="topnav">Topnav — header centrado + menú horizontal</option>
 								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
 								<option value="carrito">Carrito — pedido por WhatsApp</option>
+								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
 							</select>
 						</div>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
@@ -714,6 +715,23 @@
 						<div class="form-group" style="margin-top:14px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
 							<label class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo + nombre + subtítulo, solo modelos sidebar/carrito — en topnav siempre se muestra)</span></label>
 							<label class="toggle"><input type="checkbox" id="apMostrarHero"><span class="toggle-slider"></span></label>
+						</div>
+					</div>
+
+					<!-- FILTROS Y ETIQUETAS (solo modelo explorar) -->
+					<div class="section-card" id="apFiltrosCard">
+						<div class="section-title">Filtros y etiquetas <span style="color:var(--text-dim);font-weight:400">(solo modelo explorar)</span></div>
+						<p style="font-size:12px;color:var(--text-muted);margin:-4px 0 14px;line-height:1.5">
+							Activa los filtros que tus clientes podrán usar para explorar el menú. Luego, en cada producto, marcas cuáles aplican. En la página solo aparecen los filtros que tengan al menos un producto.
+						</p>
+						<div id="apFiltrosCatalogo"></div>
+						<div class="form-group" style="margin-top:16px;margin-bottom:0">
+							<label class="form-label">Filtro personalizado <span style="color:var(--text-dim)">(nombre + emoji)</span></label>
+							<div style="display:flex;gap:8px;align-items:center;">
+								<input type="text" class="form-input" id="apFiltroCustomLabel" placeholder="Ej: Sin cebolla" style="flex:1">
+								<input type="text" class="form-input" id="apFiltroCustomEmoji" placeholder="🧅" maxlength="4" style="width:70px;text-align:center">
+								<button type="button" class="btn-sm accent" onclick="agregarFiltroCustom()" style="white-space:nowrap">+ Añadir</button>
+							</div>
 						</div>
 					</div>
 
@@ -1004,6 +1022,15 @@
 						<label class="form-label">Descripción avanzada <span style="color:var(--text-dim)">(opcional)</span></label>
 						<input type="text" class="form-input" id="editDescAvanzada">
 					</div>
+					<div class="form-group" id="editFiltrosGroup" style="display:none">
+						<label class="form-label">Filtros que aplican <span style="color:var(--text-dim)">(modelo explorar)</span></label>
+						<div id="editFiltrosChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+						<div id="editFiltrosVacio" style="font-size:11px;color:var(--text-dim);display:none">Sin filtros activados. Actívalos en Apariencia → Filtros y etiquetas.</div>
+					</div>
+					<div class="form-group" id="editBadgesGroup" style="display:none">
+						<label class="form-label">Destacados <span style="color:var(--text-dim)">(insignias del producto)</span></label>
+						<div id="editBadgesChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+					</div>
 					<div class="form-check">
 						<label class="toggle"><input type="checkbox" id="editDisponible"><span class="toggle-slider"></span></label>
 						<span id="editDisponibleLabel" style="font-size:13px;color:var(--text-muted)">Disponible</span>
@@ -1045,6 +1072,22 @@
             <label class="toggle"><input type="checkbox" id="editCatSinFotos"><span class="toggle-slider"></span></label>
             <span style="font-size:13px;color:var(--text-muted)">Sin fotos (lista)</span>
           </div>
+        </div>
+      </div>
+      <div class="form-group" id="editCatImgGroup" style="display:none;margin-bottom:0">
+        <label class="form-label">Imagen de cabecera <span style="color:var(--text-dim)">(banner de la categoría, solo modelo explorar)</span></label>
+        <div class="img-edit-wrap" onclick="document.getElementById('catImgFileInput').click()">
+          <img id="editCatImgPreview" class="img-edit-preview" src="" style="display:none">
+          <div class="img-edit-overlay"><span>📷 Cambiar imagen</span></div>
+          <div id="editCatImgPlaceholder" class="img-placeholder-text">Sin imagen · haz clic para subir</div>
+        </div>
+        <input type="file" id="catImgFileInput" accept="image/*" style="display:none" onchange="handleCatImgUpload(this)">
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+          <div id="catImgUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
+          <button type="button" id="btnQuitarCatImg" onclick="quitarCatImg()"
+          style="display:none;padding:5px 10px;border-radius:6px;border:1px solid var(--danger);
+          background:transparent;color:var(--danger);font-family:var(--mono);font-size:9px;
+          letter-spacing:1px;cursor:pointer;white-space:nowrap;">🗑 Quitar</button>
         </div>
       </div>
     </div>
@@ -1139,8 +1182,53 @@ let state = {
   restaurante: null, categorias: [], productos: [],
   catFiltro: 'all', pendingImgUrl: null,
   extraImgs: [],
+  filtrosDisponibles: [],   // filtros que el restaurante activó (modelo explorar)
+  prodFiltros: [],          // filtros marcados en el producto que se edita
+  prodBadges: {},           // badges (popular/chef/nuevo) del producto que se edita
+  pendingCatImgUrl: null,   // imagen de cabecera de categoría pendiente
   deleteAction: null
 };
+
+// Catálogo curado de filtros para el modelo "explorar". El restaurante
+// activa los que quiera (checkbox) y puede añadir filtros personalizados.
+const CATALOGO_FILTROS = [
+  { grupo: 'Dietético / estilo de vida', items: [
+    { id: 'vegetariano', label: 'Vegetariano', emoji: '🌱' },
+    { id: 'vegano', label: 'Vegano', emoji: '🌿' },
+    { id: 'saludable', label: 'Saludable', emoji: '🥗' },
+    { id: 'keto', label: 'Keto', emoji: '🥑' },
+    { id: 'sin_azucar', label: 'Sin azúcar', emoji: '🍬' },
+  ]},
+  { grupo: 'Alérgenos', items: [
+    { id: 'sin_gluten', label: 'Sin gluten', emoji: '🌾' },
+    { id: 'sin_lacteos', label: 'Sin lácteos', emoji: '🥛' },
+    { id: 'sin_frutos_secos', label: 'Sin frutos secos', emoji: '🥜' },
+    { id: 'contiene_huevo', label: 'Contiene huevo', emoji: '🥚' },
+    { id: 'contiene_mariscos', label: 'Contiene mariscos', emoji: '🦐' },
+  ]},
+  { grupo: 'Picante', items: [
+    { id: 'picante', label: 'Picante', emoji: '🌶' },
+  ]},
+  { grupo: 'Preparación', items: [
+    { id: 'parrilla', label: 'A la parrilla', emoji: '🔥' },
+    { id: 'frito', label: 'Frito', emoji: '🍳' },
+    { id: 'frio', label: 'Frío', emoji: '❄️' },
+    { id: 'caldoso', label: 'Caldoso / sopa', emoji: '🥘' },
+  ]},
+  { grupo: 'Ocasión', items: [
+    { id: 'desayuno', label: 'Desayuno', emoji: '🌅' },
+    { id: 'almuerzo', label: 'Almuerzo', emoji: '☀️' },
+    { id: 'cena', label: 'Cena', emoji: '🌙' },
+    { id: 'compartir', label: 'Para compartir', emoji: '🍸' },
+  ]},
+];
+
+// Badges destacados (aparte de los filtros): se marcan por producto.
+const BADGES_PRODUCTO = [
+  { id: 'popular', label: 'Más popular', emoji: '⭐' },
+  { id: 'chef', label: 'Recomendación del chef', emoji: '👨‍🍳' },
+  { id: 'nuevo', label: 'Nuevo', emoji: '✨' },
+];
 
 // ── API ───────────────────────────────────────────────────────
 async function apiFetch(method, endpoint, body=null, isForm=false) {
@@ -1410,8 +1498,66 @@ function openNewProductModal() {
 	document.getElementById('imgFileInput').value='';
 	state.extraImgs = [];
 	renderExtraImgs([]);
+	state.prodFiltros = [];
+	state.prodBadges = {};
+	renderProdFiltrosBadges();
 	fillCatSelect();
 	openModal('productModal');
+}
+
+// ── FILTROS / BADGES DEL PRODUCTO (modelo explorar) ────────────
+// Lee/escribe state.prodFiltros (array de ids) y state.prodBadges
+// ({popular,chef,nuevo}). Solo se muestra si el restaurante está en
+// modelo explorar. Los chips de filtros salen de los que el
+// restaurante activó en Apariencia.
+function renderProdFiltrosBadges() {
+	const esExplorar = (state.restaurante?.atributos?.nav === 'explorar');
+	const fGroup = document.getElementById('editFiltrosGroup');
+	const bGroup = document.getElementById('editBadgesGroup');
+	fGroup.style.display = esExplorar ? 'block' : 'none';
+	bGroup.style.display = esExplorar ? 'block' : 'none';
+	if (!esExplorar) return;
+
+	const disponibles = state.restaurante?.atributos?.filtros_disponibles || [];
+	const chips = document.getElementById('editFiltrosChips');
+	const vacio = document.getElementById('editFiltrosVacio');
+	chips.innerHTML = '';
+	if (!disponibles.length) {
+		vacio.style.display = 'block';
+	} else {
+		vacio.style.display = 'none';
+		disponibles.forEach(f => {
+			chips.appendChild(chipToggle(f.emoji, f.label, state.prodFiltros.includes(f.id), () => {
+				if (state.prodFiltros.includes(f.id)) state.prodFiltros = state.prodFiltros.filter(x => x !== f.id);
+				else state.prodFiltros.push(f.id);
+				renderProdFiltrosBadges();
+			}));
+		});
+	}
+
+	const bchips = document.getElementById('editBadgesChips');
+	bchips.innerHTML = '';
+	BADGES_PRODUCTO.forEach(b => {
+		bchips.appendChild(chipToggle(b.emoji, b.label, !!state.prodBadges[b.id], () => {
+			state.prodBadges[b.id] = !state.prodBadges[b.id];
+			renderProdFiltrosBadges();
+		}));
+	});
+}
+
+// Chip genérico activable para el modal de producto.
+function chipToggle(emoji, label, activo, onClick) {
+	const chip = document.createElement('button');
+	chip.type = 'button';
+	chip.style.cssText =
+		'display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;cursor:pointer;' +
+		'font-size:12px;font-family:inherit;transition:all .15s;border:1px solid ' +
+		(activo ? 'var(--accent)' : 'var(--border)') + ';' +
+		'background:' + (activo ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'transparent') + ';' +
+		'color:' + (activo ? 'var(--accent)' : 'var(--text-muted)') + ';';
+	chip.innerHTML = `<span>${emoji || ''}</span><span>${label}</span>` + (activo ? '<span style="margin-left:2px">✓</span>' : '');
+	chip.onclick = onClick;
+	return chip;
 }
 
 function openEditProductModal(id) {
@@ -1445,6 +1591,10 @@ function openEditProductModal(id) {
 	const extras = p.atributos?.imagenes || [];
 	state.extraImgs = [...extras];
 	renderExtraImgs(state.extraImgs);
+	const at = p.atributos || {};
+	state.prodFiltros = Array.isArray(at.filtros) ? [...at.filtros] : [];
+	state.prodBadges = { popular: !!at.popular, chef: !!at.chef, nuevo: !!at.nuevo };
+	renderProdFiltrosBadges();
 	openModal('productModal');
 }
 
@@ -1532,10 +1682,17 @@ async function saveProduct() {
 	};
 	if(state.pendingImgUrl==='__remove__') body.imagen_url=null;
 	else if(state.pendingImgUrl) body.imagen_url=state.pendingImgUrl;
-	// Guardar imágenes adicionales en atributos
+	// Guardar imágenes adicionales + filtros/badges en atributos
 	const prodActual = state.productos.find(p => p.id === id);
 	const atributosActuales = prodActual?.atributos || {};
-	body.atributos = { ...atributosActuales, imagenes: state.extraImgs };
+	body.atributos = {
+		...atributosActuales,
+		imagenes: state.extraImgs,
+		filtros: state.prodFiltros,
+		popular: !!state.prodBadges.popular,
+		chef: !!state.prodBadges.chef,
+		nuevo: !!state.prodBadges.nuevo,
+	};
 	try {
 		if(id) {
 			const updated=await apiFetch('PATCH',`/api/productos/${id}`,body);
@@ -1610,6 +1767,22 @@ function renderCatList() {
   });
 }
 
+// Muestra/oculta el campo de imagen de cabecera y pinta el estado actual.
+function renderCatImgField(imgUrl) {
+  const esExplorar = (state.restaurante?.atributos?.nav === 'explorar');
+  document.getElementById('editCatImgGroup').style.display = esExplorar ? 'block' : 'none';
+  const prev=document.getElementById('editCatImgPreview');
+  const ph=document.getElementById('editCatImgPlaceholder');
+  const btnQuitar=document.getElementById('btnQuitarCatImg');
+  document.getElementById('catImgUploadStatus').textContent='';
+  document.getElementById('catImgFileInput').value='';
+  if(imgUrl){
+    prev.src=imgUrl; prev.style.display='block'; ph.style.display='none'; btnQuitar.style.display='block';
+  } else {
+    prev.style.display='none'; prev.src=''; ph.style.display='flex'; btnQuitar.style.display='none';
+  }
+}
+
 function openNewCatModal() {
   document.getElementById('catModalTitle').textContent='Nueva categoría';
   document.getElementById('editCatId').value='';
@@ -1617,6 +1790,8 @@ function openNewCatModal() {
   document.getElementById('editCatEmoji').value='';
   document.getElementById('editCatOrden').value=state.categorias.length;
   document.getElementById('editCatSinFotos').checked=false;
+  state.pendingCatImgUrl=null;
+  renderCatImgField(null);
   openModal('catModal');
 }
 
@@ -1628,7 +1803,35 @@ function openEditCatModal(id) {
   document.getElementById('editCatEmoji').value=cat.emoji||'';
   document.getElementById('editCatOrden').value=cat.orden;
   document.getElementById('editCatSinFotos').checked=cat.sin_fotos;
+  state.pendingCatImgUrl=null;
+  renderCatImgField(cat.atributos?.imagen_cabecera || null);
   openModal('catModal');
+}
+
+async function handleCatImgUpload(input) {
+  const file=input.files[0]; if(!file) return;
+  const st=document.getElementById('catImgUploadStatus');
+  st.textContent='Subiendo...'; st.style.color='var(--text-muted)';
+  try {
+    const blob=await compressImage(file,1200,.82);
+    const url=await uploadImg(blob,'categorias');
+    state.pendingCatImgUrl=url;
+    const prev=document.getElementById('editCatImgPreview');
+    prev.src=url; prev.style.display='block';
+    document.getElementById('editCatImgPlaceholder').style.display='none';
+    document.getElementById('btnQuitarCatImg').style.display='block';
+    st.textContent='✓ Lista para guardar'; st.style.color='var(--success)';
+  } catch(e) { st.textContent='Error al subir'; st.style.color='var(--danger)'; }
+}
+
+function quitarCatImg() {
+  state.pendingCatImgUrl='__remove__';
+  const prev=document.getElementById('editCatImgPreview');
+  prev.style.display='none'; prev.src='';
+  document.getElementById('editCatImgPlaceholder').style.display='flex';
+  document.getElementById('btnQuitarCatImg').style.display='none';
+  const st=document.getElementById('catImgUploadStatus');
+  st.textContent='Imagen eliminada al guardar'; st.style.color='var(--warn)';
 }
 
 async function saveCat() {
@@ -1641,6 +1844,14 @@ async function saveCat() {
     orden:parseInt(document.getElementById('editCatOrden').value)||0,
     sin_fotos:document.getElementById('editCatSinFotos').checked,
   };
+  // Imagen de cabecera → atributos (solo si cambió algo)
+  const catActual = id ? state.categorias.find(c=>c.id===id) : null;
+  const atributosActuales = catActual?.atributos || {};
+  if(state.pendingCatImgUrl==='__remove__') {
+    body.atributos = { ...atributosActuales, imagen_cabecera: null };
+  } else if(state.pendingCatImgUrl) {
+    body.atributos = { ...atributosActuales, imagen_cabecera: state.pendingCatImgUrl };
+  }
   try {
     if(id) {
       const updated=await apiFetch('PATCH',`/api/categorias/${id}`,body);
@@ -1821,6 +2032,9 @@ function renderApariencia() {
   document.getElementById('apSubtitulo').value = at.subtitulo || '';
   document.getElementById('apMostrarHero').checked = !!at.mostrar_hero;
 
+  state.filtrosDisponibles = Array.isArray(at.filtros_disponibles) ? [...at.filtros_disponibles] : [];
+  renderFiltrosCatalogo();
+
   document.getElementById('apSocialBar').checked = !!at.social_bar;
   document.getElementById('apSocialFacebook').value = at.social_facebook || '';
   document.getElementById('apSocialInstagram').value = at.social_instagram || '';
@@ -1828,6 +2042,95 @@ function renderApariencia() {
   document.getElementById('apSocialWhatsapp').value = at.social_whatsapp || '';
 
   document.getElementById('apCssCustom').value = at.css_custom || '';
+}
+
+// ── FILTROS (catálogo del restaurante, modelo explorar) ────────
+// Un filtro está "activo" si su id está en state.filtrosDisponibles.
+function filtroActivo(id) {
+  return state.filtrosDisponibles.some(f => f.id === id);
+}
+
+function renderFiltrosCatalogo() {
+  const cont = document.getElementById('apFiltrosCatalogo');
+  if (!cont) return;
+  cont.innerHTML = '';
+
+  // Grupos del catálogo curado
+  CATALOGO_FILTROS.forEach(grupo => {
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '14px';
+    const titulo = document.createElement('div');
+    titulo.style.cssText = 'font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;';
+    titulo.textContent = grupo.grupo;
+    wrap.appendChild(titulo);
+
+    const chips = document.createElement('div');
+    chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
+    grupo.items.forEach(item => {
+      chips.appendChild(chipFiltro(item, filtroActivo(item.id)));
+    });
+    wrap.appendChild(chips);
+    cont.appendChild(wrap);
+  });
+
+  // Filtros personalizados que el restaurante creó (no están en el catálogo)
+  const custom = state.filtrosDisponibles.filter(f =>
+    !CATALOGO_FILTROS.some(g => g.items.some(i => i.id === f.id))
+  );
+  if (custom.length) {
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '4px';
+    const titulo = document.createElement('div');
+    titulo.style.cssText = 'font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;';
+    titulo.textContent = 'Personalizados';
+    wrap.appendChild(titulo);
+    const chips = document.createElement('div');
+    chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
+    custom.forEach(item => chips.appendChild(chipFiltro(item, true, true)));
+    wrap.appendChild(chips);
+    cont.appendChild(wrap);
+  }
+}
+
+// Un "chip" clicable que activa/desactiva un filtro del catálogo.
+// Para filtros personalizados (esCustom) el chip los quita del catálogo.
+function chipFiltro(item, activo, esCustom) {
+  const chip = document.createElement('button');
+  chip.type = 'button';
+  chip.style.cssText =
+    'display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;cursor:pointer;' +
+    'font-size:12px;font-family:inherit;transition:all .15s;border:1px solid ' +
+    (activo ? 'var(--accent)' : 'var(--border)') + ';' +
+    'background:' + (activo ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'transparent') + ';' +
+    'color:' + (activo ? 'var(--accent)' : 'var(--text-muted)') + ';';
+  chip.innerHTML = `<span>${item.emoji || ''}</span><span>${item.label}</span>` +
+    (esCustom ? '<span style="opacity:.6;margin-left:2px">✕</span>' : (activo ? '<span style="margin-left:2px">✓</span>' : ''));
+  chip.onclick = () => {
+    if (esCustom) {
+      // quitar el filtro custom del catálogo
+      state.filtrosDisponibles = state.filtrosDisponibles.filter(f => f.id !== item.id);
+    } else if (activo) {
+      state.filtrosDisponibles = state.filtrosDisponibles.filter(f => f.id !== item.id);
+    } else {
+      state.filtrosDisponibles.push({ id: item.id, label: item.label, emoji: item.emoji });
+    }
+    renderFiltrosCatalogo();
+  };
+  return chip;
+}
+
+function agregarFiltroCustom() {
+  const labelEl = document.getElementById('apFiltroCustomLabel');
+  const emojiEl = document.getElementById('apFiltroCustomEmoji');
+  const label = labelEl.value.trim();
+  const emoji = emojiEl.value.trim();
+  if (!label) { showToast('Escribe el nombre del filtro', 'error'); return; }
+  // id estable a partir del label
+  const base = 'custom_' + label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (state.filtrosDisponibles.some(f => f.id === base)) { showToast('Ese filtro ya existe', 'error'); return; }
+  state.filtrosDisponibles.push({ id: base, label, emoji });
+  labelEl.value = ''; emojiEl.value = '';
+  renderFiltrosCatalogo();
 }
 
 async function handleLogoUpload(input) {
@@ -1876,6 +2179,7 @@ function recolectarApariencia() {
       nav: document.getElementById('apNavModelo').value,
       subtitulo: document.getElementById('apSubtitulo').value.trim(),
       mostrar_hero: document.getElementById('apMostrarHero').checked,
+      filtros_disponibles: state.filtrosDisponibles,
       social_bar: document.getElementById('apSocialBar').checked,
       social_facebook: document.getElementById('apSocialFacebook').value.trim(),
       social_instagram: document.getElementById('apSocialInstagram').value.trim(),
