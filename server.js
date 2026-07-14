@@ -189,10 +189,10 @@ app.get('/api/categorias', auth, async (req, res) => {
 });
 
 app.post('/api/categorias', auth, async (req, res) => {
-  const { restaurante_id, nombre, slug, emoji, orden, sin_fotos } = req.body;
+  const { restaurante_id, nombre, slug, emoji, orden, sin_fotos, atributos } = req.body;
   if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   const { data, error } = await supabase.from('categorias')
-    .insert([{ restaurante_id, nombre, slug: slug || nombre.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''), emoji: emoji || '', orden: parseInt(orden) || 0, sin_fotos: sin_fotos || false }])
+    .insert([{ restaurante_id, nombre, slug: slug || nombre.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''), emoji: emoji || '', orden: parseInt(orden) || 0, sin_fotos: sin_fotos || false, atributos: atributos || {} }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -201,7 +201,7 @@ app.post('/api/categorias', auth, async (req, res) => {
 app.patch('/api/categorias/:id', auth, async (req, res) => {
   const { data: cat } = await supabase.from('categorias').select('restaurante_id').eq('id', req.params.id).single();
   if (!cat || !canAccessRestaurante(req.user, cat.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
-  const permitidos = ['nombre', 'emoji', 'orden', 'sin_fotos'];
+  const permitidos = ['nombre', 'emoji', 'orden', 'sin_fotos', 'atributos'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
   const { data, error } = await supabase.from('categorias').update(body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
@@ -227,10 +227,10 @@ app.get('/api/productos', auth, async (req, res) => {
 });
 
 app.post('/api/productos', auth, async (req, res) => {
-  const { restaurante_id, categoria_id, nombre, descripcion, descripcion_avanzada, precio, precio_numerico, imagen_url, disponible, orden } = req.body;
+  const { restaurante_id, categoria_id, nombre, descripcion, descripcion_avanzada, precio, precio_numerico, imagen_url, disponible, orden, atributos } = req.body;
   if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   const { data, error } = await supabase.from('productos')
-    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio, precio_numerico: parseFloat(precio_numerico) || 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0 }])
+    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio, precio_numerico: parseFloat(precio_numerico) || 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, atributos: atributos || {} }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
