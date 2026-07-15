@@ -618,6 +618,7 @@
 							</div>
 						</label>
 						<div id="apLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						<button type="button" id="apLogoDelBtn" onclick="eliminarImagen('logo')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar logo</button>
 					</div>
 
 					<div class="section-card">
@@ -634,6 +635,7 @@
 							</div>
 						</label>
 						<div id="apFondoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+							<button type="button" id="apFondoDelBtn" onclick="eliminarImagen('fondo')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar imagen de fondo</button>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
 							<label class="form-label">Estilo del fondo</label>
 							<select class="form-select" id="apFondoTipo">
@@ -664,6 +666,7 @@
 							</div>
 						</label>
 						<div id="apPortadaUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						<button type="button" id="apPortadaDelBtn" onclick="eliminarImagen('portada')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar portada</button>
 					</div>
 
 					<div class="section-card">
@@ -2038,11 +2041,13 @@ function renderApariencia() {
   const logoNone = document.getElementById('apLogoNone');
   if (r.logo_url) { logoPrev.src = r.logo_url; logoPrev.style.display = 'block'; logoNone.style.display = 'none'; }
   else { logoPrev.style.display = 'none'; logoNone.style.display = 'block'; }
+  document.getElementById('apLogoDelBtn').style.display = r.logo_url ? 'inline-block' : 'none';
 
   const fondoPrev = document.getElementById('apFondoPreview');
   const fondoNone = document.getElementById('apFondoNone');
   if (r.fondo_url) { fondoPrev.src = r.fondo_url; fondoPrev.style.display = 'block'; fondoNone.style.display = 'none'; }
   else { fondoPrev.style.display = 'none'; fondoNone.style.display = 'block'; }
+  document.getElementById('apFondoDelBtn').style.display = r.fondo_url ? 'inline-block' : 'none';
   document.getElementById('apFondoTipo').value = at.fondo_tipo || 'cover-fixed';
   document.getElementById('apFondoColor').value = at.fondo_color || '#0a0a0f';
   document.getElementById('apPrevFondoColor').style.background = at.fondo_color || '#0a0a0f';
@@ -2054,6 +2059,7 @@ function renderApariencia() {
   const portadaNone = document.getElementById('apPortadaNone');
   if (at.portada_url) { portadaPrev.src = at.portada_url; portadaPrev.style.display = 'block'; portadaNone.style.display = 'none'; }
   else { portadaPrev.style.display = 'none'; portadaNone.style.display = 'block'; }
+  document.getElementById('apPortadaDelBtn').style.display = at.portada_url ? 'inline-block' : 'none';
 
   document.getElementById('apFuenteTitulo').value = at.fuente_titulo || '';
   document.getElementById('apFuenteCuerpo').value = at.fuente_cuerpo || '';
@@ -2207,6 +2213,28 @@ async function handlePortadaUpload(input) {
     st.textContent = '✓ Portada actualizada'; st.style.color = 'var(--success)';
     showToast('Portada guardada · activada', 'success');
   } catch (e) { st.textContent = 'Error al subir'; st.style.color = 'var(--danger)'; }
+}
+
+// Eliminar una imagen cargada (logo / fondo / portada). Logo y fondo son
+// columnas propias; la portada vive en atributos (y se desactiva al quitarla).
+async function eliminarImagen(tipo) {
+  const nombres = { logo: 'el logo', fondo: 'la imagen de fondo', portada: 'la portada' };
+  if (!confirm(`¿Quitar ${nombres[tipo]}? Podrás volver a subir otra cuando quieras.`)) return;
+  try {
+    if (tipo === 'logo') {
+      await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: null });
+      state.restaurante.logo_url = null;
+    } else if (tipo === 'fondo') {
+      await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { fondo_url: null });
+      state.restaurante.fondo_url = null;
+    } else if (tipo === 'portada') {
+      const nuevos = { ...(state.restaurante.atributos || {}), portada_url: null, portada_activa: false };
+      await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos: nuevos });
+      state.restaurante.atributos = nuevos;
+    }
+    renderApariencia();
+    showToast('Imagen eliminada', 'success');
+  } catch (e) { showToast('Error al eliminar: ' + e.message, 'error'); }
 }
 
 // Recolecta lo que hay en el formulario de Apariencia sin guardar nada —
