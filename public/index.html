@@ -643,6 +643,29 @@
 						</div>
 					</div>
 
+					<!-- PORTADA (solo modelo explorar) -->
+					<div class="section-card" id="apPortadaCard">
+						<div class="section-header">
+							<div class="section-title">Portada <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(solo modelo explorar)</span></div>
+							<label class="toggle"><input type="checkbox" id="apPortadaActiva"><span class="toggle-slider"></span></label>
+						</div>
+						<p style="font-size:12px;color:var(--text-muted);margin:-4px 0 12px;line-height:1.5">
+							Imagen grande de encabezado con el nombre encima (tipo revista). Es independiente de la imagen de fondo. Si la desactivas, el menú muestra solo el nombre de forma compacta.
+						</p>
+						<div style="margin-bottom:12px;">
+							<img id="apPortadaPreview" class="promo-img-preview" src="" style="display:none">
+							<span id="apPortadaNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin portada configurada</span>
+						</div>
+						<label class="upload-zone">
+							<input type="file" accept="image/*" onchange="handlePortadaUpload(this)">
+							<div class="upload-zone-text">
+								<span>Haz clic para subir</span> imagen de portada<br>
+								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · horizontal se ve mejor</span>
+							</div>
+						</label>
+						<div id="apPortadaUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+					</div>
+
 					<div class="section-card">
 						<div class="section-title">Color de fondo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(se usa solo si no hay imagen de fondo arriba)</span></div>
 						<div class="form-group" style="margin-bottom:14px">
@@ -2025,6 +2048,13 @@ function renderApariencia() {
   document.getElementById('apPrevFondoColor').style.background = at.fondo_color || '#0a0a0f';
   document.getElementById('apFondoIntensidad').value = at.fondo_intensidad || 'solido';
 
+  // Portada (modelo explorar)
+  document.getElementById('apPortadaActiva').checked = !!at.portada_activa;
+  const portadaPrev = document.getElementById('apPortadaPreview');
+  const portadaNone = document.getElementById('apPortadaNone');
+  if (at.portada_url) { portadaPrev.src = at.portada_url; portadaPrev.style.display = 'block'; portadaNone.style.display = 'none'; }
+  else { portadaPrev.style.display = 'none'; portadaNone.style.display = 'block'; }
+
   document.getElementById('apFuenteTitulo').value = at.fuente_titulo || '';
   document.getElementById('apFuenteCuerpo').value = at.fuente_cuerpo || '';
 
@@ -2161,6 +2191,24 @@ async function handleFondoUpload(input) {
   } catch (e) { st.textContent = 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
 
+// La portada del modelo explorar vive en atributos.portada_url (no es una
+// columna propia como fondo_url), así que la guardamos fusionando atributos.
+async function handlePortadaUpload(input) {
+  const file = input.files[0]; if (!file) return;
+  const st = document.getElementById('apPortadaUploadStatus');
+  st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
+  try {
+    const blob = await compressImage(file, 1600, .85);
+    const url = await uploadImg(blob, 'portadas');
+    const nuevos = { ...(state.restaurante.atributos || {}), portada_url: url, portada_activa: true };
+    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos: nuevos });
+    state.restaurante.atributos = nuevos;
+    renderApariencia();
+    st.textContent = '✓ Portada actualizada'; st.style.color = 'var(--success)';
+    showToast('Portada guardada · activada', 'success');
+  } catch (e) { st.textContent = 'Error al subir'; st.style.color = 'var(--danger)'; }
+}
+
 // Recolecta lo que hay en el formulario de Apariencia sin guardar nada —
 // lo usan tanto saveApariencia() como la vista previa.
 function recolectarApariencia() {
@@ -2179,6 +2227,7 @@ function recolectarApariencia() {
       nav: document.getElementById('apNavModelo').value,
       subtitulo: document.getElementById('apSubtitulo').value.trim(),
       mostrar_hero: document.getElementById('apMostrarHero').checked,
+      portada_activa: document.getElementById('apPortadaActiva').checked,
       filtros_disponibles: state.filtrosDisponibles,
       social_bar: document.getElementById('apSocialBar').checked,
       social_facebook: document.getElementById('apSocialFacebook').value.trim(),
