@@ -130,9 +130,9 @@ app.patch('/api/restaurantes/:id/pin', auth, async (req, res) => {
 const CAMPOS_RESTAURANTE_ADMIN   = ['promo_activa', 'promo_imagen_url', 'color_primario', 'color_secundario', 'nombre', 'slug', 'logo_url', 'fondo_url', 'activo', 'atributos'];
 const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'atributos'];
 // Dentro de "atributos" (JSON libre), el cliente solo puede tocar estas claves
-// (toppings, WhatsApp de pedidos y métodos de pago). nav, fuentes, redes,
-// css_custom, etc. quedan fuera.
-const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago'];
+// (toppings, WhatsApp de pedidos, métodos de pago y diseño del QR). nav,
+// fuentes, redes, css_custom, etc. quedan fuera.
+const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr'];
 
 app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   if (!canAccessRestaurante(req.user, req.params.id))
