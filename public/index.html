@@ -280,6 +280,31 @@
 			.color-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 			.color-preview{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);flex-shrink:0;}
 			.color-input-wrap{display:flex;align-items:center;gap:10px;}
+
+			/* ── DISEÑADOR DE QR ── */
+			.qr-layout{display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start;}
+			.qr-preview-col{position:sticky;top:72px;}
+			/* Damasero: deja ver el fondo transparente tal como quedará el PNG */
+			.qr-canvas-wrap{border-radius:var(--radius);overflow:hidden;
+			  background-color:#e8e8e8;background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;
+			  background-image:linear-gradient(45deg,#cfcfcf 25%,transparent 25%),linear-gradient(-45deg,#cfcfcf 25%,transparent 25%),
+			    linear-gradient(45deg,transparent 75%,#cfcfcf 75%),linear-gradient(-45deg,transparent 75%,#cfcfcf 75%);}
+			.qr-canvas-wrap canvas{display:block;width:100%;height:auto;}
+			.qr-aviso{margin-top:12px;padding:9px 11px;border-radius:var(--radius);background:var(--warn-dim);
+			  border:1px solid var(--warn);color:var(--warn);font-size:11px;line-height:1.5;}
+			.qr-descargas{display:flex;gap:8px;}
+			.qr-range{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;
+			  background:var(--border2);outline:none;cursor:pointer;}
+			.qr-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;
+			  border-radius:50%;background:var(--accent);cursor:pointer;border:none;}
+			.qr-range::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);
+			  cursor:pointer;border:none;}
+			#qrCartelPreview{display:block;width:100%;max-width:340px;height:auto;margin:0 auto;border-radius:var(--radius);}
+			@media(max-width:820px){
+			  .qr-layout{grid-template-columns:1fr;}
+			  .qr-preview-col{position:static;}
+			  .qr-canvas-wrap{max-width:300px;margin:0 auto;}
+			}
 			.confirm-text{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:4px;}
 			.confirm-name{font-weight:600;color:var(--danger);}
 			.search-input {
@@ -486,6 +511,7 @@
 				<button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
 				<button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
 				<button class="tab-btn" id="tabBtnPedidos" onclick="switchTab('pedidos',this)" style="display:none">Pedidos</button>
+				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
 				<button class="tab-btn" onclick="switchTab('estadisticas',this)">Estadísticas</button>
 			</div>
 			<div class="content">
@@ -956,6 +982,145 @@
 					<div id="mpStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 				</div>
 
+				<!-- TAB QR -->
+				<div id="tabQr" class="hidden">
+					<div class="qr-layout">
+
+						<!-- Columna izquierda: vista previa pegada al hacer scroll -->
+						<div class="qr-preview-col">
+							<div class="section-card" style="margin-bottom:14px;">
+								<div class="section-title">Vista previa</div>
+								<div class="qr-canvas-wrap" id="qrCanvasWrap">
+									<canvas id="qrPreview"></canvas>
+								</div>
+								<div id="qrAviso" class="qr-aviso" style="display:none"></div>
+							</div>
+							<div class="qr-descargas">
+								<button class="btn-save" onclick="qrDescargarPNG()">Descargar PNG</button>
+								<button class="btn-sm" style="padding:11px 14px;" onclick="qrDescargarSVG()">SVG</button>
+							</div>
+							<button class="btn-sm" style="width:100%;padding:11px;margin-top:8px;" onclick="qrVistaPreviaCartel()">Ver cartel para imprimir</button>
+						</div>
+
+						<!-- Columna derecha: controles -->
+						<div class="qr-controls-col">
+							<div class="section-card">
+								<div class="section-title">Enlace del menú</div>
+								<div style="display:flex;gap:8px;">
+									<input type="text" class="form-input" id="qrEnlace" readonly style="font-family:var(--mono);font-size:12px;">
+									<button class="btn-sm" style="flex-shrink:0;padding:0 14px;" onclick="qrCopiarEnlace()">Copiar</button>
+								</div>
+								<div style="margin-top:8px;font-size:11px;color:var(--text-dim);font-family:var(--mono);">
+									El QR apunta siempre aquí. Si cambias el slug del restaurante, hay que volver a imprimirlo.
+								</div>
+							</div>
+
+							<div class="section-card">
+								<div class="section-title">Forma</div>
+								<label class="form-label">Puntos</label>
+								<div id="qrChipsPunto" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+									<button class="cat-chip active" data-valor="cuadrado" onclick="qrElegirEstilo('punto','cuadrado',this)">Cuadrado</button>
+									<button class="cat-chip" data-valor="redondo" onclick="qrElegirEstilo('punto','redondo',this)">Redondeado</button>
+									<button class="cat-chip" data-valor="circulo" onclick="qrElegirEstilo('punto','circulo',this)">Círculo</button>
+								</div>
+								<label class="form-label">Esquinas</label>
+								<div id="qrChipsOjo" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+									<button class="cat-chip active" data-valor="cuadrado" onclick="qrElegirEstilo('ojo','cuadrado',this)">Cuadrado</button>
+									<button class="cat-chip" data-valor="redondo" onclick="qrElegirEstilo('ojo','redondo',this)">Redondeado</button>
+									<button class="cat-chip" data-valor="circulo" onclick="qrElegirEstilo('ojo','circulo',this)">Círculo</button>
+								</div>
+								<label class="form-label">Margen blanco <span id="qrMargenVal" style="color:var(--accent)">4</span></label>
+								<input type="range" class="qr-range" id="qrMargen" min="0" max="8" step="1" oninput="qrActualizar()">
+								<div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Los lectores necesitan espacio libre alrededor. Por debajo de 3 puede fallar.</div>
+							</div>
+
+							<div class="section-card">
+								<div class="section-header">
+									<div class="section-title" style="margin-bottom:0">Colores</div>
+									<button class="btn-sm" onclick="qrUsarColoresMarca()">Usar colores de marca</button>
+								</div>
+								<div class="form-row">
+									<div class="form-group">
+										<label class="form-label">Puntos</label>
+										<div class="color-input-wrap">
+											<div class="color-preview" id="qrPrevFg"></div>
+											<input type="text" class="form-input" id="qrColorFg" maxlength="7" placeholder="#000000" oninput="qrActualizar()">
+										</div>
+									</div>
+									<div class="form-group">
+										<label class="form-label">Esquinas <span style="color:var(--text-dim)">(opcional)</span></label>
+										<div class="color-input-wrap">
+											<div class="color-preview" id="qrPrevOjos"></div>
+											<input type="text" class="form-input" id="qrColorOjos" maxlength="7" placeholder="igual que puntos" oninput="qrActualizar()">
+										</div>
+									</div>
+								</div>
+								<div class="form-group" style="margin-bottom:0">
+									<label class="form-label">Fondo</label>
+									<div class="color-input-wrap">
+										<div class="color-preview" id="qrPrevBg"></div>
+										<input type="text" class="form-input" id="qrColorBg" maxlength="7" placeholder="#ffffff" oninput="qrActualizar()">
+									</div>
+									<div class="form-check" style="margin-bottom:0">
+										<label class="toggle"><input type="checkbox" id="qrTransparente" onchange="qrActualizar()"><span class="toggle-slider"></span></label>
+										<span style="font-size:13px;color:var(--text-muted)">Fondo transparente (PNG y SVG)</span>
+									</div>
+								</div>
+							</div>
+
+							<div class="section-card">
+								<div class="section-title">Logo al centro</div>
+								<div class="form-check" id="qrLogoOpcion" style="margin-bottom:0">
+									<label class="toggle"><input type="checkbox" id="qrUsarLogo" onchange="qrActualizar()"><span class="toggle-slider"></span></label>
+									<span style="font-size:13px;color:var(--text-muted)">Poner el logo del restaurante</span>
+								</div>
+								<div id="qrSinLogo" style="display:none;font-size:12px;color:var(--text-muted);font-family:var(--mono);">
+									Este restaurante no tiene logo. Súbelo en la pestaña Apariencia.
+								</div>
+								<div id="qrLogoTamWrap" style="display:none;margin-top:14px;">
+									<label class="form-label">Tamaño <span id="qrLogoTamVal" style="color:var(--accent)">22%</span></label>
+									<input type="range" class="qr-range" id="qrLogoTam" min="12" max="30" step="1" oninput="qrActualizar()">
+									<div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Más de 25% empieza a comerse los datos del código.</div>
+								</div>
+							</div>
+
+							<div class="section-card">
+								<div class="section-title">Cartel para imprimir</div>
+								<div class="form-group">
+									<label class="form-label">Texto de arriba</label>
+									<input type="text" class="form-input" id="qrCartelTitulo" maxlength="60" oninput="qrActualizar()">
+								</div>
+								<div class="form-group">
+									<label class="form-label">Texto de abajo</label>
+									<input type="text" class="form-input" id="qrCartelPie" maxlength="40" oninput="qrActualizar()">
+								</div>
+								<div class="form-row" style="margin-bottom:0">
+									<div class="form-group" style="margin-bottom:0">
+										<label class="form-label">Fondo del cartel</label>
+										<div class="color-input-wrap">
+											<div class="color-preview" id="qrPrevCartelBg"></div>
+											<input type="text" class="form-input" id="qrCartelBg" maxlength="7" placeholder="#111111" oninput="qrActualizar()">
+										</div>
+									</div>
+									<div class="form-group" style="margin-bottom:0">
+										<label class="form-label">Texto del cartel</label>
+										<div class="color-input-wrap">
+											<div class="color-preview" id="qrPrevCartelFg"></div>
+											<input type="text" class="form-input" id="qrCartelFg" maxlength="7" placeholder="#ffffff" oninput="qrActualizar()">
+										</div>
+									</div>
+								</div>
+							</div>
+
+							<div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;">
+								<button class="btn-sm" onclick="qrRestablecer()">Restablecer</button>
+								<button class="btn-save" style="flex:none;width:auto;padding:11px 28px;" onclick="qrGuardarDiseno()">Guardar diseño</button>
+							</div>
+							<div id="qrStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						</div>
+					</div>
+				</div>
+
 				<!-- TAB ESTADÍSTICAS -->
 				<div id="tabEstadisticas" class="hidden">
 					<div class="section-card">
@@ -1171,6 +1336,26 @@
   </div>
 </div>
 
+<!-- MODAL CARTEL QR -->
+<div class="modal-bg" id="qrCartelModal" onclick="handleModalBg(event,'qrCartelModal')">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-head">
+      <span class="modal-title">Cartel para imprimir</span>
+      <button class="modal-close" onclick="closeModal('qrCartelModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <canvas id="qrCartelPreview"></canvas>
+      <p style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:12px;text-align:center;">
+        Proporción A4 · se descarga a 2000 × 2828 px
+      </p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('qrCartelModal')">Cerrar</button>
+      <button class="btn-save" onclick="qrDescargarCartel()">Descargar cartel</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CONFIRMAR ELIMINAR -->
 <div class="modal-bg" id="confirmModal" onclick="handleModalBg(event,'confirmModal')">
   <div class="modal-box" style="max-width:380px;">
@@ -1360,10 +1545,11 @@ function switchTab(tab, btn) {
   if (tab === 'apariencia' && state.rol !== 'admin') return;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabEstadisticas'].forEach(id=>{
+  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabQr','tabEstadisticas'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
+  if (tab === 'qr') renderQR();
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
 }
 
@@ -2323,7 +2509,7 @@ function closeModal(id) {
 function handleModalBg(e,id) { if(e.target.id===id) closeModal(id); }
 
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape') ['productModal','catModal','confirmModal'].forEach(closeModal);
+  if(e.key==='Escape') ['productModal','catModal','confirmModal','qrCartelModal'].forEach(closeModal);
 });
 
 // ── SCROLL DRAG EN CAT-FILTER ────────────────────────────────
@@ -2852,5 +3038,9 @@ if(token && state.rol && state.restauranteSlug) {
   document.getElementById('loginScreen').style.display='flex';
 }
 </script>
+<!-- Codificador QR (MIT, Kazuhiko Arase). Solo genera la matriz; el
+     dibujo y el estilo están en qr.js. -->
+<script src="vendor/qrcode.js"></script>
+<script src="qr.js"></script>
 </body>
 </html>
