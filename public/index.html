@@ -759,10 +759,38 @@
 							</select>
 						</div>
 						<div style="margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--accent);word-break:break-all;" id="apUrlPreview"></div>
+						<div id="apUrlAviso" style="display:none;margin-top:10px;padding:9px 11px;border-radius:var(--radius);background:var(--warn-dim);border:1px solid var(--warn);color:var(--warn);font-size:11px;line-height:1.6;">
+							Este subdominio no responderá hasta que lo registres en Dokploy:
+							aplicación <strong>vmenus-app</strong> → Domains → Add Domain, puerto 80,
+							con el mismo certificado que <strong>menu.vmenus.co</strong>.
+						</div>
 						<div style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.6;">
 							Las dos formas funcionan siempre, sin importar cuál elijas: esto solo define
 							cuál se usa en el QR y en la vista previa. Los enlaces y códigos que ya
 							repartió el restaurante siguen sirviendo aunque cambies esta opción.
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Zona horaria</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label class="form-label">Hora local del restaurante</label>
+							<select class="form-select" id="apZonaHoraria">
+								<option value="America/Bogota">Colombia (Bogotá)</option>
+								<option value="America/Mexico_City">México (Ciudad de México)</option>
+								<option value="America/Lima">Perú (Lima)</option>
+								<option value="America/Santiago">Chile (Santiago)</option>
+								<option value="America/Argentina/Buenos_Aires">Argentina (Buenos Aires)</option>
+								<option value="America/Guayaquil">Ecuador (Guayaquil)</option>
+								<option value="America/Panama">Panamá</option>
+								<option value="America/New_York">Estados Unidos (Este)</option>
+								<option value="Europe/Madrid">España (Madrid)</option>
+							</select>
+						</div>
+						<div style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.6;">
+							Los horarios de las categorías se calculan con esta hora, no con la del
+							celular de quien mira el menú. Así un turista con el teléfono en otro
+							huso ve la carta correcta.
 						</div>
 					</div>
 
@@ -1282,6 +1310,28 @@
           </div>
         </div>
       </div>
+      <div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;">
+        <div class="form-check" style="margin-bottom:0">
+          <label class="toggle"><input type="checkbox" id="editCatHorarioActivo" onchange="toggleCatHorario()"><span class="toggle-slider"></span></label>
+          <span style="font-size:13px;color:var(--text-muted)">Mostrar solo en cierto horario</span>
+        </div>
+        <div id="editCatHorarioCampos" style="display:none;margin-top:14px;">
+          <label class="form-label">Días</label>
+          <div id="editCatDias" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
+          <div class="form-row" style="margin-bottom:0">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Desde</label>
+              <input type="time" class="form-input" id="editCatDesde" onchange="renderCatHorarioNota()">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Hasta</label>
+              <input type="time" class="form-input" id="editCatHasta" onchange="renderCatHorarioNota()">
+            </div>
+          </div>
+          <div id="editCatHorarioNota" style="margin-top:12px;font-size:11px;line-height:1.6;"></div>
+        </div>
+      </div>
+
       <div class="form-group" id="editCatImgGroup" style="display:none;margin-bottom:0">
         <label class="form-label">Imagen de cabecera <span style="color:var(--text-dim)">(banner de la categoría, solo modelo explorar)</span></label>
         <div class="img-edit-wrap" onclick="document.getElementById('catImgFileInput').click()">
@@ -1947,6 +1997,121 @@ async function saveProduct() {
 }
 
 // ── CATEGORÍAS ────────────────────────────────────────────────
+// ── HORARIOS DE CATEGORÍA ─────────────────────────────────────
+// Espejo de core/horarios.js del repositorio del menú público. Se
+// duplica a propósito: son dos aplicaciones desplegadas por separado y
+// aquí la lógica solo sirve para mostrarle al usuario si su categoría
+// se está viendo ahora mismo. Quien decide de verdad es el menú.
+// X = miércoles, como se abrevia en español.
+const DIAS_CORTOS = ['D','L','M','X','J','V','S'];
+const DIAS_LARGOS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const ZONA_POR_DEFECTO = 'America/Bogota';
+let catDiasSel = new Set();
+
+function zonaRestaurante() {
+  const z = state.restaurante?.atributos?.zona_horaria;
+  if (!z) return ZONA_POR_DEFECTO;
+  try { new Intl.DateTimeFormat('en-US',{timeZone:z}); return z; } catch { return ZONA_POR_DEFECTO; }
+}
+
+function ahoraEnZona() {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US',{
+    timeZone: zonaRestaurante(), weekday:'short', hour:'2-digit', minute:'2-digit', hour12:false
+  }).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  const dias={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+  return { dia: dias[p.weekday], minutos: (parseInt(p.hour,10)%24)*60 + parseInt(p.minute,10) };
+}
+
+function horaAMinutos(hhmm) {
+  const m=/^(\d{1,2}):(\d{2})$/.exec(String(hhmm??'').trim());
+  if(!m) return null;
+  const h=+m[1], mi=+m[2];
+  return (h>23||mi>59)?null:h*60+mi;
+}
+
+function categoriaVisibleAhora(cat) {
+  const h=cat?.atributos?.horario;
+  if(!h?.activo) return true;
+  const desde=horaAMinutos(h.desde), hasta=horaAMinutos(h.hasta);
+  if(desde===null||hasta===null||desde===hasta) return true;
+  const dias=Array.isArray(h.dias)&&h.dias.length?h.dias:[0,1,2,3,4,5,6];
+  const {dia,minutos}=ahoraEnZona();
+  if(desde<hasta) return dias.includes(dia)&&minutos>=desde&&minutos<hasta;
+  // Cruza medianoche: la madrugada pertenece a la noche del día anterior
+  if(minutos>=desde) return dias.includes(dia);
+  if(minutos<hasta)  return dias.includes((dia+6)%7);
+  return false;
+}
+
+function describirHorario(h) {
+  const dias = Array.isArray(h.dias)&&h.dias.length ? h.dias : [0,1,2,3,4,5,6];
+  const sel = [1,2,3,4,5,6,0].filter(d=>dias.includes(d));  // de lunes a domingo
+  let texto;
+  if (sel.length===7) texto='Todos los días';
+  else if (sel.length===5 && [1,2,3,4,5].every(d=>dias.includes(d))) texto='L a V';
+  else texto = sel.map(d=>DIAS_CORTOS[d]).join(' ');
+  return `${texto} · ${h.desde}–${h.hasta}`;
+}
+
+function renderCatDiasChips() {
+  const wrap=document.getElementById('editCatDias');
+  wrap.innerHTML='';
+  [1,2,3,4,5,6,0].forEach(d=>{
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='cat-chip'+(catDiasSel.has(d)?' active':'');
+    b.style.cssText='min-width:38px;text-align:center;padding:7px 10px;';
+    b.textContent=DIAS_CORTOS[d];
+    b.title=DIAS_LARGOS[d];
+    b.onclick=()=>{
+      if(catDiasSel.has(d)) catDiasSel.delete(d); else catDiasSel.add(d);
+      renderCatDiasChips(); renderCatHorarioNota();
+    };
+    wrap.appendChild(b);
+  });
+}
+
+function toggleCatHorario() {
+  const on=document.getElementById('editCatHorarioActivo').checked;
+  document.getElementById('editCatHorarioCampos').style.display=on?'block':'none';
+  if(on && !catDiasSel.size) { catDiasSel=new Set([0,1,2,3,4,5,6]); renderCatDiasChips(); }
+  renderCatHorarioNota();
+}
+
+function renderCatHorarioNota() {
+  const el=document.getElementById('editCatHorarioNota');
+  if(!el) return;
+  const desde=document.getElementById('editCatDesde').value;
+  const hasta=document.getElementById('editCatHasta').value;
+  const dmin=horaAMinutos(desde), hmin=horaAMinutos(hasta);
+  if(!catDiasSel.size) {
+    el.textContent='Elige al menos un día, o la categoría se verá siempre.';
+    el.style.color='var(--warn)'; return;
+  }
+  if(dmin===null||hmin===null||dmin===hmin) {
+    el.textContent='Completa las dos horas. Vacías o iguales, la categoría se verá siempre.';
+    el.style.color='var(--warn)'; return;
+  }
+  const horario={activo:true,dias:[...catDiasSel],desde,hasta};
+  const visible=categoriaVisibleAhora({atributos:{horario}});
+  el.style.color='var(--text-muted)';
+  el.innerHTML = describirHorario(horario) +
+    (dmin>hmin ? ' <span style="color:var(--text-dim)">· cruza la medianoche; la madrugada cuenta como parte de la noche anterior</span>' : '') +
+    `<br><span style="color:${visible?'var(--success)':'var(--text-muted)'}">${visible?'✓ Ahora mismo se está mostrando':'○ Ahora mismo está oculta'}</span>`;
+}
+
+function cargarCatHorario(cat) {
+  const h = cat?.atributos?.horario;
+  const activo = !!h?.activo;
+  document.getElementById('editCatHorarioActivo').checked = activo;
+  document.getElementById('editCatDesde').value = h?.desde || '11:00';
+  document.getElementById('editCatHasta').value = h?.hasta || '15:00';
+  catDiasSel = new Set(Array.isArray(h?.dias) && h.dias.length ? h.dias : [0,1,2,3,4,5,6]);
+  document.getElementById('editCatHorarioCampos').style.display = activo ? 'block' : 'none';
+  renderCatDiasChips();
+  renderCatHorarioNota();
+}
+
 function renderCatList() {
   const list=document.getElementById('catList');
   if(!state.categorias.length){list.innerHTML='<div class="empty-state">Sin categorías</div>';return;}
@@ -1966,6 +2131,16 @@ function renderCatList() {
     const nm=document.createElement('div'); nm.className='cat-name'; nm.textContent=cat.nombre;
     const mt=document.createElement('div'); mt.className='cat-meta';
     mt.textContent=`${count} producto${count!==1?'s':''} · ${cat.sin_fotos?'lista':'fotos'}`;
+    // Con horario se avisa si en este momento está oculta, para que nadie
+    // crea que la categoría se perdió.
+    const hor=cat.atributos?.horario;
+    if(hor?.activo) {
+      const visible=categoriaVisibleAhora(cat);
+      const tag=document.createElement('span');
+      tag.style.cssText=`margin-left:8px;color:${visible?'var(--success)':'var(--warn)'};`;
+      tag.textContent=`🕐 ${describirHorario(hor)}${visible?'':' · oculta ahora'}`;
+      mt.appendChild(tag);
+    }
     infoDiv.appendChild(nm); infoDiv.appendChild(mt);
 
     // Botones ↑↓
@@ -2021,6 +2196,7 @@ function openNewCatModal() {
   document.getElementById('editCatSinFotos').checked=false;
   state.pendingCatImgUrl=null;
   renderCatImgField(null);
+  cargarCatHorario(null);
   openModal('catModal');
 }
 
@@ -2034,6 +2210,7 @@ function openEditCatModal(id) {
   document.getElementById('editCatSinFotos').checked=cat.sin_fotos;
   state.pendingCatImgUrl=null;
   renderCatImgField(cat.atributos?.imagen_cabecera || null);
+  cargarCatHorario(cat);
   openModal('catModal');
 }
 
@@ -2075,12 +2252,22 @@ async function saveCat() {
   };
   // Imagen de cabecera → atributos (solo si cambió algo)
   const catActual = id ? state.categorias.find(c=>c.id===id) : null;
-  const atributosActuales = catActual?.atributos || {};
-  if(state.pendingCatImgUrl==='__remove__') {
-    body.atributos = { ...atributosActuales, imagen_cabecera: null };
-  } else if(state.pendingCatImgUrl) {
-    body.atributos = { ...atributosActuales, imagen_cabecera: state.pendingCatImgUrl };
+  const atributos = { ...(catActual?.atributos || {}) };
+  if(state.pendingCatImgUrl==='__remove__')   atributos.imagen_cabecera = null;
+  else if(state.pendingCatImgUrl)             atributos.imagen_cabecera = state.pendingCatImgUrl;
+  // El horario se manda siempre: al apagar el interruptor hay que borrarlo,
+  // no basta con dejar de enviarlo.
+  if(document.getElementById('editCatHorarioActivo').checked) {
+    atributos.horario = {
+      activo: true,
+      dias: [...catDiasSel].sort((a,b)=>a-b),
+      desde: document.getElementById('editCatDesde').value,
+      hasta: document.getElementById('editCatHasta').value,
+    };
+  } else {
+    delete atributos.horario;
   }
+  body.atributos = atributos;
   try {
     if(id) {
       const updated=await apiFetch('PATCH',`/api/categorias/${id}`,body);
@@ -2266,6 +2453,7 @@ function renderApariencia() {
 
   // 'ruta' por defecto: los restaurantes que ya existían no cambian de dirección
   document.getElementById('apUrlModo').value = at.url_modo || 'ruta';
+  document.getElementById('apZonaHoraria').value = at.zona_horaria || 'America/Bogota';
   renderUrlPublicaPreview();
 
   document.getElementById('apFuenteTitulo').value = at.fuente_titulo || '';
@@ -2461,6 +2649,7 @@ function recolectarApariencia() {
       fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
       nav: document.getElementById('apNavModelo').value,
       url_modo: document.getElementById('apUrlModo').value,
+      zona_horaria: document.getElementById('apZonaHoraria').value,
       subtitulo: document.getElementById('apSubtitulo').value.trim(),
       mostrar_hero: document.getElementById('apMostrarHero').checked,
       portada_activa: document.getElementById('apPortadaActiva').checked,
@@ -2502,8 +2691,13 @@ function urlPublica(restaurante, modo) {
 }
 
 function renderUrlPublicaPreview() {
+  const modo = document.getElementById('apUrlModo').value;
   const el = document.getElementById('apUrlPreview');
-  if (el) el.textContent = urlPublica(state.restaurante, document.getElementById('apUrlModo').value);
+  if (el) el.textContent = urlPublica(state.restaurante, modo);
+  // El subdominio no responde hasta registrarlo también en Dokploy. Es un
+  // paso en otro sistema y es justo el que se olvida.
+  const aviso = document.getElementById('apUrlAviso');
+  if (aviso) aviso.style.display = modo === 'subdominio' ? 'block' : 'none';
 }
 
 // ── VISTA PREVIA (sin guardar) ─────────────────────────────────
