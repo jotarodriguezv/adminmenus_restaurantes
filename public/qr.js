@@ -1,6 +1,6 @@
 // ── DISEÑADOR DE CÓDIGOS QR ───────────────────────────────────
 // Genera y personaliza el QR que lleva al menú público del
-// restaurante (VMENUS_PUBLIC_URL/slug).
+// restaurante (ver urlPublica() en index.html).
 //
 // vendor/qrcode.js (MIT, Kazuhiko Arase) solo codifica el texto en una
 // matriz de módulos. Todo el dibujo se hace aquí, porque necesitamos
@@ -31,8 +31,12 @@ let qrLogoImg  = null;   // HTMLImageElement ya cargado, o null
 let qrMatriz   = null;   // { count, isDark(r,c) }
 
 // ── DATOS BASE ────────────────────────────────────────────────
+// La forma del enlace (ruta o subdominio) se configura por restaurante
+// en Apariencia. El menú responde por ambas, así que cambiarla no
+// invalida los códigos ya impresos — solo cambia los que se generen
+// de aquí en adelante.
 function qrEnlace() {
-	return `${VMENUS_PUBLIC_URL}/${state.restaurante.slug}`;
+	return urlPublica(state.restaurante);
 }
 
 // Con el logo tapando el centro hace falta la corrección de errores
