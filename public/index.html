@@ -147,6 +147,10 @@
 
 			/* ── TABLA PRODUCTOS ── */
 			.products-table{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+			/* Con las flechas de reordenar hacen falta dos botones más en la
+			   última columna, o el basurero se cae a una segunda línea. */
+			.products-table.reordenando .table-header,
+			.products-table.reordenando .product-row{grid-template-columns:84px 1fr 130px 90px 200px;}
 			.table-header{display:grid;grid-template-columns:84px 1fr 130px 90px 140px;padding:10px 16px;
 			  border-bottom:1px solid var(--border);background:var(--card);}
 			.th{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
@@ -578,6 +582,19 @@
 							<option value="nombre_za">Nombre: Z → A</option>
 							<option value="categoria">Por categoría</option>
 						</select>
+					</div>
+					<div class="section-card" style="padding:14px 16px;margin-bottom:14px;">
+						<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+							<div class="section-title" style="margin-bottom:0;white-space:nowrap;">Orden en el menú</div>
+							<select class="sort-select" id="ordenProductos" onchange="guardarOrdenProductos()" style="flex:1;min-width:220px;">
+								<option value="precio_asc">Precio: de menor a mayor</option>
+								<option value="precio_desc">Precio: de mayor a menor</option>
+								<option value="nombre_az">Nombre: A → Z</option>
+								<option value="personalizado">Personalizado — yo decido el orden</option>
+							</select>
+							<span id="ordenProductosStatus" style="font-size:11px;font-family:var(--mono);color:var(--text-muted);"></span>
+						</div>
+						<div id="ordenProductosAyuda" style="display:none;margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.6;"></div>
 					</div>
 					<div class="cat-filter" id="catFilter"></div>
 					<div class="products-table">
@@ -1636,7 +1653,7 @@ async function loadData() {
     document.getElementById('topbarResto').textContent = state.restaurante.nombre.toUpperCase();
     state.categorias = await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
-    renderCatFilter(); renderProducts(); renderCatList(); renderPromo();
+    renderCatFilter(); renderOrdenProductos(); renderProducts(); renderCatList(); renderPromo();
     // Apariencia es solo para superadmin: el cliente no debe poder tocar
     // logo, colores, fuentes, modelo de página ni CSS personalizado.
     document.getElementById('tabBtnApariencia').style.display = state.rol === 'admin' ? 'block' : 'none';
@@ -1686,7 +1703,7 @@ function mkChip(label,catId,active) {
 function setFilter(catId,btn) {
   state.catFiltro=catId;
   document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('active'));
-  btn.classList.add('active'); renderProducts();
+  btn.classList.add('active'); renderOrdenProductos(); renderProducts();
 }
 
 // ── PRODUCTOS ─────────────────────────────────────────────────
@@ -1707,8 +1724,19 @@ function renderProducts() {
     );
   });
 
-  const sort = document.getElementById('sortSelect')?.value || 'precio_asc';
-  const prods = [...searched];  // ← antes decía [...filtered]
+  // Reordenar a mano solo tiene sentido viendo una categoría suelta: en el
+  // menú los productos van agrupados por categoría, así que el orden solo
+  // importa dentro de cada una. Y mientras se reordena, la lista se muestra
+  // en el orden del menú — de nada sirve mover flechas en una lista
+  // ordenada por otro criterio.
+  const reordenando = ordenProductosModo() === 'personalizado' && state.catFiltro !== 'all';
+  const selSort = document.getElementById('sortSelect');
+  if (selSort) selSort.disabled = reordenando;
+  list.closest('.products-table')?.classList.toggle('reordenando', reordenando);
+
+  const sort = reordenando ? '__menu__' : (selSort?.value || 'precio_asc');
+  const prods = [...searched];
+  if(sort==='__menu__') prods.sort((a,b)=>(a.orden??0)-(b.orden??0) || a.nombre.localeCompare(b.nombre,'es'));
   if(sort==='precio_asc')  prods.sort((a,b)=>a.precio_numerico-b.precio_numerico);
   if(sort==='precio_desc') prods.sort((a,b)=>b.precio_numerico-a.precio_numerico);
   if(sort==='nombre_az')   prods.sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
@@ -1723,7 +1751,7 @@ function renderProducts() {
   }
   if(!prods.length){list.innerHTML='<div class="empty-state">Sin productos</div>';return;}
   list.innerHTML='';
-  prods.forEach(p=>{
+  prods.forEach((p,idx)=>{
     const cat=state.categorias.find(c=>c.id===p.categoria_id);
     const row=document.createElement('div');
     row.className='product-row'+(p.disponible?'':' unavailable');
@@ -1765,6 +1793,17 @@ function renderProducts() {
     const editBtn=document.createElement('button');
     editBtn.className='btn-edit'; editBtn.type='button'; editBtn.textContent='Editar';
     editBtn.addEventListener('click',function(){openEditProductModal(p.id);});
+    // Flechas de reordenar, solo en modo personalizado y con una categoría
+    // seleccionada (mismo patrón que las categorías)
+    if(reordenando){
+      [['↑',-1,idx===0],['↓',1,idx===prods.length-1]].forEach(([txt,dir,tope])=>{
+        const btn=document.createElement('button');
+        btn.className='btn-edit'; btn.type='button'; btn.textContent=txt;
+        btn.style.cssText='padding:5px 9px;font-size:14px;'+(tope?'opacity:.3;pointer-events:none;':'');
+        if(!tope) btn.addEventListener('click',()=>moveProd(p.id,dir,prods.map(x=>x.id)));
+        actionsDiv.appendChild(btn);
+      });
+    }
     // Basurero solo visible en móvil (en desktop la col 6 tiene el suyo)
     const delBtnMovil=document.createElement('button');
     delBtnMovil.className='btn-del btn-del-movil'; delBtnMovil.type='button';
@@ -2331,6 +2370,100 @@ async function saveCat() {
 }
 
 // ── MOVER CATEGORÍA ──────────────────────────────────────────
+// ── ORDEN DE LOS PRODUCTOS EN EL MENÚ ─────────────────────────
+function ordenProductosModo() {
+  return state.restaurante?.atributos?.orden_productos || 'precio_asc';
+}
+
+function renderOrdenProductos() {
+  const sel = document.getElementById('ordenProductos');
+  if (!sel) return;
+  sel.value = ordenProductosModo();
+  const ayuda = document.getElementById('ordenProductosAyuda');
+  if (ordenProductosModo() !== 'personalizado') {
+    ayuda.style.display = 'none';
+  } else {
+    ayuda.style.display = 'block';
+    ayuda.textContent = state.catFiltro === 'all'
+      ? 'Elige una categoría abajo para poder moverlos: en el menú los productos van agrupados por categoría, así que el orden se define dentro de cada una.'
+      : 'Usa las flechas para mover los productos. Mientras reordenas, la lista se muestra en el mismo orden en que se verá el menú.';
+  }
+}
+
+// ¿Los productos comparten valores de "orden" dentro de alguna categoría?
+// Los creados antes de que existiera esta opción tienen todos el mismo, y
+// entonces el orden manual no significa nada todavía.
+function ordenManualSinDefinir() {
+  return state.categorias.some(cat => {
+    const valores = state.productos.filter(p => p.categoria_id === cat.id).map(p => p.orden ?? 0);
+    return new Set(valores).size !== valores.length;
+  });
+}
+
+// Al activar "personalizado" por primera vez se numera cada categoría
+// siguiendo el orden que la carta tenía hasta ese momento. Sin esto el
+// menú se reordenaría solo (todos empatados en 0, desempate por nombre) y
+// el restaurante vería su carta desbaratada justo al pedir controlarla.
+// Si ya había un orden manual definido, no se toca.
+async function sembrarOrdenManual(modoAnterior) {
+  if (!ordenManualSinDefinir()) return;
+  const comparar = {
+    precio_asc:  (a, b) => a.precio_numerico - b.precio_numerico,
+    precio_desc: (a, b) => b.precio_numerico - a.precio_numerico,
+    nombre_az:   (a, b) => a.nombre.localeCompare(b.nombre, 'es'),
+  }[modoAnterior] || ((a, b) => a.precio_numerico - b.precio_numerico);
+
+  const cambios = [];
+  state.categorias.forEach(cat => {
+    state.productos.filter(p => p.categoria_id === cat.id).sort(comparar)
+      .forEach((p, i) => { if (p.orden !== i) { p.orden = i; cambios.push(p); } });
+  });
+  await Promise.all(cambios.map(p => apiFetch('PATCH', `/api/productos/${p.id}`, { orden: p.orden })));
+}
+
+async function guardarOrdenProductos() {
+  const modo = document.getElementById('ordenProductos').value;
+  const modoAnterior = ordenProductosModo();
+  const st = document.getElementById('ordenProductosStatus');
+  try {
+    if (modo === 'personalizado' && modoAnterior !== 'personalizado') await sembrarOrdenManual(modoAnterior);
+    const atributos = { ...(state.restaurante.atributos || {}), orden_productos: modo };
+    state.restaurante = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
+    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    setTimeout(() => { st.textContent = ''; }, 2500);
+    renderOrdenProductos(); renderProducts();
+  } catch (e) {
+    st.textContent = 'Error'; st.style.color = 'var(--danger)';
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// Reasigna 0,1,2… a toda la categoría en vez de intercambiar dos valores.
+// Los productos creados antes comparten valores de "orden" (venía de un
+// contador global), así que un intercambio simple no movería nada.
+async function moveProd(id, dir, idsEnOrden) {
+  const pos = idsEnOrden.indexOf(id);
+  if (pos < 0 || pos + dir < 0 || pos + dir >= idsEnOrden.length) return;
+  const nuevos = [...idsEnOrden];
+  [nuevos[pos], nuevos[pos + dir]] = [nuevos[pos + dir], nuevos[pos]];
+
+  const cambios = [];
+  nuevos.forEach((pid, i) => {
+    const prod = state.productos.find(p => p.id === pid);
+    if (prod && prod.orden !== i) { prod.orden = i; cambios.push({ id: pid, orden: i }); }
+  });
+  renderProducts();   // respuesta inmediata; se corrige abajo si algo falla
+
+  try {
+    await Promise.all(cambios.map(c => apiFetch('PATCH', `/api/productos/${c.id}`, { orden: c.orden })));
+    showToast('Orden actualizado', 'success');
+  } catch (e) {
+    showToast('No se pudo guardar el orden', 'error');
+    state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
+    renderProducts();
+  }
+}
+
 async function moveCat(id, dir) {
   const idx=state.categorias.findIndex(c=>c.id===id);
   const other=state.categorias[idx+dir]; if(!other) return;
