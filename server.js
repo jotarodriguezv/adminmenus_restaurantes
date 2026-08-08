@@ -23,11 +23,22 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ── Multer ────────────────────────────────────────────────────
+// Las carpetas de subida son un conjunto cerrado. Usar el valor crudo de
+// ?folder= permitía construir rutas como '../../' y escribir fuera de
+// uploads/, así que cualquier valor que no esté en la lista cae en la
+// carpeta por defecto.
+const CARPETAS_VALIDAS = new Set(['productos', 'categorias', 'promos', 'logos', 'fondos', 'portadas']);
+const CARPETA_POR_DEFECTO = 'productos';
+
+function carpetaDe(req) {
+  return CARPETAS_VALIDAS.has(req.query.folder) ? req.query.folder : CARPETA_POR_DEFECTO;
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Leer folder desde query params (?folder=promos) porque en multipart
     // req.body aún no está disponible cuando multer procesa el archivo
-    const sub = req.query.folder || 'productos';
+    const sub = carpetaDe(req);
     const dir = path.join(__dirname, 'uploads', sub);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
@@ -70,8 +81,16 @@ app.post('/api/login', async (req, res) => {
     return res.json({ token, rol: 'admin', restauranteId: null });
   }
 
-  const { data } = await supabase.from('restaurantes').select('id, pin_hash').eq('slug', slug).single();
-  if (!data || !data.pin_hash || !(await bcrypt.compare(pin, data.pin_hash)))
+  // El hash vive en restaurantes_privado, una tabla sin políticas RLS: solo
+  // la llave de servicio (que las ignora) la puede leer. La tabla pública
+  // 'restaurantes' se sirve entera al menú de cualquier visitante, así que
+  // no puede contener secretos.
+  const { data } = await supabase.from('restaurantes').select('id').eq('slug', slug).single();
+  if (!data) return res.status(401).json({ error: 'Credenciales incorrectas' });
+
+  const { data: cred } = await supabase.from('restaurantes_privado')
+    .select('pin_hash').eq('restaurante_id', data.id).maybeSingle();
+  if (!cred?.pin_hash || !(await bcrypt.compare(pin, cred.pin_hash)))
     return res.status(401).json({ error: 'Credenciales incorrectas' });
 
   const token = jwt.sign({ slug, rol: 'cliente', restauranteId: data.id }, process.env.JWT_SECRET, { expiresIn: '8h' });
@@ -107,11 +126,19 @@ app.post('/api/restaurantes', auth, async (req, res) => {
   }
 
   const { data, error } = await supabase.from('restaurantes')
-    .insert([{ nombre, slug, color_primario: color_primario||'#3dd68c', color_secundario: color_secundario||'#a374af', activo: activo!==false, promo_activa: false, pin_hash, atributos }])
+    .insert([{ nombre, slug, color_primario: color_primario||'#3dd68c', color_secundario: color_secundario||'#a374af', activo: activo!==false, promo_activa: false, atributos }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
-  const { pin_hash: _omit, ...safe } = data;
-  res.json(safe);
+
+  const { error: errPin } = await supabase.from('restaurantes_privado')
+    .insert([{ restaurante_id: data.id, pin_hash }]);
+  if (errPin) {
+    // Un restaurante sin PIN no lo puede administrar nadie. Antes que dejarlo
+    // creado e inaccesible, se deshace la creación.
+    await supabase.from('restaurantes').delete().eq('id', data.id);
+    return res.status(500).json({ error: errPin.message });
+  }
+  res.json(data);
 });
 
 app.patch('/api/restaurantes/:id/pin', auth, async (req, res) => {
@@ -119,7 +146,12 @@ app.patch('/api/restaurantes/:id/pin', auth, async (req, res) => {
   const { pin } = req.body;
   if (!pin || pin.length < 4) return res.status(400).json({ error: 'PIN requerido (mínimo 4 caracteres)' });
   const pin_hash = await bcrypt.hash(pin, 10);
-  const { error } = await supabase.from('restaurantes').update({ pin_hash }).eq('id', req.params.id);
+  // upsert y no update: un restaurante que todavía no tiene fila de
+  // credenciales (creado antes de que el PIN fuera obligatorio) también
+  // tiene que poder recibir uno.
+  const { error } = await supabase.from('restaurantes_privado')
+    .upsert({ restaurante_id: req.params.id, pin_hash, actualizado_at: new Date().toISOString() },
+            { onConflict: 'restaurante_id' });
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
@@ -147,6 +179,54 @@ const PLANES = {
 };
 const PLAN_POR_DEFECTO = 'pedidos';
 const planDe = atributos => PLANES[atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
+
+// ── FECHAS EN LA ZONA DEL RESTAURANTE ─────────────────────────
+// Las estadísticas se cuentan con el reloj del restaurante, nunca en UTC.
+// En Colombia (UTC-5) contar en UTC empuja todo lo que ocurre después de
+// las 7 p. m. — la franja más cargada de un restaurante — al día siguiente.
+// Es el mismo criterio que ya usa core/horarios.js en el sitio público.
+const ZONA_POR_DEFECTO = 'America/Bogota';
+
+function zonaDe(atributos) {
+  const zona = atributos?.zona_horaria;
+  if (!zona) return ZONA_POR_DEFECTO;
+  // Una zona inválida hace estallar Intl y tumbaría el endpoint entero
+  try { new Intl.DateTimeFormat('en-US', { timeZone: zona }); return zona; }
+  catch { return ZONA_POR_DEFECTO; }
+}
+
+function partesEn(instante, zona) {
+  return Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: zona, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).formatToParts(instante).map(p => [p.type, p.value])
+  );
+}
+
+// Cuánto se aparta la zona de UTC en ese instante concreto. No es un valor
+// fijo por zona: donde hay horario de verano cambia según la fecha.
+function offsetMs(instante, zona) {
+  const p = partesEn(instante, zona);
+  // Con hour12:false algunos motores devuelven "24" para la medianoche
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - instante.getTime();
+}
+
+// 'YYYY-MM-DD' + 'HH:mm:ss' del reloj local de la zona → instante UTC real.
+function instanteUTC(fecha, hora, zona) {
+  const ingenuo = new Date(`${fecha}T${hora}Z`);
+  // Dos pasadas: junto a un cambio de horario el offset del primer tanteo
+  // puede ser el del lado equivocado de la transición.
+  const tanteo = ingenuo.getTime() - offsetMs(ingenuo, zona);
+  return new Date(ingenuo.getTime() - offsetMs(new Date(tanteo), zona));
+}
+
+// Día calendario ('YYYY-MM-DD') al que pertenece un evento en esa zona.
+function diaEn(iso, zona) {
+  const p = partesEn(new Date(iso), zona);
+  return `${p.year}-${p.month}-${p.day}`;
+}
 
 app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   if (!canAccessRestaurante(req.user, req.params.id))
@@ -191,6 +271,7 @@ app.delete('/api/restaurantes/:id', auth, async (req, res) => {
   await supabase.from('eventos_analitica').delete().eq('restaurante_id', id);
   await supabase.from('productos').delete().eq('restaurante_id', id);
   await supabase.from('categorias').delete().eq('restaurante_id', id);
+  await supabase.from('restaurantes_privado').delete().eq('restaurante_id', id);
   const { error } = await supabase.from('restaurantes').delete().eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
@@ -281,15 +362,31 @@ app.delete('/api/productos/:id', auth, async (req, res) => {
 // ── IMÁGENES ──────────────────────────────────────────────────
 app.post('/api/upload', auth, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió imagen' });
-  const sub = req.query.folder || 'productos';
+  // Misma función que usó multer para elegir el destino: así la URL que se
+  // devuelve siempre apunta a donde realmente quedó el archivo.
+  const sub = carpetaDe(req);
   const url = `${process.env.BASE_URL}/uploads/${sub}/${req.file.filename}`;
   res.json({ url, filename: req.file.filename });
 });
 
+// Express aplica decodeURIComponent a los parámetros de ruta, así que un
+// '..%2F..%2Fserver.js' llega ya convertido en una ruta que se sale de
+// uploads/. Se resuelve la ruta y se comprueba que el resultado siga dentro
+// antes de borrar nada.
 app.delete('/api/upload/:folder/:filename', auth, (req, res) => {
-  const fp = path.join(__dirname, 'uploads', req.params.folder, req.params.filename);
-  if (fs.existsSync(fp)) { fs.unlinkSync(fp); return res.json({ ok: true }); }
-  res.status(404).json({ error: 'Archivo no encontrado' });
+  const base = path.resolve(__dirname, 'uploads');
+  const fp = path.resolve(base, req.params.folder, req.params.filename);
+  const rel = path.relative(base, fp);
+  // Todo lo subido vive exactamente a un nivel: uploads/<carpeta>/<archivo>.
+  // Exigir esa profundidad descarta de una vez las rutas que se salen y las
+  // que apuntan a la carpeta misma (un unlink sobre un directorio lanza).
+  if (rel.startsWith('..') || path.isAbsolute(rel) || rel.split(path.sep).length !== 2)
+    return res.status(400).json({ error: 'Ruta inválida' });
+  if (!fs.existsSync(fp)) return res.status(404).json({ error: 'Archivo no encontrado' });
+  // El borrado puede fallar igual (permisos, carrera con otro borrado); que no
+  // se lleve por delante el proceso entero.
+  try { fs.unlinkSync(fp); } catch { return res.status(500).json({ error: 'No se pudo borrar' }); }
+  res.json({ ok: true });
 });
 
 // ── ANALÍTICA ─────────────────────────────────────────────────
@@ -314,16 +411,21 @@ app.get('/api/estadisticas', auth, async (req, res) => {
   if (!restaurante_id || !desde || !hasta) return res.status(400).json({ error: 'Faltan parámetros' });
   if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
 
+  // Los atributos hacen falta siempre (de ahí sale la zona horaria), no solo
+  // para el chequeo de plan.
+  const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', restaurante_id).single();
+
   // El superadmin siempre puede consultarlas; para el restaurante dependen
   // del plan. Ocultar la pestaña no basta: la API responde igual.
-  if (req.user.rol !== 'admin') {
-    const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', restaurante_id).single();
-    if (!planDe(resto?.atributos).estadisticas)
-      return res.status(403).json({ error: 'Las estadísticas no están incluidas en el plan actual' });
-  }
+  if (req.user.rol !== 'admin' && !planDe(resto?.atributos).estadisticas)
+    return res.status(403).json({ error: 'Las estadísticas no están incluidas en el plan actual' });
 
-  const desdeInicio = `${desde}T00:00:00`;
-  const hastaFin = `${hasta}T23:59:59`;
+  // 'desde' y 'hasta' llegan como días del calendario del restaurante. Sin
+  // convertirlos a instantes de su zona, Postgres los leía como UTC y el
+  // rango quedaba corrido cinco horas.
+  const zona = zonaDe(resto?.atributos);
+  const desdeInicio = instanteUTC(desde, '00:00:00', zona).toISOString();
+  const hastaFin = instanteUTC(hasta, '23:59:59', zona).toISOString();
 
   const [visitasRes, clicsRes] = await Promise.all([
     supabase.from('eventos_analitica').select('created_at')
@@ -340,7 +442,8 @@ app.get('/api/estadisticas', auth, async (req, res) => {
 
   const visitasPorDia = {};
   visitas.forEach(v => {
-    const dia = v.created_at.slice(0, 10);
+    // slice(0,10) sobre el timestamp daba el día UTC, no el del restaurante.
+    const dia = diaEn(v.created_at, zona);
     visitasPorDia[dia] = (visitasPorDia[dia] || 0) + 1;
   });
 
@@ -361,6 +464,7 @@ app.get('/api/estadisticas', auth, async (req, res) => {
     .sort((a, b) => b.clics - a.clics);
 
   res.json({
+    zona,
     totalVisitas: visitas.length,
     totalClics: clics.length,
     tasaInteraccion: visitas.length ? +(clics.length / visitas.length * 100).toFixed(1) : 0,
