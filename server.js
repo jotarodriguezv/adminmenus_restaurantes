@@ -288,11 +288,9 @@ function instanteUTC(fecha, hora, zona) {
   return new Date(ingenuo.getTime() - offsetMs(new Date(tanteo), zona));
 }
 
-// Día calendario ('YYYY-MM-DD') al que pertenece un evento en esa zona.
-function diaEn(iso, zona) {
-  const p = partesEn(new Date(iso), zona);
-  return `${p.year}-${p.month}-${p.day}`;
-}
+// El agrupado por día lo hace ahora estadisticas_restaurante() en SQL, con
+// 'at time zone', así que aquí ya no hace falta calcular el día de un evento.
+// Lo que sigue haciendo falta es traducir los días del selector a instantes.
 
 app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   if (!canAccessRestaurante(req.user, req.params.id))
@@ -556,49 +554,32 @@ app.get('/api/estadisticas', auth, async (req, res) => {
   const desdeInicio = instanteUTC(desde, '00:00:00', zona).toISOString();
   const hastaFin = instanteUTC(hasta, '23:59:59', zona).toISOString();
 
-  const [visitasRes, clicsRes] = await Promise.all([
-    supabase.from('eventos_analitica').select('created_at')
-      .eq('restaurante_id', restaurante_id).eq('tipo', 'visita')
-      .gte('created_at', desdeInicio).lte('created_at', hastaFin),
-    supabase.from('eventos_analitica').select('producto_id, created_at')
-      .eq('restaurante_id', restaurante_id).eq('tipo', 'clic')
-      .gte('created_at', desdeInicio).lte('created_at', hastaFin)
-  ]);
-  if (visitasRes.error) return res.status(500).json({ error: visitasRes.error.message });
-  if (clicsRes.error) return res.status(500).json({ error: clicsRes.error.message });
-  const visitas = visitasRes.data;
-  const clics = clicsRes.data;
-
-  const visitasPorDia = {};
-  visitas.forEach(v => {
-    // slice(0,10) sobre el timestamp daba el día UTC, no el del restaurante.
-    const dia = diaEn(v.created_at, zona);
-    visitasPorDia[dia] = (visitasPorDia[dia] || 0) + 1;
+  // Antes se traían todos los eventos del rango y se agrupaban aquí, con dos
+  // consultas más una tercera para los nombres. Ahora cuenta la base y solo
+  // viaja el resultado: la memoria del proceso y el tamaño de la respuesta ya
+  // no dependen de cuántos eventos haya, sino de cuántos días y productos
+  // distintos tenga el rango.
+  const { data: est, error } = await supabase.rpc('estadisticas_restaurante', {
+    p_restaurante_id: restaurante_id,
+    p_desde: desdeInicio,
+    p_hasta: hastaFin,
+    p_zona: zona
   });
-
-  const clicsPorProducto = {};
-  clics.forEach(c => {
-    if (!c.producto_id) return;
-    clicsPorProducto[c.producto_id] = (clicsPorProducto[c.producto_id] || 0) + 1;
-  });
-
-  let nombres = {};
-  const productIds = Object.keys(clicsPorProducto);
-  if (productIds.length) {
-    const { data: prods } = await supabase.from('productos').select('id, nombre').in('id', productIds);
-    (prods || []).forEach(p => { nombres[p.id] = p.nombre; });
+  if (error) {
+    console.error('[estadisticas] error agregando:', error.message);
+    return res.status(500).json({ error: 'No se pudieron calcular las estadísticas' });
   }
-  const rankingProductos = Object.entries(clicsPorProducto)
-    .map(([producto_id, clics]) => ({ producto_id, nombre: nombres[producto_id] || '(producto eliminado)', clics }))
-    .sort((a, b) => b.clics - a.clics);
+
+  const totalVisitas = est?.totalVisitas ?? 0;
+  const totalClics = est?.totalClics ?? 0;
 
   res.json({
     zona,
-    totalVisitas: visitas.length,
-    totalClics: clics.length,
-    tasaInteraccion: visitas.length ? +(clics.length / visitas.length * 100).toFixed(1) : 0,
-    visitasPorDia,
-    rankingProductos
+    totalVisitas,
+    totalClics,
+    tasaInteraccion: totalVisitas ? +(totalClics / totalVisitas * 100).toFixed(1) : 0,
+    visitasPorDia: est?.visitasPorDia ?? {},
+    rankingProductos: est?.rankingProductos ?? []
   });
 });
 
