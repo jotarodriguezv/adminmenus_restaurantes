@@ -387,6 +387,42 @@ app.delete('/api/categorias/:id', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── PRECIO: UN SOLO DATO ESCRITO DOS VECES ────────────────────
+// 'precio' es lo que lee el cliente y 'precio_numerico' con lo que se ordena
+// el menú y se suma el carrito. Cuando se separan, la carta muestra un precio
+// y el carrito cobra otro: pasó con dos productos, uno con un cero de más
+// ($4.500 mostrados contra 45000 internos).
+//
+// El panel ya deriva uno del otro, pero la API los aceptaba sueltos, así que
+// la garantía va aquí: vale para el panel, para un script de importación y
+// para cualquier llamada futura.
+//
+// El separador se arma a mano y no con toLocaleString: en Node depende de los
+// datos ICU que traiga la imagen, y si faltan devuelve "4,500" en vez de
+// "4.500", cambiando el formato de toda la carta sin avisar.
+function formatoPrecio(n) {
+  return '$ ' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// Normaliza los dos campos de 'body' para que no puedan contradecirse. Manda
+// el número si viene; si solo llega el texto, se saca el número de ahí.
+function normalizarPrecio(body) {
+  if (body.precio_numerico !== undefined && body.precio_numerico !== null && body.precio_numerico !== '') {
+    const n = parseFloat(body.precio_numerico);
+    if (!Number.isFinite(n) || n < 0) return 'Precio inválido';
+    body.precio_numerico = n;
+    body.precio = formatoPrecio(n);
+    return null;
+  }
+  if (body.precio !== undefined && body.precio !== null) {
+    const digitos = String(body.precio).replace(/[^0-9]/g, '');
+    if (!digitos) return 'Precio inválido';
+    body.precio_numerico = Number(digitos);
+    body.precio = formatoPrecio(body.precio_numerico);
+  }
+  return null;
+}
+
 // ── PRODUCTOS ─────────────────────────────────────────────────
 app.get('/api/productos', auth, async (req, res) => {
   const rid = req.query.restaurante_id;
@@ -398,10 +434,13 @@ app.get('/api/productos', auth, async (req, res) => {
 });
 
 app.post('/api/productos', auth, async (req, res) => {
-  const { restaurante_id, categoria_id, nombre, descripcion, descripcion_avanzada, precio, precio_numerico, imagen_url, disponible, orden, atributos } = req.body;
+  const { restaurante_id, categoria_id, nombre, descripcion, descripcion_avanzada, imagen_url, disponible, orden, atributos } = req.body;
   if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  const p = { precio: req.body.precio, precio_numerico: req.body.precio_numerico };
+  const errPrecio = normalizarPrecio(p);
+  if (errPrecio) return res.status(400).json({ error: errPrecio });
   const { data, error } = await supabase.from('productos')
-    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio, precio_numerico: parseFloat(precio_numerico) || 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, atributos: atributos || {} }])
+    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, atributos: atributos || {} }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -412,6 +451,8 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
   if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden', 'atributos'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
+  const errPrecio = normalizarPrecio(body);
+  if (errPrecio) return res.status(400).json({ error: errPrecio });
   const { data, error } = await supabase.from('productos').update(body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
