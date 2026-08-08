@@ -3073,10 +3073,37 @@ let estadoRango = { tipo: '7', desde: null, hasta: null };
 let vistaRanking = 'lista';
 let ultimaEstadistica = null;
 
-function fmtISO(d) { return d.toISOString().slice(0, 10); }
+// Las fechas del selector son días del calendario del RESTAURANTE, no del
+// navegador de quien mira el panel. toISOString() daba el día UTC: en
+// Colombia, un dueño que abría "Hoy" a las 8 p. m. pedía el día siguiente y
+// veía la gráfica vacía.
+//
+// Los días se manejan como fechas "flotantes" ancladas al mediodía UTC: así
+// sumar o restar días nunca cruza de día por redondeo de zona.
+function zonaRestaurante() {
+  const z = state.restaurante?.atributos?.zona_horaria;
+  if (!z) return 'America/Bogota';
+  try { new Intl.DateTimeFormat('en-US', { timeZone: z }); return z; }
+  catch { return 'America/Bogota'; }
+}
+
+function fmtISO(d) {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+function diaFlotante(iso) { return new Date(`${iso}T12:00:00Z`); }
+
+function hoyEnZona() {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: zonaRestaurante(), year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date()).map(x => [x.type, x.value])
+  );
+  return new Date(Date.UTC(+p.year, +p.month - 1, +p.day, 12));
+}
 
 function seleccionarRango(tipo) {
-  const hoy = new Date();
+  const hoy = hoyEnZona();
   if (tipo === 'custom') {
     const desde = document.getElementById('estDesde').value;
     const hasta = document.getElementById('estHasta').value;
@@ -3085,8 +3112,8 @@ function seleccionarRango(tipo) {
   } else {
     let desde;
     if (tipo === 'hoy') desde = new Date(hoy);
-    else if (tipo === 'todo') desde = new Date(2020, 0, 1);
-    else { desde = new Date(hoy); desde.setDate(desde.getDate() - (parseInt(tipo, 10) - 1)); }
+    else if (tipo === 'todo') desde = new Date(Date.UTC(2020, 0, 1, 12));
+    else { desde = new Date(hoy); desde.setUTCDate(desde.getUTCDate() - (parseInt(tipo, 10) - 1)); }
     estadoRango = { tipo, desde: fmtISO(desde), hasta: fmtISO(hoy) };
     document.getElementById('estDesde').value = estadoRango.desde;
     document.getElementById('estHasta').value = estadoRango.hasta;
@@ -3119,15 +3146,17 @@ function renderKpis(data) {
 
 function renderGraficaVisitas(visitasPorDia, desde, hasta) {
   const dias = [];
-  let cur = new Date(desde + 'T00:00:00');
-  const fin = new Date(hasta + 'T00:00:00');
-  while (cur <= fin) { dias.push(fmtISO(cur)); cur.setDate(cur.getDate() + 1); }
+  let cur = diaFlotante(desde);
+  const fin = diaFlotante(hasta);
+  while (cur <= fin) { dias.push(fmtISO(cur)); cur.setUTCDate(cur.getUTCDate() + 1); }
 
   const cont = document.getElementById('estChartVisitas');
   if (!dias.length) { cont.innerHTML = '<div class="empty-state">Sin datos</div>'; return; }
 
   const max = Math.max(1, ...dias.map(d => visitasPorDia[d] || 0));
-  const corta = d => new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  // Se formatea en UTC porque las fechas van ancladas al mediodía UTC: leerlas
+  // en la zona del navegador podría mover la etiqueta un día.
+  const corta = d => diaFlotante(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
   cont.innerHTML = `
     <div style="display:flex;align-items:flex-end;gap:3px;height:120px;overflow-x:auto;padding-bottom:4px;">
