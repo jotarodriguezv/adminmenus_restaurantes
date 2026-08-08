@@ -134,6 +134,20 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'atribut
 // fuentes, redes, css_custom, etc. quedan fuera.
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos'];
 
+// Claves de "atributos" que además dependen del plan. El panel ya las
+// esconde, pero esconder un formulario no impide una llamada directa a la
+// API, así que la restricción se repite aquí. 'plan' nunca está en la
+// lista del cliente, así que nadie puede ascenderse solo.
+const ATRIBUTOS_SEGUN_PLAN = { qr: 'qr_disenador' };
+
+const PLANES = {
+  vitrina:  { qr_disenador: false, estadisticas: false, horarios: false },
+  pedidos:  { qr_disenador: true,  estadisticas: true,  horarios: true  },
+  completo: { qr_disenador: true,  estadisticas: true,  horarios: true  },
+};
+const PLAN_POR_DEFECTO = 'pedidos';
+const planDe = atributos => PLANES[atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
+
 app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   if (!canAccessRestaurante(req.user, req.params.id))
     return res.status(403).json({ error: 'Sin permiso' });
@@ -152,7 +166,11 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     // Nunca confiar en el objeto "atributos" completo que manda el cliente:
     // se reconstruye a partir de lo que ya existe + solo las claves permitidas.
     const { data: actual } = await supabase.from('restaurantes').select('atributos').eq('id', req.params.id).single();
-    const entrantes = Object.fromEntries(Object.entries(body.atributos).filter(([k]) => ATRIBUTOS_CLIENTE_PERMITIDOS.includes(k)));
+    const plan = planDe(actual?.atributos);
+    const entrantes = Object.fromEntries(Object.entries(body.atributos).filter(([k]) =>
+      ATRIBUTOS_CLIENTE_PERMITIDOS.includes(k) &&
+      (!ATRIBUTOS_SEGUN_PLAN[k] || plan[ATRIBUTOS_SEGUN_PLAN[k]])
+    ));
     body.atributos = { ...(actual?.atributos || {}), ...entrantes };
   }
 
@@ -295,6 +313,14 @@ app.get('/api/estadisticas', auth, async (req, res) => {
   const { restaurante_id, desde, hasta } = req.query;
   if (!restaurante_id || !desde || !hasta) return res.status(400).json({ error: 'Faltan parámetros' });
   if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+
+  // El superadmin siempre puede consultarlas; para el restaurante dependen
+  // del plan. Ocultar la pestaña no basta: la API responde igual.
+  if (req.user.rol !== 'admin') {
+    const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', restaurante_id).single();
+    if (!planDe(resto?.atributos).estadisticas)
+      return res.status(403).json({ error: 'Las estadísticas no están incluidas en el plan actual' });
+  }
 
   const desdeInicio = `${desde}T00:00:00`;
   const hastaFin = `${hasta}T23:59:59`;
