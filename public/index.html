@@ -1539,6 +1539,21 @@ function formatPrecio(num) {
   return '$ ' + Math.round(n).toLocaleString('es-CO');
 }
 
+// ── ESCAPADO DE HTML ──────────────────────────────────────────
+// El panel muestra datos que escriben los restaurantes: nombres de producto,
+// toppings, filtros. La mayoría del código usa textContent y está a salvo,
+// pero unas cuantas plantillas van a innerHTML.
+//
+// Aquí no es cosmético como en el menú público: el superadmin abre el panel
+// de CUALQUIER restaurante, y su token vive en sessionStorage. Un producto
+// llamado <img src=x onerror=...> se ejecutaría con la sesión del superadmin
+// en cuanto este mirara las estadísticas de ese restaurante.
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
 let token = sessionStorage.getItem('menuAdminToken') || null;
 let state = {
   rol: sessionStorage.getItem('menuAdminRol') || null,
@@ -1979,7 +1994,7 @@ function chipToggle(emoji, label, activo, onClick) {
 		(activo ? 'var(--accent)' : 'var(--border)') + ';' +
 		'background:' + (activo ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'transparent') + ';' +
 		'color:' + (activo ? 'var(--accent)' : 'var(--text-muted)') + ';';
-	chip.innerHTML = `<span>${emoji || ''}</span><span>${label}</span>` + (activo ? '<span style="margin-left:2px">✓</span>' : '');
+	chip.innerHTML = `<span>${esc(emoji || '')}</span><span>${esc(label)}</span>` + (activo ? '<span style="margin-left:2px">✓</span>' : '');
 	chip.onclick = onClick;
 	return chip;
 }
@@ -2775,7 +2790,7 @@ function chipFiltro(item, activo, esCustom) {
     (activo ? 'var(--accent)' : 'var(--border)') + ';' +
     'background:' + (activo ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'transparent') + ';' +
     'color:' + (activo ? 'var(--accent)' : 'var(--text-muted)') + ';';
-  chip.innerHTML = `<span>${item.emoji || ''}</span><span>${item.label}</span>` +
+  chip.innerHTML = `<span>${esc(item.emoji || '')}</span><span>${esc(item.label)}</span>` +
     (esCustom ? '<span style="opacity:.6;margin-left:2px">✕</span>' : (activo ? '<span style="margin-left:2px">✓</span>' : ''));
   chip.onclick = () => {
     if (esCustom) {
@@ -3181,7 +3196,7 @@ function renderRanking(ranking) {
     cont.innerHTML = ranking.slice(0, 10).map(r => `
       <div style="margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
-          <span style="color:var(--text);">${r.nombre}</span>
+          <span style="color:var(--text);">${esc(r.nombre)}</span>
           <span style="color:var(--text-muted);font-family:var(--mono);">${r.clics}</span>
         </div>
         <div style="background:var(--card);border-radius:4px;height:10px;overflow:hidden;">
@@ -3192,7 +3207,7 @@ function renderRanking(ranking) {
     cont.innerHTML = ranking.map((r, i) => `
       <div style="display:grid;grid-template-columns:32px 1fr 50px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border);gap:8px;">
         <span style="color:var(--text-dim);font-family:var(--mono);font-size:12px;">#${i + 1}</span>
-        <span style="color:var(--text);font-size:13px;">${r.nombre}</span>
+        <span style="color:var(--text);font-size:13px;">${esc(r.nombre)}</span>
         <span style="color:var(--accent);font-family:var(--mono);font-size:13px;text-align:right;">${r.clics}</span>
       </div>`).join('');
   }
@@ -3230,7 +3245,7 @@ function renderToppingList(containerId, items, tipo) {
     const label = tipo === 'premium'
       ? `${item.nombre} · $${item.precio.toLocaleString('es-CO')}`
       : item;
-    chip.innerHTML = `<span>${label}</span><button class="chip-del" title="Eliminar">✕</button>`;
+    chip.innerHTML = `<span>${esc(label)}</span><button class="chip-del" title="Eliminar">✕</button>`;
     chip.querySelector('.chip-del').onclick = () => {
       if (tipo === 'premium') toppingState.premium.splice(idx, 1);
       else if (tipo === 'platino') toppingState.platino.splice(idx, 1);
@@ -3470,8 +3485,8 @@ async function cargarListaRestos() {
       const activo=r.activo!==false; // null o true = activo
       card.innerHTML=`
         <div class="resto-card-info">
-          <div class="resto-card-name">${r.nombre}</div>
-          <div class="resto-card-slug">${r.slug}</div>
+          <div class="resto-card-name">${esc(r.nombre)}</div>
+          <div class="resto-card-slug">${esc(r.slug)}</div>
           ${estadoPagoHtml(r.atributos)}
           <span class="resto-card-plan">Plan ${planDe(r).nombre}</span>
         </div>
