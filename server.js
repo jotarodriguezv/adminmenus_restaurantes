@@ -16,6 +16,14 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+// Detrás del proxy de Dokploy, req.ip sería siempre la IP del proxy y el
+// límite de /api/track trataría a todos los visitantes como uno solo. Con
+// esto Express lee la IP real del final de X-Forwarded-For. El valor es
+// cuántos proxies hay delante; si cambia la infraestructura se ajusta con
+// la variable TRUST_PROXY sin tocar el código.
+const TRUST_PROXY = process.env.TRUST_PROXY ?? '1';
+app.set('trust proxy', /^\d+$/.test(TRUST_PROXY) ? Number(TRUST_PROXY) : TRUST_PROXY);
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -56,6 +64,40 @@ const upload = multer({
     else cb(new Error('Solo JPG, PNG o WEBP'));
   }
 });
+
+// ── LÍMITE DE PETICIONES PARA /api/track ──────────────────────
+// El endpoint no puede pedir credenciales (lo llama el menú público, que no
+// tiene ninguna), así que lo único que queda es limitar por IP.
+//
+// Es una barrera contra el abuso trivial —un bucle de curl inflando las
+// visitas de un restaurante—, no contra alguien decidido: quien rote IPs
+// pasa igual. El tope va holgado a propósito: un restaurante lleno comparte
+// una sola IP de wifi, y perder eventos reales sería peor que el abuso que
+// esto evita.
+const TRACK_VENTANA_MS = 60_000;
+const TRACK_MAX_POR_VENTANA = 120;
+const trackPorIp = new Map();
+
+function dentroDelLimite(ip) {
+  const ahora = Date.now();
+  const reg = trackPorIp.get(ip);
+  if (!reg || ahora - reg.desde >= TRACK_VENTANA_MS) {
+    trackPorIp.set(ip, { desde: ahora, n: 1 });
+    return true;
+  }
+  reg.n++;
+  return reg.n <= TRACK_MAX_POR_VENTANA;
+}
+
+// El Map crece con cada IP nueva. Sin esta limpieza es una fuga de memoria
+// lenta pero segura en un proceso que no se reinicia. unref() para que el
+// temporizador no mantenga vivo al proceso por su cuenta.
+setInterval(() => {
+  const limite = Date.now() - TRACK_VENTANA_MS;
+  for (const [ip, reg] of trackPorIp) if (reg.desde < limite) trackPorIp.delete(ip);
+}, TRACK_VENTANA_MS).unref();
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ── Auth ──────────────────────────────────────────────────────
 function auth(req, res, next) {
@@ -180,6 +222,30 @@ const PLANES = {
 const PLAN_POR_DEFECTO = 'pedidos';
 const planDe = atributos => PLANES[atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
 
+// Lo mismo dentro de "atributos" de una CATEGORÍA. El horario es una función
+// de plan, y esconder el interruptor en el panel no impide una llamada
+// directa a la API — la misma razón por la que ya se repite el chequeo en
+// restaurantes y en /api/estadisticas.
+const ATRIBUTOS_CATEGORIA_PERMITIDOS = ['horario', 'imagen_cabecera'];
+const ATRIBUTOS_CATEGORIA_SEGUN_PLAN = { horario: 'horarios' };
+
+// El panel manda el objeto "atributos" COMPLETO: apagar un horario es borrar
+// la clave. Por eso esto filtra un reemplazo y no mezcla con lo guardado —
+// mezclar dejaría el horario imposible de quitar.
+function atributosCategoria(entrantes, actuales, esAdmin, plan) {
+  const out = {};
+  for (const clave of ATRIBUTOS_CATEGORIA_PERMITIDOS) {
+    const requiere = ATRIBUTOS_CATEGORIA_SEGUN_PLAN[clave];
+    const bloqueada = !esAdmin && requiere && !plan[requiere];
+    // Sin el plan que la incluye la clave no se puede cambiar, pero tampoco se
+    // borra lo que ya hubiera: bajar de plan no debe destruir la configuración.
+    const valor = bloqueada ? actuales?.[clave] : entrantes?.[clave];
+    // null es como el panel pide quitar una imagen de cabecera.
+    if (valor !== undefined && valor !== null) out[clave] = valor;
+  }
+  return out;
+}
+
 // ── FECHAS EN LA ZONA DEL RESTAURANTE ─────────────────────────
 // Las estadísticas se cuentan con el reloj del restaurante, nunca en UTC.
 // En Colombia (UTC-5) contar en UTC empuja todo lo que ocurre después de
@@ -290,18 +356,24 @@ app.get('/api/categorias', auth, async (req, res) => {
 app.post('/api/categorias', auth, async (req, res) => {
   const { restaurante_id, nombre, slug, emoji, orden, sin_fotos, atributos } = req.body;
   if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', restaurante_id).single();
+  const atributosFiltrados = atributosCategoria(atributos, null, req.user.rol === 'admin', planDe(resto?.atributos));
   const { data, error } = await supabase.from('categorias')
-    .insert([{ restaurante_id, nombre, slug: slug || nombre.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''), emoji: emoji || '', orden: parseInt(orden) || 0, sin_fotos: sin_fotos || false, atributos: atributos || {} }])
+    .insert([{ restaurante_id, nombre, slug: slug || nombre.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''), emoji: emoji || '', orden: parseInt(orden) || 0, sin_fotos: sin_fotos || false, atributos: atributosFiltrados }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
 
 app.patch('/api/categorias/:id', auth, async (req, res) => {
-  const { data: cat } = await supabase.from('categorias').select('restaurante_id').eq('id', req.params.id).single();
+  const { data: cat } = await supabase.from('categorias').select('restaurante_id, atributos').eq('id', req.params.id).single();
   if (!cat || !canAccessRestaurante(req.user, cat.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   const permitidos = ['nombre', 'emoji', 'orden', 'sin_fotos', 'atributos'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
+  if (body.atributos !== undefined) {
+    const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', cat.restaurante_id).single();
+    body.atributos = atributosCategoria(body.atributos, cat.atributos, req.user.rol === 'admin', planDe(resto?.atributos));
+  }
   const { data, error } = await supabase.from('categorias').update(body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -393,14 +465,30 @@ app.delete('/api/upload/:folder/:filename', auth, (req, res) => {
 // Registro de eventos: sin auth (lo llama el sitio público, que no
 // tiene credenciales). Solo inserta, nunca lee.
 app.post('/api/track', async (req, res) => {
+  if (!dentroDelLimite(req.ip)) {
+    // Se registra la IP resuelta: si aquí sale siempre la misma dirección
+    // interna, TRUST_PROXY está mal y el límite está contando a todos los
+    // visitantes como uno solo.
+    console.warn(`[track] límite por minuto alcanzado para ${req.ip}`);
+    return res.status(429).json({ error: 'Demasiadas peticiones' });
+  }
+
   const { restaurante_id, tipo, producto_id } = req.body;
-  if (!restaurante_id || !['visita', 'clic'].includes(tipo))
+  // Se valida la forma del UUID antes de ir a la base: así una petición basura
+  // no gasta una consulta ni provoca un error de Postgres.
+  if (!UUID_RE.test(restaurante_id ?? '') || !['visita', 'clic'].includes(tipo))
     return res.status(400).json({ error: 'Datos inválidos' });
-  if (tipo === 'clic' && !producto_id)
+  if (tipo === 'clic' && !UUID_RE.test(producto_id ?? ''))
     return res.status(400).json({ error: 'Falta producto_id' });
+
   const { error } = await supabase.from('eventos_analitica')
     .insert([{ restaurante_id, tipo, producto_id: producto_id || null }]);
-  if (error) return res.status(500).json({ error: error.message });
+  // Al otro lado no hay nadie autenticado: el mensaje de Postgres (nombres de
+  // tablas, restricciones) no debe salir de aquí.
+  if (error) {
+    console.error('[track] error insertando evento:', error.message);
+    return res.status(500).json({ error: 'No se pudo registrar el evento' });
+  }
   res.status(204).end();
 });
 
