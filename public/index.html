@@ -317,6 +317,9 @@
 
 			.new-resto-card{background:var(--panel);border:1px dashed var(--border2);border-radius:var(--r-lg);padding:24px;margin-bottom:24px;}
 			.color-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+			.resto-card-plan{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;
+			  color:var(--text-muted);border:1px solid var(--border2);border-radius:4px;
+			  padding:2px 7px;margin-top:4px;width:fit-content;}
 			.color-preview{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);flex-shrink:0;}
 			.color-input-wrap{display:flex;align-items:center;gap:10px;}
 
@@ -811,6 +814,19 @@
 					</div>
 
 					<div class="section-card">
+						<div class="section-header">
+							<div class="section-title" style="margin-bottom:0">Plan</div>
+							<select class="form-select" id="apPlan" onchange="renderPlanResumen()" style="width:auto;padding:7px 12px;font-size:12px;"></select>
+						</div>
+						<div id="apPlanResumen" style="font-size:12px;color:var(--text-muted);line-height:1.9;"></div>
+						<div id="apPlanAviso" style="display:none;margin-top:10px;padding:9px 11px;border-radius:var(--radius);background:var(--warn-dim);border:1px solid var(--warn);color:var(--warn);font-size:11px;line-height:1.6;"></div>
+						<div style="margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">
+							El plan se guarda junto con el resto de Apariencia. Solo tú puedes cambiarlo:
+							el restaurante no lo ve ni lo puede tocar por su cuenta.
+						</div>
+					</div>
+
+					<div class="section-card">
 						<div class="section-title">Dirección del menú</div>
 						<div class="form-group" style="margin-bottom:0">
 							<label class="form-label">Forma del enlace</label>
@@ -1121,6 +1137,14 @@
 								</div>
 							</div>
 
+							<div id="qrSinDisenador" style="display:none;" class="section-card">
+								<div class="section-title">Personalizar el código</div>
+								<div style="font-size:12px;color:var(--text-muted);line-height:1.7;">
+									El plan actual genera el QR en blanco y negro, listo para descargar e imprimir.
+									Darle los colores, la forma y el logo del restaurante viene en los planes superiores.
+								</div>
+							</div>
+							<div id="qrPersonalizacion">
 							<div class="section-card">
 								<div class="section-title">Forma</div>
 								<label class="form-label">Puntos</label>
@@ -1223,6 +1247,7 @@
 								<button class="btn-save" style="flex:none;width:auto;padding:11px 28px;" onclick="qrGuardarDiseno()">Guardar diseño</button>
 							</div>
 							<div id="qrStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -1371,7 +1396,7 @@
           </div>
         </div>
       </div>
-      <div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;">
+      <div class="form-group" id="editCatHorarioBloque" style="border-top:1px solid var(--border);padding-top:14px;">
         <div class="form-check" style="margin-bottom:0">
           <label class="toggle"><input type="checkbox" id="editCatHorarioActivo" onchange="toggleCatHorario()"><span class="toggle-slider"></span></label>
           <span style="font-size:13px;color:var(--text-muted)">Mostrar solo en cierto horario</span>
@@ -1665,7 +1690,44 @@ async function loadData() {
     document.getElementById('tabBtnToppings').style.display = (esCarrito || hasToppings) ? 'block' : 'none';
     document.getElementById('tabBtnPedidos').style.display = esCarrito ? 'block' : 'none';
     if (esCarrito) { renderPedidos(); renderMetodosPago(); }
+    aplicarPlanAlPanel();
   } catch(e) { showToast('Error cargando datos','error'); }
+}
+
+// ── PLANES ────────────────────────────────────────────────────
+// Espejo de core/planes.js del menú público: dos aplicaciones separadas,
+// una sola definición conceptual. Si cambias una, cambia la otra.
+//
+// Reempaquetar la oferta es mover estas líneas; el resto del panel
+// pregunta por capacidades, nunca por el nombre del plan.
+//
+// 'pedidos' por defecto = exactamente lo que hace hoy la plataforma, así
+// que un restaurante sin plan asignado no nota ningún cambio.
+const PLANES = {
+  vitrina: {
+    nombre: 'Vitrina',
+    modelos: ['topnav', 'sidebar', 'explorar'],
+    marca: true, qr_disenador: false, estadisticas: false, horarios: false,
+  },
+  pedidos: {
+    nombre: 'Pedidos',
+    modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
+    marca: true, qr_disenador: true, estadisticas: true, horarios: true,
+  },
+  completo: {
+    nombre: 'Completo',
+    modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
+    marca: false, qr_disenador: true, estadisticas: true, horarios: true,
+  },
+};
+const PLAN_POR_DEFECTO = 'pedidos';
+
+function planDe(restaurante) {
+  return PLANES[restaurante?.atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
+}
+function planActual() { return planDe(state.restaurante); }
+function idPlanActual() {
+  return PLANES[state.restaurante?.atributos?.plan] ? state.restaurante.atributos.plan : PLAN_POR_DEFECTO;
 }
 
 // ── TABS ──────────────────────────────────────────────────────
@@ -2650,6 +2712,8 @@ function renderApariencia() {
   document.getElementById('apSocialWhatsapp').value = at.social_whatsapp || '';
 
   document.getElementById('apCssCustom').value = at.css_custom || '';
+
+  renderPlan();   // después del modelo de nav: el resumen lo consulta
 }
 
 // ── FILTROS (catálogo del restaurante, modelo explorar) ────────
@@ -2825,6 +2889,7 @@ function recolectarApariencia() {
       fuente_titulo: document.getElementById('apFuenteTitulo').value.trim(),
       fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
       nav: document.getElementById('apNavModelo').value,
+      plan: document.getElementById('apPlan').value,
       url_modo: document.getElementById('apUrlModo').value,
       zona_horaria: document.getElementById('apZonaHoraria').value,
       subtitulo: document.getElementById('apSubtitulo').value.trim(),
@@ -2848,6 +2913,7 @@ async function saveApariencia() {
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { color_primario, color_secundario, atributos });
     state.restaurante = data;
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    aplicarPlanAlPanel();
     showToast('Apariencia guardada', 'success');
   } catch (e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; showToast('Error: ' + e.message, 'error'); }
 }
@@ -2865,6 +2931,64 @@ function urlPublica(restaurante, modo) {
   return forma === 'subdominio'
     ? `https://${restaurante.slug}.${VMENUS_DOMINIO_BASE}`
     : `${VMENUS_PUBLIC_URL}/${restaurante.slug}`;
+}
+
+// ── PLAN EN APARIENCIA ────────────────────────────────────────
+const ETIQUETA_MODELO = { topnav: 'Topnav', sidebar: 'Sidebar', carrito: 'Carrito', explorar: 'Explorar' };
+
+function renderPlanResumen() {
+  const sel = document.getElementById('apPlan');
+  if (!sel) return;
+  const p = PLANES[sel.value] || PLANES[PLAN_POR_DEFECTO];
+  const si = t => `<span style="color:var(--success)">✓</span> ${t}`;
+  const no = t => `<span style="color:var(--text-dim)">✕ ${t}</span>`;
+  document.getElementById('apPlanResumen').innerHTML = [
+    `Modelos: ${p.modelos.map(m => ETIQUETA_MODELO[m]).join(' · ')}`,
+    p.qr_disenador ? si('QR personalizable') : no('QR personalizable (se genera igual, sin diseñar)'),
+    p.estadisticas ? si('Estadísticas')      : no('Estadísticas'),
+    p.horarios     ? si('Horarios por categoría') : no('Horarios por categoría'),
+    p.marca        ? no('Lleva el crédito «Hecho con VMenus»') : si('Sin marca de VMenus'),
+  ].join('<br>');
+
+  // Bajar de plan no cambia nada por su cuenta: si el modelo que tiene
+  // puesto deja de estar incluido, hay que avisarlo en vez de cambiárselo
+  // a la brava y romperle el menú a un restaurante que está funcionando.
+  const navActual = document.getElementById('apNavModelo')?.value;
+  const aviso = document.getElementById('apPlanAviso');
+  const sobra = navActual && !p.modelos.includes(navActual);
+  aviso.style.display = sobra ? 'block' : 'none';
+  if (sobra) aviso.textContent = `Este restaurante usa el modelo ${ETIQUETA_MODELO[navActual]}, que no viene en el plan ${p.nombre}. `
+    + `Su menú va a seguir funcionando igual — el plan no se lo quita solo — pero elige otro modelo si de verdad quieres bajarlo.`;
+}
+
+function renderPlan() {
+  const sel = document.getElementById('apPlan');
+  if (!sel) return;
+  sel.innerHTML = Object.entries(PLANES)
+    .map(([id, p]) => `<option value="${id}">${p.nombre}</option>`).join('');
+  sel.value = idPlanActual();
+  renderPlanResumen();
+}
+
+// Aplica las restricciones del plan a la interfaz. Es una barrera para ti,
+// no contra el restaurante: nav y plan ya eran de superadmin, y el
+// servidor descarta por su cuenta lo que el cliente no puede escribir.
+function aplicarPlanAlPanel() {
+  const p = planActual();
+
+  document.querySelectorAll('#apNavModelo option').forEach(o => {
+    const incluido = p.modelos.includes(o.value);
+    o.disabled = !incluido && o.value !== state.restaurante?.atributos?.nav;
+    o.textContent = o.textContent.replace(/ — no incluido en este plan$/, '')
+      + (incluido ? '' : ' — no incluido en este plan');
+  });
+
+  const btnEst = document.querySelector('.tab-btn[onclick*="estadisticas"]');
+  if (btnEst) btnEst.style.display = p.estadisticas ? '' : 'none';
+
+  document.getElementById('qrPersonalizacion').style.display = p.qr_disenador ? '' : 'none';
+  document.getElementById('qrSinDisenador').style.display = p.qr_disenador ? 'none' : 'block';
+  document.getElementById('editCatHorarioBloque').style.display = p.horarios ? '' : 'none';
 }
 
 function renderUrlPublicaPreview() {
@@ -3320,6 +3444,7 @@ async function cargarListaRestos() {
           <div class="resto-card-name">${r.nombre}</div>
           <div class="resto-card-slug">${r.slug}</div>
           ${estadoPagoHtml(r.atributos)}
+          <span class="resto-card-plan">Plan ${planDe(r).nombre}</span>
         </div>
         <div class="resto-card-actions">
           <span class="status-badge ${activo?'activo':'suspendido'}">${activo?'Activo':'Suspendido'}</span>
