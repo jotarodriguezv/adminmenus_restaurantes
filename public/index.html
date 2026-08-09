@@ -3305,6 +3305,16 @@ function confirmAddTopping() {
   const tipo   = document.getElementById('toppingTipo').value;
   const nombre = document.getElementById('toppingNombre').value.trim();
   if (!nombre) { showToast('Escribe un nombre', 'error'); return; }
+
+  // Un nombre repetido no es solo desorden. El menú calcula el recargo
+  // filtrando el catálogo por nombre, así que dos entradas iguales suman dos
+  // veces: el cliente marca un topping una vez y paga el doble.
+  const igual = v => v.trim().toLowerCase() === nombre.toLowerCase();
+  const yaExiste = tipo === 'premium'
+    ? toppingState.premium.some(t => igual(t.nombre))
+    : (tipo === 'platino' ? toppingState.platino : toppingState.salsas).some(igual);
+  if (yaExiste) { showToast('Ya hay uno con ese nombre', 'error'); return; }
+
   if (tipo === 'premium') {
     const precio = parseFloat(document.getElementById('toppingPrecio').value) || 0;
     toppingState.premium.push({ nombre, precio });
@@ -3406,8 +3416,27 @@ async function saveMetodosPago() {
       llave: document.getElementById('mpBrebLlave').value.trim()
     }
   };
-  const atributos = { ...(state.restaurante.atributos || {}), metodos_pago };
   const st = document.getElementById('mpStatus');
+
+  // Un método activo sin sus datos llega al checkout con la instrucción en
+  // blanco: el cliente lo elige, ve "Nequi: — a nombre de" y no sabe a dónde
+  // pagar. Mejor no dejar guardarlo que descubrirlo con un pedido perdido.
+  const mp = metodos_pago;
+  const incompletos = [
+    mp.nequi.activo       && (!mp.nequi.telefono || !mp.nequi.titular)             && 'Nequi',
+    mp.daviplata.activo   && (!mp.daviplata.telefono || !mp.daviplata.titular)     && 'Daviplata',
+    mp.bancolombia.activo && (!mp.bancolombia.numero_cuenta || !mp.bancolombia.titular) && 'Bancolombia',
+    mp.breb.activo        && !mp.breb.llave                                        && 'Bre-B',
+  ].filter(Boolean);
+
+  if (incompletos.length) {
+    st.textContent = `Faltan datos en ${incompletos.join(', ')}`;
+    st.style.color = 'var(--danger)';
+    showToast(`Completa los datos de ${incompletos.join(', ')}`, 'error');
+    return;
+  }
+
+  const atributos = { ...(state.restaurante.atributos || {}), metodos_pago };
   try {
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
     state.restaurante = data;
