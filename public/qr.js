@@ -274,6 +274,22 @@ function qrRenderizarCartel(canvas, escala) {
 }
 
 // ── AVISOS DE ESCANEABILIDAD ──────────────────────────────────
+// Los campos de color son de texto libre: nadie rechaza un '#12345' o un
+// 'rojo'. Canvas ignora en silencio un fillStyle inválido y se queda con el
+// que tenía —que es el del fondo, porque el fondo se pinta primero—, así que
+// el QR sale invisible y el chequeo de contraste ni se entera: una luminancia
+// que no se puede calcular vale 0, o sea negro, y todo parece correcto.
+const QR_HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+// La norma del QR pide 4 módulos de zona de silencio alrededor. Con menos,
+// muchos lectores fallan, sobre todo impreso pegado a otros elementos. El
+// deslizador llega hasta 0, así que se puede generar un código que no escanea
+// y mandarlo a imprimir sin enterarse.
+const QR_MARGEN_MINIMO = 4;
+
+// Colores escritos pero mal formados, para avisar de ellos.
+let qrColoresInvalidos = [];
+
 function qrHexRGB(hex) {
 	let h = (hex || '').replace('#', '');
 	if (h.length === 3) h = h.split('').map(c => c + c).join('');
@@ -292,39 +308,64 @@ function qrLuminancia(hex) {
 	return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-function qrRevisarContraste() {
+function qrRevisarAvisos() {
 	const aviso = document.getElementById('qrAviso');
 	if (!aviso) return;
+	const msgs = [];
+
+	// Va primero: si un color no se entiende, lo que se ve en la vista previa
+	// no es lo que el usuario cree haber puesto, y avisar del contraste de un
+	// color que no existe solo despista.
+	if (qrColoresInvalidos.length)
+		msgs.push(`⚠ Color no válido en ${qrColoresInvalidos.join(' y ')}: escríbelo como #000000. Se mantiene el último válido.`);
+
+	if (qrCfg.margen < QR_MARGEN_MINIMO)
+		msgs.push(`⚠ Margen de ${qrCfg.margen} ${qrCfg.margen === 1 ? 'módulo' : 'módulos'}: la norma pide ${QR_MARGEN_MINIMO}. Con menos, muchos lectores fallan al escanearlo impreso.`);
+
 	// Con fondo transparente el QR acaba sobre algo claro casi siempre,
 	// así que se evalúa contra blanco.
 	const fondo = qrCfg.transparente ? '#ffffff' : qrCfg.bg;
 	const lf = qrLuminancia(qrCfg.fg), lb = qrLuminancia(fondo);
 	const ratio = (Math.max(lf, lb) + 0.05) / (Math.min(lf, lb) + 0.05);
 
-	let msg = '';
-	if (lf > lb) msg = '⚠ QR claro sobre fondo oscuro: muchos lectores no lo reconocen. Invierte los colores.';
-	else if (ratio < 3) msg = '⚠ Muy poco contraste entre los puntos y el fondo: es probable que no escanee.';
-	else if (ratio < 5) msg = '⚠ Contraste justo. Prueba a escanearlo antes de mandarlo a imprimir.';
+	if (lf > lb) msgs.push('⚠ QR claro sobre fondo oscuro: muchos lectores no lo reconocen. Invierte los colores.');
+	else if (ratio < 3) msgs.push('⚠ Muy poco contraste entre los puntos y el fondo: es probable que no escanee.');
+	else if (ratio < 5) msgs.push('⚠ Contraste justo. Prueba a escanearlo antes de mandarlo a imprimir.');
 
-	aviso.textContent = msg;
-	aviso.style.display = msg ? 'block' : 'none';
+	aviso.textContent = msgs.join('\n');
+	aviso.style.whiteSpace = 'pre-line';
+	aviso.style.display = msgs.length ? 'block' : 'none';
 }
 
 // ── CONTROLES ─────────────────────────────────────────────────
 function qrLeerControles() {
 	const v = id => document.getElementById(id).value.trim();
 	const c = id => document.getElementById(id).checked;
-	qrCfg.fg            = v('qrColorFg') || '#000000';
-	qrCfg.ojos          = v('qrColorOjos');
-	qrCfg.bg            = v('qrColorBg') || '#ffffff';
+
+	// Un color mal escrito no se acepta ni se convierte en negro por su
+	// cuenta: se conserva el último válido y se apunta para avisar. Cambiarlo
+	// a un color por defecto sería peor, porque el usuario vería cambiar el
+	// diseño sin entender por qué.
+	qrColoresInvalidos = [];
+	const color = (id, campo, porDefecto, etiqueta) => {
+		const bruto = v(id);
+		if (!bruto) return porDefecto;
+		if (QR_HEX_RE.test(bruto)) return bruto;
+		qrColoresInvalidos.push(etiqueta);
+		return qrCfg[campo] || porDefecto;
+	};
+
+	qrCfg.fg            = color('qrColorFg',   'fg',   '#000000', 'los puntos');
+	qrCfg.ojos          = color('qrColorOjos', 'ojos', '',        'las esquinas');
+	qrCfg.bg            = color('qrColorBg',   'bg',   '#ffffff', 'el fondo');
 	qrCfg.transparente  = c('qrTransparente');
 	qrCfg.logo          = c('qrUsarLogo');
 	qrCfg.logo_tam      = parseInt(v('qrLogoTam'), 10) || 22;
 	qrCfg.margen        = parseInt(v('qrMargen'), 10) || 0;
 	qrCfg.cartel_titulo = document.getElementById('qrCartelTitulo').value;
 	qrCfg.cartel_pie    = document.getElementById('qrCartelPie').value;
-	qrCfg.cartel_bg     = v('qrCartelBg') || '#111111';
-	qrCfg.cartel_fg     = v('qrCartelFg') || '#ffffff';
+	qrCfg.cartel_bg     = color('qrCartelBg', 'cartel_bg', '#111111', 'el fondo del cartel');
+	qrCfg.cartel_fg     = color('qrCartelFg', 'cartel_fg', '#ffffff', 'el texto del cartel');
 }
 
 function qrElegirEstilo(campo, valor, btn) {
@@ -351,7 +392,7 @@ function qrActualizar() {
 
 	qrMatriz = qrCalcularMatriz();
 	qrRenderizarEn(document.getElementById('qrPreview'), 640);
-	qrRevisarContraste();
+	qrRevisarAvisos();
 }
 
 function qrCargarLogo(url) {
