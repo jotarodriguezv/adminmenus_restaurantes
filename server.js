@@ -99,6 +99,11 @@ setInterval(() => {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Debe coincidir con la restricción eventos_analitica_tipo_check de la base:
+// si aquí se acepta un tipo que allí no existe, el evento se pierde con un
+// error 500 en vez de rechazarse limpiamente.
+const TIPOS_EVENTO = ['visita', 'clic', 'agregar_carrito'];
+
 // ── Auth ──────────────────────────────────────────────────────
 function auth(req, res, next) {
   const h = req.headers.authorization;
@@ -515,9 +520,10 @@ app.post('/api/track', async (req, res) => {
   const { restaurante_id, tipo, producto_id } = req.body;
   // Se valida la forma del UUID antes de ir a la base: así una petición basura
   // no gasta una consulta ni provoca un error de Postgres.
-  if (!UUID_RE.test(restaurante_id ?? '') || !['visita', 'clic'].includes(tipo))
+  if (!UUID_RE.test(restaurante_id ?? '') || !TIPOS_EVENTO.includes(tipo))
     return res.status(400).json({ error: 'Datos inválidos' });
-  if (tipo === 'clic' && !UUID_RE.test(producto_id ?? ''))
+  // Los dos tipos que hablan de un producto necesitan saber cuál.
+  if (tipo !== 'visita' && !UUID_RE.test(producto_id ?? ''))
     return res.status(400).json({ error: 'Falta producto_id' });
 
   const { error } = await supabase.from('eventos_analitica')
@@ -572,6 +578,7 @@ app.get('/api/estadisticas', auth, async (req, res) => {
 
   const totalVisitas = est?.totalVisitas ?? 0;
   const totalClics = est?.totalClics ?? 0;
+  const totalAgregados = est?.totalAgregados ?? 0;
 
   res.json({
     zona,
@@ -584,7 +591,17 @@ app.get('/api/estadisticas', auth, async (req, res) => {
     // capturar nada nuevo, solo mirarlo de otra forma.
     porHora: est?.porHora ?? [],
     porCategoria: est?.porCategoria ?? [],
-    nuncaAbiertos: est?.nuncaAbiertos ?? []
+    nuncaAbiertos: est?.nuncaAbiertos ?? [],
+    // Solo tienen sentido en los restaurantes con modelo carrito; en el
+    // resto llegan a cero y el panel oculta la sección.
+    totalAgregados,
+    masAgregados: est?.masAgregados ?? [],
+    // Sobre CLICS y no sobre visitas a propósito: una "visita" es una carga
+    // de página, no una persona —quien recarga tres veces cuenta tres—, así
+    // que una conversión calculada sobre eso engañaría. Esto responde algo
+    // más honesto: de cada 100 fichas que se abren, cuántas acaban en el
+    // carrito.
+    tasaAnadido: totalClics ? +(totalAgregados / totalClics * 100).toFixed(1) : 0
   });
 });
 
