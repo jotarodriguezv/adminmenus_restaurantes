@@ -18,12 +18,24 @@ describe('POST /api/track · analítica del menú público', () => {
 			[{ restaurante_id: 'no-es-uuid', tipo: 'visita' }, 'id que no es UUID'],
 			[{ restaurante_id: IDS.restaurante, tipo: 'borrar_todo' }, 'tipo inventado'],
 			[{ restaurante_id: IDS.restaurante, tipo: 'clic' }, 'clic sin producto'],
+			[{ restaurante_id: IDS.restaurante, tipo: 'agregar_carrito' }, 'agregado sin producto'],
 			[{ tipo: 'visita' }, 'sin restaurante'],
 		];
 		for (const [cuerpo, etiqueta] of malos) {
 			const r = await S.pedir('POST', '/api/track', cuerpo);
 			assert.equal(r.status, 400, etiqueta);
 		}
+	});
+
+	test('acepta el evento de agregado al carrito', async () => {
+		// El tipo debe coincidir con la restricción de la base: si aquí se
+		// aceptara uno que allí no existe, el evento se perdería con un 500.
+		const r = await S.pedir('POST', '/api/track',
+			{ restaurante_id: IDS.restaurante, tipo: 'agregar_carrito', producto_id: IDS.producto });
+		assert.equal(r.status, 204);
+		const escrito = S.ultimaEscritura('eventos_analitica');
+		assert.equal(escrito.tipo, 'agregar_carrito');
+		assert.equal(escrito.producto_id, IDS.producto);
 	});
 
 	test('valida la forma del UUID antes de ir a la base', async () => {
@@ -187,15 +199,19 @@ describe('GET /api/estadisticas', () => {
 		assert.equal(rpc.params.p_zona, 'America/Bogota');
 	});
 
-	test('devuelve los nueve campos que consume el panel', async () => {
+	test('devuelve exactamente los campos que consume el panel', async () => {
+		// Esta prueba fija el contrato con el panel. Si falla tras un cambio,
+		// hay que mirar si el panel también se actualizó: quitar un campo lo
+		// rompe en silencio, porque el JavaScript no avisa de un undefined.
 		conPlanYZona('completo', 'America/Bogota');
 		S.conRpc(() => ({ data: AGREGADO, error: null }));
 		const r = await S.pedir('GET', `/api/estadisticas?restaurante_id=${IDS.restaurante}&desde=2026-08-01&hasta=2026-08-08`, null, tokenCliente);
 
 		assert.equal(r.status, 200);
 		assert.deepEqual(Object.keys(r.body).sort(), [
-			'nuncaAbiertos', 'porCategoria', 'porHora', 'rankingProductos',
-			'tasaInteraccion', 'totalClics', 'totalVisitas', 'visitasPorDia', 'zona',
+			'masAgregados', 'nuncaAbiertos', 'porCategoria', 'porHora', 'rankingProductos',
+			'tasaAnadido', 'tasaInteraccion', 'totalAgregados', 'totalClics', 'totalVisitas',
+			'visitasPorDia', 'zona',
 		].sort());
 		assert.equal(r.body.totalVisitas, 127);
 		assert.equal(r.body.tasaInteraccion, 111);
@@ -215,6 +231,23 @@ describe('GET /api/estadisticas', () => {
 		assert.equal(r.body.porHora[1].hora, 19, 'la hora punta de la cena');
 		assert.equal(r.body.porCategoria[0].nombre, 'Hamburguesas');
 		assert.equal(r.body.nuncaAbiertos[0].nombre, 'PERRO SENCILLO');
+	});
+
+	test('la tasa de añadido se calcula sobre clics, no sobre visitas', async () => {
+		// Una "visita" es una carga de página, no una persona: quien recarga
+		// tres veces cuenta tres. Calcular la conversión sobre eso engañaría.
+		conPlanYZona('completo', 'America/Bogota');
+		S.conRpc(() => ({ data: { ...AGREGADO, totalClics: 200, totalAgregados: 50, masAgregados: [] }, error: null }));
+		const r = await S.pedir('GET', `/api/estadisticas?restaurante_id=${IDS.restaurante}&desde=2026-08-01&hasta=2026-08-08`, null, tokenCliente);
+		assert.equal(r.body.tasaAnadido, 25, '50 de 200 fichas abiertas = 25%');
+	});
+
+	test('un restaurante sin carrito no produce una división por cero', async () => {
+		conPlanYZona('completo', 'America/Bogota');
+		S.conRpc(() => ({ data: { ...AGREGADO, totalClics: 0, totalAgregados: 0 }, error: null }));
+		const r = await S.pedir('GET', `/api/estadisticas?restaurante_id=${IDS.restaurante}&desde=2026-08-01&hasta=2026-08-08`, null, tokenCliente);
+		assert.equal(r.body.tasaAnadido, 0);
+		assert.deepEqual(r.body.masAgregados, []);
 	});
 
 	test('una versión antigua de la función SQL no rompe el panel', async () => {
