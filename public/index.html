@@ -1292,6 +1292,24 @@
 						</div>
 						<div id="estRankingContenido"></div>
 					</div>
+
+					<div class="section-card">
+						<div class="section-title">Horas de mayor tráfico</div>
+						<div id="estChartHoras"></div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Categorías más miradas</div>
+						<div id="estCategorias"></div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-header">
+							<div class="section-title">Platos que nadie abrió</div>
+							<span style="font-size:11px;color:var(--text-dim);" id="estIgnoradosResumen"></span>
+						</div>
+						<div id="estIgnorados"></div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -3178,7 +3196,92 @@ async function cargarEstadisticas() {
     renderKpis(data);
     renderGraficaVisitas(data.visitasPorDia, estadoRango.desde, estadoRango.hasta);
     renderRanking(data.rankingProductos);
+    renderHoras(data.porHora || []);
+    renderCategorias(data.porCategoria || []);
+    renderIgnorados(data.nuncaAbiertos || []);
   } catch (e) { showToast('Error cargando estadísticas', 'error'); }
+}
+
+// ── HORAS DE MAYOR TRÁFICO ────────────────────────────────────
+// Las 24 horas siempre, aunque no haya datos en algunas: los huecos son
+// justamente lo que enseña dónde están los picos.
+function renderHoras(porHora) {
+  const cont = document.getElementById('estChartHoras');
+  if (!cont) return;
+  const porNumero = Object.fromEntries(porHora.map(h => [h.hora, h]));
+  const horas = Array.from({ length: 24 }, (_, h) => porNumero[h] || { hora: h, visitas: 0, clics: 0 });
+  const max = Math.max(1, ...horas.map(h => h.visitas + h.clics));
+
+  if (!porHora.length) { cont.innerHTML = '<div class="empty-state">Sin datos en este rango</div>'; return; }
+
+  const pico = horas.reduce((a, b) => (b.visitas + b.clics) > (a.visitas + a.clics) ? b : a);
+  const dosCifras = n => String(n).padStart(2, '0');
+
+  cont.innerHTML = `
+    <div style="display:flex;align-items:flex-end;gap:2px;height:110px;padding-bottom:4px;">
+      ${horas.map(h => {
+        const total = h.visitas + h.clics;
+        const alto = total ? Math.max(4, Math.round(total / max * 100)) : 2;
+        const esPico = h.hora === pico.hora && total > 0;
+        return `<div title="${dosCifras(h.hora)}:00 — ${h.visitas} visita${h.visitas === 1 ? '' : 's'}, ${h.clics} clic${h.clics === 1 ? '' : 's'}"
+          style="flex:1;height:${alto}%;min-height:2px;border-radius:3px 3px 0 0;background:${esPico ? 'var(--accent)' : 'var(--border)'};"></div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:var(--text-dim);font-family:var(--mono);">
+      <span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--text-muted);">
+      Hora punta: <strong style="color:var(--accent)">${dosCifras(pico.hora)}:00</strong>
+      · ${pico.visitas} visitas y ${pico.clics} clics
+    </div>`;
+}
+
+// ── CATEGORÍAS MÁS MIRADAS ────────────────────────────────────
+function renderCategorias(porCategoria) {
+  const cont = document.getElementById('estCategorias');
+  if (!cont) return;
+  if (!porCategoria.length) { cont.innerHTML = '<div class="empty-state">Sin clics registrados en este rango</div>'; return; }
+  const max = porCategoria[0].clics;
+  cont.innerHTML = porCategoria.map(c => `
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+        <span style="color:var(--text);">${esc(c.emoji || '')} ${esc(c.nombre)}</span>
+        <span style="color:var(--text-muted);font-family:var(--mono);">${c.clics}</span>
+      </div>
+      <div style="background:var(--card);border-radius:4px;height:10px;overflow:hidden;">
+        <div style="background:var(--accent);height:100%;border-radius:4px;width:${Math.max(4, Math.round(c.clics / max * 100))}%;"></div>
+      </div>
+    </div>`).join('');
+}
+
+// ── PLATOS QUE NADIE ABRIÓ ────────────────────────────────────
+// El dato más accionable de todos: dice qué sobra de la carta o qué está
+// mal presentado. Solo cuenta lo que el cliente podía ver, así que un
+// producto marcado como no disponible no aparece aquí.
+function renderIgnorados(lista) {
+  const cont = document.getElementById('estIgnorados');
+  const resumen = document.getElementById('estIgnoradosResumen');
+  if (!cont) return;
+
+  if (!lista.length) {
+    resumen.textContent = '';
+    cont.innerHTML = '<div class="empty-state">Todos los platos disponibles se abrieron al menos una vez</div>';
+    return;
+  }
+  resumen.textContent = `${lista.length} en total`;
+
+  const porCategoria = {};
+  lista.forEach(p => { (porCategoria[p.categoria] ||= []).push(p.nombre); });
+
+  cont.innerHTML = Object.entries(porCategoria).map(([cat, nombres]) => `
+    <div style="padding:8px 4px;border-bottom:1px solid var(--border);">
+      <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">
+        ${esc(cat)} · ${nombres.length}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${nombres.map(n => `<span style="font-size:12px;color:var(--text-muted);background:var(--card);border:1px solid var(--border);border-radius:6px;padding:3px 8px;">${esc(n)}</span>`).join('')}
+      </div>
+    </div>`).join('');
 }
 
 function renderKpis(data) {
