@@ -579,7 +579,12 @@ app.get('/api/estadisticas', auth, async (req, res) => {
     totalClics,
     tasaInteraccion: totalVisitas ? +(totalClics / totalVisitas * 100).toFixed(1) : 0,
     visitasPorDia: est?.visitasPorDia ?? {},
-    rankingProductos: est?.rankingProductos ?? []
+    rankingProductos: est?.rankingProductos ?? [],
+    // Los tres salen del mismo evento que ya se registraba; no hace falta
+    // capturar nada nuevo, solo mirarlo de otra forma.
+    porHora: est?.porHora ?? [],
+    porCategoria: est?.porCategoria ?? [],
+    nuncaAbiertos: est?.nuncaAbiertos ?? []
   });
 });
 
