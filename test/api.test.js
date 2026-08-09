@@ -187,16 +187,47 @@ describe('GET /api/estadisticas', () => {
 		assert.equal(rpc.params.p_zona, 'America/Bogota');
 	});
 
-	test('devuelve los seis campos que consume el panel', async () => {
+	test('devuelve los nueve campos que consume el panel', async () => {
 		conPlanYZona('completo', 'America/Bogota');
 		S.conRpc(() => ({ data: AGREGADO, error: null }));
 		const r = await S.pedir('GET', `/api/estadisticas?restaurante_id=${IDS.restaurante}&desde=2026-08-01&hasta=2026-08-08`, null, tokenCliente);
 
 		assert.equal(r.status, 200);
-		assert.deepEqual(Object.keys(r.body).sort(),
-			['rankingProductos', 'tasaInteraccion', 'totalClics', 'totalVisitas', 'visitasPorDia', 'zona'].sort());
+		assert.deepEqual(Object.keys(r.body).sort(), [
+			'nuncaAbiertos', 'porCategoria', 'porHora', 'rankingProductos',
+			'tasaInteraccion', 'totalClics', 'totalVisitas', 'visitasPorDia', 'zona',
+		].sort());
 		assert.equal(r.body.totalVisitas, 127);
 		assert.equal(r.body.tasaInteraccion, 111);
+	});
+
+	test('los bloques de analítica llegan tal cual desde SQL', async () => {
+		conPlanYZona('completo', 'America/Bogota');
+		S.conRpc(() => ({ data: {
+			...AGREGADO,
+			porHora: [{ hora: 12, visitas: 19, clics: 75 }, { hora: 19, visitas: 43, clics: 61 }],
+			porCategoria: [{ nombre: 'Hamburguesas', emoji: '🍔', clics: 79 }],
+			nuncaAbiertos: [{ nombre: 'PERRO SENCILLO', categoria: 'Hot Dogs' }],
+		}, error: null }));
+		const r = await S.pedir('GET', `/api/estadisticas?restaurante_id=${IDS.restaurante}&desde=2026-08-01&hasta=2026-08-08`, null, tokenCliente);
+
+		assert.equal(r.body.porHora.length, 2);
+		assert.equal(r.body.porHora[1].hora, 19, 'la hora punta de la cena');
+		assert.equal(r.body.porCategoria[0].nombre, 'Hamburguesas');
+		assert.equal(r.body.nuncaAbiertos[0].nombre, 'PERRO SENCILLO');
+	});
+
+	test('una versión antigua de la función SQL no rompe el panel', async () => {
+		// Si el código se despliega antes que la migración, los bloques
+		// nuevos no vienen. Deben salir vacíos, no undefined: el panel los
+		// recorre con .map y reventaría.
+		conPlanYZona('completo', 'America/Bogota');
+		S.conRpc(() => ({ data: AGREGADO, error: null }));   // sin porHora ni el resto
+		const r = await S.pedir('GET', `/api/estadisticas?restaurante_id=${IDS.restaurante}&desde=2026-08-01&hasta=2026-08-08`, null, tokenCliente);
+
+		assert.deepEqual(r.body.porHora, []);
+		assert.deepEqual(r.body.porCategoria, []);
+		assert.deepEqual(r.body.nuncaAbiertos, []);
 	});
 
 	test('un rango sin datos no divide entre cero', async () => {
