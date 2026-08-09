@@ -321,6 +321,13 @@
 			  color:var(--text-muted);border:1px solid var(--border2);border-radius:4px;
 			  padding:2px 7px;margin-top:4px;width:fit-content;}
 			.color-preview{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);flex-shrink:0;}
+			/* El cuadrito de vista previa ES el selector de color del navegador.
+			   Se le quita el cromado nativo para que siga viéndose igual que
+			   antes, cuando era un div. */
+			input.color-preview{padding:0;cursor:pointer;background:none;-webkit-appearance:none;appearance:none;}
+			input.color-preview::-webkit-color-swatch-wrapper{padding:0;}
+			input.color-preview::-webkit-color-swatch{border:none;border-radius:5px;}
+			input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 			.color-input-wrap{display:flex;align-items:center;gap:10px;}
 
 			/* ── DISEÑADOR DE QR ── */
@@ -511,17 +518,17 @@
 						<div class="form-group" style="margin-bottom:0">
 							<label class="form-label">Color primario</label>
 							<div class="color-input-wrap">
-								<div class="color-preview" id="prevColor1" style="background:#3dd68c"></div>
+								<input type="color" class="color-preview" id="prevColor1" value="#3dd68c" title="Elegir color" oninput="colorDesdeSelector('prevColor1','newRestoColor1')">
 								<input type="text" class="form-input" id="newRestoColor1" value="#3dd68c" maxlength="7"
-								oninput="document.getElementById('prevColor1').style.background=this.value">
+								oninput="colorDesdeTexto('newRestoColor1','prevColor1')">
 							</div>
 						</div>
 						<div class="form-group" style="margin-bottom:0">
 							<label class="form-label">Color secundario</label>
 							<div class="color-input-wrap">
-								<div class="color-preview" id="prevColor2" style="background:#a374af"></div>
+								<input type="color" class="color-preview" id="prevColor2" value="#a374af" title="Elegir color" oninput="colorDesdeSelector('prevColor2','newRestoColor2')">
 								<input type="text" class="form-input" id="newRestoColor2" value="#a374af" maxlength="7"
-								oninput="document.getElementById('prevColor2').style.background=this.value">
+								oninput="colorDesdeTexto('newRestoColor2','prevColor2')">
 							</div>
 						</div>
 					</div>
@@ -656,17 +663,17 @@
 							<div class="form-group" style="margin-bottom:0">
 								<label class="form-label">Color primario</label>
 								<div class="color-input-wrap">
-									<div class="color-preview" id="apPrevColor1" style="background:#3dd68c"></div>
+									<input type="color" class="color-preview" id="apPrevColor1" value="#3dd68c" title="Elegir color" oninput="colorDesdeSelector('apPrevColor1','apColor1')">
 									<input type="text" class="form-input" id="apColor1" maxlength="7"
-									oninput="document.getElementById('apPrevColor1').style.background=this.value">
+									oninput="colorDesdeTexto('apColor1','apPrevColor1')">
 								</div>
 							</div>
 							<div class="form-group" style="margin-bottom:0">
 								<label class="form-label">Color secundario</label>
 								<div class="color-input-wrap">
-									<div class="color-preview" id="apPrevColor2" style="background:#a374af"></div>
+									<input type="color" class="color-preview" id="apPrevColor2" value="#a374af" title="Elegir color" oninput="colorDesdeSelector('apPrevColor2','apColor2')">
 									<input type="text" class="form-input" id="apColor2" maxlength="7"
-									oninput="document.getElementById('apPrevColor2').style.background=this.value">
+									oninput="colorDesdeTexto('apColor2','apPrevColor2')">
 								</div>
 							</div>
 						</div>
@@ -678,17 +685,17 @@
 							<div class="form-group" style="margin-bottom:0">
 								<label class="form-label">Menú / encabezado / carrito</label>
 								<div class="color-input-wrap">
-									<div class="color-preview" id="apPrevColorSurface" style="background:#12111a"></div>
+									<input type="color" class="color-preview" id="apPrevColorSurface" value="#12111a" title="Elegir color" oninput="colorDesdeSelector('apPrevColorSurface','apColorSurface')">
 									<input type="text" class="form-input" id="apColorSurface" maxlength="7" placeholder="#12111a"
-									oninput="document.getElementById('apPrevColorSurface').style.background=this.value">
+									oninput="colorDesdeTexto('apColorSurface','apPrevColorSurface')">
 								</div>
 							</div>
 							<div class="form-group" style="margin-bottom:0">
 								<label class="form-label">Cajas de producto</label>
 								<div class="color-input-wrap">
-									<div class="color-preview" id="apPrevColorCard" style="background:#1a1825"></div>
+									<input type="color" class="color-preview" id="apPrevColorCard" value="#1a1825" title="Elegir color" oninput="colorDesdeSelector('apPrevColorCard','apColorCard')">
 									<input type="text" class="form-input" id="apColorCard" maxlength="7" placeholder="#1a1825"
-									oninput="document.getElementById('apPrevColorCard').style.background=this.value">
+									oninput="colorDesdeTexto('apColorCard','apPrevColorCard')">
 								</div>
 							</div>
 						</div>
@@ -764,9 +771,9 @@
 						<div class="form-group" style="margin-bottom:14px">
 							<label class="form-label">Color</label>
 							<div class="color-input-wrap">
-								<div class="color-preview" id="apPrevFondoColor" style="background:#0a0a0f"></div>
+								<input type="color" class="color-preview" id="apPrevFondoColor" value="#0a0a0f" title="Elegir color" oninput="colorDesdeSelector('apPrevFondoColor','apFondoColor')">
 								<input type="text" class="form-input" id="apFondoColor" maxlength="7" placeholder="#0a0a0f"
-								oninput="document.getElementById('apPrevFondoColor').style.background=this.value">
+								oninput="colorDesdeTexto('apFondoColor','apPrevFondoColor')">
 							</div>
 						</div>
 						<div class="form-group" style="margin-bottom:0">
@@ -1173,14 +1180,14 @@
 									<div class="form-group">
 										<label class="form-label">Puntos</label>
 										<div class="color-input-wrap">
-											<div class="color-preview" id="qrPrevFg"></div>
+											<input type="color" class="color-preview" id="qrPrevFg" title="Elegir color" oninput="qrSyncColor('qrPrevFg','qrColorFg')">
 											<input type="text" class="form-input" id="qrColorFg" maxlength="7" placeholder="#000000" oninput="qrActualizar()">
 										</div>
 									</div>
 									<div class="form-group">
 										<label class="form-label">Esquinas <span style="color:var(--text-dim)">(opcional)</span></label>
 										<div class="color-input-wrap">
-											<div class="color-preview" id="qrPrevOjos"></div>
+											<input type="color" class="color-preview" id="qrPrevOjos" title="Elegir color" oninput="qrSyncColor('qrPrevOjos','qrColorOjos')">
 											<input type="text" class="form-input" id="qrColorOjos" maxlength="7" placeholder="igual que puntos" oninput="qrActualizar()">
 										</div>
 									</div>
@@ -1188,7 +1195,7 @@
 								<div class="form-group" style="margin-bottom:0">
 									<label class="form-label">Fondo</label>
 									<div class="color-input-wrap">
-										<div class="color-preview" id="qrPrevBg"></div>
+										<input type="color" class="color-preview" id="qrPrevBg" title="Elegir color" oninput="qrSyncColor('qrPrevBg','qrColorBg')">
 										<input type="text" class="form-input" id="qrColorBg" maxlength="7" placeholder="#ffffff" oninput="qrActualizar()">
 									</div>
 									<div class="form-check" style="margin-bottom:0">
@@ -1228,14 +1235,14 @@
 									<div class="form-group" style="margin-bottom:0">
 										<label class="form-label">Fondo del cartel</label>
 										<div class="color-input-wrap">
-											<div class="color-preview" id="qrPrevCartelBg"></div>
+											<input type="color" class="color-preview" id="qrPrevCartelBg" title="Elegir color" oninput="qrSyncColor('qrPrevCartelBg','qrCartelBg')">
 											<input type="text" class="form-input" id="qrCartelBg" maxlength="7" placeholder="#111111" oninput="qrActualizar()">
 										</div>
 									</div>
 									<div class="form-group" style="margin-bottom:0">
 										<label class="form-label">Texto del cartel</label>
 										<div class="color-input-wrap">
-											<div class="color-preview" id="qrPrevCartelFg"></div>
+											<input type="color" class="color-preview" id="qrPrevCartelFg" title="Elegir color" oninput="qrSyncColor('qrPrevCartelFg','qrCartelFg')">
 											<input type="text" class="form-input" id="qrCartelFg" maxlength="7" placeholder="#ffffff" oninput="qrActualizar()">
 										</div>
 									</div>
@@ -1537,6 +1544,33 @@ function formatPrecio(num) {
   const n = parseFloat(num);
   if (!n && n !== 0) return '—';
   return '$ ' + Math.round(n).toLocaleString('es-CO');
+}
+
+// ── COLORES ───────────────────────────────────────────────────
+// Los campos de color son de texto libre y nadie rechazaba un '#12345' o un
+// 'rojo'. Ahora el cuadrito de al lado es un <input type="color"> nativo: el
+// navegador pone la paleta y solo puede devolver un hex válido. El campo de
+// texto se conserva porque sigue siendo la forma cómoda de pegar el hex
+// exacto de una marca.
+//
+// <input type="color"> solo admite #rrggbb: un #abc lo dejaría en negro, así
+// que se expande. Lo que no sea un color se queda con el valor anterior en
+// vez de saltar a negro, para que el diseño no se mueva solo mientras alguien
+// está terminando de escribir.
+function hex6(v, porDefecto = '#000000') {
+	let h = String(v ?? '').trim().replace('#', '');
+	if (h.length === 3) h = h.split('').map(c => c + c).join('');
+	return /^[0-9a-f]{6}$/i.test(h) ? '#' + h.toLowerCase() : porDefecto;
+}
+
+// El cuadrito y el campo de texto son dos vistas del mismo dato.
+function colorDesdeSelector(idSelector, idTexto) {
+	document.getElementById(idTexto).value = document.getElementById(idSelector).value;
+}
+
+function colorDesdeTexto(idTexto, idSelector) {
+	const sel = document.getElementById(idSelector);
+	if (sel) sel.value = hex6(document.getElementById(idTexto).value, sel.value);
 }
 
 // ── ESCAPADO DE HTML ──────────────────────────────────────────
@@ -2672,14 +2706,14 @@ function renderApariencia() {
   const at = r.atributos || {};
 
   document.getElementById('apColor1').value = r.color_primario || '';
-  document.getElementById('apPrevColor1').style.background = r.color_primario || '#3dd68c';
+  document.getElementById('apPrevColor1').value = hex6(r.color_primario, '#3dd68c');
   document.getElementById('apColor2').value = r.color_secundario || '';
-  document.getElementById('apPrevColor2').style.background = r.color_secundario || '#a374af';
+  document.getElementById('apPrevColor2').value = hex6(r.color_secundario, '#a374af');
 
   document.getElementById('apColorSurface').value = at.color_surface || '';
-  document.getElementById('apPrevColorSurface').style.background = at.color_surface || '#12111a';
+  document.getElementById('apPrevColorSurface').value = hex6(at.color_surface, '#12111a');
   document.getElementById('apColorCard').value = at.color_card || '';
-  document.getElementById('apPrevColorCard').style.background = at.color_card || '#1a1825';
+  document.getElementById('apPrevColorCard').value = hex6(at.color_card, '#1a1825');
 
   const logoPrev = document.getElementById('apLogoPreview');
   const logoNone = document.getElementById('apLogoNone');
@@ -2694,7 +2728,7 @@ function renderApariencia() {
   document.getElementById('apFondoDelBtn').style.display = r.fondo_url ? 'inline-block' : 'none';
   document.getElementById('apFondoTipo').value = at.fondo_tipo || 'cover-fixed';
   document.getElementById('apFondoColor').value = at.fondo_color || '#0a0a0f';
-  document.getElementById('apPrevFondoColor').style.background = at.fondo_color || '#0a0a0f';
+  document.getElementById('apPrevFondoColor').value = hex6(at.fondo_color, '#0a0a0f');
   document.getElementById('apFondoIntensidad').value = at.fondo_intensidad || 'solido';
 
   // Portada (modelo explorar)
@@ -3542,9 +3576,9 @@ function aplicarClonPreview(id) {
   const c1 = origen.color_primario || '#3dd68c';
   const c2 = origen.color_secundario || '#a374af';
   document.getElementById('newRestoColor1').value = c1;
-  document.getElementById('prevColor1').style.background = c1;
+  document.getElementById('prevColor1').value = hex6(c1, '#3dd68c');
   document.getElementById('newRestoColor2').value = c2;
-  document.getElementById('prevColor2').style.background = c2;
+  document.getElementById('prevColor2').value = hex6(c2, '#a374af');
 }
 
 async function crearRestaurante() {
