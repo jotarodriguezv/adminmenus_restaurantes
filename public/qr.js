@@ -368,6 +368,19 @@ function qrLeerControles() {
 	qrCfg.cartel_fg     = color('qrCartelFg', 'cartel_fg', '#ffffff', 'el texto del cartel');
 }
 
+// ── SELECTOR DE COLOR ─────────────────────────────────────────
+// El cuadrito de vista previa es un <input type="color">: el navegador pone
+// la paleta y siempre devuelve un hex válido, así que por esa vía no se puede
+// escribir un color mal. El campo de texto se conserva porque sigue siendo la
+// forma cómoda de pegar el hex exacto de una marca.
+// hex6() y colorDesdeSelector() viven en el script principal de index.html:
+// son de todo el panel, no solo del QR. Duplicarlos aquí es justo lo que hizo
+// que el escapado de HTML acabara aplicándose en un tema y no en los otros.
+function qrSyncColor(idSelector, idTexto) {
+	colorDesdeSelector(idSelector, idTexto);
+	qrActualizar();
+}
+
 function qrElegirEstilo(campo, valor, btn) {
 	qrCfg[campo] = valor;
 	btn.parentNode.querySelectorAll('.cat-chip').forEach(b => b.classList.remove('active'));
@@ -384,10 +397,13 @@ function qrActualizar() {
 	document.getElementById('qrLogoTamWrap').style.display = qrCfg.logo ? 'block' : 'none';
 	document.getElementById('qrLogoTamVal').textContent = `${qrCfg.logo_tam}%`;
 	document.getElementById('qrMargenVal').textContent = qrCfg.margen;
+	// Los cuadritos ahora son selectores de color: se les asigna el valor, no
+	// el fondo. El de las esquinas muestra el color efectivo —el de los puntos
+	// cuando está vacío— para que enseñe lo que realmente se está dibujando.
 	['qrPrevFg', 'qrPrevOjos', 'qrPrevBg', 'qrPrevCartelBg', 'qrPrevCartelFg'].forEach(id => {
 		const src = { qrPrevFg: qrCfg.fg, qrPrevOjos: qrCfg.ojos || qrCfg.fg, qrPrevBg: qrCfg.bg, qrPrevCartelBg: qrCfg.cartel_bg, qrPrevCartelFg: qrCfg.cartel_fg }[id];
 		const el = document.getElementById(id);
-		if (el) el.style.background = src;
+		if (el) el.value = hex6(src);
 	});
 
 	qrMatriz = qrCalcularMatriz();
