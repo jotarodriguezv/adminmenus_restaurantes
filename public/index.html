@@ -1293,6 +1293,14 @@
 						<div id="estRankingContenido"></div>
 					</div>
 
+					<div class="section-card" id="estCardCarrito" style="display:none">
+						<div class="section-header">
+							<div class="section-title">Más agregados al carrito</div>
+							<span style="font-size:11px;color:var(--text-dim);" id="estCarritoResumen"></span>
+						</div>
+						<div id="estCarrito"></div>
+					</div>
+
 					<div class="section-card">
 						<div class="section-title">Horas de mayor tráfico</div>
 						<div id="estChartHoras"></div>
@@ -3199,7 +3207,46 @@ async function cargarEstadisticas() {
     renderHoras(data.porHora || []);
     renderCategorias(data.porCategoria || []);
     renderIgnorados(data.nuncaAbiertos || []);
+    renderCarrito(data);
   } catch (e) { showToast('Error cargando estadísticas', 'error'); }
+}
+
+// ── MÁS AGREGADOS AL CARRITO ──────────────────────────────────
+// Solo aplica a los restaurantes con modelo carrito. En el resto no hay
+// ningún evento de este tipo, así que la sección se esconde entera en vez
+// de enseñar ceros que no significan nada.
+function renderCarrito(data) {
+  const card = document.getElementById('estCardCarrito');
+  const cont = document.getElementById('estCarrito');
+  const resumen = document.getElementById('estCarritoResumen');
+  if (!card) return;
+
+  const lista = data.masAgregados || [];
+  if (!data.totalAgregados) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  // La tasa se calcula sobre CLICS, no sobre visitas: una visita es una
+  // carga de página y no una persona.
+  resumen.textContent = `${data.totalAgregados} en total · ${data.tasaAnadido}% de las fichas abiertas`;
+
+  const max = lista[0]?.agregados || 1;
+  cont.innerHTML = lista.slice(0, 10).map(p => {
+    // Cuántas de las veces que se abrió acabó en el carrito. Un número bajo
+    // con muchos clics señala un plato que llama la atención y no convence.
+    const conversion = p.clics ? Math.round(p.agregados / p.clics * 100) : null;
+    return `
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;gap:8px;">
+        <span style="color:var(--text);">${esc(p.nombre)}</span>
+        <span style="color:var(--text-muted);font-family:var(--mono);white-space:nowrap;">
+          ${p.agregados}${conversion !== null ? ` · ${conversion}% de ${p.clics}` : ''}
+        </span>
+      </div>
+      <div style="background:var(--card);border-radius:4px;height:10px;overflow:hidden;">
+        <div style="background:var(--accent);height:100%;border-radius:4px;width:${Math.max(4, Math.round(p.agregados / max * 100))}%;"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── HORAS DE MAYOR TRÁFICO ────────────────────────────────────
