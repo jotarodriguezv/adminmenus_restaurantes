@@ -28,7 +28,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Lo subido nunca se modifica: cada archivo lleva un nombre irrepetible
+// (`${Date.now()}-${aleatorio}.jpg`) y cambiar la foto de un plato sube otro
+// archivo con otro nombre. Eso permite cachear sin miedo a servir algo viejo.
+//
+// Por defecto express.static manda 'max-age=0', que obliga al navegador a
+// preguntar por CADA imagen en CADA carga. Suele responder 304 sin datos,
+// pero en un menú de veinte platos son veinte viajes de ida y vuelta antes de
+// ver nada — y en un móvil con mala señal eso se nota más que el peso.
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '1y',
+  immutable: true,
+}));
 
 // ── Multer ────────────────────────────────────────────────────
 // Las carpetas de subida son un conjunto cerrado. Usar el valor crudo de
