@@ -7,6 +7,8 @@ const cors    = require('cors');
 const path    = require('path');
 const fs      = require('fs');
 const { createClient } = require('@supabase/supabase-js');
+const video    = require('./video');
+const limpieza = require('./limpieza');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -36,6 +38,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 // preguntar por CADA imagen en CADA carga. Suele responder 304 sin datos,
 // pero en un menú de veinte platos son veinte viajes de ida y vuelta antes de
 // ver nada — y en un móvil con mala señal eso se nota más que el peso.
+//
+// masters/ y originales/ viven bajo uploads/ porque es la única carpeta con
+// volumen: fuera de ahí se perderían en cada despliegue. Pero son archivos
+// internos —el master es material de archivo, el original es el crudo del
+// cliente— y no deben servirse a internet. Este guardia va antes del static.
+const CARPETAS_PRIVADAS = new Set(['masters', 'originales']);
+app.use('/uploads', (req, res, next) => {
+  // req.path llega aquí como '/masters/algo.mp4'
+  if (CARPETAS_PRIVADAS.has(req.path.split('/')[1])) return res.status(404).end();
+  next();
+});
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   maxAge: '1y',
   immutable: true,
@@ -75,6 +88,48 @@ const upload = multer({
     else cb(new Error('Solo JPG, PNG o WEBP'));
   }
 });
+
+// ── Multer para video ─────────────────────────────────────────
+// Instancia aparte, no un límite más alto en la de imágenes. Si se subiera
+// aquel a 200 MB, cualquiera podría colar un archivo de 200 MB por la ruta de
+// fotos. Cada una acepta lo suyo, con el tamaño que le toca.
+const VIDEO_MAX_MB = Number(process.env.VIDEO_MAX_MB || 200);
+
+const almacenVideo = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'uploads', video.CARPETAS.origen);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+  }
+});
+
+const subidaVideo = multer({
+  storage: almacenVideo,
+  limits: { fileSize: VIDEO_MAX_MB * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    // Solo la extensión. El tipo que declara el navegador lo pone el cliente
+    // y no prueba nada, y además varios mandan octet-stream para .mov, con lo
+    // que rechazaría archivos buenos. Quien valida de verdad es ffmpeg: si no
+    // es video, la conversión falla y el trabajo queda en error.
+    if (/^\.(mp4|mov|m4v)$/.test(path.extname(file.originalname).toLowerCase())) cb(null, true);
+    else cb(new Error('Solo MP4 o MOV'));
+  }
+});
+
+// Un video crudo son ~200 MB y el disco ya está al 55 %. Si se llenara no
+// dejaría de funcionar el video: dejaría de funcionar el servidor entero,
+// porque con el disco lleno no se puede ni escribir un registro.
+const MARGEN_DISCO_MB = Number(process.env.VIDEO_MARGEN_MB || 2048);
+function espacioLibreMB() {
+  try {
+    const st = fs.statfsSync(path.join(__dirname, 'uploads'));
+    return (st.bsize * st.bavail) / 1048576;
+  } catch { return Infinity; }
+}
 
 // ── LÍMITE DE PETICIONES PARA /api/track ──────────────────────
 // El endpoint no puede pedir credenciales (lo llama el menú público, que no
@@ -516,6 +571,81 @@ app.delete('/api/upload/:folder/:filename', auth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── VIDEO ─────────────────────────────────────────────────────
+// Recibe el archivo y responde enseguida. La conversión la hace video.js por
+// su cuenta: son ~86 segundos por plato y ninguna petición HTTP debería
+// esperar eso. Ver docs/cartas-en-video.md.
+app.post('/api/video', auth,
+  (req, res, next) => {
+    // Antes de que multer escriba nada en el disco.
+    if (espacioLibreMB() < MARGEN_DISCO_MB)
+      return res.status(507).json({ error: 'No hay espacio suficiente en el servidor' });
+    next();
+  },
+  subidaVideo.single('file'),
+  async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No se recibió video' });
+    // El archivo ya está en el disco cuando llegamos aquí, así que cualquier
+    // salida por la puerta de atrás tiene que llevárselo.
+    const descartar = () => { try { fs.unlinkSync(req.file.path); } catch {} };
+
+    const { restaurante_id, producto_id } = req.body;
+    if (!restaurante_id || !canAccessRestaurante(req.user, restaurante_id)) {
+      descartar();
+      return res.status(403).json({ error: 'Sin permiso' });
+    }
+
+    // Sin esta comprobación un restaurante podría colgarle un video a un plato
+    // de otro: el permiso sobre restaurante_id no dice nada sobre a quién
+    // pertenece producto_id.
+    if (producto_id) {
+      const { data: prod } = await supabase.from('productos')
+        .select('restaurante_id').eq('id', producto_id).maybeSingle();
+      if (!prod || prod.restaurante_id !== restaurante_id) {
+        descartar();
+        return res.status(403).json({ error: 'Ese plato no es de este restaurante' });
+      }
+    }
+
+    try {
+      const trabajo = await video.encolar(supabase, {
+        restaurante_id, producto_id,
+        origen: path.join(video.CARPETAS.origen, req.file.filename),
+      });
+      res.json({ trabajo_id: trabajo.id, estado: trabajo.estado });
+    } catch (e) {
+      // Si no se pudo encolar, ese archivo no lo va a procesar nadie nunca.
+      descartar();
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+// Para que el panel pueda mostrar el progreso. No devuelve las rutas internas:
+// la URL pública del video ya vive en productos.atributos.
+app.get('/api/video/trabajos', auth, async (req, res) => {
+  const rid = req.query.restaurante_id;
+  if (!rid || !canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+  const { data, error } = await supabase.from('trabajos_video')
+    .select('id, producto_id, estado, error, intentos, creado_en, actualizado_en')
+    .eq('restaurante_id', rid).order('creado_en', { ascending: false }).limit(100);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// Descartar un trabajo fallido. Al borrar la fila, el original deja de estar
+// referenciado y limpieza.js lo recoge en su siguiente pasada.
+app.delete('/api/video/trabajos/:id', auth, async (req, res) => {
+  const { data: t } = await supabase.from('trabajos_video')
+    .select('restaurante_id, estado').eq('id', req.params.id).maybeSingle();
+  if (!t || !canAccessRestaurante(req.user, t.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  // Borrarlo a mitad de conversión dejaría a ffmpeg escribiendo en archivos
+  // que ya no le importan a nadie.
+  if (t.estado === 'procesando') return res.status(409).json({ error: 'Ese video se está convirtiendo ahora mismo' });
+  const { error } = await supabase.from('trabajos_video').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 // ── ANALÍTICA ─────────────────────────────────────────────────
 // Registro de eventos: sin auth (lo llama el sitio público, que no
 // tiene credenciales). Solo inserta, nunca lee.
@@ -616,5 +746,24 @@ app.get('/api/estadisticas', auth, async (req, res) => {
   });
 });
 
+// multer lanza cuando el archivo pasa del límite o la extensión no vale. Sin
+// esto Express responde con una página HTML de error y el panel enseña algo
+// ilegible en vez de decir qué pasó. Va después de las rutas porque un
+// manejador de errores solo recibe lo que ellas dejan escapar.
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError)
+    return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE'
+      ? `El archivo pasa del límite de ${VIDEO_MAX_MB} MB` : err.message });
+  if (/^Solo /.test(err?.message || '')) return res.status(400).json({ error: err.message });
+  next(err);
+});
+
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.listen(PORT, () => console.log(`✅ Panel corriendo en puerto ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`✅ Panel corriendo en puerto ${PORT}`);
+  // Se puede apagar con VIDEO_WORKER=0 si algún día conviene moverlo a un
+  // proceso aparte.
+  if (process.env.VIDEO_WORKER !== '0') video.arrancar(supabase);
+  limpieza.arrancar(supabase);
+});
