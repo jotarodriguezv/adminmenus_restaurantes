@@ -6,6 +6,7 @@ const bcrypt  = require('bcryptjs');
 const cors    = require('cors');
 const path    = require('path');
 const fs      = require('fs');
+const crypto  = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const video    = require('./video');
 const limpieza = require('./limpieza');
@@ -163,6 +164,58 @@ setInterval(() => {
   for (const [ip, reg] of trackPorIp) if (reg.desde < limite) trackPorIp.delete(ip);
 }, TRACK_VENTANA_MS).unref();
 
+// ── LÍMITE DE INTENTOS DE LOGIN ───────────────────────────────
+// El limitador de /api/track no sirve aquí. Allí 120 por minuto va holgado a
+// propósito, porque un restaurante lleno comparte una sola IP de wifi; en un
+// login eso es barra libre.
+//
+// Un PIN de restaurante son cuatro caracteres, y bcrypt de coste 10 encarece
+// cada intento a ~100 ms sin llegar a impedir el ataque: 10.000 combinaciones
+// se agotan en un cuarto de hora. Y de paso cada intento consume ese tiempo
+// del único núcleo, así que una fuerza bruta degrada las cartas aunque no
+// acierte nunca.
+//
+// Se cuentan SOLO los fallos, y un acierto borra la cuenta. Así el personal
+// del restaurante no lo toca jamás: diez fallos en quince minutos desde la
+// misma IP no es alguien que se equivoca, es alguien probando a ciegas.
+const LOGIN_VENTANA_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FALLOS = 10;
+const fallosLogin = new Map();
+
+function loginBloqueado(ip) {
+  const reg = fallosLogin.get(ip);
+  if (!reg) return false;
+  if (Date.now() - reg.desde >= LOGIN_VENTANA_MS) { fallosLogin.delete(ip); return false; }
+  return reg.n >= LOGIN_MAX_FALLOS;
+}
+
+function anotarFalloLogin(ip) {
+  const ahora = Date.now();
+  const reg = fallosLogin.get(ip);
+  if (!reg || ahora - reg.desde >= LOGIN_VENTANA_MS) fallosLogin.set(ip, { desde: ahora, n: 1 });
+  else reg.n++;
+}
+
+// Se limita por IP y no por slug a propósito: contar por restaurante
+// permitiría que cualquiera dejara a un cliente fuera de su propio panel sin
+// más que fallar diez veces a su nombre.
+setInterval(() => {
+  const limite = Date.now() - LOGIN_VENTANA_MS;
+  for (const [ip, reg] of fallosLogin) if (reg.desde < limite) fallosLogin.delete(ip);
+}, LOGIN_VENTANA_MS).unref();
+
+// Comparar con !== termina en el primer carácter distinto, así que el tiempo
+// de respuesta filtra información sobre el PIN. Contra una cadena larga y con
+// la variación normal de internet de por medio no es un ataque realista, pero
+// cuesta cinco líneas.
+function igualSeguro(a, b) {
+  const ba = Buffer.from(String(a), 'utf8');
+  const bb = Buffer.from(String(b), 'utf8');
+  // timingSafeEqual exige longitudes iguales; comparar antes solo revela el
+  // tamaño, que es lo único que este método no puede ocultar.
+  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Debe coincidir con la restricción eventos_analitica_tipo_check de la base:
@@ -187,9 +240,19 @@ app.post('/api/login', async (req, res) => {
   const { slug, pin } = req.body;
   if (!slug || !pin) return res.status(400).json({ error: 'Faltan datos' });
 
+  if (loginBloqueado(req.ip)) {
+    // Se registra para que un ataque sea visible en los registros: sin esta
+    // línea, la única señal sería que alguien no puede entrar.
+    console.warn(`🔒 login bloqueado por intentos · ip ${req.ip} · slug ${slug}`);
+    return res.status(429).json({ error: 'Demasiados intentos fallidos. Espera unos minutos.' });
+  }
+
   if (slug === 'admin') {
-    if (!process.env.PIN_ADMIN || pin !== process.env.PIN_ADMIN)
+    if (!process.env.PIN_ADMIN || !igualSeguro(pin, process.env.PIN_ADMIN)) {
+      anotarFalloLogin(req.ip);
       return res.status(401).json({ error: 'Credenciales incorrectas' });
+    }
+    fallosLogin.delete(req.ip);
     const token = jwt.sign({ slug, rol: 'admin', restauranteId: null }, process.env.JWT_SECRET, { expiresIn: '8h' });
     return res.json({ token, rol: 'admin', restauranteId: null });
   }
@@ -199,13 +262,20 @@ app.post('/api/login', async (req, res) => {
   // 'restaurantes' se sirve entera al menú de cualquier visitante, así que
   // no puede contener secretos.
   const { data } = await supabase.from('restaurantes').select('id').eq('slug', slug).single();
-  if (!data) return res.status(401).json({ error: 'Credenciales incorrectas' });
+  if (!data) {
+    anotarFalloLogin(req.ip);
+    return res.status(401).json({ error: 'Credenciales incorrectas' });
+  }
 
   const { data: cred } = await supabase.from('restaurantes_privado')
     .select('pin_hash').eq('restaurante_id', data.id).maybeSingle();
-  if (!cred?.pin_hash || !(await bcrypt.compare(pin, cred.pin_hash)))
+  if (!cred?.pin_hash || !(await bcrypt.compare(pin, cred.pin_hash))) {
+    anotarFalloLogin(req.ip);
     return res.status(401).json({ error: 'Credenciales incorrectas' });
+  }
 
+  // Un acierto limpia la cuenta: quien entra bien nunca arrastra el límite.
+  fallosLogin.delete(req.ip);
   const token = jwt.sign({ slug, rol: 'cliente', restauranteId: data.id }, process.env.JWT_SECRET, { expiresIn: '8h' });
   res.json({ token, rol: 'cliente', restauranteId: data.id });
 });
