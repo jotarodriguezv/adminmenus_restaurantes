@@ -348,3 +348,36 @@ describe('Control de acceso', () => {
 		assert.equal(r.status, 403);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+// Va al final del archivo a propósito: el limitador cuenta por IP y todas las
+// pruebas salen de 127.0.0.1, así que estas dos comparten contador entre sí y
+// con cualquier otra que llamara a /api/login. El orden importa.
+describe('POST /api/login · límite de intentos', () => {
+	const fallar  = () => S.pedir('POST', '/api/login', { slug: 'admin', pin: '0000' });
+	const acertar = () => S.pedir('POST', '/api/login', { slug: 'admin', pin: '9999' });
+
+	test('un acierto borra los fallos acumulados', async () => {
+		// Si no se limpiaran, el personal de un restaurante que se equivoca
+		// varias veces a lo largo del día acabaría bloqueado sin haber hecho
+		// nada raro.
+		for (let i = 0; i < 5; i++) assert.equal((await fallar()).status, 401);
+
+		assert.equal((await acertar()).status, 200, 'con el PIN bueno entra');
+
+		// El contador quedó a cero: cinco fallos más siguen siendo 401 y no 429.
+		for (let i = 0; i < 5; i++) assert.equal((await fallar()).status, 401);
+		assert.equal((await acertar()).status, 200);
+	});
+
+	test('a los diez fallos bloquea, aunque el PIN sea el correcto', async () => {
+		for (let i = 0; i < 10; i++) assert.equal((await fallar()).status, 401);
+
+		// Esta es la propiedad que importa: una vez bloqueado no hay forma de
+		// seguir probando, ni siquiera acertando. Si esto devolviera 200, el
+		// límite no serviría de nada — bastaría con seguir intentando.
+		const r = await acertar();
+		assert.equal(r.status, 429, 'el bloqueo va antes de comprobar el PIN');
+		assert.match(r.body.error, /intentos/i);
+	});
+});
