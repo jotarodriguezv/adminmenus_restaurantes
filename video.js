@@ -44,10 +44,27 @@ const COMUNES = ['-nostdin', '-hide_banner', '-loglevel', 'error', '-nostats', '
 const recorte = (an, al) =>
   `scale=${an}:${al}:force_original_aspect_ratio=increase,crop=${an}:${al},fps=30`;
 
+// El master NO se recorta. Recortar es una decisión de presentación, y el
+// master existe justamente para sobrevivir a esas decisiones: si mañana la
+// carta pide otra proporción, se vuelve a cortar desde aquí. Un master ya
+// recortado no devuelve los píxeles que se tiraron.
+//
+// Solo se limita el lado largo a 1920 conservando la proporción original,
+// así que un 16:9 sale 1920x1080 y un vertical sale 1080x1920 — el mismo
+// número de píxeles en los dos casos, sin sorpresas de almacenamiento.
+// force_divisible_by=2 lo exige yuv420p, que no admite lados impares.
+// Tampoco se toca la cadencia: el master conserva la del original.
+const sinRecorte = lado =>
+  `scale=w=${lado}:h=${lado}:force_original_aspect_ratio=decrease:force_divisible_by=2`;
+
 function argumentosEntregable(entrada, salida) {
   return [...COMUNES, '-i', entrada,
     '-t', String(DURACION_MAX),
-    '-vf', recorte(720, 1280),
+    // 16:9 horizontal, 1280x720. Medido sobre una carta en video ya
+    // publicada: sus archivos son 1280x720 y se sirven en un hueco de
+    // ~824 px CSS, que en un móvil de 390 px a 3x son 1170 px físicos.
+    // 1280 cubre eso sin desperdiciar.
+    '-vf', recorte(1280, 720),
     '-c:v', 'libx264', '-profile:v', 'main', '-pix_fmt', 'yuv420p',
     '-crf', '26', '-maxrate', '1500k', '-bufsize', '3000k', '-preset', 'slow',
     // faststart mueve el índice al principio del archivo: sin esto el
@@ -62,7 +79,7 @@ function argumentosEntregable(entrada, salida) {
 function argumentosMaster(entrada, salida) {
   return [...COMUNES, '-i', entrada,
     '-t', String(DURACION_MAX),
-    '-vf', recorte(1080, 1920),
+    '-vf', sinRecorte(1920),
     '-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
     '-crf', '21', '-preset', 'medium',
     '-movflags', '+faststart',
