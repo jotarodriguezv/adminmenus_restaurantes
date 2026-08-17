@@ -1783,16 +1783,29 @@ const PLANES = {
     nombre: 'Vitrina',
     modelos: ['topnav', 'sidebar', 'explorar'],
     marca: true, qr_disenador: false, estadisticas: false, horarios: false,
+    videos: false,
   },
   pedidos: {
     nombre: 'Pedidos',
     modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
     marca: true, qr_disenador: true, estadisticas: true, horarios: true,
+    videos: false,
   },
   completo: {
     nombre: 'Completo',
     modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
     marca: false, qr_disenador: true, estadisticas: true, horarios: true,
+    videos: false,
+  },
+  // La carta en video va en su propio plan porque su coste no se parece al
+  // de los demás: cada plato es un archivo que hay que almacenar, convertir
+  // y servir muchas veces. 'videos' abre la subida en el panel; el modelo
+  // 'video' es lo que la carta sabe pintar. Las dos cosas van juntas.
+  video: {
+    nombre: 'Video',
+    modelos: ['topnav', 'sidebar', 'explorar', 'carrito', 'video'],
+    marca: false, qr_disenador: true, estadisticas: true, horarios: true,
+    videos: true,
   },
 };
 const PLAN_POR_DEFECTO = 'pedidos';
