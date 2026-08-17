@@ -1,0 +1,35 @@
+# Corre las pruebas en cada push y en cada pull request.
+#
+# Se incluye 'push' y no solo 'pull_request' a propósito: los archivos de este
+# repositorio se suben a veces directamente a main desde la web de GitHub, y
+# esos cambios no pasan por ningún pull request. Sin esto, justo los que menos
+# revisión tienen serían los únicos sin comprobar.
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # La misma versión que usa la imagen de producción (node:22-alpine).
+      # Si aquí se probara con otra, las pruebas podrían pasar sobre un Node
+      # que no es el que acaba corriendo.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 'npm ci' y no 'npm install': instala exactamente las versiones del
+      # package-lock.json y falla si el lockfile y package.json se han
+      # separado, en vez de resolver algo distinto en silencio.
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Ejecutar pruebas
+        run: npm test
