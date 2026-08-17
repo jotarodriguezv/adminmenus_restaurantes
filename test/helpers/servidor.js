@@ -57,6 +57,9 @@ Object.assign(process.env, {
   PIN_ADMIN: '9999',
   BASE_URL: 'http://localhost',
   PORT: '0',          // el sistema operativo elige un puerto libre
+  VIDEO_WORKER: '0',  // sin cola de conversión: las pruebas no llaman a ffmpeg
+  VIDEO_MARGEN_MB: '0', // el margen de disco real haría fallar la prueba en un
+                        // contenedor pequeño por un motivo que no se prueba
 });
 
 require(path.join(RAIZ, 'server.js'));
@@ -103,6 +106,27 @@ async function pedir(metodo, ruta, cuerpo, token) {
   return { status: res.status, body: json };
 }
 
+// Igual que pedir(), pero multipart. La ruta de video pasa por multer y no
+// entiende JSON, así que sin esto su comprobación de plan no se puede probar
+// por HTTP como el resto.
+async function pedirArchivo(ruta, campos, token, nombre = 'plato.mp4') {
+  const p = await puertoListo();
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(campos)) fd.append(k, v);
+  // Contenido irrelevante: quien valida que sea video de verdad es ffmpeg,
+  // ya en la cola. Aquí solo importa que llegue un archivo con extensión buena.
+  fd.append('file', new Blob([Buffer.alloc(1024)], { type: 'video/mp4' }), nombre);
+
+  const res = await fetch(`http://127.0.0.1:${p}${ruta}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,   // sin Content-Type a mano: fetch pone el boundary
+  });
+  let json = null;
+  try { json = await res.json(); } catch { /* puede no traer cuerpo */ }
+  return { status: res.status, body: json };
+}
+
 // Última escritura sobre una tabla, para comprobar qué se guardó de verdad.
 function ultimaEscritura(tabla) {
   const w = llamadas.filter(l => l.tabla === tabla && ['insert', 'update', 'upsert'].includes(l.op)).pop();
@@ -117,7 +141,7 @@ function reiniciar() {
 }
 
 module.exports = {
-  pedir, llamadas, ultimaEscritura, reiniciar, IDS, tokenCliente, tokenAdmin,
+  pedir, pedirArchivo, llamadas, ultimaEscritura, reiniciar, IDS, tokenCliente, tokenAdmin,
   conTabla: fn => { responderTabla = fn; },
   conRpc: fn => { responderRpc = fn; },
 };
