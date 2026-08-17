@@ -148,3 +148,67 @@ describe('Diseñador de QR · avisos de escaneabilidad', () => {
 		assert.ok(aviso.split('\n').length >= 2, 'debe verlos todos de una vez');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('pintarVideoPlato · la subida de video depende del plan', () => {
+	// Esconder el grupo no es la seguridad —esa vive en POST /api/video—,
+	// pero sí es lo que evita ofrecerle a un restaurante algo que no ha
+	// contratado y que la API le va a rechazar.
+	const pantalla = () => {
+		const ids = ['videoGroup', 'videoEditPreview', 'videoEditVacio',
+			'btnSubirVideo', 'videoUploadStatus', 'videoFileInput'];
+		const mapa = {};
+		for (const id of ids) mapa[id] = {
+			style: {}, textContent: '', value: '', disabled: false,
+			removeAttribute() { delete this.src; },
+		};
+		return mapa;
+	};
+
+	const pintar = (videos, plato, mapa) => {
+		const ctx = cargar('index.html', 'let vigilanciaVideo = null;',
+			'async function handleProductVideoUpload', {
+				clearInterval() {},
+				planActual: () => ({ videos }),
+				document: { getElementById: id => mapa[id] },
+			});
+		ctx.pintarVideoPlato(plato);
+		return mapa;
+	};
+
+	test('un plan sin video no enseña la subida', () => {
+		const m = pintar(false, { id: 'p1' }, pantalla());
+		assert.equal(m.videoGroup.style.display, 'none');
+	});
+
+	test('el plan de video sí la enseña', () => {
+		const m = pintar(true, { id: 'p1' }, pantalla());
+		assert.equal(m.videoGroup.style.display, 'block');
+	});
+
+	test('un plato sin guardar no puede recibir video todavía', () => {
+		// El video se cuelga de un producto_id que aún no existe. Dejar el
+		// botón vivo mandaría la subida a un 400 sin explicar por qué.
+		const m = pintar(true, null, pantalla());
+		assert.equal(m.btnSubirVideo.disabled, true);
+		assert.match(m.videoEditVacio.textContent, /Guarda el plato primero/);
+	});
+
+	test('un plato con video ya convertido lo muestra', () => {
+		const url = 'https://ejemplo.test/uploads/videos/a.mp4';
+		const m = pintar(true, { id: 'p1', atributos: { video: { url } } }, pantalla());
+		assert.equal(m.videoEditPreview.src, url);
+		assert.equal(m.videoEditPreview.style.display, 'block');
+		assert.equal(m.videoEditVacio.style.display, 'none');
+	});
+
+	test('un plato sin video no arrastra el del anterior', () => {
+		// El elemento <video> es el mismo para todos los platos: si no se le
+		// quita el src, abrir un plato sin video enseña el del que se miró antes.
+		const m = pantalla();
+		pintar(true, { id: 'p1', atributos: { video: { url: 'https://ejemplo.test/a.mp4' } } }, m);
+		pintar(true, { id: 'p2' }, m);
+		assert.equal(m.videoEditPreview.src, undefined, 'debe soltar el src del plato anterior');
+		assert.equal(m.videoEditPreview.style.display, 'none');
+	});
+});
