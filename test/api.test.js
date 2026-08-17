@@ -1,6 +1,8 @@
 // Endpoints del panel, probados por HTTP contra el server.js real.
 const { test, describe, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const S = require('./helpers/servidor.js');
 
 const { IDS, tokenCliente, tokenAdmin } = S;
@@ -283,6 +285,57 @@ describe('GET /api/estadisticas', () => {
 		const r = await S.pedir('GET', `/api/estadisticas?restaurante_id=${IDS.restaurante}&desde=2026-01-01&hasta=2026-01-02`, null, tokenCliente);
 		assert.equal(r.status, 500);
 		assert.doesNotMatch(JSON.stringify(r.body), /estadisticas_restaurante|function/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('POST /api/video · la carta en video depende del plan', () => {
+	// Convertir un video cuesta minuto y medio de CPU en un servidor de un
+	// núcleo. Si la puerta no estuviera cerrada aquí, cualquier restaurante
+	// podría llenar la cola llamando directamente y dejar al resto sin panel.
+	const conPlan = plan => S.conTabla(st => {
+		if (st.tabla === 'restaurantes') return { data: { atributos: { plan } }, error: null };
+		// El insert en trabajos_video devuelve la fila creada.
+		return { data: { id: 'trabajo-1', estado: 'pendiente' }, error: null };
+	});
+
+	test('un plan sin video no puede subir por llamada directa', async () => {
+		conPlan('completo');
+		const r = await S.pedirArchivo('/api/video', { restaurante_id: IDS.restaurante }, tokenCliente);
+
+		assert.equal(r.status, 403);
+		assert.match(r.body.error, /plan/i);
+		assert.equal(S.llamadas.some(l => l.tabla === 'trabajos_video'), false,
+			'no debe encolar nada si el plan no lo incluye');
+	});
+
+	test('el plan de video sí puede', async () => {
+		conPlan('video');
+		const r = await S.pedirArchivo('/api/video', { restaurante_id: IDS.restaurante }, tokenCliente);
+
+		assert.equal(r.status, 200);
+		assert.equal(r.body.trabajo_id, 'trabajo-1');
+	});
+
+	test('el superadmin no queda limitado por el plan', async () => {
+		conPlan('vitrina');
+		const r = await S.pedirArchivo('/api/video', { restaurante_id: IDS.restaurante }, tokenAdmin);
+
+		assert.equal(r.status, 200);
+	});
+
+	test('el archivo no se queda en el disco cuando se rechaza', async () => {
+		// multer ya lo escribió cuando la comprobación de plan corre, así que
+		// cada salida por la puerta de atrás tiene que borrarlo. Si no, un
+		// restaurante sin plan llena el disco a base de intentos rechazados.
+		const dir = path.join(__dirname, '..', 'uploads', 'originales');
+		const antes = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
+
+		conPlan('completo');
+		await S.pedirArchivo('/api/video', { restaurante_id: IDS.restaurante }, tokenCliente);
+
+		const despues = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
+		assert.equal(despues, antes, 'el video rechazado no debe quedarse en uploads/originales');
 	});
 });
 
