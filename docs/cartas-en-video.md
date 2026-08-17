@@ -242,7 +242,7 @@ ffmpeg -nostdin -y -i ENTRADA \
 ```bash
 ffmpeg -nostdin -y -i ENTRADA \
   -t 8 \
-  -vf "scale=w=1920:h=1920:force_original_aspect_ratio=decrease:force_divisible_by=2" \
+  -vf 'scale=w=min(1920\,iw):h=min(1920\,ih):force_original_aspect_ratio=decrease:force_divisible_by=2' \
   -c:v libx264 -profile:v high -pix_fmt yuv420p \
   -crf 21 -preset medium \
   -movflags +faststart \
@@ -263,7 +263,8 @@ ffmpeg -nostdin -y -i SALIDA.mp4 -ss 1 -frames:v 1 -update 1 -q:v 5 PORTADA.jpg
 | `-nostdin` | Impide que ffmpeg consuma la entrada estándar. **Obligatorio en el worker.** |
 | `-t 8` | Corta a 8 s. Acota el coste sea cual sea la duración del original. |
 | `scale …:increase` + `crop` | Llena el 16:9 recortando lo que sobre, sin barras negras. Solo en el entregable: el master no se recorta nunca. |
-| `scale …:decrease:force_divisible_by=2` | Solo en el master: limita el lado largo sin recortar y conserva la proporción original. `force_divisible_by` evita lados impares, que `yuv420p` no admite. |
+| `scale=w=min(1920\,iw)…:decrease` | Solo en el master: limita el lado largo sin recortar y conserva la proporción original. El `min()` evita que una fuente pequeña se **amplíe**: con la caja fija en 1920 un 1280×959 saldría 1920×1438, más pesado que el original y sin información nueva. |
+| `force_divisible_by=2` | Evita lados impares, que `yuv420p` no admite. Requiere ffmpeg 5 o superior. |
 | `-crf 26` | Calidad fija; el peso varía según el contenido. |
 | `-maxrate` / `-bufsize` | Techo de bitrate, para que ningún video se dispare. |
 | `-pix_fmt yuv420p` | Sin esto, los videos de iPhone no se ven en algunos Android. |
