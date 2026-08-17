@@ -1354,6 +1354,26 @@
 							<input type="file" id="extraImgFileInput" accept="image/*" style="display:none" onchange="handleExtraImgUpload(this)">
 						</div>
 					</div>
+					<!-- Solo con el plan de video. Esconderlo no basta: el servidor
+					     comprueba el plan igual, porque ocultar un botón no impide
+					     una llamada directa a POST /api/video. -->
+					<div class="form-group" id="videoGroup" style="display:none">
+						<label class="form-label">Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a 16:9 y se corta a 8 s)</span></label>
+						<div style="border:1px solid var(--border);border-radius:8px;padding:12px;">
+							<video id="videoEditPreview" style="display:none;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:#000" muted loop playsinline controls></video>
+							<div id="videoEditVacio" style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">Sin video</div>
+							<div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+								<button type="button" id="btnSubirVideo" onclick="document.getElementById('videoFileInput').click()"
+									style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;
+									color:var(--text);font-family:var(--mono);font-size:9px;letter-spacing:1px;
+									cursor:pointer;white-space:nowrap;">
+									🎬 Subir video
+								</button>
+								<div id="videoUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
+							</div>
+						</div>
+						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" onchange="handleProductVideoUpload(this)">
+					</div>
 					<div class="form-group">
 						<label class="form-label">Nombre</label>
 						<input type="text" class="form-input" id="editNombre">
@@ -2013,6 +2033,7 @@ function openNewProductModal() {
 	state.prodFiltros = [];
 	state.prodBadges = {};
 	renderProdFiltrosBadges();
+	pintarVideoPlato(null);
 	fillCatSelect();
 	openModal('productModal');
 }
@@ -2107,7 +2128,114 @@ function openEditProductModal(id) {
 	state.prodFiltros = Array.isArray(at.filtros) ? [...at.filtros] : [];
 	state.prodBadges = { popular: !!at.popular, chef: !!at.chef, nuevo: !!at.nuevo };
 	renderProdFiltrosBadges();
+	pintarVideoPlato(p);
 	openModal('productModal');
+}
+
+// ── VIDEO DEL PLATO ───────────────────────────────────────────
+// Convertir un video tarda minuto y medio, así que la subida no espera a
+// nada: deja el trabajo en la cola y el panel pregunta por su estado hasta
+// que termina. Sin eso, el restaurante sube un archivo, no ve nada cambiar
+// y vuelve a subirlo.
+
+let vigilanciaVideo = null;   // temporizador de la consulta de estado
+
+function detenerVigilanciaVideo() {
+	if (vigilanciaVideo) { clearInterval(vigilanciaVideo); vigilanciaVideo = null; }
+}
+
+function pintarVideoPlato(p) {
+	const grupo = document.getElementById('videoGroup');
+	if (!planActual().videos) { grupo.style.display = 'none'; return; }
+	grupo.style.display = 'block';
+
+	detenerVigilanciaVideo();
+	const prev  = document.getElementById('videoEditPreview');
+	const vacio = document.getElementById('videoEditVacio');
+	const btn   = document.getElementById('btnSubirVideo');
+	document.getElementById('videoUploadStatus').textContent = '';
+	document.getElementById('videoFileInput').value = '';
+
+	const url = p?.atributos?.video?.url;
+	if (url) {
+		prev.src = url; prev.style.display = 'block'; vacio.style.display = 'none';
+	} else {
+		prev.removeAttribute('src'); prev.style.display = 'none'; vacio.style.display = 'block';
+	}
+
+	// Un video se cuelga de un plato, y un plato nuevo todavía no tiene id
+	// al que colgarlo. Se deja a la vista pero apagado, para que se entienda
+	// que existe y por qué no se puede usar todavía.
+	const esNuevo = !p?.id;
+	btn.disabled = esNuevo;
+	btn.style.opacity = esNuevo ? '.4' : '1';
+	btn.style.cursor  = esNuevo ? 'not-allowed' : 'pointer';
+	vacio.textContent = esNuevo ? 'Guarda el plato primero y luego súbele el video' : 'Sin video';
+}
+
+async function handleProductVideoUpload(input) {
+	const file = input.files[0]; if (!file) return;
+	const productoId = document.getElementById('editProductId').value;
+	const st = document.getElementById('videoUploadStatus');
+
+	if (!productoId) {
+		st.textContent = 'Guarda el plato primero'; st.style.color = 'var(--danger)';
+		input.value = ''; return;
+	}
+
+	st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
+	try {
+		const fd = new FormData();
+		fd.append('restaurante_id', state.restaurante.id);
+		fd.append('producto_id', productoId);
+		fd.append('file', file);
+		const r = await apiFetch('POST', '/api/video', fd, true);
+		st.textContent = 'Convirtiendo... (1-2 min)';
+		vigilarVideo(r.trabajo_id, productoId);
+	} catch (e) {
+		st.textContent = e.message || 'Error al subir';
+		st.style.color = 'var(--danger)';
+	} finally {
+		input.value = '';   // si no, subir el mismo archivo otra vez no dispara onchange
+	}
+}
+
+function vigilarVideo(trabajoId, productoId) {
+	detenerVigilanciaVideo();
+	const st = document.getElementById('videoUploadStatus');
+
+	vigilanciaVideo = setInterval(async () => {
+		// Si cerró la ficha, dejar de preguntar: el trabajo sigue su curso en
+		// el servidor y el video aparecerá la próxima vez que la abra.
+		if (!document.getElementById('productModal').classList.contains('open'))
+			return detenerVigilanciaVideo();
+
+		try {
+			const trabajos = await apiFetch('GET', `/api/video/trabajos?restaurante_id=${state.restaurante.id}`);
+			const t = (trabajos || []).find(x => x.id === trabajoId);
+			if (!t) return;
+
+			if (t.estado === 'listo') {
+				detenerVigilanciaVideo();
+				st.textContent = '✓ Video listo'; st.style.color = 'var(--success)';
+				// El worker escribió la URL en atributos, así que el producto que
+				// el panel tiene en memoria es el de antes: hay que releerlos.
+				state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
+				const url = state.productos.find(x => x.id === productoId)?.atributos?.video?.url;
+				if (url) {
+					const prev = document.getElementById('videoEditPreview');
+					prev.src = url; prev.style.display = 'block';
+					document.getElementById('videoEditVacio').style.display = 'none';
+				}
+			} else if (t.estado === 'error') {
+				detenerVigilanciaVideo();
+				st.textContent = t.error ? `Error: ${t.error}` : 'La conversión falló';
+				st.style.color = 'var(--danger)';
+			} else if (t.estado === 'procesando') {
+				st.textContent = 'Convirtiendo... (1-2 min)';
+			}
+		} catch { /* un fallo de red suelto no debe cortar la vigilancia */ }
+	}, 5000);
 }
 
 async function handleProductImgUpload(input) {
