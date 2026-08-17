@@ -54,8 +54,17 @@ const recorte = (an, al) =>
 // número de píxeles en los dos casos, sin sorpresas de almacenamiento.
 // force_divisible_by=2 lo exige yuv420p, que no admite lados impares.
 // Tampoco se toca la cadencia: el master conserva la del original.
+//
+// El min() no es adorno: con la caja fija en 1920x1920, 'decrease' AMPLÍA
+// las fuentes más pequeñas — un 1280x959 saldría 1920x1438, más pesado que
+// el original y sin un píxel de información nueva. Acotando la caja al
+// tamaño de la fuente, el filtro solo reduce y nunca amplía.
+//
+// Las comas van escapadas porque dentro de un filtro la coma separa
+// argumentos: sin la barra, ffmpeg leería min(1920 y iw) como dos filtros.
 const sinRecorte = lado =>
-  `scale=w=${lado}:h=${lado}:force_original_aspect_ratio=decrease:force_divisible_by=2`;
+  `scale=w=min(${lado}\\,iw):h=min(${lado}\\,ih)` +
+  `:force_original_aspect_ratio=decrease:force_divisible_by=2`;
 
 function argumentosEntregable(entrada, salida) {
   return [...COMUNES, '-i', entrada,
