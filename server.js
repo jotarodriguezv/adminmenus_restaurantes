@@ -669,6 +669,19 @@ app.post('/api/video', auth,
       return res.status(403).json({ error: 'Sin permiso' });
     }
 
+    // La carta en video es de plan, y convertir cuesta minuto y medio de CPU
+    // por archivo: sin esta comprobación cualquier restaurante podría llenar
+    // la cola llamando aquí directamente. El superadmin siempre puede, igual
+    // que en estadísticas.
+    if (req.user.rol !== 'admin') {
+      const { data: resto } = await supabase.from('restaurantes')
+        .select('atributos').eq('id', restaurante_id).single();
+      if (!planDe(resto?.atributos).videos) {
+        descartar();
+        return res.status(403).json({ error: 'La carta en video no está incluida en el plan actual' });
+      }
+    }
+
     // Sin esta comprobación un restaurante podría colgarle un video a un plato
     // de otro: el permiso sobre restaurante_id no dice nada sobre a quién
     // pertenece producto_id.
