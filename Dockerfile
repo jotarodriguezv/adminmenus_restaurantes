@@ -20,8 +20,8 @@ COPY . .
 #
 #   productos, promos, categorias, logos, fondos, portadas  → imágenes (ya existían)
 #   originales   → el archivo crudo del móvil, se borra tras convertir
-#   videos       → el entregable 720x1280 que ve el cliente
-#   masters      → el 1080x1920 de archivo, nunca se sirve
+#   videos       → el entregable 1280x720 que ve el cliente
+#   masters      → el original sin recortar, de archivo, nunca se sirve
 #   miniaturas   → la portada JPEG de cada video
 RUN mkdir -p uploads/productos uploads/promos \
              uploads/originales uploads/videos uploads/masters uploads/miniaturas
