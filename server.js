@@ -682,6 +682,12 @@ app.post('/api/video', auth,
       }
     }
 
+    // Desde qué segundo del original se recorta. Llega como texto del
+    // formulario, y lo que no sea un número razonable se trata como 0: es
+    // preferible convertir desde el principio que rechazar la subida de un
+    // archivo que ya está en el disco. El tope alto lo pone la columna.
+    const desde = Math.max(0, Math.min(3599, Number(req.body.desde) || 0));
+
     // Sin esta comprobación un restaurante podría colgarle un video a un plato
     // de otro: el permiso sobre restaurante_id no dice nada sobre a quién
     // pertenece producto_id.
@@ -696,7 +702,7 @@ app.post('/api/video', auth,
 
     try {
       const trabajo = await video.encolar(supabase, {
-        restaurante_id, producto_id,
+        restaurante_id, producto_id, desde,
         origen: path.join(video.CARPETAS.origen, req.file.filename),
       });
       res.json({ trabajo_id: trabajo.id, estado: trabajo.estado });
