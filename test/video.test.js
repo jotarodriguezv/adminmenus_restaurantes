@@ -3,6 +3,8 @@
 // procesos, y probar eso aquí sería probar a ffmpeg, no a nosotros.
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const video = require('../video.js');
 
 // Devuelve el valor que sigue a una bandera, para poder afirmar sobre un
@@ -106,5 +108,87 @@ describe('argumentos de ffmpeg · lo que no se puede perder', () => {
 		// 1280x959 saldría 1920x1438, más pesado que el original y sin un píxel
 		// de información nueva. El min() lo impide.
 		assert.match(valorDe(video.argumentosMaster('e.mp4', 'm.mp4'), '-vf'), /min\(1920/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('purgarAnteriores · reemplazar un video no deja basura', () => {
+	// El plato apunta al video nuevo, pero los archivos del viejo seguían en
+	// disco. Y el limpiador tampoco los recogía: su fila en trabajos_video los
+	// seguía nombrando, así que para él estaban en uso. Unos 7 MB por
+	// reemplazo, y reemplazar es lo más normal del mundo.
+	const RAIZ = path.join(__dirname, '..', 'uploads');
+
+	// Un supabase de mentira: devuelve los trabajos viejos y apunta qué filas
+	// le mandan borrar.
+	const supabaseFalso = viejos => {
+		const filasBorradas = [];
+		const q = {
+			select: () => q,
+			eq:     () => q,
+			neq:    () => q,
+			in:     () => Promise.resolve({ data: viejos }),
+			delete: () => ({ eq: (_col, valor) => { filasBorradas.push(valor); return Promise.resolve({}); } }),
+		};
+		return { filasBorradas, from: () => q };
+	};
+
+	// Crea los tres archivos de un trabajo y devuelve sus rutas relativas.
+	const crearTrio = base => {
+		const trio = {
+			video:   `videos/${base}.mp4`,
+			master:  `masters/${base}-master.mp4`,
+			portada: `miniaturas/${base}.jpg`,
+		};
+		for (const rel of Object.values(trio)) {
+			const abs = path.join(RAIZ, rel);
+			fs.mkdirSync(path.dirname(abs), { recursive: true });
+			fs.writeFileSync(abs, 'x');
+		}
+		return trio;
+	};
+
+	const existe = rel => fs.existsSync(path.join(RAIZ, rel));
+	const limpiar = trio => { for (const rel of Object.values(trio)) { try { fs.unlinkSync(path.join(RAIZ, rel)); } catch {} } };
+
+	test('borra los tres archivos del trabajo anterior y su fila', async () => {
+		const viejo = crearTrio('prueba-viejo-' + Date.now());
+		const sb = supabaseFalso([{ id: 'trabajo-viejo', ...viejo }]);
+
+		try {
+			await video.purgarAnteriores(sb, { id: 'trabajo-nuevo', producto_id: 'p1' });
+
+			assert.equal(existe(viejo.video), false, 'el entregable viejo');
+			assert.equal(existe(viejo.master), false, 'el master viejo');
+			assert.equal(existe(viejo.portada), false, 'la portada vieja');
+			assert.deepEqual(sb.filasBorradas, ['trabajo-viejo']);
+		} finally {
+			// En finally: si la prueba falla, los archivos que creó no deben
+			// quedarse ahí ensuciando la carpeta de subidas.
+			limpiar(viejo);
+		}
+	});
+
+	test('sin trabajos anteriores no hace nada', async () => {
+		const sb = supabaseFalso([]);
+		await video.purgarAnteriores(sb, { id: 'trabajo-nuevo', producto_id: 'p1' });
+		assert.deepEqual(sb.filasBorradas, []);
+	});
+
+	test('un trabajo sin plato no purga nada', async () => {
+		// Sin producto_id no hay "anteriores de este plato" que valgan: sería
+		// borrar por un criterio que no existe.
+		const sb = supabaseFalso([{ id: 'no-deberia-tocarse' }]);
+		await video.purgarAnteriores(sb, { id: 'trabajo-nuevo', producto_id: null });
+		assert.deepEqual(sb.filasBorradas, []);
+	});
+
+	test('una ruta que se sale de uploads no se toca', async () => {
+		// rutaDentroDeUploads devuelve null y el archivo se salta. Si algún día
+		// entrara basura en esa columna, esto es lo que impide que el worker
+		// borre fuera de su carpeta.
+		const sb = supabaseFalso([{ id: 'raro', video: '../../etc/passwd', master: null, portada: null }]);
+		await video.purgarAnteriores(sb, { id: 'trabajo-nuevo', producto_id: 'p1' });
+		assert.deepEqual(sb.filasBorradas, ['raro'], 'la fila sí se limpia');
 	});
 });
