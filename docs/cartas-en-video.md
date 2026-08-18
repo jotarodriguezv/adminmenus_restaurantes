@@ -166,6 +166,11 @@ Las dos conclusiones que salen de ahí:
 
 1. **CRF 26 es el punto dulce.** Fijar calidad en vez de peso evita que precisamente
    el plato con más movimiento sea el que peor se vea.
+
+   > **Revisado después.** Esta comparación se hizo en pantalla de computador contra
+   > un original 4K. Repetida en el móvil de destino y a tamaño real, CRF 26 y CRF 30
+   > no se distinguen, y el 30 pesa la mitad. El valor vigente es **30** (decisión 3).
+   > La lección: comparar en la pantalla donde se va a ver, no en la mejor que haya.
 2. **720p basta para entregar.** Si con el 1080p al lado no se nota, en un teléfono
    menos. El 1080p se queda como archivo interno, no como entregable.
 
@@ -187,11 +192,12 @@ Las dos conclusiones que salen de ahí:
 |---|---|---|
 | 1 | Los archivos van al **disco del servidor**, no a Supabase Storage ni a Postgres | El egreso no se factura en el VPS y se factura por GB en Supabase; el bind mount ya está confirmado; el 98 % de las imágenes ya vive ahí |
 | 2 | **Nunca dentro de la base de datos** | Infla las copias de seguridad y no permite peticiones de rango (sin 206 no hay reproducción progresiva ni saltos) |
-| 3 | Entregable **1280×720 horizontal, CRF 26**, sin audio | Punto dulce medido; y 20 de los 25 videos de la competencia son exactamente 1280×720 (§3) |
+| 3 | Entregable **1280×720 horizontal, CRF 30**, sin audio | 20 de los 25 videos de la competencia son exactamente 1280×720 (§3). El CRF bajó de 26 a 30 tras comparar las tres versiones en el móvil de destino: a tamaño real no se distinguen, y el archivo pasa de 1,27 MB a 0,68 — la mitad de datos para el comensal y la mitad de decodificación para su teléfono |
 | 4 | Se guarda un **master sin recortar, con audio** | Permite recodificar en el futuro sin pedirle nada a los clientes — y recortar a otra proporción, que un master ya recortado no permite |
 | 5 | El **original del móvil se borra** tras convertir con éxito | 22 GB libres; los originales de 25 MB llenan el disco y con el disco lleno se para el servidor entero |
 | 6 | Tope de **8 segundos** por video, **desde el segundo que elija el restaurante** | Acota el coste de CPU y es la decisión de producto que hace viable todo lo demás. Cuáles 8 lo decide quien sube: los originales duran veinte o cuarenta segundos y lo bueno casi nunca está al principio |
 | 7 | **Un trabajo de conversión a la vez**, con `nice` | Con 1 vCPU, ffmpeg y Express comparten núcleo |
+| 8 | **Mínimo de 3 segundos aprovechables**, o se rechaza | Un bucle de uno o dos segundos marea en vez de vender: no es un video corto, es un error de grabación. Se comprueba en el panel —para no subir 30 MB en balde— y otra vez en la cola, que no se fía del panel |
 
 ### Por qué existe el master
 
@@ -269,7 +275,7 @@ ffmpeg -nostdin -y -i SALIDA.mp4 -ss 1 -frames:v 1 -update 1 -q:v 5 PORTADA.jpg
 | `scale …:increase` + `crop` | Llena el 16:9 recortando lo que sobre, sin barras negras. Solo en el entregable: el master no se recorta nunca. |
 | `scale=w=min(1920\,iw)…:decrease` | Solo en el master: limita el lado largo sin recortar y conserva la proporción original. El `min()` evita que una fuente pequeña se **amplíe**: con la caja fija en 1920 un 1280×959 saldría 1920×1438, más pesado que el original y sin información nueva. |
 | `force_divisible_by=2` | Evita lados impares, que `yuv420p` no admite. Requiere ffmpeg 5 o superior. |
-| `-crf 26` | Calidad fija; el peso varía según el contenido. |
+| `-crf 30` | Calidad fija; el peso varía según el contenido. A 26 el archivo se pegaba al techo de 1.500k, señal de que el codificador quería más bits de los que hacían falta. |
 | `-maxrate` / `-bufsize` | Techo de bitrate, para que ningún video se dispare. |
 | `-pix_fmt yuv420p` | Sin esto, los videos de iPhone no se ven en algunos Android. |
 | `-movflags +faststart` | Mueve el índice al principio del archivo: la reproducción empieza antes de terminar la descarga. **Crítico.** |
