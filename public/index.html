@@ -1425,6 +1425,26 @@
 						<label class="form-label">Descripción avanzada <span style="color:var(--text-dim)">(opcional)</span></label>
 						<input type="text" class="form-input" id="editDescAvanzada">
 					</div>
+					<!-- Qué puede añadirle el cliente a ESTE plato. El catálogo es del
+					     negocio y vive en la pestaña Toppings; aquí solo se marca cuáles
+					     ofrece cada uno, porque una hamburguesa lleva de todo y una
+					     gaseosa no lleva nada. -->
+					<div class="form-group" id="personalizacionGroup" style="display:none">
+						<label class="form-label">Personalización <span style="color:var(--text-dim);font-weight:400">(qué puede añadirle el cliente a este plato)</span></label>
+						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene toppings. Créalos en la pestaña Toppings y vuelve aquí.</div>
+						<div id="persPlatinoWrap" style="margin-top:8px;display:none">
+							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings sin costo</div>
+							<div id="persPlatinoChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+						</div>
+						<div id="persPremiumWrap" style="margin-top:12px;display:none">
+							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings con costo</div>
+							<div id="persPremiumChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+						</div>
+						<div id="persSalsasWrap" style="margin-top:12px;display:none">
+							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Salsas</div>
+							<div id="persSalsasChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+						</div>
+					</div>
 					<div class="form-group" id="editFiltrosGroup" style="display:none">
 						<label class="form-label">Filtros que aplican <span style="color:var(--text-dim)">(modelo explorar)</span></label>
 						<div id="editFiltrosChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
@@ -2094,6 +2114,8 @@ function openNewProductModal() {
 	state.prodFiltros = [];
 	state.prodBadges = {};
 	renderProdFiltrosBadges();
+	state.prodPers = { platino: [], premium: [], salsas: [] };
+	renderPersonalizacion();
 	pintarVideoPlato(null);
 	ajustarFichaAlModelo();
 	fillCatSelect();
@@ -2143,6 +2165,68 @@ function renderProdFiltrosBadges() {
 }
 
 // Chip genérico activable para el modal de producto.
+// ── PERSONALIZACIÓN DEL PLATO ─────────────────────────────────
+// El catálogo de toppings es del negocio y vive en la pestaña Toppings.
+// Aquí se marca cuáles ofrece cada plato.
+//
+// Esta pieza no existía. El catálogo se guardaba en el restaurante y nada lo
+// bajaba a los platos, así que los tres productos originales tenían una copia
+// puesta a mano y todo producto creado después nacía sin toppings, en
+// silencio y sin forma de arreglarlo desde el panel.
+
+// Los platos viejos llevan una copia del catálogo dentro. Se traduce a la
+// forma nueva al abrirlos: el restaurante los ve ya marcados y quedan
+// migrados en cuanto guarde.
+function personalizacionDe(p) {
+	const a = p?.atributos || {};
+	if (a.personalizacion) return {
+		platino: [...(a.personalizacion.platino || [])],
+		premium: [...(a.personalizacion.premium || [])],
+		salsas:  [...(a.personalizacion.salsas || [])],
+	};
+	return {
+		platino: [...(a.toppings_platino || [])],
+		premium: (a.toppings_premium || []).map(t => t?.nombre).filter(Boolean),
+		salsas:  [...(a.salsas || [])],
+	};
+}
+
+function renderPersonalizacion() {
+	const grupo = document.getElementById('personalizacionGroup');
+	const cat = state.restaurante?.atributos || {};
+	const hayCatalogo = !!(cat.toppings_platino?.length || cat.toppings_premium?.length || cat.salsas?.length);
+
+	// Se enseña donde tiene sentido: negocios con carrito, o que ya arrastren
+	// catálogo de antes. Al resto no le dice nada.
+	if (cat.nav !== 'carrito' && !hayCatalogo) { grupo.style.display = 'none'; return; }
+	grupo.style.display = 'block';
+	document.getElementById('persVacio').style.display = hayCatalogo ? 'none' : 'block';
+
+	const pintar = (wrapId, chipsId, items, nombreDe, etiquetaDe, marcados) => {
+		const wrap = document.getElementById(wrapId);
+		const chips = document.getElementById(chipsId);
+		if (!items.length) { wrap.style.display = 'none'; return; }
+		wrap.style.display = 'block';
+		chips.innerHTML = '';
+		items.forEach(item => {
+			const nombre = nombreDe(item);
+			chips.appendChild(chipToggle('', etiquetaDe(item), marcados.includes(nombre), () => {
+				const i = marcados.indexOf(nombre);
+				if (i === -1) marcados.push(nombre); else marcados.splice(i, 1);
+				renderPersonalizacion();
+			}));
+		});
+	};
+
+	const P = state.prodPers;
+	pintar('persPlatinoWrap', 'persPlatinoChips', cat.toppings_platino || [],
+		t => t, t => t, P.platino);
+	pintar('persPremiumWrap', 'persPremiumChips', cat.toppings_premium || [],
+		t => t.nombre, t => `${t.nombre} · $${Number(t.precio || 0).toLocaleString('es-CO')}`, P.premium);
+	pintar('persSalsasWrap', 'persSalsasChips', cat.salsas || [],
+		s => s, s => s, P.salsas);
+}
+
 function chipToggle(emoji, label, activo, onClick) {
 	const chip = document.createElement('button');
 	chip.type = 'button';
@@ -2192,6 +2276,8 @@ function openEditProductModal(id) {
 	state.prodFiltros = Array.isArray(at.filtros) ? [...at.filtros] : [];
 	state.prodBadges = { popular: !!at.popular, chef: !!at.chef, nuevo: !!at.nuevo };
 	renderProdFiltrosBadges();
+	state.prodPers = personalizacionDe(p);
+	renderPersonalizacion();
 	pintarVideoPlato(p);
 	ajustarFichaAlModelo();
 	fijarFirmaProducto();
@@ -2520,6 +2606,7 @@ function firmaProducto() {
 		state.extraImgs || [],
 		state.prodFiltros || [],
 		state.prodBadges || {},
+		state.prodPers || {},
 		// Un video elegido y todavía sin subir también es trabajo por perder:
 		// hay que volver a buscarlo y a marcar el segundo de inicio.
 		videoElegido ? videoElegido.name : null,
@@ -2581,11 +2668,19 @@ async function saveProduct() {
 	body.atributos = {
 		...atributosActuales,
 		imagenes: state.extraImgs,
+		personalizacion: state.prodPers,
 		filtros: state.prodFiltros,
 		popular: !!state.prodBadges.popular,
 		chef: !!state.prodBadges.chef,
 		nuevo: !!state.prodBadges.nuevo,
 	};
+	// La copia del catálogo que llevaban los platos viejos ya quedó traducida
+	// a 'personalizacion' al abrir la ficha. Se retira aquí para que no queden
+	// dos verdades sobre lo mismo: tener las dos es exactamente lo que hacía
+	// que cambiar un precio en el catálogo no cambiara lo que se cobraba.
+	delete body.atributos.toppings_platino;
+	delete body.atributos.toppings_premium;
+	delete body.atributos.salsas;
 	try {
 		if(id) {
 			const updated=await apiFetch('PATCH',`/api/productos/${id}`,body);
