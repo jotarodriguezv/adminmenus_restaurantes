@@ -66,8 +66,20 @@ const sinRecorte = lado =>
   `scale=w=min(${lado}\\,iw):h=min(${lado}\\,ih)` +
   `:force_original_aspect_ratio=decrease:force_divisible_by=2`;
 
-function argumentosEntregable(entrada, salida) {
-  return [...COMUNES, '-i', entrada,
+// El recorte no tiene por qué empezar en el segundo 0. Un restaurante graba
+// treinta segundos con el móvil y lo bueno —el plato saliendo, el queso
+// cayendo— casi nunca está al principio. Este es el único momento en que se
+// puede elegir: el original se borra al terminar y el master se corta igual,
+// así que lo que no entre aquí no se recupera.
+//
+// -ss va ANTES de -i a propósito. Así ffmpeg salta usando el índice del
+// archivo en vez de decodificar y tirar todo lo anterior; con un original de
+// medio minuto la diferencia en CPU se nota, y desde ffmpeg 2.1 ese salto
+// previo también cae en el fotograma exacto.
+const desdeDe = seg => (seg > 0 ? ['-ss', String(seg)] : []);
+
+function argumentosEntregable(entrada, salida, desde = 0) {
+  return [...COMUNES, ...desdeDe(desde), '-i', entrada,
     '-t', String(DURACION_MAX),
     // 16:9 horizontal, 1280x720. Medido sobre una carta en video ya
     // publicada: sus archivos son 1280x720 y se sirven en un hueco de
@@ -85,8 +97,8 @@ function argumentosEntregable(entrada, salida) {
     salida];
 }
 
-function argumentosMaster(entrada, salida) {
-  return [...COMUNES, '-i', entrada,
+function argumentosMaster(entrada, salida, desde = 0) {
+  return [...COMUNES, ...desdeDe(desde), '-i', entrada,
     '-t', String(DURACION_MAX),
     '-vf', sinRecorte(1920),
     '-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
@@ -173,8 +185,11 @@ async function convertir(trabajo) {
   const pMaster  = path.join(RAIZ, CARPETAS.master,  nMaster);
   const pPortada = path.join(RAIZ, CARPETAS.portada, nPortada);
 
-  await correrFfmpeg(argumentosEntregable(entrada, pVideo));
-  await correrFfmpeg(argumentosMaster(entrada, pMaster));
+  // numeric de Postgres puede llegar como cadena según el cliente.
+  const desde = Number(trabajo.desde) || 0;
+
+  await correrFfmpeg(argumentosEntregable(entrada, pVideo, desde));
+  await correrFfmpeg(argumentosMaster(entrada, pMaster, desde));
   await correrFfmpeg(argumentosPortada(pVideo, pPortada));
 
   // Comprobar antes de dar por bueno: ffmpeg puede terminar con código 0 y
@@ -297,9 +312,9 @@ function arrancar(supabase) {
   console.log('🎬 cola de video en marcha');
 }
 
-async function encolar(supabase, { restaurante_id, producto_id, origen }) {
+async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 0 }) {
   const { data, error } = await supabase.from('trabajos_video')
-    .insert([{ restaurante_id, producto_id: producto_id || null, origen }])
+    .insert([{ restaurante_id, producto_id: producto_id || null, origen, desde }])
     .select().single();
   if (error) throw new Error(error.message);
   return data;
