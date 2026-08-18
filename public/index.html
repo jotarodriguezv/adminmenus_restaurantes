@@ -2247,19 +2247,39 @@ function usarPuntoActualDelVideo() {
 	avisarSiSePasaElVideo();
 }
 
-// Si desde ese punto no quedan 8 segundos, el video sale más corto. No es un
-// error —ffmpeg corta donde puede— pero vale más decirlo ahora que después de
-// esperar minuto y medio a que se convierta.
+// El mismo número que DURACION_MIN en video.js. Por debajo de eso el bucle
+// de la carta da tirones: no es un video corto, es un error de grabación.
+const DURACION_MIN_VIDEO = 3;
+
+// Dos umbrales distintos. Entre 3 y 8 segundos solo se avisa: el video sale
+// más corto y ya está, que tampoco pasa nada. Por debajo de 3 se bloquea, y
+// se bloquea AQUÍ para que no se suban treinta megas antes de enterarse — el
+// servidor lo rechazaría igual, pero después del viaje.
 function avisarSiSePasaElVideo() {
 	const prev  = document.getElementById('videoEditPreview');
 	const aviso = document.getElementById('videoDesdeAviso');
+	const btn   = document.getElementById('btnConfirmarVideo');
 	const desde = Number(document.getElementById('videoDesde').value) || 0;
 	const dur   = prev.duration;
 
-	if (!isFinite(dur) || dur <= 0) { aviso.textContent = ''; return; }
-	const quedan = dur - desde;
+	const permitir = () => { btn.disabled = false; btn.style.opacity = '1'; };
+
+	// Todavía sin metadatos: la duración es NaN y cualquier cuenta con eso
+	// sería basura. No se estorba hasta saber.
+	if (!isFinite(dur) || dur <= 0) { aviso.textContent = ''; permitir(); return; }
+
+	const quedan = Math.max(0, dur - desde);
+
+	if (quedan < DURACION_MIN_VIDEO) {
+		aviso.textContent = `Desde ahí solo quedan ${quedan.toFixed(1)} s y hacen falta al menos ${DURACION_MIN_VIDEO}. Elige otro punto o sube un video más largo.`;
+		btn.disabled = true;
+		btn.style.opacity = '.4';
+		return;
+	}
+
+	permitir();
 	aviso.textContent = quedan < 8
-		? `Desde ahí solo quedan ${Math.max(0, quedan).toFixed(1)} s: el video se guardará más corto.`
+		? `Desde ahí solo quedan ${quedan.toFixed(1)} s: el video se guardará más corto.`
 		: '';
 }
 
