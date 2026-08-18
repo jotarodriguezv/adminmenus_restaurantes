@@ -1,6 +1,9 @@
 # Cartas en video — análisis técnico y decisiones
 
-**Estado:** paso 0 cerrado (mediciones hechas, parámetros fijados). Sin código todavía.
+**Estado:** en producción. Cola, panel y plantilla funcionando de punta a punta;
+primeros videos reales convertidos y servidos (restaurante `voro`).
+Los parámetros de la sección 7 son los vigentes; los de la sección 4 son las
+mediciones del análisis inicial y varios ya no se usan — ver sección 5.
 **Fecha del análisis:** agosto de 2026
 **Servidor de las pruebas:** Hostinger KVM 1 · 1 vCPU · Ubuntu 24.04.4 · ffmpeg 6.1.1
 
@@ -187,7 +190,7 @@ Las dos conclusiones que salen de ahí:
 | 3 | Entregable **1280×720 horizontal, CRF 26**, sin audio | Punto dulce medido; y 20 de los 25 videos de la competencia son exactamente 1280×720 (§3) |
 | 4 | Se guarda un **master sin recortar, con audio** | Permite recodificar en el futuro sin pedirle nada a los clientes — y recortar a otra proporción, que un master ya recortado no permite |
 | 5 | El **original del móvil se borra** tras convertir con éxito | 22 GB libres; los originales de 25 MB llenan el disco y con el disco lleno se para el servidor entero |
-| 6 | Tope de **8 segundos** por video | Acota el coste de CPU y es la decisión de producto que hace viable todo lo demás |
+| 6 | Tope de **8 segundos** por video, **desde el segundo que elija el restaurante** | Acota el coste de CPU y es la decisión de producto que hace viable todo lo demás. Cuáles 8 lo decide quien sube: los originales duran veinte o cuarenta segundos y lo bueno casi nunca está al principio |
 | 7 | **Un trabajo de conversión a la vez**, con `nice` | Con 1 vCPU, ffmpeg y Express comparten núcleo |
 
 ### Por qué existe el master
@@ -228,7 +231,7 @@ opinión.
 ### Entregable
 
 ```bash
-ffmpeg -nostdin -y -i ENTRADA \
+ffmpeg -nostdin -y -ss DESDE -i ENTRADA \
   -t 8 \
   -vf "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,fps=30" \
   -c:v libx264 -profile:v main -pix_fmt yuv420p \
@@ -240,7 +243,7 @@ ffmpeg -nostdin -y -i ENTRADA \
 ### Master
 
 ```bash
-ffmpeg -nostdin -y -i ENTRADA \
+ffmpeg -nostdin -y -ss DESDE -i ENTRADA \
   -t 8 \
   -vf 'scale=w=min(1920\,iw):h=min(1920\,ih):force_original_aspect_ratio=decrease:force_divisible_by=2' \
   -c:v libx264 -profile:v high -pix_fmt yuv420p \
@@ -262,6 +265,7 @@ ffmpeg -nostdin -y -i SALIDA.mp4 -ss 1 -frames:v 1 -update 1 -q:v 5 PORTADA.jpg
 |---|---|
 | `-nostdin` | Impide que ffmpeg consuma la entrada estándar. **Obligatorio en el worker.** |
 | `-t 8` | Corta a 8 s. Acota el coste sea cual sea la duración del original. |
+| `-ss N` **antes** de `-i` | Empieza en el segundo que marcó el restaurante. Delante del `-i`, ffmpeg salta por el índice del archivo en vez de decodificar y descartar todo lo anterior; detrás, cuesta CPU proporcional a lo que se salta. Desde ffmpeg 2.1 el salto previo también es exacto al fotograma. |
 | `scale …:increase` + `crop` | Llena el 16:9 recortando lo que sobre, sin barras negras. Solo en el entregable: el master no se recorta nunca. |
 | `scale=w=min(1920\,iw)…:decrease` | Solo en el master: limita el lado largo sin recortar y conserva la proporción original. El `min()` evita que una fuente pequeña se **amplíe**: con la caja fija en 1920 un 1280×959 saldría 1920×1438, más pesado que el original y sin información nueva. |
 | `force_divisible_by=2` | Evita lados impares, que `yuv420p` no admite. Requiere ffmpeg 5 o superior. |
@@ -434,16 +438,23 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
 
 - [x] **Paso 0 — Medición.** Parámetros fijados sobre mediciones reales
 - [x] **Paso 1 — Ingesta y conversión.** Tabla, worker, ffmpeg en la imagen, rutas
-- [ ] **Paso 2 — Panel.** Subir video, ver progreso, aprobar o descartar
-- [ ] Botón para descartar trabajos fallidos (al borrar la fila, el limpiador recoge el original)
-- [ ] **Paso 3 — Cartas.** Pintar el video con carga perezosa, portada primero, `muted` + `playsinline` + `autoplay`
+- [x] **Paso 2 — Panel.** Subir video desde la ficha del plato, con estado que se
+      refresca solo y elección del segundo de inicio
+- [ ] Botón para descartar trabajos fallidos (la ruta `DELETE /api/video/trabajos/:id`
+      existe; falta el botón en el panel)
+- [x] **Paso 3 — Cartas.** `temas/video.js` en vmenus-app: carga perezosa, portada
+      primero, un solo video en marcha a la vez
 - [ ] **Paso 4 — Generación con IA.** Foto → video contra un servicio externo, a la misma cola
-- [ ] Probar el recorte 16:9 con un video **vertical** de origen, que es lo que graba un móvil por defecto
-- [ ] Comprobar en el servidor que `force_divisible_by=2` funciona en su ffmpeg (requiere ffmpeg 5 o superior; el servidor tiene 8.1.2)
+- [x] Probado el recorte 16:9 con origen vertical: el plato queda centrado, pero se
+      pierde el 69 % de la altura. Decisión tomada: se mantiene 16:9 y se recomienda
+      al restaurante grabar en horizontal
+- [x] `force_divisible_by=2` comprobado en el servidor con cuatro proporciones.
+      Redondea al par más cercano, no hacia abajo
 - [ ] Medir los parámetros nuevos del master (`-crf 21 -preset medium` con audio); los de la sección 7 son los de la prueba vieja
 - [ ] Verificar la portada a `-q:v 5` — los ~80 KB son estimación, se midió a `-q:v 3` (155 KB)
 - [ ] Convertir con el servidor sirviendo tráfico real, para ver si `nice` basta
-- [ ] Pruebas para `argumentosEntregable` / `argumentosMaster` / `argumentosPortada` (están exportadas para eso)
+- [ ] Pruebas para `argumentosEntregable` / `argumentosMaster` / `argumentosPortada`
+      (están exportadas para eso). Sí hay pruebas de la puerta de plan y del panel
 - [ ] Pruebas para `limpieza.recogerNombres`
 
 ### Seguridad
