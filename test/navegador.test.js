@@ -222,37 +222,88 @@ describe('avisarSiSePasaElVideo · el trozo elegido tiene que caber', () => {
 	// ffmpeg termine.
 	const conVideo = (duracion, desde) => {
 		const mapa = {
-			videoEditPreview: { duration: duracion },
-			videoDesde:       { value: String(desde) },
-			videoDesdeAviso:  { textContent: 'sucio' },
+			videoEditPreview:  { duration: duracion },
+			videoDesde:        { value: String(desde) },
+			videoDesdeAviso:   { textContent: 'sucio' },
+			btnConfirmarVideo: { disabled: false, style: {} },
 		};
-		const ctx = cargar('index.html', 'function avisarSiSePasaElVideo',
+		const ctx = cargar('index.html', 'const DURACION_MIN_VIDEO',
 			'async function confirmarSubidaVideo',
 			{ document: { getElementById: id => mapa[id] } });
 		ctx.avisarSiSePasaElVideo();
-		return mapa.videoDesdeAviso.textContent;
+		return { aviso: mapa.videoDesdeAviso.textContent, bloqueado: mapa.btnConfirmarVideo.disabled };
 	};
 
 	test('con hueco de sobra no dice nada', () => {
-		assert.equal(conVideo(30, 5), '', 'quedan 25 s, no hay nada que avisar');
+		assert.equal(conVideo(30, 5).aviso, '', 'quedan 25 s, no hay nada que avisar');
 	});
 
 	test('justo en el límite tampoco', () => {
-		assert.equal(conVideo(30, 22), '', 'quedan exactamente 8 s');
+		assert.equal(conVideo(30, 22).aviso, '', 'quedan exactamente 8 s');
 	});
 
 	test('avisa cuando el trozo se queda corto', () => {
-		assert.match(conVideo(30, 26), /4\.0 s/, 'quedan 4 s y hay que decirlo');
+		assert.match(conVideo(30, 26).aviso, /4\.0 s/, 'quedan 4 s y hay que decirlo');
 	});
 
 	test('no muestra segundos negativos si se pasa del final', () => {
 		// Escribir 40 en un video de 30 daba "-10.0 s", que no significa nada.
-		assert.match(conVideo(30, 40), /0\.0 s/);
+		assert.match(conVideo(30, 40).aviso, /0\.0 s/);
 	});
 
 	test('sin metadatos todavía no aventura nada', () => {
 		// La duración no se conoce hasta loadedmetadata; hasta entonces es NaN
 		// y un aviso calculado con eso sería basura.
-		assert.equal(conVideo(NaN, 5), '');
+		assert.equal(conVideo(NaN, 5).aviso, '');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('avisarSiSePasaElVideo · lo demasiado corto no se sube', () => {
+	// Idea del propio usuario, y es mejor que convertirlo igual: un bucle de
+	// un segundo en una carta marea. Más vale decirlo antes de que suban
+	// treinta megas para nada.
+	const conVideo = (duracion, desde) => {
+		const mapa = {
+			videoEditPreview:  { duration: duracion },
+			videoDesde:        { value: String(desde) },
+			videoDesdeAviso:   { textContent: '' },
+			btnConfirmarVideo: { disabled: false, style: {} },
+		};
+		const ctx = cargar('index.html', 'const DURACION_MIN_VIDEO',
+			'async function confirmarSubidaVideo',
+			{ document: { getElementById: id => mapa[id] } });
+		ctx.avisarSiSePasaElVideo();
+		return { aviso: mapa.videoDesdeAviso.textContent, bloqueado: mapa.btnConfirmarVideo.disabled };
+	};
+
+	test('un video de un segundo no deja subir', () => {
+		const r = conVideo(1, 0);
+		assert.equal(r.bloqueado, true);
+		assert.match(r.aviso, /al menos 3/);
+	});
+
+	test('justo en el mínimo sí deja', () => {
+		assert.equal(conVideo(3, 0).bloqueado, false, '3 s exactos son válidos');
+	});
+
+	test('un video largo con el punto casi al final tampoco deja', () => {
+		// Lo que importa no es cuánto dura el original sino cuánto queda desde
+		// donde empieza el recorte.
+		assert.equal(conVideo(40, 38).bloqueado, true, 'quedan 2 s de 40');
+		assert.equal(conVideo(40, 30).bloqueado, false, 'quedan 10 s');
+	});
+
+	test('volver a un punto válido vuelve a permitir', () => {
+		// El botón se deshabilita, y si no se rehabilitara al corregir el
+		// número el usuario se quedaría encerrado sin saber por qué.
+		assert.equal(conVideo(20, 19).bloqueado, true);
+		assert.equal(conVideo(20, 5).bloqueado, false);
+	});
+
+	test('sin metadatos no se bloquea nada', () => {
+		// La duración llega con loadedmetadata. Bloquear antes dejaría el botón
+		// muerto en los milisegundos previos y parecería roto.
+		assert.equal(conVideo(NaN, 0).bloqueado, false);
 	});
 });
