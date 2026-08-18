@@ -1323,11 +1323,11 @@
 		</div>
 
 		<!-- MODAL EDITAR/CREAR PRODUCTO -->
-		<div class="modal-bg" id="productModal" onclick="handleModalBg(event,'productModal')">
+		<div class="modal-bg" id="productModal" onclick="handleProductBg(event)">
 			<div class="modal-box">
 				<div class="modal-head">
 					<span class="modal-title" id="productModalTitle">Editar producto</span>
-					<button class="modal-close" onclick="closeModal('productModal')">✕</button>
+					<button class="modal-close" onclick="intentarCerrarProducto()">✕</button>
 				</div>
 				<div class="modal-body">
 					<input type="hidden" id="editProductId">
@@ -1440,7 +1440,7 @@
 					</div>
 				</div>
 				<div class="modal-foot">
-					<button class="btn-cancel" onclick="closeModal('productModal')">Cancelar</button>
+					<button class="btn-cancel" onclick="intentarCerrarProducto()">Cancelar</button>
 					<button class="btn-save" id="btnSaveProduct" onclick="saveProduct()">Guardar</button>
 				</div>
 			</div>
@@ -1591,6 +1591,25 @@
 </div>
 
 <!-- MODAL CONFIRMAR ELIMINAR -->
+<!-- Aviso de salida con cambios sin guardar. No lleva ✕: las dos salidas son
+     los dos botones, para que la elección sea explícita. Un clic fuera se
+     entiende como "seguir editando", que es la opción que no pierde nada. -->
+<div class="modal-bg" id="cambiosModal" onclick="handleModalBg(event,'cambiosModal')">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-head">
+      <span class="modal-title">Cambios sin guardar</span>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-text">Hiciste cambios en este producto que todavía no has guardado.</p>
+      <p style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;">Si sales ahora se pierden.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('cambiosModal')">Seguir editando</button>
+      <button class="btn-save" style="background:var(--danger);color:#fff;" onclick="salirSinGuardar()">Salir sin guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="confirmModal" onclick="handleModalBg(event,'confirmModal')">
   <div class="modal-box" style="max-width:380px;">
     <div class="modal-head">
@@ -2063,6 +2082,8 @@ function openNewProductModal() {
 	renderProdFiltrosBadges();
 	pintarVideoPlato(null);
 	fillCatSelect();
+	// Con la ficha ya rellena: lo que hay ahora es el punto de partida.
+	fijarFirmaProducto();
 	openModal('productModal');
 }
 
@@ -2157,6 +2178,7 @@ function openEditProductModal(id) {
 	state.prodBadges = { popular: !!at.popular, chef: !!at.chef, nuevo: !!at.nuevo };
 	renderProdFiltrosBadges();
 	pintarVideoPlato(p);
+	fijarFirmaProducto();
 	openModal('productModal');
 }
 
@@ -2439,6 +2461,61 @@ async function handleExtraImgUpload(input) {
   input.value = '';
 }
 
+// ── CAMBIOS SIN GUARDAR ───────────────────────────────────────
+// La ficha se cierra de cuatro maneras: la ✕, el botón Cancelar, un clic
+// fuera y la tecla Escape. Las cuatro tiraban lo escrito sin preguntar, y el
+// clic fuera es el que muerde: basta rozar el fondo para perder un rato de
+// trabajo.
+//
+// Se compara una firma del formulario contra la que tenía al abrirse, en vez
+// de levantar una bandera al primer tecleo. Así, escribir algo y borrarlo no
+// cuenta como cambio: preguntar cuando no hay nada que perder enseña a la
+// gente a decir que sí sin leer, y entonces el aviso deja de servir.
+function firmaProducto() {
+	const v = id => document.getElementById(id)?.value ?? '';
+	return JSON.stringify([
+		v('editNombre'), v('editCategoria'), v('editPrecioNum'),
+		v('editDesc'), v('editDescAvanzada'),
+		document.getElementById('editDisponible')?.checked,
+		state.pendingImgUrl ?? null,
+		state.extraImgs || [],
+		state.prodFiltros || [],
+		state.prodBadges || {},
+		// Un video elegido y todavía sin subir también es trabajo por perder:
+		// hay que volver a buscarlo y a marcar el segundo de inicio.
+		videoElegido ? videoElegido.name : null,
+	]);
+}
+
+// Se llama al abrir la ficha, ya rellena, y al guardar: a partir de ahí lo
+// que haya en pantalla es "lo guardado".
+function fijarFirmaProducto() {
+	state.firmaProducto = firmaProducto();
+}
+
+function productoTieneCambios() {
+	return state.firmaProducto !== undefined && state.firmaProducto !== firmaProducto();
+}
+
+// Puerta única de salida: las cuatro formas de cerrar pasan por aquí.
+function intentarCerrarProducto() {
+	if (!productoTieneCambios()) {
+		state.firmaProducto = undefined;
+		return closeModal('productModal');
+	}
+	openModal('cambiosModal');
+}
+
+function salirSinGuardar() {
+	closeModal('cambiosModal');
+	state.firmaProducto = undefined;
+	closeModal('productModal');
+}
+
+function handleProductBg(e) {
+	if (e.target.id === 'productModal') intentarCerrarProducto();
+}
+
 async function saveProduct() {
 	const btn=document.getElementById('btnSaveProduct');
 	btn.disabled=true; btn.textContent='Guardando...';
@@ -2488,6 +2565,8 @@ async function saveProduct() {
 			chip.classList.toggle('active', chip.dataset.filterId===filtroActual);
 		});
 		renderProducts();
+		// Guardado: ya no hay nada pendiente que avisar al cerrar.
+		state.firmaProducto = undefined;
 		closeModal('productModal');
 		showToast(id?'Producto guardado':'Producto creado','success');
 	} catch(e) { showToast('Error: '+e.message,'error'); }
@@ -3396,7 +3475,14 @@ function closeModal(id) {
 function handleModalBg(e,id) { if(e.target.id===id) closeModal(id); }
 
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape') ['productModal','catModal','confirmModal','qrCartelModal'].forEach(closeModal);
+  if(e.key!=='Escape') return;
+  const abierto = id => document.getElementById(id)?.classList.contains('open');
+  // Escape sobre el aviso de cambios es "seguir editando": la opción que no
+  // pierde nada. Si cerrara las dos ventanas de golpe, la tecla de escape
+  // sería el atajo más rápido para tirar el trabajo.
+  if(abierto('cambiosModal')) return closeModal('cambiosModal');
+  if(abierto('productModal')) return intentarCerrarProducto();
+  ['catModal','confirmModal','qrCartelModal'].forEach(closeModal);
 });
 
 // ── SCROLL DRAG EN CAT-FILTER ────────────────────────────────
