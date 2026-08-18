@@ -110,11 +110,20 @@ function argumentosMaster(entrada, salida, desde = 0) {
     salida];
 }
 
-function argumentosPortada(entrada, salida) {
+// Del segundo 1 y no del 0: el primer fotograma suele pillar la cámara
+// todavía enfocando. Pero el instante es un parámetro y no una constante
+// porque un video puede durar menos de un segundo —un toque sin querer al
+// grabar— y entonces ese salto cae más allá del final: ffmpeg termina con
+// código 0 y deja un JPEG vacío, y el trabajo muere en "La portada salió
+// vacía" sin que se entienda por qué. Quien llama decide el instante
+// sabiendo ya cuánto dura.
+// El 1,2 y no el 1 deja un margen: pedirle el fotograma exacto del final a
+// un clip de 1,05 s es pedirle que acierte al milisegundo.
+const instantePortada = duracion => (duracion > 1.2 ? 1 : duracion / 2);
+
+function argumentosPortada(entrada, salida, instante = 1) {
   return [...COMUNES, '-i', entrada,
-    // Del segundo 1 y no del 0: el primer fotograma suele pillar la cámara
-    // todavía enfocando.
-    '-ss', '1', '-frames:v', '1', '-update', '1', '-q:v', '5',
+    '-ss', String(instante), '-frames:v', '1', '-update', '1', '-q:v', '5',
     salida];
 }
 
@@ -190,13 +199,18 @@ async function convertir(trabajo) {
 
   await correrFfmpeg(argumentosEntregable(entrada, pVideo, desde));
   await correrFfmpeg(argumentosMaster(entrada, pMaster, desde));
-  await correrFfmpeg(argumentosPortada(pVideo, pPortada));
 
   // Comprobar antes de dar por bueno: ffmpeg puede terminar con código 0 y
   // dejar un archivo de cero segundos. Si se borrara el original confiando
   // en el código de salida, se perdería el video del cliente.
   const duracion = await duracionDe(pVideo);
   if (duracion <= 0) throw new Error('El video convertido no tiene duración');
+
+  // La portada va después de medir: un clip de medio segundo no tiene
+  // "segundo 1" del que sacarla. Con margen de sobra se coge el segundo 1
+  // como siempre; si no, la mitad del clip, que siempre existe.
+  await correrFfmpeg(argumentosPortada(pVideo, pPortada, instantePortada(duracion)));
+
   if (!fs.existsSync(pPortada) || fs.statSync(pPortada).size < 1024)
     throw new Error('La portada salió vacía');
 
@@ -325,6 +339,6 @@ module.exports = {
   CARPETAS, DURACION_MAX,
   // Exportados para las pruebas: son puros y se pueden comprobar sin
   // ejecutar ffmpeg ni tocar el disco.
-  argumentosEntregable, argumentosMaster, argumentosPortada,
+  argumentosEntregable, argumentosMaster, argumentosPortada, instantePortada,
   rutaDentroDeUploads,
 };
