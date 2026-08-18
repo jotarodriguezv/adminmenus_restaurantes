@@ -156,7 +156,8 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 	// contratado y que la API le va a rechazar.
 	const pantalla = () => {
 		const ids = ['videoGroup', 'videoEditPreview', 'videoEditVacio',
-			'btnSubirVideo', 'videoUploadStatus', 'videoFileInput'];
+			'btnSubirVideo', 'videoUploadStatus', 'videoFileInput',
+			'videoDesdeFila', 'btnConfirmarVideo', 'videoDesde', 'videoDesdeAviso'];
 		const mapa = {};
 		for (const id of ids) mapa[id] = {
 			style: {}, textContent: '', value: '', disabled: false,
@@ -167,7 +168,7 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 
 	const pintar = (videos, plato, mapa) => {
 		const ctx = cargar('index.html', 'let vigilanciaVideo = null;',
-			'async function handleProductVideoUpload', {
+			'// Elegir el archivo ya no lo sube', {
 				clearInterval() {},
 				planActual: () => ({ videos }),
 				document: { getElementById: id => mapa[id] },
@@ -210,5 +211,48 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		pintar(true, { id: 'p2' }, m);
 		assert.equal(m.videoEditPreview.src, undefined, 'debe soltar el src del plato anterior');
 		assert.equal(m.videoEditPreview.style.display, 'none');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('avisarSiSePasaElVideo · el trozo elegido tiene que caber', () => {
+	// Se guardan 8 segundos desde el punto que marque el restaurante. Si
+	// elige uno donde ya no quedan 8, el video sale más corto — y eso se
+	// sabe antes de subir nada, no después de esperar minuto y medio a que
+	// ffmpeg termine.
+	const conVideo = (duracion, desde) => {
+		const mapa = {
+			videoEditPreview: { duration: duracion },
+			videoDesde:       { value: String(desde) },
+			videoDesdeAviso:  { textContent: 'sucio' },
+		};
+		const ctx = cargar('index.html', 'function avisarSiSePasaElVideo',
+			'async function confirmarSubidaVideo',
+			{ document: { getElementById: id => mapa[id] } });
+		ctx.avisarSiSePasaElVideo();
+		return mapa.videoDesdeAviso.textContent;
+	};
+
+	test('con hueco de sobra no dice nada', () => {
+		assert.equal(conVideo(30, 5), '', 'quedan 25 s, no hay nada que avisar');
+	});
+
+	test('justo en el límite tampoco', () => {
+		assert.equal(conVideo(30, 22), '', 'quedan exactamente 8 s');
+	});
+
+	test('avisa cuando el trozo se queda corto', () => {
+		assert.match(conVideo(30, 26), /4\.0 s/, 'quedan 4 s y hay que decirlo');
+	});
+
+	test('no muestra segundos negativos si se pasa del final', () => {
+		// Escribir 40 en un video de 30 daba "-10.0 s", que no significa nada.
+		assert.match(conVideo(30, 40), /0\.0 s/);
+	});
+
+	test('sin metadatos todavía no aventura nada', () => {
+		// La duración no se conoce hasta loadedmetadata; hasta entonces es NaN
+		// y un aviso calculado con eso sería basura.
+		assert.equal(conVideo(NaN, 5), '');
 	});
 });
