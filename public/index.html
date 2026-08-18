@@ -2185,7 +2185,9 @@ function pintarVideoPlato(p) {
 	if (!planActual().videos) { grupo.style.display = 'none'; return; }
 	grupo.style.display = 'block';
 
-	detenerVigilanciaVideo();
+	// Ojo: aquí NO se para la vigilancia. Si hay una conversión en marcha
+	// tiene que seguir hasta el final aunque se cierre la ficha o se abra
+	// otro plato — es lo que mantiene al día state.productos.
 	soltarPrevia();
 	videoElegido = null;
 
@@ -2303,14 +2305,27 @@ async function confirmarSubidaVideo() {
 
 function vigilarVideo(trabajoId, productoId) {
 	detenerVigilanciaVideo();
-	const st = document.getElementById('videoUploadStatus');
+
+	// La vigilancia sobrevive a cerrar la ficha. Antes se paraba ahí, y como
+	// era la única que refrescaba state.productos, el panel se quedaba con el
+	// plato de antes: al reabrirlo decía "Sin video" aunque la conversión
+	// hubiera terminado bien. Lo natural entonces es subirlo otra vez — y
+	// acabas con dos videos buenos para el mismo plato y uno huérfano en el
+	// disco. Pasó de verdad.
+	const enPantalla = () =>
+		document.getElementById('productModal').classList.contains('open') &&
+		document.getElementById('editProductId').value === productoId;
+
+	// Escribir en la ficha solo si sigue siendo la de este plato: si el
+	// usuario se fue a otro, su estado no es el nuestro.
+	const decir = (texto, color) => {
+		if (!enPantalla()) return;
+		const st = document.getElementById('videoUploadStatus');
+		st.textContent = texto;
+		st.style.color = color;
+	};
 
 	vigilanciaVideo = setInterval(async () => {
-		// Si cerró la ficha, dejar de preguntar: el trabajo sigue su curso en
-		// el servidor y el video aparecerá la próxima vez que la abra.
-		if (!document.getElementById('productModal').classList.contains('open'))
-			return detenerVigilanciaVideo();
-
 		try {
 			const trabajos = await apiFetch('GET', `/api/video/trabajos?restaurante_id=${state.restaurante.id}`);
 			const t = (trabajos || []).find(x => x.id === trabajoId);
@@ -2318,12 +2333,13 @@ function vigilarVideo(trabajoId, productoId) {
 
 			if (t.estado === 'listo') {
 				detenerVigilanciaVideo();
-				st.textContent = '✓ Video listo'; st.style.color = 'var(--success)';
-				// El worker escribió la URL en atributos, así que el producto que
-				// el panel tiene en memoria es el de antes: hay que releerlos.
+				// Esto va SIEMPRE, esté la ficha abierta o no: es lo que evita
+				// que el panel siga creyendo que el plato no tiene video.
 				state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
+				decir('✓ Video listo', 'var(--success)');
+
 				const url = state.productos.find(x => x.id === productoId)?.atributos?.video?.url;
-				if (url) {
+				if (url && enPantalla()) {
 					const prev = document.getElementById('videoEditPreview');
 					prev.src = url; prev.style.display = 'block';
 					document.getElementById('videoEditVacio').style.display = 'none';
@@ -2331,10 +2347,9 @@ function vigilarVideo(trabajoId, productoId) {
 				}
 			} else if (t.estado === 'error') {
 				detenerVigilanciaVideo();
-				st.textContent = t.error ? `Error: ${t.error}` : 'La conversión falló';
-				st.style.color = 'var(--danger)';
+				decir(t.error ? `Error: ${t.error}` : 'La conversión falló', 'var(--danger)');
 			} else if (t.estado === 'procesando') {
-				st.textContent = 'Convirtiendo... (1-2 min)';
+				decir('Convirtiendo... (1-2 min)', 'var(--text-muted)');
 			}
 		} catch { /* un fallo de red suelto no debe cortar la vigilancia */ }
 	}, 5000);
