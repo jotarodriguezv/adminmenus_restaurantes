@@ -268,6 +268,36 @@ async function guardarEnProducto(supabase, productoId, r) {
   await supabase.from('productos').update({ atributos }).eq('id', productoId);
 }
 
+// Un plato enseña un video, no dos. Cuando se sube otro, el anterior deja de
+// estar en productos.atributos pero sus tres archivos siguen en el disco —y
+// su fila en trabajos_video los sigue nombrando, así que el limpiador
+// tampoco los recoge: para él están referenciados—. Son unos 7 MB por
+// reemplazo, casi todo master, y reemplazar el video de un plato es de lo más
+// normal: cambia la receta, salió mal, entra la carta de temporada.
+//
+// Solo se tocan los trabajos ya terminados. Uno 'pendiente' o 'procesando'
+// puede ser una segunda subida en camino, y borrarle la fila a ffmpeg
+// mientras trabaja lo dejaría escribiendo en archivos de nadie.
+async function purgarAnteriores(supabase, trabajo) {
+  if (!trabajo.producto_id) return;
+
+  const { data: viejos } = await supabase.from('trabajos_video')
+    .select('id, video, master, portada')
+    .eq('producto_id', trabajo.producto_id)
+    .neq('id', trabajo.id)
+    .in('estado', ['listo', 'error']);
+
+  for (const v of viejos || []) {
+    for (const relativa of [v.video, v.master, v.portada]) {
+      const abs = relativa && rutaDentroDeUploads(relativa);
+      if (abs && fs.existsSync(abs)) { try { fs.unlinkSync(abs); } catch {} }
+    }
+    await supabase.from('trabajos_video').delete().eq('id', v.id);
+  }
+
+  if (viejos?.length) console.log(`🧹 ${viejos.length} video(s) anteriores del plato retirados`);
+}
+
 async function procesarTrabajo(supabase, trabajo) {
   try {
     const r = await convertir(trabajo);
@@ -277,6 +307,11 @@ async function procesarTrabajo(supabase, trabajo) {
     }).eq('id', trabajo.id);
 
     if (trabajo.producto_id) await guardarEnProducto(supabase, trabajo.producto_id, r);
+
+    // Después de que atributos apunte al nuevo, nunca antes: si esto se
+    // hiciera primero y fallara la escritura, el plato se quedaría señalando
+    // archivos recién borrados.
+    await purgarAnteriores(supabase, trabajo);
 
     // El último paso, y solo si todo lo anterior fue bien. Si se borrara
     // antes y fallara la escritura en base de datos, el trabajo quedaría
@@ -366,5 +401,6 @@ module.exports = {
   // Exportados para las pruebas: son puros y se pueden comprobar sin
   // ejecutar ffmpeg ni tocar el disco.
   argumentosEntregable, argumentosMaster, argumentosPortada, instantePortada,
+  purgarAnteriores,
   rutaDentroDeUploads,
 };
