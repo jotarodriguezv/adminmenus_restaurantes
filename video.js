@@ -26,7 +26,11 @@ const CARPETAS = {
   portada: 'miniaturas',   // el fotograma que se muestra antes de reproducir
 };
 
-const DURACION_MAX     = 8;                 // segundos
+const DURACION_MAX     = 8;                 // segundos que se guardan
+// Por debajo de esto el bucle de la carta da tirones y marea más que vender.
+// Se rechaza en vez de convertirlo: un video de un segundo no es un video
+// corto, es un error de grabación.
+const DURACION_MIN     = 3;
 const INTENTOS_MAX     = 3;
 const LIMITE_FFMPEG_MS = 10 * 60 * 1000;    // ~86 s esperados; 10 min es un cuelgue
 const INTERVALO_MS     = 15_000;
@@ -87,7 +91,7 @@ function argumentosEntregable(entrada, salida, desde = 0) {
     // 1280 cubre eso sin desperdiciar.
     '-vf', recorte(1280, 720),
     '-c:v', 'libx264', '-profile:v', 'main', '-pix_fmt', 'yuv420p',
-    '-crf', '26', '-maxrate', '1500k', '-bufsize', '3000k', '-preset', 'slow',
+    '-crf', '30', '-maxrate', '1500k', '-bufsize', '3000k', '-preset', 'slow',
     // faststart mueve el índice al principio del archivo: sin esto el
     // navegador descarga el video entero antes de pintar el primer cuadro.
     '-movflags', '+faststart',
@@ -125,6 +129,14 @@ function argumentosPortada(entrada, salida, instante = 1) {
   return [...COMUNES, '-i', entrada,
     '-ss', String(instante), '-frames:v', '1', '-update', '1', '-q:v', '5',
     salida];
+}
+
+// Hay fallos que no se arreglan repitiéndolos: un video demasiado corto lo
+// seguirá siendo dentro de un minuto. Marcarlos evita gastar tres intentos y
+// tres minutos de CPU en llegar al mismo sitio, y deja el motivo a la vista
+// del restaurante en vez de un "reintentando" que no lleva a ninguna parte.
+class ErrorDefinitivo extends Error {
+  constructor(mensaje) { super(mensaje); this.definitivo = true; }
 }
 
 // ── Ejecución ─────────────────────────────────────────────────
@@ -178,8 +190,23 @@ function asegurarCarpetas() {
 
 async function convertir(trabajo) {
   const entrada = rutaDentroDeUploads(trabajo.origen);
-  if (!entrada) throw new Error('Ruta de origen inválida');
-  if (!fs.existsSync(entrada)) throw new Error('El archivo original ya no está');
+  if (!entrada) throw new ErrorDefinitivo('Ruta de origen inválida');
+  if (!fs.existsSync(entrada)) throw new ErrorDefinitivo('El archivo original ya no está');
+
+  // numeric de Postgres puede llegar como cadena según el cliente.
+  const desde = Number(trabajo.desde) || 0;
+
+  // Se mide antes de convertir, no después. Un clip demasiado corto no
+  // mejora reintentando y convertirlo cuesta minuto y medio para acabar en
+  // un bucle que marea. El panel ya lo impide, pero el panel es solo la
+  // puerta bonita: quien llame a la API directamente entra por aquí.
+  const duracionOriginal = await duracionDe(entrada);
+  const aprovechable = duracionOriginal - desde;
+  if (duracionOriginal > 0 && aprovechable < DURACION_MIN) {
+    throw new ErrorDefinitivo(desde > 0
+      ? `Desde el segundo ${desde} solo quedan ${Math.max(0, aprovechable).toFixed(1)} s, y hacen falta al menos ${DURACION_MIN}`
+      : `El video dura ${duracionOriginal.toFixed(1)} s y hacen falta al menos ${DURACION_MIN}`);
+  }
 
   asegurarCarpetas();
 
@@ -193,9 +220,6 @@ async function convertir(trabajo) {
   const pVideo   = path.join(RAIZ, CARPETAS.video,   nVideo);
   const pMaster  = path.join(RAIZ, CARPETAS.master,  nMaster);
   const pPortada = path.join(RAIZ, CARPETAS.portada, nPortada);
-
-  // numeric de Postgres puede llegar como cadena según el cliente.
-  const desde = Number(trabajo.desde) || 0;
 
   await correrFfmpeg(argumentosEntregable(entrada, pVideo, desde));
   await correrFfmpeg(argumentosMaster(entrada, pMaster, desde));
@@ -263,7 +287,9 @@ async function procesarTrabajo(supabase, trabajo) {
     console.log(`🎬 video listo (${r.duracion.toFixed(1)}s) · trabajo ${trabajo.id}`);
   } catch (e) {
     const intentos = (trabajo.intentos || 0) + 1;
-    const agotado  = intentos >= INTENTOS_MAX;
+    // Un fallo definitivo no se reintenta: repetirlo daría el mismo resultado
+    // tres minutos después y el restaurante seguiría sin saber qué pasa.
+    const agotado  = e.definitivo || intentos >= INTENTOS_MAX;
     await supabase.from('trabajos_video').update({
       estado: agotado ? 'error' : 'pendiente',
       intentos,
@@ -336,7 +362,7 @@ async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 
 
 module.exports = {
   arrancar, encolar,
-  CARPETAS, DURACION_MAX,
+  CARPETAS, DURACION_MAX, DURACION_MIN,
   // Exportados para las pruebas: son puros y se pueden comprobar sin
   // ejecutar ffmpeg ni tocar el disco.
   argumentosEntregable, argumentosMaster, argumentosPortada, instantePortada,
