@@ -1358,21 +1358,49 @@
 					     comprueba el plan igual, porque ocultar un botón no impide
 					     una llamada directa a POST /api/video. -->
 					<div class="form-group" id="videoGroup" style="display:none">
-						<label class="form-label">Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a 16:9 y se corta a 8 s)</span></label>
+						<label class="form-label">Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a 16:9 y se guardan 8 segundos)</span></label>
 						<div style="border:1px solid var(--border);border-radius:8px;padding:12px;">
 							<video id="videoEditPreview" style="display:none;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:#000" muted loop playsinline controls></video>
 							<div id="videoEditVacio" style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">Sin video</div>
-							<div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+
+							<!-- Solo aparece con un archivo elegido y todavía sin subir: es
+							     el único momento en que se puede escoger el trozo, porque
+							     el original se borra en cuanto termina la conversión. -->
+							<div id="videoDesdeFila" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+								<div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-bottom:8px;line-height:1.5">
+									Se guardan 8 segundos. Muévete por el video hasta donde empiece lo bueno y márcalo.
+								</div>
+								<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+									<span style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">Empezar en el segundo</span>
+									<input type="number" id="videoDesde" min="0" step="0.5" value="0" oninput="avisarSiSePasaElVideo()"
+										style="width:88px;padding:5px 8px;border-radius:6px;border:1px solid var(--border);
+										background:transparent;color:var(--text);font-family:var(--mono);font-size:11px;">
+									<button type="button" onclick="usarPuntoActualDelVideo()"
+										style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;
+										color:var(--text);font-family:var(--mono);font-size:9px;letter-spacing:1px;cursor:pointer;white-space:nowrap;">
+										⤓ usar el punto actual
+									</button>
+								</div>
+								<div id="videoDesdeAviso" style="font-family:var(--mono);font-size:10px;color:var(--danger);margin-top:6px;"></div>
+							</div>
+
+							<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
 								<button type="button" id="btnSubirVideo" onclick="document.getElementById('videoFileInput').click()"
 									style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;
 									color:var(--text);font-family:var(--mono);font-size:9px;letter-spacing:1px;
 									cursor:pointer;white-space:nowrap;">
-									🎬 Subir video
+									🎬 Elegir video
+								</button>
+								<button type="button" id="btnConfirmarVideo" onclick="confirmarSubidaVideo()"
+									style="display:none;padding:6px 12px;border-radius:6px;border:1px solid var(--success);
+									background:transparent;color:var(--success);font-family:var(--mono);font-size:9px;
+									letter-spacing:1px;cursor:pointer;white-space:nowrap;">
+									↑ Subir y convertir
 								</button>
 								<div id="videoUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
 							</div>
 						</div>
-						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" onchange="handleProductVideoUpload(this)">
+						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" onchange="prepararVideoElegido(this)">
 					</div>
 					<div class="form-group">
 						<label class="form-label">Nombre</label>
@@ -2139,9 +2167,17 @@ function openEditProductModal(id) {
 // y vuelve a subirlo.
 
 let vigilanciaVideo = null;   // temporizador de la consulta de estado
+let videoElegido = null;      // el archivo elegido y todavía sin subir
+let urlPrevia = null;         // objectURL de la previsualización, hay que soltarlo
 
 function detenerVigilanciaVideo() {
 	if (vigilanciaVideo) { clearInterval(vigilanciaVideo); vigilanciaVideo = null; }
+}
+
+// Un objectURL retiene el archivo entero en memoria hasta que se revoca, y
+// aquí hablamos de decenas de megas por video.
+function soltarPrevia() {
+	if (urlPrevia) { URL.revokeObjectURL(urlPrevia); urlPrevia = null; }
 }
 
 function pintarVideoPlato(p) {
@@ -2150,11 +2186,18 @@ function pintarVideoPlato(p) {
 	grupo.style.display = 'block';
 
 	detenerVigilanciaVideo();
+	soltarPrevia();
+	videoElegido = null;
+
 	const prev  = document.getElementById('videoEditPreview');
 	const vacio = document.getElementById('videoEditVacio');
 	const btn   = document.getElementById('btnSubirVideo');
 	document.getElementById('videoUploadStatus').textContent = '';
 	document.getElementById('videoFileInput').value = '';
+	document.getElementById('videoDesdeFila').style.display = 'none';
+	document.getElementById('btnConfirmarVideo').style.display = 'none';
+	document.getElementById('videoDesde').value = 0;
+	document.getElementById('videoDesdeAviso').textContent = '';
 
 	const url = p?.atributos?.video?.url;
 	if (url) {
@@ -2173,30 +2216,88 @@ function pintarVideoPlato(p) {
 	vacio.textContent = esNuevo ? 'Guarda el plato primero y luego súbele el video' : 'Sin video';
 }
 
-async function handleProductVideoUpload(input) {
+// Elegir el archivo ya no lo sube: primero se previsualiza en local para
+// poder escoger el trozo. Se guardan 8 segundos de un original que puede
+// durar medio minuto, y lo bueno casi nunca está al principio.
+function prepararVideoElegido(input) {
 	const file = input.files[0]; if (!file) return;
+	videoElegido = file;
+	soltarPrevia();
+	urlPrevia = URL.createObjectURL(file);
+
+	const prev = document.getElementById('videoEditPreview');
+	prev.src = urlPrevia;
+	prev.style.display = 'block';
+	prev.onloadedmetadata = avisarSiSePasaElVideo;   // la duración no se sabe antes
+	document.getElementById('videoEditVacio').style.display = 'none';
+	document.getElementById('videoDesdeFila').style.display = 'block';
+	document.getElementById('btnConfirmarVideo').style.display = 'inline-block';
+	document.getElementById('videoDesde').value = 0;
+	document.getElementById('videoDesdeAviso').textContent = '';
+	const st = document.getElementById('videoUploadStatus');
+	st.textContent = ''; st.style.color = 'var(--text-muted)';
+}
+
+function usarPuntoActualDelVideo() {
+	const prev = document.getElementById('videoEditPreview');
+	// A medio segundo: más precisión no la da el dedo en una barra de scroll.
+	document.getElementById('videoDesde').value = Math.max(0, Math.round(prev.currentTime * 2) / 2);
+	avisarSiSePasaElVideo();
+}
+
+// Si desde ese punto no quedan 8 segundos, el video sale más corto. No es un
+// error —ffmpeg corta donde puede— pero vale más decirlo ahora que después de
+// esperar minuto y medio a que se convierta.
+function avisarSiSePasaElVideo() {
+	const prev  = document.getElementById('videoEditPreview');
+	const aviso = document.getElementById('videoDesdeAviso');
+	const desde = Number(document.getElementById('videoDesde').value) || 0;
+	const dur   = prev.duration;
+
+	if (!isFinite(dur) || dur <= 0) { aviso.textContent = ''; return; }
+	const quedan = dur - desde;
+	aviso.textContent = quedan < 8
+		? `Desde ahí solo quedan ${Math.max(0, quedan).toFixed(1)} s: el video se guardará más corto.`
+		: '';
+}
+
+async function confirmarSubidaVideo() {
+	if (!videoElegido) return;
 	const productoId = document.getElementById('editProductId').value;
 	const st = document.getElementById('videoUploadStatus');
 
 	if (!productoId) {
 		st.textContent = 'Guarda el plato primero'; st.style.color = 'var(--danger)';
-		input.value = ''; return;
+		return;
 	}
 
+	const desde = Math.max(0, Number(document.getElementById('videoDesde').value) || 0);
+	const btn = document.getElementById('btnConfirmarVideo');
 	st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
+	btn.disabled = true;
+
 	try {
 		const fd = new FormData();
 		fd.append('restaurante_id', state.restaurante.id);
 		fd.append('producto_id', productoId);
-		fd.append('file', file);
+		fd.append('desde', String(desde));
+		fd.append('file', videoElegido);
 		const r = await apiFetch('POST', '/api/video', fd, true);
+
 		st.textContent = 'Convirtiendo... (1-2 min)';
+		// La previsualización local se queda puesta mientras convierte: así se
+		// ve algo en vez de un hueco negro. La suelta vigilarVideo al cambiarla
+		// por la definitiva.
+		document.getElementById('videoDesdeFila').style.display = 'none';
+		btn.style.display = 'none';
+		videoElegido = null;
+		document.getElementById('videoFileInput').value = '';
 		vigilarVideo(r.trabajo_id, productoId);
 	} catch (e) {
 		st.textContent = e.message || 'Error al subir';
 		st.style.color = 'var(--danger)';
 	} finally {
-		input.value = '';   // si no, subir el mismo archivo otra vez no dispara onchange
+		btn.disabled = false;
 	}
 }
 
@@ -2226,6 +2327,7 @@ function vigilarVideo(trabajoId, productoId) {
 					const prev = document.getElementById('videoEditPreview');
 					prev.src = url; prev.style.display = 'block';
 					document.getElementById('videoEditVacio').style.display = 'none';
+					soltarPrevia();   // ya no hace falta el archivo local en memoria
 				}
 			} else if (t.estado === 'error') {
 				detenerVigilanciaVideo();
