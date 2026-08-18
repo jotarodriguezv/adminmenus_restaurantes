@@ -409,3 +409,50 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 		assert.equal(ctx.productoTieneCambios(), false);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
+	// La misma ficha sirve para los cinco modelos. Un control que no hace
+	// nada es peor que no tenerlo: quien lo usa cree que está trabajando.
+	const conModelo = nav => {
+		const mapa = {
+			extraImgsGroup: { style: {} },
+			labelImagen:    { innerHTML: '' },
+		};
+		const ctx = cargar('index.html', 'function ajustarFichaAlModelo',
+			'// ── CAMBIOS SIN GUARDAR', {
+				state: { restaurante: { atributos: { nav } } },
+				document: { getElementById: id => mapa[id] },
+			});
+		ctx.ajustarFichaAlModelo();
+		return mapa;
+	};
+
+	test('el modelo de video esconde las imágenes adicionales', () => {
+		// temas/video.js no lee atributos.imagenes en ninguna parte: subirlas
+		// ahí es subirlas para nadie.
+		assert.equal(conModelo('video').extraImgsGroup.style.display, 'none');
+	});
+
+	test('los demás modelos las siguen enseñando', () => {
+		for (const nav of ['topnav', 'sidebar', 'carrito', 'explorar'])
+			assert.equal(conModelo(nav).extraImgsGroup.style.display, '', `en ${nav}`);
+	});
+
+	test('en video, la foto se explica como respaldo', () => {
+		// Deja de ser lo que se ve y pasa a ser lo que se ve mientras no haya
+		// video. Eso hay que decirlo donde se mira, no en un manual.
+		assert.match(conModelo('video').labelImagen.innerHTML, /mientras el plato no tenga video/);
+	});
+
+	test('en los demás la etiqueta se queda limpia', () => {
+		assert.equal(conModelo('topnav').labelImagen.innerHTML, 'Imagen');
+	});
+
+	test('un restaurante sin modelo declarado no se rompe', () => {
+		// atributos.nav vacío es 'topnav' por defecto en el menú público.
+		const mapa = conModelo(undefined);
+		assert.equal(mapa.extraImgsGroup.style.display, '');
+		assert.equal(mapa.labelImagen.innerHTML, 'Imagen');
+	});
+});
