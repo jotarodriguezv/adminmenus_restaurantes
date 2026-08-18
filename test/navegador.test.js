@@ -307,3 +307,105 @@ describe('avisarSiSePasaElVideo · lo demasiado corto no se sube', () => {
 		assert.equal(conVideo(NaN, 0).bloqueado, false);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
+	// Un clic fuera del modal lo cerraba y se llevaba lo escrito. Se compara
+	// una firma del formulario en vez de levantar una bandera al primer
+	// tecleo: escribir algo y borrarlo no debe contar como cambio, porque
+	// preguntar cuando no hay nada que perder enseña a decir que sí sin leer.
+	const montar = ({ videoElegido = null } = {}) => {
+		const mapa = {
+			editNombre:       { value: 'Croquetas' },
+			editCategoria:    { value: 'cat-1' },
+			editPrecioNum:    { value: '24000' },
+			editDesc:         { value: '' },
+			editDescAvanzada: { value: '' },
+			editDisponible:   { checked: true },
+		};
+		const abiertos = [], cerrados = [];
+		const ctx = cargar('index.html', 'function firmaProducto', 'async function saveProduct', {
+			state: { pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {} },
+			videoElegido,
+			document: { getElementById: id => mapa[id] },
+			openModal:  id => abiertos.push(id),
+			closeModal: id => cerrados.push(id),
+		});
+		return { ctx, mapa, abiertos, cerrados };
+	};
+
+	test('sin tocar nada, no hay cambios', () => {
+		const { ctx } = montar();
+		ctx.fijarFirmaProducto();
+		assert.equal(ctx.productoTieneCambios(), false);
+	});
+
+	test('cambiar un campo cuenta como cambio', () => {
+		const { ctx, mapa } = montar();
+		ctx.fijarFirmaProducto();
+		mapa.editNombre.value = 'Croquetas de jamón';
+		assert.equal(ctx.productoTieneCambios(), true);
+	});
+
+	test('escribir y deshacer NO cuenta como cambio', () => {
+		// Lo que evita el aviso inútil que la gente aprende a ignorar.
+		const { ctx, mapa } = montar();
+		ctx.fijarFirmaProducto();
+		mapa.editPrecioNum.value = '99000';
+		assert.equal(ctx.productoTieneCambios(), true, 'mientras está cambiado, sí');
+		mapa.editPrecioNum.value = '24000';
+		assert.equal(ctx.productoTieneCambios(), false, 'al volver al valor original, no');
+	});
+
+	test('el interruptor de disponible también cuenta', () => {
+		const { ctx, mapa } = montar();
+		ctx.fijarFirmaProducto();
+		mapa.editDisponible.checked = false;
+		assert.equal(ctx.productoTieneCambios(), true);
+	});
+
+	test('un video elegido y sin subir es trabajo por perder', () => {
+		// Hay que volver a buscar el archivo y a marcar el segundo de inicio.
+		const { ctx } = montar({ videoElegido: { name: 'plato.mp4' } });
+		ctx.fijarFirmaProducto();
+		assert.equal(ctx.productoTieneCambios(), false, 'si ya estaba al abrir, no es un cambio');
+
+		const otra = montar();
+		otra.ctx.fijarFirmaProducto();
+		// Simular que se elige un archivo después de abrir la ficha.
+		otra.ctx.videoElegido = { name: 'plato.mp4' };
+		assert.equal(otra.ctx.productoTieneCambios(), true);
+	});
+
+	test('sin cambios, cerrar cierra directo', () => {
+		const { ctx, abiertos, cerrados } = montar();
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+		assert.deepEqual(cerrados, ['productModal']);
+		assert.deepEqual(abiertos, [], 'no hay por qué preguntar nada');
+	});
+
+	test('con cambios, cerrar pregunta antes', () => {
+		const { ctx, mapa, abiertos, cerrados } = montar();
+		ctx.fijarFirmaProducto();
+		mapa.editNombre.value = 'Otra cosa';
+		ctx.intentarCerrarProducto();
+		assert.deepEqual(abiertos, ['cambiosModal']);
+		assert.deepEqual(cerrados, [], 'la ficha sigue abierta hasta que decida');
+	});
+
+	test('salir sin guardar cierra las dos ventanas', () => {
+		const { ctx, mapa, cerrados } = montar();
+		ctx.fijarFirmaProducto();
+		mapa.editNombre.value = 'Otra cosa';
+		ctx.salirSinGuardar();
+		assert.deepEqual(cerrados, ['cambiosModal', 'productModal']);
+	});
+
+	test('sin firma fijada no molesta', () => {
+		// Estado de arranque, antes de abrir ninguna ficha: no hay nada que
+		// comparar y no se puede inventar un cambio.
+		const { ctx } = montar();
+		assert.equal(ctx.productoTieneCambios(), false);
+	});
+});
