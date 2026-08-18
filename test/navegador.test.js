@@ -456,3 +456,54 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 		assert.equal(mapa.labelImagen.innerHTML, 'Imagen');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('personalizacionDe · traducir los platos viejos', () => {
+	// Los tres productos originales llevaban una copia del catálogo dentro.
+	// Al abrir su ficha se traduce a la forma nueva —solo nombres— para que
+	// el restaurante los vea ya marcados y queden migrados al guardar.
+	const crudo = () => cargar('index.html', 'function personalizacionDe',
+		'function renderPersonalizacion', {}).personalizacionDe;
+
+	// El vm corre en otro realm: lo que crea allí no comparte prototipos con
+	// lo de aquí y deepEqual estricto lo rechaza aunque la forma coincida.
+	const traducir = p => JSON.parse(JSON.stringify(crudo()(p)));
+
+	test('un plato ya migrado se lee tal cual', () => {
+		assert.deepEqual(traducir({ atributos: { personalizacion: {
+			platino: ['Cebolla'], premium: ['Tocineta'], salsas: ['BBQ'],
+		} } }), { platino: ['Cebolla'], premium: ['Tocineta'], salsas: ['BBQ'] });
+	});
+
+	test('de la copia vieja se queda solo con los nombres', () => {
+		// El precio deja de viajar con el plato: pasa a salir siempre del
+		// catálogo del negocio, que es lo que arregla el fallo.
+		const r = traducir({ atributos: {
+			toppings_platino: ['Cebolla', 'Tomate'],
+			toppings_premium: [{ nombre: 'Tocineta', precio: 4000 }],
+			salsas: ['BBQ'],
+		} });
+		assert.deepEqual(r.premium, ['Tocineta'], 'sin el precio dentro');
+		assert.deepEqual(r.platino, ['Cebolla', 'Tomate']);
+	});
+
+	test('un plato nuevo empieza vacío', () => {
+		assert.deepEqual(traducir({ atributos: {} }),
+			{ platino: [], premium: [], salsas: [] });
+	});
+
+	test('no se queda con referencias a los arreglos del producto', () => {
+		// Si compartiera el arreglo, marcar un chip modificaría el producto en
+		// memoria y "cambios sin guardar" no vería nada que comparar.
+		const p = { atributos: { personalizacion: { platino: ['Cebolla'], premium: [], salsas: [] } } };
+		crudo()(p).platino.push('Tomate');
+		assert.deepEqual(p.atributos.personalizacion.platino, ['Cebolla'], 'el producto no se toca');
+	});
+
+	test('una copia vieja con entradas rotas no las arrastra', () => {
+		const r = traducir({ atributos: {
+			toppings_premium: [{ nombre: 'Tocineta', precio: 4000 }, { precio: 1000 }, null],
+		} });
+		assert.deepEqual(r.premium, ['Tocineta']);
+	});
+});
