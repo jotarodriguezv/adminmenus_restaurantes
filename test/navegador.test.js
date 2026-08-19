@@ -632,3 +632,74 @@ describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
 		assert.equal(r.pedidos, 'none');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('confirmDelete · borrar una categoría se lleva sus platos', () => {
+	// productos.categoria_id es ON DELETE CASCADE: la categoría se lleva por
+	// delante todos sus platos, con sus fotos y sus videos. El aviso decía
+	// solo "¿seguro que quieres eliminar Entrantes?", y nadie que lea eso
+	// espera perder doce platos.
+	const borrar = (tipo, id, productos) => {
+		const mapa = {
+			confirmName:     { textContent: '' },
+			confirmArrastre: { textContent: '', style: {} },
+		};
+		const ctx = cargar('index.html', 'function confirmDelete', 'async function executeDelete', {
+			state: { productos, deleteAction: null },
+			document: { getElementById: id => mapa[id] },
+			openModal() {},
+		});
+		ctx.confirmDelete(tipo, id, 'Entrantes');
+		return mapa.confirmArrastre;
+	};
+
+	const P = (id, cat) => ({ id, categoria_id: cat });
+
+	test('avisa de cuántos platos se van con ella', () => {
+		const a = borrar('categoria', 'c1', [P('p1','c1'), P('p2','c1'), P('p3','c2')]);
+		assert.equal(a.style.display, 'block');
+		assert.match(a.textContent, /los 2 platos/);
+	});
+
+	test('con un solo plato lo dice en singular', () => {
+		// "los 1 platos" es la clase de detalle que hace que un aviso se lea
+		// como generado por una máquina y se ignore.
+		assert.match(borrar('categoria', 'c1', [P('p1','c1')]).textContent, /el plato que hay dentro/);
+	});
+
+	test('una categoría vacía no asusta con nada', () => {
+		assert.equal(borrar('categoria', 'c1', [P('p1','c2')]).style.display, 'none');
+	});
+
+	test('borrar un producto no arrastra nada', () => {
+		assert.equal(borrar('producto', 'p1', [P('p1','c1'), P('p2','c1')]).style.display, 'none');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('etiquetaModelo · todos los modelos tienen nombre', () => {
+	// Un modelo listado en PLANES y sin etiqueta salía como "undefined" en el
+	// resumen del plan. Pasó con 'video': se añadió a los planes y no a la
+	// tabla de etiquetas.
+	//
+	// Se comprueba que la etiqueta no sea el identificador crudo. Los ids van
+	// en minúscula y las etiquetas capitalizadas, así que si coinciden es que
+	// no hay etiqueta y está devolviendo el respaldo.
+	const ctx = cargar('index.html', 'const PLANES = {', 'function renderPlanResumen');
+
+	test('ningún modelo de ningún plan se queda sin etiqueta', () => {
+		const modelos = new Set();
+		for (const n of ['vitrina', 'pedidos', 'completo', 'video'])
+			ctx.planDe({ atributos: { plan: n } }).modelos.forEach(m => modelos.add(m));
+
+		assert.ok(modelos.size >= 5, 'deberían salir los cinco modelos');
+		for (const m of modelos)
+			assert.notEqual(ctx.etiquetaModelo(m), m, `el modelo "${m}" no tiene etiqueta`);
+	});
+
+	test('un modelo desconocido no imprime "undefined"', () => {
+		// Si algún día hay un modelo nuevo sin etiqueta, que se lea su nombre
+		// interno y no una palabra que no significa nada.
+		assert.equal(ctx.etiquetaModelo('loquesea'), 'loquesea');
+	});
+});
