@@ -583,3 +583,52 @@ describe('navElegido · guardar Apariencia no puede dejar sin modelo', () => {
 			assert.notEqual(elegir(sel, guardado), '', `con ${JSON.stringify([sel, guardado])}`);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
+	// La pestaña Pedidos es donde se pone el WhatsApp al que llegan los
+	// pedidos. Sin ella el cliente arma el suyo y no llega a ningún sitio,
+	// sin ninguna pista de que falta configurar algo.
+	const conAtributos = (atributos, plan = { carrito: true }) => {
+		const mapa = {
+			tabBtnToppings: { style: {} },
+			tabBtnPedidos:  { style: {} },
+		};
+		const ctx = cargar('index.html', 'function ajustarPestanasAlModelo',
+			'// Qué modelo se guarda', {
+				state: { restaurante: { atributos } },
+				planActual: () => plan,
+				document: { getElementById: id => mapa[id] },
+				renderPedidos() {}, renderMetodosPago() {},
+			});
+		ctx.ajustarPestanasAlModelo();
+		return { pedidos: mapa.tabBtnPedidos.style.display, toppings: mapa.tabBtnToppings.style.display };
+	};
+
+	test('el modelo carrito siempre las tiene', () => {
+		assert.equal(conAtributos({ nav: 'carrito' }).pedidos, 'block');
+	});
+
+	test('el modelo video con el carrito encendido también', () => {
+		// Es lo que faltaba: se encendía el carrito en video y no había dónde
+		// poner el número.
+		assert.equal(conAtributos({ nav: 'video', carrito: true }).pedidos, 'block');
+	});
+
+	test('el modelo video sin carrito no las enseña', () => {
+		assert.equal(conAtributos({ nav: 'video', carrito: false }).pedidos, 'none');
+	});
+
+	test('sin el plan no se enseñan aunque el interruptor esté puesto', () => {
+		// El interruptor puede quedar encendido de un plan anterior. Manda el
+		// plan de hoy, igual que en la carta.
+		assert.equal(conAtributos({ nav: 'video', carrito: true }, { carrito: false }).pedidos, 'none');
+	});
+
+	test('un restaurante con toppings de antes conserva su pestaña', () => {
+		// Aunque ya no tenga carrito: son datos suyos y debe poder verlos.
+		const r = conAtributos({ nav: 'topnav', salsas: ['BBQ'] }, { carrito: false });
+		assert.equal(r.toppings, 'block');
+		assert.equal(r.pedidos, 'none');
+	});
+});
