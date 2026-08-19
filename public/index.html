@@ -1852,16 +1852,7 @@ async function loadData() {
     if (state.rol === 'admin') { renderApariencia(); renderDatosResto(); }
     // Toppings y Pedidos son del modelo "carrito" (o si ya tenía toppings de antes)
     const attr = state.restaurante?.atributos || {};
-    const esCarrito = attr.nav === 'carrito';
-    // El carrito ya no es solo un modelo de página: otros modelos pueden
-    // encenderlo. Donde haya carrito hace falta la pestaña Pedidos, porque es
-    // donde se pone el WhatsApp al que llega todo — sin ella el cliente arma
-    // su pedido y no tiene a quién mandárselo.
-    const hayCarrito = esCarrito || !!(planActual().carrito && attr.carrito);
-    const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
-    document.getElementById('tabBtnToppings').style.display = (hayCarrito || hasToppings) ? 'block' : 'none';
-    document.getElementById('tabBtnPedidos').style.display = hayCarrito ? 'block' : 'none';
-    if (hayCarrito) { renderPedidos(); renderMetodosPago(); }
+    ajustarPestanasAlModelo();
     aplicarPlanAlPanel();
   } catch(e) { showToast('Error cargando datos','error'); }
 }
@@ -3498,6 +3489,7 @@ async function saveApariencia() {
     state.restaurante = data;
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     aplicarPlanAlPanel();
+    ajustarPestanasAlModelo();
     showToast('Apariencia guardada', 'success');
   } catch (e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; showToast('Error: ' + e.message, 'error'); }
 }
@@ -3552,6 +3544,25 @@ function renderPlan() {
     .map(([id, p]) => `<option value="${id}">${p.nombre}</option>`).join('');
   sel.value = idPlanActual();
   renderPlanResumen();
+}
+
+// Qué pestañas tienen sentido con la configuración de ahora mismo.
+//
+// Se llama al cargar Y al guardar Apariencia. Solo al cargar no basta:
+// encender el carrito y no ver aparecer la pestaña donde se pone el WhatsApp
+// deja al restaurante armando pedidos que no llegan a ningún sitio, sin
+// ninguna pista de que falta configurar algo. Pasó.
+function ajustarPestanasAlModelo() {
+  const attr = state.restaurante?.atributos || {};
+  const esCarrito = attr.nav === 'carrito';
+  // El carrito ya no es solo un modelo de página: otros modelos pueden
+  // encenderlo, y donde haya carrito hacen falta las dos pestañas.
+  const hayCarrito = esCarrito || !!(planActual().carrito && attr.carrito);
+  const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
+
+  document.getElementById('tabBtnToppings').style.display = (hayCarrito || hasToppings) ? 'block' : 'none';
+  document.getElementById('tabBtnPedidos').style.display = hayCarrito ? 'block' : 'none';
+  if (hayCarrito) { renderPedidos(); renderMetodosPago(); }
 }
 
 // Qué modelo se guarda. Parece una lectura tonta del desplegable y no lo es.
