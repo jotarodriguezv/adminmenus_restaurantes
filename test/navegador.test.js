@@ -507,3 +507,44 @@ describe('personalizacionDe · traducir los platos viejos', () => {
 		assert.deepEqual(r.premium, ['Tocineta']);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('tabla de planes del panel', () => {
+	// Es un espejo de core/planes.js del menú público: dos aplicaciones
+	// desplegadas por separado que deben decir lo mismo. Si divergen, el
+	// panel ofrece algo que la carta no pinta, o al revés.
+	//
+	// Se entra por planDe y no por PLANES a propósito: un 'const' no se
+	// engancha al contexto del vm —solo las declaraciones de función—, y de
+	// paso se prueba el accesor que usa el panel de verdad.
+	const { planDe } = cargar('index.html', 'const PLANES = {', 'function planActual');
+	const PLANES_NOMBRES = ['vitrina', 'pedidos', 'completo', 'video'];
+	const plan = nombre => planDe({ atributos: { plan: nombre } });
+
+	test('todos los planes declaran todas las capacidades', () => {
+		// Una bandera que falta se lee como undefined, o sea como "no", y un
+		// plan pierde algo sin que nadie lo haya decidido.
+		const banderas = ['marca', 'qr_disenador', 'estadisticas', 'horarios', 'videos', 'carrito'];
+		for (const nombre of PLANES_NOMBRES)
+			for (const b of banderas)
+				assert.equal(typeof plan(nombre)[b], 'boolean', `${nombre} no declara "${b}"`);
+	});
+
+	test('el carrito es capacidad de plan, no solo modelo de página', () => {
+		assert.equal(plan('vitrina').carrito, false, 'vitrina es solo escaparate');
+		assert.equal(plan('pedidos').carrito, true);
+		assert.equal(plan('completo').carrito, true);
+		assert.equal(plan('video').carrito, true);
+	});
+
+	test('el modelo de video solo lo lista el plan de video', () => {
+		for (const n of ['vitrina', 'pedidos', 'completo'])
+			assert.equal(plan(n).modelos.includes('video'), false, `${n} no debería`);
+		assert.ok(plan('video').modelos.includes('video'));
+	});
+
+	test('un plan desconocido no deja al restaurante sin nada', () => {
+		// Un valor mal escrito en la base no puede apagarle el panel a nadie.
+		assert.equal(typeof plan('platino_ultra').carrito, 'boolean');
+	});
+});
