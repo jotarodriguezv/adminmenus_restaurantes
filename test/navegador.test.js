@@ -548,3 +548,38 @@ describe('tabla de planes del panel', () => {
 		assert.equal(typeof plan('platino_ultra').carrito, 'boolean');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('navElegido · guardar Apariencia no puede dejar sin modelo', () => {
+	// Un <select> al que se le asigna un valor que no está entre sus opciones
+	// se queda con "". Y "" en nav lo lee loader.js como falso y cae a topnav:
+	// una carta en video se convertía en carta de fotos al pulsar Guardar.
+	const elegir = (valorDelSelect, navGuardado) => {
+		const ctx = cargar('index.html', 'function navElegido', '// Aplica las restricciones', {
+			state: { restaurante: { atributos: navGuardado === undefined ? {} : { nav: navGuardado } } },
+			document: { getElementById: () => ({ value: valorDelSelect }) },
+		});
+		return ctx.navElegido();
+	};
+
+	test('se guarda lo que elige el usuario', () => {
+		assert.equal(elegir('sidebar', 'topnav'), 'sidebar');
+		assert.equal(elegir('video', 'topnav'), 'video');
+	});
+
+	test('un desplegable sin la opción no borra el modelo', () => {
+		// El caso exacto que rompió Voro.
+		assert.equal(elegir('', 'video'), 'video');
+	});
+
+	test('sin nada de dónde tirar, topnav', () => {
+		// topnav es el modelo por defecto del menú público: es la respuesta
+		// segura, no una elección.
+		assert.equal(elegir('', undefined), 'topnav');
+	});
+
+	test('nunca devuelve cadena vacía', () => {
+		for (const [sel, guardado] of [['', ''], ['', null], ['', undefined], ['', 'carrito']])
+			assert.notEqual(elegir(sel, guardado), '', `con ${JSON.stringify([sel, guardado])}`);
+	});
+});
