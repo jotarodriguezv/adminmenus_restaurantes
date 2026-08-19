@@ -356,13 +356,13 @@ const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 's
 const ATRIBUTOS_SEGUN_PLAN = { qr: 'qr_disenador' };
 
 const PLANES = {
-  vitrina:  { qr_disenador: false, estadisticas: false, horarios: false, videos: false },
-  pedidos:  { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false },
-  completo: { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false },
+  vitrina:  { qr_disenador: false, estadisticas: false, horarios: false, videos: false, carrito: false },
+  pedidos:  { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true  },
+  completo: { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true  },
   // Único plan que abre la subida de video. Como el resto de banderas de
   // plan, se comprueba también aquí y no solo en el panel: esconder un
   // formulario no impide una llamada directa a la API.
-  video:    { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: true  },
+  video:    { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: true,  carrito: true  },
 };
 const PLAN_POR_DEFECTO = 'pedidos';
 const planDe = atributos => PLANES[atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
