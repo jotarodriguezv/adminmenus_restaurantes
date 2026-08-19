@@ -887,6 +887,7 @@
 								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
 								<option value="carrito">Carrito — pedido por WhatsApp</option>
 								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
+								<option value="video">Video — una columna, un plato por fila</option>
 							</select>
 						</div>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
@@ -3470,7 +3471,7 @@ function recolectarApariencia() {
       fondo_intensidad: document.getElementById('apFondoIntensidad').value,
       fuente_titulo: document.getElementById('apFuenteTitulo').value.trim(),
       fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
-      nav: document.getElementById('apNavModelo').value,
+      nav: navElegido(),
       plan: document.getElementById('apPlan').value,
       url_modo: document.getElementById('apUrlModo').value,
       zona_horaria: document.getElementById('apZonaHoraria').value,
@@ -3551,6 +3552,25 @@ function renderPlan() {
     .map(([id, p]) => `<option value="${id}">${p.nombre}</option>`).join('');
   sel.value = idPlanActual();
   renderPlanResumen();
+}
+
+// Qué modelo se guarda. Parece una lectura tonta del desplegable y no lo es.
+//
+// Un <select> al que se le asigna un valor que no está entre sus opciones se
+// queda con la cadena vacía. Y una cadena vacía en 'nav' deja al restaurante
+// sin modelo: loader.js la lee como falsa y cae a topnav.
+//
+// Pasó de verdad. El modelo 'video' existía en la base de datos y no en este
+// desplegable, así que abrir Apariencia y pulsar Guardar convertía una carta
+// en video en una carta de fotos, sin avisar y sin forma de deshacerlo desde
+// el panel.
+//
+// Ante la duda se conserva lo que ya había: un desplegable incompleto es un
+// fallo nuestro, no una decisión de quien guarda.
+function navElegido() {
+  return document.getElementById('apNavModelo').value
+      || state.restaurante?.atributos?.nav
+      || 'topnav';
 }
 
 // Aplica las restricciones del plan a la interfaz. Es una barrera para ti,
