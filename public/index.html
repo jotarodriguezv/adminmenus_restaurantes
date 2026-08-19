@@ -1643,6 +1643,7 @@
     </div>
     <div class="modal-body">
       <p class="confirm-text">¿Seguro que quieres eliminar <span class="confirm-name" id="confirmName"></span>?</p>
+      <p id="confirmArrastre" style="display:none;font-size:12px;color:var(--danger);margin-top:10px;line-height:1.5"></p>
       <p style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;">Esta acción no se puede deshacer.</p>
     </div>
     <div class="modal-foot">
@@ -2077,6 +2078,11 @@ async function quickToggle(id,disponible) {
   try {
     await apiFetch('PATCH',`/api/productos/${id}`,{disponible});
     const p=state.productos.find(p=>p.id===id); if(p) p.disponible=disponible;
+    // La fila se pinta atenuada cuando el plato no está disponible, y eso se
+    // decidía solo al construirla: apagar el interruptor cambiaba el dato y
+    // dejaba la fila igual. Se toca la clase en vez de repintar la lista
+    // entera, que perdería el sitio del scroll.
+    document.getElementById('row-'+id)?.classList.toggle('unavailable', !disponible);
     document.getElementById('row-'+id)?.classList.toggle('unavailable',!disponible);
     showToast(disponible?'Producto activado':'Producto desactivado','success');
   } catch(e) { showToast('Error','error'); }
@@ -2993,6 +2999,9 @@ async function saveCat() {
       state.categorias.sort((a,b)=>a.orden-b.orden);
     }
     renderCatList(); renderCatFilter();
+    // Cada fila de producto enseña el nombre de su categoría: sin esto,
+    // al renombrarla la lista sigue diciendo el nombre viejo.
+    renderProducts();
     closeModal('catModal');
     showToast(id?'Categoría actualizada':'Categoría creada','success');
   } catch(e) { showToast('Error: '+e.message,'error'); }
@@ -3116,6 +3125,20 @@ async function moveCat(id, dir) {
 function confirmDelete(tipo,id,nombre) {
   document.getElementById('confirmName').textContent=nombre;
   state.deleteAction={tipo,id};
+
+  // Borrar una categoría se lleva sus platos por delante: la clave ajena de
+  // productos.categoria_id es ON DELETE CASCADE. El aviso decía solo
+  // "¿seguro que quieres eliminar Entrantes?", y nadie que lea eso espera
+  // perder doce platos con sus fotos y sus videos.
+  const arrastre = document.getElementById('confirmArrastre');
+  const afectados = tipo === 'categoria'
+    ? state.productos.filter(p => p.categoria_id === id).length
+    : 0;
+  arrastre.style.display = afectados ? 'block' : 'none';
+  arrastre.textContent = afectados === 1
+    ? '⚠ También se borrará el plato que hay dentro. No se puede recuperar.'
+    : `⚠ También se borrarán los ${afectados} platos que hay dentro. No se pueden recuperar.`;
+
   openModal('confirmModal');
 }
 
@@ -3130,7 +3153,11 @@ async function executeDelete() {
     } else {
       await apiFetch('DELETE',`/api/categorias/${id}`);
       state.categorias=state.categorias.filter(c=>c.id!==id);
-      renderCatList(); renderCatFilter();
+      // Sus productos se fueron con ella en la base de datos (CASCADE). Si no
+      // se quitan también de aquí, la lista sigue enseñando platos que ya no
+      // existen y el siguiente clic da un error sin sentido.
+      state.productos=state.productos.filter(p=>p.categoria_id!==id);
+      renderCatList(); renderCatFilter(); renderProducts();
       showToast('Categoría eliminada','success');
     }
     closeModal('confirmModal');
@@ -3510,7 +3537,13 @@ function urlPublica(restaurante, modo) {
 }
 
 // ── PLAN EN APARIENCIA ────────────────────────────────────────
-const ETIQUETA_MODELO = { topnav: 'Topnav', sidebar: 'Sidebar', carrito: 'Carrito', explorar: 'Explorar' };
+const ETIQUETA_MODELO = { topnav: 'Topnav', sidebar: 'Sidebar', carrito: 'Carrito', explorar: 'Explorar', video: 'Video' };
+
+// Se pasa por aquí y no se lee la tabla directamente. Un modelo sin etiqueta
+// salía como "undefined" en el resumen del plan —pasó con 'video', que se
+// añadió a PLANES y no aquí— y "undefined" no le dice nada a nadie. Devolver
+// el identificador crudo es feo, pero al menos se entiende y se ve el fallo.
+function etiquetaModelo(m) { return ETIQUETA_MODELO[m] || m; }
 
 function renderPlanResumen() {
   const sel = document.getElementById('apPlan');
@@ -3519,10 +3552,12 @@ function renderPlanResumen() {
   const si = t => `<span style="color:var(--success)">✓</span> ${t}`;
   const no = t => `<span style="color:var(--text-dim)">✕ ${t}</span>`;
   document.getElementById('apPlanResumen').innerHTML = [
-    `Modelos: ${p.modelos.map(m => ETIQUETA_MODELO[m]).join(' · ')}`,
+    `Modelos: ${p.modelos.map(etiquetaModelo).join(' · ')}`,
     p.qr_disenador ? si('QR personalizable') : no('QR personalizable (se genera igual, sin diseñar)'),
     p.estadisticas ? si('Estadísticas')      : no('Estadísticas'),
     p.horarios     ? si('Horarios por categoría') : no('Horarios por categoría'),
+    p.videos       ? si('Carta en video')  : no('Carta en video'),
+    p.carrito      ? si('Carrito de pedidos') : no('Carrito de pedidos'),
     p.marca        ? no('Lleva el crédito «Hecho con VMenus»') : si('Sin marca de VMenus'),
   ].join('<br>');
 
@@ -3533,7 +3568,7 @@ function renderPlanResumen() {
   const aviso = document.getElementById('apPlanAviso');
   const sobra = navActual && !p.modelos.includes(navActual);
   aviso.style.display = sobra ? 'block' : 'none';
-  if (sobra) aviso.textContent = `Este restaurante usa el modelo ${ETIQUETA_MODELO[navActual]}, que no viene en el plan ${p.nombre}. `
+  if (sobra) aviso.textContent = `Este restaurante usa el modelo ${etiquetaModelo(navActual)}, que no viene en el plan ${p.nombre}. `
     + `Su menú va a seguir funcionando igual — el plan no se lo quita solo — pero elige otro modelo si de verdad quieres bajarlo.`;
 }
 
@@ -4036,6 +4071,8 @@ async function saveToppings() {
   try {
     await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
     state.restaurante.atributos = atributos;
+    // Quedarse sin toppings puede dejar la pestaña sin motivo para existir.
+    ajustarPestanasAlModelo();
     showToast('Toppings guardados', 'success');
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
 }
