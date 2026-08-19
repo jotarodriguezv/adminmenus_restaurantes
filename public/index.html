@@ -893,6 +893,10 @@
 							<label class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(frase debajo del nombre)</span></label>
 							<input type="text" class="form-input" id="apSubtitulo" placeholder="Carta Digital · 2026">
 						</div>
+						<div class="form-group" id="apCarritoFila" style="margin-top:14px;margin-bottom:0;display:none;align-items:center;justify-content:space-between;gap:10px;">
+							<label class="form-label" style="margin-bottom:0">Carrito de pedidos <span style="color:var(--text-dim)">(el cliente arma su pedido y lo envía por WhatsApp)</span></label>
+							<label class="toggle"><input type="checkbox" id="apCarrito"><span class="toggle-slider"></span></label>
+						</div>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
 							<label class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo + nombre + subtítulo, solo modelos sidebar/carrito — en topnav siempre se muestra)</span></label>
 							<label class="toggle"><input type="checkbox" id="apMostrarHero"><span class="toggle-slider"></span></label>
@@ -1848,10 +1852,15 @@ async function loadData() {
     // Toppings y Pedidos son del modelo "carrito" (o si ya tenía toppings de antes)
     const attr = state.restaurante?.atributos || {};
     const esCarrito = attr.nav === 'carrito';
+    // El carrito ya no es solo un modelo de página: otros modelos pueden
+    // encenderlo. Donde haya carrito hace falta la pestaña Pedidos, porque es
+    // donde se pone el WhatsApp al que llega todo — sin ella el cliente arma
+    // su pedido y no tiene a quién mandárselo.
+    const hayCarrito = esCarrito || !!(planActual().carrito && attr.carrito);
     const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
-    document.getElementById('tabBtnToppings').style.display = (esCarrito || hasToppings) ? 'block' : 'none';
-    document.getElementById('tabBtnPedidos').style.display = esCarrito ? 'block' : 'none';
-    if (esCarrito) { renderPedidos(); renderMetodosPago(); }
+    document.getElementById('tabBtnToppings').style.display = (hayCarrito || hasToppings) ? 'block' : 'none';
+    document.getElementById('tabBtnPedidos').style.display = hayCarrito ? 'block' : 'none';
+    if (hayCarrito) { renderPedidos(); renderMetodosPago(); }
     aplicarPlanAlPanel();
   } catch(e) { showToast('Error cargando datos','error'); }
 }
@@ -1870,19 +1879,19 @@ const PLANES = {
     nombre: 'Vitrina',
     modelos: ['topnav', 'sidebar', 'explorar'],
     marca: true, qr_disenador: false, estadisticas: false, horarios: false,
-    videos: false,
+    videos: false, carrito: false,
   },
   pedidos: {
     nombre: 'Pedidos',
     modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
     marca: true, qr_disenador: true, estadisticas: true, horarios: true,
-    videos: false,
+    videos: false, carrito: true,
   },
   completo: {
     nombre: 'Completo',
     modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
     marca: false, qr_disenador: true, estadisticas: true, horarios: true,
-    videos: false,
+    videos: false, carrito: true,
   },
   // La carta en video va en su propio plan porque su coste no se parece al
   // de los demás: cada plato es un archivo que hay que almacenar, convertir
@@ -1892,7 +1901,7 @@ const PLANES = {
     nombre: 'Video',
     modelos: ['topnav', 'sidebar', 'explorar', 'carrito', 'video'],
     marca: false, qr_disenador: true, estadisticas: true, horarios: true,
-    videos: true,
+    videos: true, carrito: true,
   },
 };
 const PLAN_POR_DEFECTO = 'pedidos';
@@ -2198,7 +2207,8 @@ function renderPersonalizacion() {
 
 	// Se enseña donde tiene sentido: negocios con carrito, o que ya arrastren
 	// catálogo de antes. Al resto no le dice nada.
-	if (cat.nav !== 'carrito' && !hayCatalogo) { grupo.style.display = 'none'; return; }
+	const conCarrito = cat.nav === 'carrito' || !!(planActual().carrito && cat.carrito);
+	if (!conCarrito && !hayCatalogo) { grupo.style.display = 'none'; return; }
 	grupo.style.display = 'block';
 	document.getElementById('persVacio').style.display = hayCatalogo ? 'none' : 'block';
 
@@ -3266,6 +3276,12 @@ function renderApariencia() {
 
   document.getElementById('apNavModelo').value = at.nav || 'topnav';
   document.getElementById('apSubtitulo').value = at.subtitulo || '';
+  document.getElementById('apCarrito').checked = !!at.carrito;
+  // El interruptor solo aparece si el plan lo incluye Y el modelo sabe
+  // pintarlo. El modelo 'carrito' ya es un carrito entero: ofrecerle
+  // encenderlo no significaría nada.
+  document.getElementById('apCarritoFila').style.display =
+    (planActual().carrito && at.nav === 'video') ? 'flex' : 'none';
   document.getElementById('apMostrarHero').checked = !!at.mostrar_hero;
 
   state.filtrosDisponibles = Array.isArray(at.filtros_disponibles) ? [...at.filtros_disponibles] : [];
@@ -3459,6 +3475,7 @@ function recolectarApariencia() {
       url_modo: document.getElementById('apUrlModo').value,
       zona_horaria: document.getElementById('apZonaHoraria').value,
       subtitulo: document.getElementById('apSubtitulo').value.trim(),
+      carrito: document.getElementById('apCarrito').checked,
       mostrar_hero: document.getElementById('apMostrarHero').checked,
       portada_activa: document.getElementById('apPortadaActiva').checked,
       filtros_disponibles: state.filtrosDisponibles,
