@@ -1364,7 +1364,10 @@
 					     comprueba el plan igual, porque ocultar un botón no impide
 					     una llamada directa a POST /api/video. -->
 					<div class="form-group" id="videoGroup" style="display:none">
-						<label class="form-label">Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a 16:9 y se guardan 8 segundos)</span></label>
+						<!-- El texto de la proporción lo reescribe ajustarFichaAlModelo:
+						     depende del modelo, y aquí clavado decía 16:9 también a
+						     los restaurantes verticales. -->
+						<label class="form-label" id="labelVideo">Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a 16:9 y se guardan 8 segundos)</span></label>
 						<div style="border:1px solid var(--border);border-radius:8px;padding:12px;">
 							<video id="videoEditPreview" style="display:none;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:#000" muted loop playsinline controls></video>
 							<div id="videoEditVacio" style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">Sin video</div>
@@ -2356,6 +2359,21 @@ function trabajoFallidoDe(productoId) {
 		.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0] || null;
 }
 
+// El que está en marcha, si lo hay. 'pendiente' es que espera turno en la cola
+// y 'procesando' que ffmpeg ya lo tiene; para quien mira la ficha son lo mismo.
+//
+// Hace falta porque la vigilancia sobrevive a cerrar la ficha, pero NO a
+// recargar la página: ahí el temporizador se muere con ella. Sin esto, al
+// volver a abrir el plato pone "Sin video" y no dice nada más, y lo natural
+// entonces es subirlo otra vez — dos videos buenos para el mismo plato y un
+// original huérfano en el disco. Es el mismo fallo que ya arreglamos al
+// cerrar la ficha, entrando por otra puerta.
+function trabajoEnCursoDe(productoId) {
+	return (state.trabajosVideo || [])
+		.filter(t => t.producto_id === productoId && (t.estado === 'pendiente' || t.estado === 'procesando'))
+		.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0] || null;
+}
+
 async function descartarVideoFallido() {
 	const id = state.trabajoFallidoActual;
 	if (!id) return;
@@ -2378,6 +2396,9 @@ let urlPrevia = null;         // objectURL de la previsualización, hay que solt
 
 function detenerVigilanciaVideo() {
 	if (vigilanciaVideo) { clearInterval(vigilanciaVideo); vigilanciaVideo = null; }
+	// Qué trabajo se está vigilando, para no rearmar el temporizador cada vez
+	// que se repinta la ficha del plato que ya se está vigilando.
+	state.vigilandoTrabajo = null;
 }
 
 // Un objectURL retiene el archivo entero en memoria hasta que se revoca, y
@@ -2422,14 +2443,37 @@ function pintarVideoPlato(p) {
 		prev.removeAttribute('src'); prev.style.display = 'none'; vacio.style.display = 'block';
 	}
 
+	// ── UNA CONVERSIÓN EN MARCHA ──────────────────────────────
+	// Se mira DESPUÉS de pintar el estado normal, porque este manda: mientras
+	// el worker tenga el archivo, ni "Sin video" ni el botón de elegir otro
+	// cuentan la verdad.
+	const enCurso = p?.id ? trabajoEnCursoDe(p.id) : null;
+	if (enCurso) {
+		document.getElementById('videoUploadStatus').textContent = 'Convirtiendo... (1-2 min)';
+		document.getElementById('videoUploadStatus').style.color = 'var(--text-muted)';
+		if (!url) vacio.textContent = 'Convirtiendo el video que subiste...';
+		// Si nadie lo está vigilando —se recargó la página—, se retoma. Si ya
+		// hay vigilancia de ESTE trabajo se deja en paz: rearmarla reiniciaría
+		// la cuenta de 5 s sin ganar nada.
+		if (state.vigilandoTrabajo !== enCurso.id) vigilarVideo(enCurso.id, p.id);
+	}
+
 	// Un video se cuelga de un plato, y un plato nuevo todavía no tiene id
 	// al que colgarlo. Se deja a la vista pero apagado, para que se entienda
 	// que existe y por qué no se puede usar todavía.
+	//
+	// Con una conversión en marcha también se apaga, y este es el motivo de
+	// verdad para hacerlo: subir un segundo video al mismo plato mientras el
+	// primero se convierte deja dos conversiones compitiendo por el mismo
+	// campo. Gana la que termine después, que no tiene por qué ser la que
+	// pediste, y la otra queda ocupando disco sin que nada la enseñe.
 	const esNuevo = !p?.id;
-	btn.disabled = esNuevo;
-	btn.style.opacity = esNuevo ? '.4' : '1';
-	btn.style.cursor  = esNuevo ? 'not-allowed' : 'pointer';
-	vacio.textContent = esNuevo ? 'Guarda el plato primero y luego súbele el video' : 'Sin video';
+	const bloqueado = esNuevo || !!enCurso;
+	btn.disabled = bloqueado;
+	btn.style.opacity = bloqueado ? '.4' : '1';
+	btn.style.cursor  = bloqueado ? 'not-allowed' : 'pointer';
+	if (esNuevo) vacio.textContent = 'Guarda el plato primero y luego súbele el video';
+	else if (!enCurso && !url) vacio.textContent = 'Sin video';
 }
 
 // Elegir el archivo ya no lo sube: primero se previsualiza en local para
@@ -2539,6 +2583,7 @@ async function confirmarSubidaVideo() {
 
 function vigilarVideo(trabajoId, productoId) {
 	detenerVigilanciaVideo();
+	state.vigilandoTrabajo = trabajoId;
 
 	// La vigilancia sobrevive a cerrar la ficha. Antes se paraba ahí, y como
 	// era la única que refrescaba state.productos, el panel se quedaba con el
@@ -2559,6 +2604,17 @@ function vigilarVideo(trabajoId, productoId) {
 		st.style.color = color;
 	};
 
+	// Mientras convierte, el botón de elegir video está apagado para que no
+	// entren dos conversiones al mismo plato. Al acabar —bien o mal— hay que
+	// volver a encenderlo aquí: si se dejara para la próxima vez que se pinte
+	// la ficha, quien no la cierre se queda sin poder reintentar un video que
+	// acaba de fallar delante de sus ojos.
+	const permitirSubir = () => {
+		if (!enPantalla()) return;
+		const b = document.getElementById('btnSubirVideo');
+		b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer';
+	};
+
 	vigilanciaVideo = setInterval(async () => {
 		try {
 			const trabajos = await apiFetch('GET', `/api/video/trabajos?restaurante_id=${state.restaurante.id}`);
@@ -2572,6 +2628,7 @@ function vigilarVideo(trabajoId, productoId) {
 				state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
 				await cargarTrabajosVideo();
 				decir('✓ Video listo', 'var(--success)');
+				permitirSubir();
 
 				const url = state.productos.find(x => x.id === productoId)?.atributos?.video?.url;
 				if (url && enPantalla()) {
@@ -2584,6 +2641,7 @@ function vigilarVideo(trabajoId, productoId) {
 				detenerVigilanciaVideo();
 				await cargarTrabajosVideo();
 				decir(t.error ? `Error: ${t.error}` : 'La conversión falló', 'var(--danger)');
+				permitirSubir();
 			} else if (t.estado === 'procesando') {
 				decir('Convirtiendo... (1-2 min)', 'var(--text-muted)');
 			}
@@ -2676,6 +2734,30 @@ function ajustarFichaAlModelo() {
 	if (etiqueta) etiqueta.innerHTML = esVideo
 		? 'Imagen <span style="color:var(--text-dim);font-weight:400">(se muestra mientras el plato no tenga video)</span>'
 		: 'Imagen';
+
+	// La proporción del corte la decide el modelo, y hasta ahora estaban las
+	// dos cosas escritas a mano en el HTML como 16:9. En un restaurante
+	// vertical eso era mentira por partida doble: la etiqueta prometía un
+	// recorte que no se iba a hacer, y la previsualización metía un video 9:16
+	// en un hueco apaisado, así que enseñaba una franja del centro y parecía
+	// que la conversión había salido mal.
+	const vertical = state.restaurante?.atributos?.nav === 'vertical';
+	const proporcion = vertical ? '9:16' : '16:9';
+
+	const etiquetaVideo = document.getElementById('labelVideo');
+	if (etiquetaVideo) etiquetaVideo.innerHTML =
+		`Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a ${proporcion} y se guardan 8 segundos)</span>`;
+
+	// Un 9:16 a todo el ancho de la ficha mide vez y media la pantalla de alto
+	// y empuja el botón de guardar fuera de la vista, así que en vertical manda
+	// la altura y el ancho sale de ella.
+	const previa = document.getElementById('videoEditPreview');
+	if (previa) {
+		previa.style.aspectRatio = vertical ? '9 / 16' : '16 / 9';
+		previa.style.width       = vertical ? 'auto' : '100%';
+		previa.style.maxHeight   = vertical ? '340px' : '';
+		previa.style.margin      = vertical ? '0 auto' : '';
+	}
 }
 
 // ── CAMBIOS SIN GUARDAR ───────────────────────────────────────
