@@ -669,18 +669,25 @@ app.post('/api/video', auth,
       return res.status(403).json({ error: 'Sin permiso' });
     }
 
+    // Los atributos hacen falta siempre: de ahí salen el plan y el modelo.
+    const { data: resto } = await supabase.from('restaurantes')
+      .select('atributos').eq('id', restaurante_id).single();
+
     // La carta en video es de plan, y convertir cuesta minuto y medio de CPU
     // por archivo: sin esta comprobación cualquier restaurante podría llenar
     // la cola llamando aquí directamente. El superadmin siempre puede, igual
     // que en estadísticas.
-    if (req.user.rol !== 'admin') {
-      const { data: resto } = await supabase.from('restaurantes')
-        .select('atributos').eq('id', restaurante_id).single();
-      if (!planDe(resto?.atributos).videos) {
-        descartar();
-        return res.status(403).json({ error: 'La carta en video no está incluida en el plan actual' });
-      }
+    if (req.user.rol !== 'admin' && !planDe(resto?.atributos).videos) {
+      descartar();
+      return res.status(403).json({ error: 'La carta en video no está incluida en el plan actual' });
     }
+
+    // La proporción la decide el modelo que va a pintar el video, y la mira el
+    // servidor en vez de recibirla del navegador: así no hay nada que validar
+    // y no puede quedar un trabajo pidiendo un formato que su carta no usa.
+    // Se guarda en el trabajo, no se lee después del restaurante — si el
+    // negocio cambia de modelo, sus videos ya convertidos no cambian solos.
+    const formato = resto?.atributos?.nav === 'vertical' ? 'vertical' : 'horizontal';
 
     // Desde qué segundo del original se recorta. Llega como texto del
     // formulario, y lo que no sea un número razonable se trata como 0: es
@@ -702,7 +709,7 @@ app.post('/api/video', auth,
 
     try {
       const trabajo = await video.encolar(supabase, {
-        restaurante_id, producto_id, desde,
+        restaurante_id, producto_id, desde, formato,
         origen: path.join(video.CARPETAS.origen, req.file.filename),
       });
       res.json({ trabajo_id: trabajo.id, estado: trabajo.estado });
