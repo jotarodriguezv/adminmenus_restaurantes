@@ -429,8 +429,10 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 	// nada es peor que no tenerlo: quien lo usa cree que está trabajando.
 	const conModelo = nav => {
 		const mapa = {
-			extraImgsGroup: { style: {} },
-			labelImagen:    { innerHTML: '' },
+			extraImgsGroup:   { style: {} },
+			labelImagen:      { innerHTML: '' },
+			labelVideo:       { innerHTML: '' },
+			videoEditPreview: { style: {} },
 		};
 		// Dos trozos: la lista de modelos que pintan video y la función que
 		// la consulta. Se cargan los dos del fuente en vez de escribir la
@@ -475,6 +477,76 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 		const mapa = conModelo(undefined);
 		assert.equal(mapa.extraImgsGroup.style.display, '');
 		assert.equal(mapa.labelImagen.innerHTML, 'Imagen');
+	});
+
+	test('la proporción prometida es la que el worker va a cortar', () => {
+		// El servidor deriva el formato del modelo: 'vertical' pide 720x1280 y
+		// todo lo demás 1280x720. Si la ficha dijera 16:9 a un restaurante
+		// vertical, estaría prometiendo un recorte que no se va a hacer.
+		assert.match(conModelo('vertical').labelVideo.innerHTML, /9:16/);
+		for (const nav of ['video', 'topnav', 'carrito', undefined])
+			assert.match(conModelo(nav).labelVideo.innerHTML, /16:9/, `en ${nav}`);
+	});
+
+	test('la previsualización tiene el hueco del formato que se guarda', () => {
+		// Con el hueco apaisado clavado, un 9:16 entra recortado por object-fit
+		// y enseña una franja del centro: parece que la conversión salió mal
+		// cuando salió bien.
+		assert.equal(conModelo('vertical').videoEditPreview.style.aspectRatio, '9 / 16');
+		assert.equal(conModelo('video').videoEditPreview.style.aspectRatio, '16 / 9');
+		assert.equal(conModelo('topnav').videoEditPreview.style.aspectRatio, '16 / 9');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('trabajoEnCursoDe · una conversión en marcha se ve al reabrir', () => {
+	// La vigilancia sobrevive a cerrar la ficha, pero no a recargar la página.
+	// Sin esto, el plato vuelve a decir "Sin video" mientras el worker todavía
+	// lo tiene, y lo natural es subirlo otra vez: dos videos buenos para el
+	// mismo plato y un original huérfano ocupando disco.
+	const conTrabajos = trabajos => {
+		const ctx = cargar('index.html', 'function trabajoFallidoDe', 'async function descartarVideoFallido',
+			{ state: { trabajosVideo: trabajos } });
+		return ctx;
+	};
+
+	const t = (id, producto_id, estado, creado_en) => ({ id, producto_id, estado, creado_en });
+
+	test('encuentra el que espera turno y el que ya está en ffmpeg', () => {
+		// Para quien mira la ficha son lo mismo: su video no está todavía.
+		for (const estado of ['pendiente', 'procesando']) {
+			const ctx = conTrabajos([t('t1', 'p1', estado, '2026-08-20T10:00:00Z')]);
+			assert.equal(ctx.trabajoEnCursoDe('p1')?.id, 't1', `con estado ${estado}`);
+		}
+	});
+
+	test('lo terminado no cuenta como en marcha', () => {
+		// Si 'listo' contara, el botón de subir se quedaría apagado para
+		// siempre en cuanto el plato tuviera un video.
+		for (const estado of ['listo', 'error']) {
+			const ctx = conTrabajos([t('t1', 'p1', estado, '2026-08-20T10:00:00Z')]);
+			assert.equal(ctx.trabajoEnCursoDe('p1'), null, `con estado ${estado}`);
+		}
+	});
+
+	test('no se cruzan los platos', () => {
+		const ctx = conTrabajos([t('t1', 'otro', 'procesando', '2026-08-20T10:00:00Z')]);
+		assert.equal(ctx.trabajoEnCursoDe('p1'), null);
+	});
+
+	test('con varios, el más reciente', () => {
+		const ctx = conTrabajos([
+			t('viejo', 'p1', 'pendiente',  '2026-08-20T10:00:00Z'),
+			t('nuevo', 'p1', 'procesando', '2026-08-20T11:00:00Z'),
+		]);
+		assert.equal(ctx.trabajoEnCursoDe('p1').id, 'nuevo');
+	});
+
+	test('sin trabajos cargados no revienta', () => {
+		// planActual().videos falso deja state.trabajosVideo en [], y un fallo
+		// de red lo deja igual: la ficha tiene que abrirse de todas formas.
+		for (const v of [[], undefined, null])
+			assert.equal(conTrabajos(v).trabajoEnCursoDe('p1'), null, `con ${JSON.stringify(v)}`);
 	});
 });
 
