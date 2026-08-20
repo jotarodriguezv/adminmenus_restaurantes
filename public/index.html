@@ -888,6 +888,7 @@
 								<option value="carrito">Carrito — pedido por WhatsApp</option>
 								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
 								<option value="video">Video — una columna, un plato por fila</option>
+								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
 							</select>
 						</div>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
@@ -1405,6 +1406,20 @@
 								<div id="videoUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
 							</div>
 						</div>
+						<!-- Un trabajo que falló mientras nadie miraba no aparecía en ningún
+						     sitio: el plato se quedaba sin video y sin explicación. -->
+						<div id="videoFallido" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--danger);border-radius:8px;">
+							<div style="font-family:var(--mono);font-size:10px;color:var(--danger);line-height:1.5">
+								La conversión de este video falló.
+							</div>
+							<div id="videoFallidoMotivo" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:6px;line-height:1.5"></div>
+							<button type="button" onclick="descartarVideoFallido()"
+								style="margin-top:10px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);
+								background:transparent;color:var(--text);font-family:var(--mono);font-size:9px;
+								letter-spacing:1px;cursor:pointer;">
+								🗑 Descartar y volver a intentar
+							</button>
+						</div>
 						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" onchange="prepararVideoElegido(this)">
 					</div>
 					<div class="form-group">
@@ -1846,6 +1861,7 @@ async function loadData() {
     document.getElementById('topbarResto').textContent = state.restaurante.nombre.toUpperCase();
     state.categorias = await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
+    await cargarTrabajosVideo();
     renderCatFilter(); renderOrdenProductos(); renderProducts(); renderCatList(); renderPromo();
     // Apariencia es solo para superadmin: el cliente no debe poder tocar
     // logo, colores, fuentes, modelo de página ni CSS personalizado.
@@ -1888,11 +1904,12 @@ const PLANES = {
   },
   // La carta en video va en su propio plan porque su coste no se parece al
   // de los demás: cada plato es un archivo que hay que almacenar, convertir
-  // y servir muchas veces. 'videos' abre la subida en el panel; el modelo
-  // 'video' es lo que la carta sabe pintar. Las dos cosas van juntas.
+  // y servir muchas veces. 'videos' abre la subida en el panel; los modelos
+  // 'video' y 'vertical' son las dos formas que la carta sabe pintar —
+  // apaisada en columna y a pantalla completa deslizando. Van juntas.
   video: {
     nombre: 'Video',
-    modelos: ['topnav', 'sidebar', 'explorar', 'carrito', 'video'],
+    modelos: ['topnav', 'sidebar', 'explorar', 'carrito', 'video', 'vertical'],
     marca: false, qr_disenador: true, estadisticas: true, horarios: true,
     videos: true, carrito: true,
   },
@@ -1903,6 +1920,18 @@ function planDe(restaurante) {
   return PLANES[restaurante?.atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
 }
 function planActual() { return planDe(state.restaurante); }
+
+// ── MODELOS QUE PINTAN VIDEO ──────────────────────────────────
+// Los que sirven archivos de video en vez de fotos. Cambian la ficha del
+// producto igual —sobran las imágenes adicionales, la foto pasa a ser
+// respaldo— y ofrecen el mismo interruptor de carrito.
+//
+// Está aquí, en una lista sola, porque el panel preguntaba `nav === 'video'`
+// en dos sitios distintos. Con un solo encuadre daba igual; con dos, quien
+// añada el tercero tendría que acordarse de los dos sitios, y el que se
+// olvide no da error: deja controles puestos que no hacen nada.
+const MODELOS_VIDEO = ['video', 'vertical'];
+function esModeloDeVideo(nav) { return MODELOS_VIDEO.includes(nav); }
 function idPlanActual() {
   return PLANES[state.restaurante?.atributos?.plan] ? state.restaurante.atributos.plan : PLAN_POR_DEFECTO;
 }
@@ -2308,6 +2337,41 @@ function openEditProductModal(id) {
 // que termina. Sin eso, el restaurante sube un archivo, no ve nada cambiar
 // y vuelve a subirlo.
 
+// Los trabajos de conversión del restaurante. Se cargan con el resto y se
+// refrescan cuando uno termina, para poder decirle a cada plato si el suyo
+// falló. Antes, un trabajo que moría mientras nadie miraba la ficha no
+// aparecía en ningún sitio: el plato se quedaba sin video y sin explicación,
+// y volver a subirlo daba exactamente el mismo error.
+async function cargarTrabajosVideo() {
+	if (!planActual().videos) { state.trabajosVideo = []; return; }
+	try {
+		state.trabajosVideo = await apiFetch('GET', `/api/video/trabajos?restaurante_id=${state.restaurante.id}`) || [];
+	} catch { state.trabajosVideo = []; }
+}
+
+// El fallido más reciente de un plato, si lo hay.
+function trabajoFallidoDe(productoId) {
+	return (state.trabajosVideo || [])
+		.filter(t => t.producto_id === productoId && t.estado === 'error')
+		.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0] || null;
+}
+
+async function descartarVideoFallido() {
+	const id = state.trabajoFallidoActual;
+	if (!id) return;
+	try {
+		await apiFetch('DELETE', `/api/video/trabajos/${id}`);
+		// Al borrar la fila, el original deja de estar referenciado y el
+		// limpiador lo recoge en su siguiente pasada.
+		state.trabajosVideo = (state.trabajosVideo || []).filter(t => t.id !== id);
+		document.getElementById('videoFallido').style.display = 'none';
+		state.trabajoFallidoActual = null;
+		showToast('Trabajo descartado. Ya puedes subir otro video.', 'success');
+	} catch (e) {
+		showToast('No se pudo descartar: ' + e.message, 'error');
+	}
+}
+
 let vigilanciaVideo = null;   // temporizador de la consulta de estado
 let videoElegido = null;      // el archivo elegido y todavía sin subir
 let urlPrevia = null;         // objectURL de la previsualización, hay que soltarlo
@@ -2342,6 +2406,14 @@ function pintarVideoPlato(p) {
 	document.getElementById('btnConfirmarVideo').style.display = 'none';
 	document.getElementById('videoDesde').value = 0;
 	document.getElementById('videoDesdeAviso').textContent = '';
+
+	// Si su última conversión falló, decirlo aquí y ofrecer descartarla. El
+	// motivo viene de ffmpeg y suele ser legible ("el video dura 1,4 s y
+	// hacen falta al menos 3").
+	const fallido = p?.id ? trabajoFallidoDe(p.id) : null;
+	state.trabajoFallidoActual = fallido?.id || null;
+	document.getElementById('videoFallido').style.display = fallido ? 'block' : 'none';
+	document.getElementById('videoFallidoMotivo').textContent = fallido?.error || '';
 
 	const url = p?.atributos?.video?.url;
 	if (url) {
@@ -2498,6 +2570,7 @@ function vigilarVideo(trabajoId, productoId) {
 				// Esto va SIEMPRE, esté la ficha abierta o no: es lo que evita
 				// que el panel siga creyendo que el plato no tiene video.
 				state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
+				await cargarTrabajosVideo();
 				decir('✓ Video listo', 'var(--success)');
 
 				const url = state.productos.find(x => x.id === productoId)?.atributos?.video?.url;
@@ -2509,6 +2582,7 @@ function vigilarVideo(trabajoId, productoId) {
 				}
 			} else if (t.estado === 'error') {
 				detenerVigilanciaVideo();
+				await cargarTrabajosVideo();
 				decir(t.error ? `Error: ${t.error}` : 'La conversión falló', 'var(--danger)');
 			} else if (t.estado === 'procesando') {
 				decir('Convirtiendo... (1-2 min)', 'var(--text-muted)');
@@ -2586,12 +2660,12 @@ async function handleExtraImgUpload(input) {
 // sobran según cuál tenga el restaurante. Un control que no hace nada es
 // peor que no tenerlo: quien lo usa cree que está trabajando.
 function ajustarFichaAlModelo() {
-	const esVideo = state.restaurante?.atributos?.nav === 'video';
+	const esVideo = esModeloDeVideo(state.restaurante?.atributos?.nav);
 
 	// Las imágenes adicionales alimentan el carrusel del modal del producto, y
-	// el modelo de video no tiene modal ni carrusel: temas/video.js no lee
-	// atributos.imagenes en ninguna parte. Subir cuatro fotos ahí es subirlas
-	// para nadie.
+	// los modelos de video no tienen modal ni carrusel: ni temas/video.js ni
+	// temas/vertical.js leen atributos.imagenes en ninguna parte. Subir cuatro
+	// fotos ahí es subirlas para nadie.
 	const extras = document.getElementById('extraImgsGroup');
 	if (extras) extras.style.display = esVideo ? 'none' : '';
 
@@ -3310,7 +3384,7 @@ function renderApariencia() {
   // pintarlo. El modelo 'carrito' ya es un carrito entero: ofrecerle
   // encenderlo no significaría nada.
   document.getElementById('apCarritoFila').style.display =
-    (planActual().carrito && at.nav === 'video') ? 'flex' : 'none';
+    (planActual().carrito && esModeloDeVideo(at.nav)) ? 'flex' : 'none';
   document.getElementById('apMostrarHero').checked = !!at.mostrar_hero;
 
   state.filtrosDisponibles = Array.isArray(at.filtros_disponibles) ? [...at.filtros_disponibles] : [];
@@ -3547,7 +3621,7 @@ function urlPublica(restaurante, modo) {
 }
 
 // ── PLAN EN APARIENCIA ────────────────────────────────────────
-const ETIQUETA_MODELO = { topnav: 'Topnav', sidebar: 'Sidebar', carrito: 'Carrito', explorar: 'Explorar', video: 'Video' };
+const ETIQUETA_MODELO = { topnav: 'Topnav', sidebar: 'Sidebar', carrito: 'Carrito', explorar: 'Explorar', video: 'Video', vertical: 'Vertical' };
 
 // Se pasa por aquí y no se lee la tabla directamente. Un modelo sin etiqueta
 // salía como "undefined" en el resumen del plan —pasó con 'video', que se
