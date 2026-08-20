@@ -82,14 +82,24 @@ const sinRecorte = lado =>
 // previo también cae en el fotograma exacto.
 const desdeDe = seg => (seg > 0 ? ['-ss', String(seg)] : []);
 
-function argumentosEntregable(entrada, salida, desde = 0) {
+// La proporción del entregable la decide el modelo que va a pintarlo, y viene
+// guardada en el trabajo. En horizontal, 1280x720: medido sobre una carta en
+// video ya publicada, que sirve 1280x720 en un hueco de ~824 px CSS — en un
+// móvil de 390 px a 3x son 1170 px físicos, así que 1280 cubre sin
+// desperdiciar. En vertical es el mismo cálculo del revés.
+//
+// El master no cambia: sigue sin recortar en los dos casos. Por eso pasar un
+// restaurante de un formato al otro es reconvertir, no volver a grabar.
+const MEDIDAS = {
+  horizontal: [1280, 720],
+  vertical:   [720, 1280],
+};
+
+function argumentosEntregable(entrada, salida, desde = 0, formato = 'horizontal') {
+  const [ancho, alto] = MEDIDAS[formato] || MEDIDAS.horizontal;
   return [...COMUNES, ...desdeDe(desde), '-i', entrada,
     '-t', String(DURACION_MAX),
-    // 16:9 horizontal, 1280x720. Medido sobre una carta en video ya
-    // publicada: sus archivos son 1280x720 y se sirven en un hueco de
-    // ~824 px CSS, que en un móvil de 390 px a 3x son 1170 px físicos.
-    // 1280 cubre eso sin desperdiciar.
-    '-vf', recorte(1280, 720),
+    '-vf', recorte(ancho, alto),
     '-c:v', 'libx264', '-profile:v', 'main', '-pix_fmt', 'yuv420p',
     '-crf', '30', '-maxrate', '1500k', '-bufsize', '3000k', '-preset', 'slow',
     // faststart mueve el índice al principio del archivo: sin esto el
@@ -221,7 +231,7 @@ async function convertir(trabajo) {
   const pMaster  = path.join(RAIZ, CARPETAS.master,  nMaster);
   const pPortada = path.join(RAIZ, CARPETAS.portada, nPortada);
 
-  await correrFfmpeg(argumentosEntregable(entrada, pVideo, desde));
+  await correrFfmpeg(argumentosEntregable(entrada, pVideo, desde, trabajo.formato));
   await correrFfmpeg(argumentosMaster(entrada, pMaster, desde));
 
   // Comprobar antes de dar por bueno: ffmpeg puede terminar con código 0 y
@@ -387,9 +397,9 @@ function arrancar(supabase) {
   console.log('🎬 cola de video en marcha');
 }
 
-async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 0 }) {
+async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 0, formato = 'horizontal' }) {
   const { data, error } = await supabase.from('trabajos_video')
-    .insert([{ restaurante_id, producto_id: producto_id || null, origen, desde }])
+    .insert([{ restaurante_id, producto_id: producto_id || null, origen, desde, formato }])
     .select().single();
   if (error) throw new Error(error.message);
   return data;
@@ -397,7 +407,7 @@ async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 
 
 module.exports = {
   arrancar, encolar,
-  CARPETAS, DURACION_MAX, DURACION_MIN,
+  CARPETAS, DURACION_MAX, DURACION_MIN, MEDIDAS,
   // Exportados para las pruebas: son puros y se pueden comprobar sin
   // ejecutar ffmpeg ni tocar el disco.
   argumentosEntregable, argumentosMaster, argumentosPortada, instantePortada,
