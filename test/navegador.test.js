@@ -11,13 +11,24 @@ const PUBLIC = path.join(__dirname, '..', 'public');
 
 // Extrae el trozo de fuente entre dos marcas y lo evalúa en un contexto con
 // los stubs que necesite.
+//
+// 'desde' admite también una lista de pares [desde, hasta] cuando lo que se
+// prueba se apoya en un ayudante que vive en otra parte del archivo. Se
+// evalúan todos en el MISMO contexto, en el orden dado, porque si no la
+// función bajo prueba llamaría a algo que no existe. Se prefiere esto a
+// copiar el ayudante al test: una copia se queda atrás sin avisar y entonces
+// la prueba pasa contra código que ya no se despliega.
 function cargar(archivo, desde, hasta, contexto = {}) {
 	const src = fs.readFileSync(path.join(PUBLIC, archivo), 'utf8');
-	const i = src.indexOf(desde);
-	const f = hasta ? src.indexOf(hasta, i) : src.length;
-	assert.notEqual(i, -1, `no se encontró "${desde}" en ${archivo} — ¿se renombró?`);
-	const ctx = vm.createContext(contexto);
-	vm.runInContext(src.slice(i, f), ctx);
+	const pares = Array.isArray(desde) ? desde : [[desde, hasta]];
+	const ctx = vm.createContext(Array.isArray(desde) ? (hasta || {}) : contexto);
+
+	for (const [ini, fin] of pares) {
+		const i = src.indexOf(ini);
+		assert.notEqual(i, -1, `no se encontró "${ini}" en ${archivo} — ¿se renombró?`);
+		const f = fin ? src.indexOf(fin, i) : src.length;
+		vm.runInContext(src.slice(i, f), ctx);
+	}
 	return ctx;
 }
 
@@ -157,7 +168,8 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 	const pantalla = () => {
 		const ids = ['videoGroup', 'videoEditPreview', 'videoEditVacio',
 			'btnSubirVideo', 'videoUploadStatus', 'videoFileInput',
-			'videoDesdeFila', 'btnConfirmarVideo', 'videoDesde', 'videoDesdeAviso'];
+			'videoDesdeFila', 'btnConfirmarVideo', 'videoDesde', 'videoDesdeAviso',
+				'videoFallido', 'videoFallidoMotivo'];
 		const mapa = {};
 		for (const id of ids) mapa[id] = {
 			style: {}, textContent: '', value: '', disabled: false,
@@ -166,11 +178,12 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		return mapa;
 	};
 
-	const pintar = (videos, plato, mapa) => {
-		const ctx = cargar('index.html', 'let vigilanciaVideo = null;',
+	const pintar = (videos, plato, mapa, trabajos = []) => {
+		const ctx = cargar('index.html', '// Los trabajos de conversión del restaurante.',
 			'// Elegir el archivo ya no lo sube', {
 				clearInterval() {},
 				planActual: () => ({ videos }),
+				state: { trabajosVideo: trabajos },
 				document: { getElementById: id => mapa[id] },
 			});
 		ctx.pintarVideoPlato(plato);
@@ -412,26 +425,33 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 
 // ═══════════════════════════════════════════════════════════════
 describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
-	// La misma ficha sirve para los cinco modelos. Un control que no hace
+	// La misma ficha sirve para todos los modelos. Un control que no hace
 	// nada es peor que no tenerlo: quien lo usa cree que está trabajando.
 	const conModelo = nav => {
 		const mapa = {
 			extraImgsGroup: { style: {} },
 			labelImagen:    { innerHTML: '' },
 		};
-		const ctx = cargar('index.html', 'function ajustarFichaAlModelo',
-			'// ── CAMBIOS SIN GUARDAR', {
-				state: { restaurante: { atributos: { nav } } },
-				document: { getElementById: id => mapa[id] },
-			});
+		// Dos trozos: la lista de modelos que pintan video y la función que
+		// la consulta. Se cargan los dos del fuente en vez de escribir la
+		// lista aquí, para que añadir un encuadre nuevo al panel y olvidarse
+		// de esta prueba no dé un falso verde.
+		const ctx = cargar('index.html', [
+			['// ── MODELOS QUE PINTAN VIDEO', 'function idPlanActual'],
+			['function ajustarFichaAlModelo', '// ── CAMBIOS SIN GUARDAR'],
+		], {
+			state: { restaurante: { atributos: { nav } } },
+			document: { getElementById: id => mapa[id] },
+		});
 		ctx.ajustarFichaAlModelo();
 		return mapa;
 	};
 
-	test('el modelo de video esconde las imágenes adicionales', () => {
-		// temas/video.js no lee atributos.imagenes en ninguna parte: subirlas
-		// ahí es subirlas para nadie.
-		assert.equal(conModelo('video').extraImgsGroup.style.display, 'none');
+	test('los modelos de video esconden las imágenes adicionales', () => {
+		// Ni temas/video.js ni temas/vertical.js leen atributos.imagenes en
+		// ninguna parte: subirlas ahí es subirlas para nadie.
+		for (const nav of ['video', 'vertical'])
+			assert.equal(conModelo(nav).extraImgsGroup.style.display, 'none', `en ${nav}`);
 	});
 
 	test('los demás modelos las siguen enseñando', () => {
@@ -439,10 +459,11 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 			assert.equal(conModelo(nav).extraImgsGroup.style.display, '', `en ${nav}`);
 	});
 
-	test('en video, la foto se explica como respaldo', () => {
+	test('en los modelos de video, la foto se explica como respaldo', () => {
 		// Deja de ser lo que se ve y pasa a ser lo que se ve mientras no haya
 		// video. Eso hay que decirlo donde se mira, no en un manual.
-		assert.match(conModelo('video').labelImagen.innerHTML, /mientras el plato no tenga video/);
+		for (const nav of ['video', 'vertical'])
+			assert.match(conModelo(nav).labelImagen.innerHTML, /mientras el plato no tenga video/, `en ${nav}`);
 	});
 
 	test('en los demás la etiqueta se queda limpia', () => {
@@ -701,5 +722,55 @@ describe('etiquetaModelo · todos los modelos tienen nombre', () => {
 		// Si algún día hay un modelo nuevo sin etiqueta, que se lea su nombre
 		// interno y no una palabra que no significa nada.
 		assert.equal(ctx.etiquetaModelo('loquesea'), 'loquesea');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('trabajoFallidoDe · un video que falló tiene que verse', () => {
+	// Un trabajo que muere mientras nadie mira la ficha no aparecía en ningún
+	// sitio: el plato se quedaba sin video y sin explicación, y volver a
+	// subirlo daba exactamente el mismo error.
+	const buscar = (trabajos, productoId = 'p1') => {
+		const ctx = cargar('index.html', '// Los trabajos de conversión del restaurante.',
+			'let vigilanciaVideo = null;', { state: { trabajosVideo: trabajos } });
+		return ctx.trabajoFallidoDe(productoId);
+	};
+	const T = (id, producto_id, estado, creado_en, error = 'algo') =>
+		({ id, producto_id, estado, creado_en, error });
+
+	test('encuentra el fallido de ese plato', () => {
+		assert.equal(buscar([T('t1', 'p1', 'error', '2026-08-19')]).id, 't1');
+	});
+
+	test('no confunde el de otro plato', () => {
+		assert.equal(buscar([T('t1', 'p2', 'error', '2026-08-19')]), null);
+	});
+
+	test('los que terminaron bien no son un fallo', () => {
+		assert.equal(buscar([T('t1', 'p1', 'listo', '2026-08-19')]), null);
+	});
+
+	test('uno en marcha todavía no ha fallado', () => {
+		// 'pendiente' y 'procesando' no son un error: el worker aún puede
+		// sacarlo adelante y avisar de un fallo que no existe asusta en balde.
+		assert.equal(buscar([T('t1', 'p1', 'pendiente', '2026-08-19')]), null);
+		assert.equal(buscar([T('t2', 'p1', 'procesando', '2026-08-19')]), null);
+	});
+
+	test('con varios fallidos manda el más reciente', () => {
+		// El motivo del último es el que explica por qué el plato sigue sin
+		// video; el de hace tres días puede ser de otro archivo distinto.
+		const r = buscar([
+			T('viejo', 'p1', 'error', '2026-08-15', 'formato raro'),
+			T('nuevo', 'p1', 'error', '2026-08-19', 'dura 1,4 s'),
+		]);
+		assert.equal(r.id, 'nuevo');
+		assert.match(r.error, /1,4 s/);
+	});
+
+	test('sin trabajos cargados no revienta', () => {
+		const ctx = cargar('index.html', '// Los trabajos de conversión del restaurante.',
+			'let vigilanciaVideo = null;', { state: {} });
+		assert.equal(ctx.trabajoFallidoDe('p1'), null);
 	});
 });
