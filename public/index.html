@@ -1451,7 +1451,7 @@
 						</div>
 					</div>
 					<div class="form-group" id="editFiltrosGroup" style="display:none">
-						<label class="form-label">Filtros que aplican <span style="color:var(--text-dim)">(modelo explorar)</span></label>
+						<label class="form-label">Filtros que aplican <span style="color:var(--text-dim)">(el cliente los usa para filtrar la carta)</span></label>
 						<div id="editFiltrosChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						<div id="editFiltrosVacio" style="font-size:11px;color:var(--text-dim);display:none">Sin filtros activados. Actívalos en Apariencia → Filtros y etiquetas.</div>
 					</div>
@@ -2138,13 +2138,23 @@ function openNewProductModal() {
 // restaurante activó en Apariencia.
 function renderProdFiltrosBadges() {
 	const esExplorar = (state.restaurante?.atributos?.nav === 'explorar');
+	const disponibles = state.restaurante?.atributos?.filtros_disponibles || [];
 	const fGroup = document.getElementById('editFiltrosGroup');
 	const bGroup = document.getElementById('editBadgesGroup');
-	fGroup.style.display = esExplorar ? 'block' : 'none';
-	bGroup.style.display = esExplorar ? 'block' : 'none';
-	if (!esExplorar) return;
 
-	const disponibles = state.restaurante?.atributos?.filtros_disponibles || [];
+	// Los filtros dejaron de ser de un solo modelo: explorar y video los
+	// pintan, y el resto puede sumarse sin tocar nada. Se enseñan si el
+	// restaurante configuró alguno —configurarlos ya es quererlos— o si usa
+	// explorar, para que ahí vea el aviso de que no tiene ninguno.
+	const mostrarFiltros = esExplorar || disponibles.length > 0;
+	fGroup.style.display = mostrarFiltros ? 'block' : 'none';
+
+	// Las insignias sí siguen siendo suyas: explorar es el único tema que las
+	// pinta. Ofrecerlas en otro modelo sería prometer algo que no se ve.
+	bGroup.style.display = esExplorar ? 'block' : 'none';
+
+	// mostrarFiltros ya incluye esExplorar, así que basta con eso.
+	if (!mostrarFiltros) return;
 	const chips = document.getElementById('editFiltrosChips');
 	const vacio = document.getElementById('editFiltrosVacio');
 	chips.innerHTML = '';
