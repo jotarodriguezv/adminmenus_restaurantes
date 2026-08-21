@@ -192,3 +192,71 @@ describe('purgarAnteriores · reemplazar un video no deja basura', () => {
 		assert.deepEqual(sb.filasBorradas, ['raro'], 'la fila sí se limpia');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('formatos · cada modelo pide su encuadre y su calidad', () => {
+	const args = f => video.argumentosEntregable('e.mp4', 's.mp4', 0, f);
+
+	test('el apaisado sale 1280x720 y el vertical 720x1280', () => {
+		// El servidor deriva el formato del modelo del restaurante. Si el
+		// recorte no coincidiera, la carta vertical enseñaría una franja
+		// central de un video apaisado, estirada a pantalla completa.
+		assert.match(valorDe(args('horizontal'), '-vf'), /scale=1280:720:.*crop=1280:720/);
+		assert.match(valorDe(args('vertical'),   '-vf'), /scale=720:1280:.*crop=720:1280/);
+	});
+
+	test('los dos recortan por exceso, nunca con franjas negras', () => {
+		// increase + crop llena el hueco y recorta lo que sobra. Con 'decrease'
+		// saldrían bandas a los lados cuando la fuente no case.
+		for (const f of ['horizontal', 'vertical']) {
+			const vf = valorDe(args(f), '-vf');
+			assert.match(vf, /force_original_aspect_ratio=increase/, `en ${f}`);
+			assert.match(vf, /fps=30/, `en ${f}`);
+		}
+	});
+
+	test('un formato desconocido cae en apaisado y no revienta', () => {
+		// La columna tiene un CHECK, pero si algún día entra otro valor es
+		// mejor un video apaisado que un trabajo muerto.
+		for (const malo of ['cuadrado', '', null, undefined])
+			assert.deepEqual(args(malo), args('horizontal'), `con ${JSON.stringify(malo)}`);
+	});
+
+	test('el vertical gasta más bits que el apaisado', () => {
+		// Mismo número de píxeles en los dos, pero el vertical ocupa la
+		// pantalla entera del móvil y ahí el mismo archivo perdona mucho
+		// menos. En crf, más bajo es mejor calidad.
+		const crf = f => Number(valorDe(args(f), '-crf'));
+		assert.ok(crf('vertical') < crf('horizontal'),
+			`el vertical debería ir con mejor calidad (v=${crf('vertical')}, h=${crf('horizontal')})`);
+	});
+
+	test('el tope de bitrate acompaña al crf', () => {
+		// Bajar el crf con el maxrate fijo no sirve de nada en los planos con
+		// movimiento, que es justo donde se ve el problema: el limitador
+		// recorta la mejora antes de que llegue.
+		const kbps = (f, bandera) => Number(valorDe(args(f), bandera).replace('k', ''));
+		assert.ok(kbps('vertical', '-maxrate') > kbps('horizontal', '-maxrate'));
+		// Y el bufsize por encima del maxrate, o el limitador va a tirones.
+		for (const f of ['horizontal', 'vertical'])
+			assert.ok(kbps(f, '-bufsize') >= kbps(f, '-maxrate'), `en ${f}`);
+	});
+
+	test('todos los formatos declaran las cinco cosas', () => {
+		// Una que falte se lee como undefined y ffmpeg recibe "undefined" como
+		// valor de bandera: el trabajo muere con un error ilegible.
+		for (const [nombre, f] of Object.entries(video.FORMATOS))
+			for (const campo of ['ancho', 'alto', 'crf', 'maxrate', 'bufsize'])
+				assert.ok(f[campo] !== undefined, `${nombre} no declara "${campo}"`);
+	});
+
+	test('lo que no depende del formato no cambia con él', () => {
+		// El sonido, faststart y la duración son de la plataforma, no del
+		// encuadre. Si se colaran en la tabla, se podrían desincronizar.
+		for (const f of ['horizontal', 'vertical']) {
+			assert.ok(args(f).includes('-an'), `en ${f} debería ir sin audio`);
+			assert.equal(valorDe(args(f), '-movflags'), '+faststart', `en ${f}`);
+			assert.equal(valorDe(args(f), '-t'), String(video.DURACION_MAX), `en ${f}`);
+		}
+	});
+});
