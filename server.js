@@ -334,7 +334,11 @@ app.get('/api/restaurantes', auth, async (req, res) => {
 
 // Al clonar apariencia de otro restaurante, solo se copian estas claves de
 // "atributos" (look & feel puro). Nunca pagos, redes, contenido ni PIN.
-const ATRIBUTOS_CLONABLES = ['nav', 'fuente_titulo', 'fuente_cuerpo', 'color_surface', 'color_card', 'fondo_tipo', 'fondo_color', 'fondo_intensidad', 'css_custom'];
+// 'estilo' va junto a 'nav' y no por separado: son el modelo y su aspecto, y
+// clonar uno sin el otro deja al restaurante nuevo con el carrete puesto pero
+// con otra cara que la del que se copió — que es justo lo que no se esperaba
+// al pulsar "clonar apariencia".
+const ATRIBUTOS_CLONABLES = ['nav', 'estilo', 'fuente_titulo', 'fuente_cuerpo', 'color_surface', 'color_card', 'fondo_tipo', 'fondo_color', 'fondo_intensidad', 'css_custom'];
 
 app.post('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
