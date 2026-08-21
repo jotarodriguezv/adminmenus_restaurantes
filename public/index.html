@@ -882,13 +882,25 @@
 						<div class="section-title">Modelo de página</div>
 						<div class="form-group" style="margin-bottom:0">
 							<label class="form-label">Navegación</label>
-							<select class="form-select" id="apNavModelo">
+							<!-- Al vuelo, no solo al cargar: elegir 'vertical' y no ver
+							     aparecer el estilo deja pensando que no existe. -->
+							<select class="form-select" id="apNavModelo" onchange="ajustarEstiloAlModelo()">
 								<option value="topnav">Topnav — header centrado + menú horizontal</option>
 								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
 								<option value="carrito">Carrito — pedido por WhatsApp</option>
 								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
 								<option value="video">Video — una columna, un plato por fila</option>
 								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
+							</select>
+						</div>
+						<!-- Solo con el modelo vertical: los demás no tienen estilos.
+						     Lo enseña y lo esconde ajustarEstiloAlModelo(). -->
+						<div class="form-group" id="apEstiloFila" style="margin-top:14px;margin-bottom:0;display:none">
+							<label class="form-label">Estilo <span style="color:var(--text-dim);font-weight:400">(solo cambia el aspecto, no el funcionamiento)</span></label>
+							<select class="form-select" id="apEstilo">
+								<option value="clasico">Clásico — el que ya conoces</option>
+								<option value="intenso">Intenso — a sangre, texto grande y mucho contraste</option>
+								<option value="avance">Avance — barra de progreso arriba, esquinas redondeadas y más aire</option>
 							</select>
 						</div>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
@@ -3547,6 +3559,8 @@ function renderApariencia() {
   document.getElementById('apFuenteCuerpo').value = at.fuente_cuerpo || '';
 
   document.getElementById('apNavModelo').value = at.nav || 'topnav';
+  document.getElementById('apEstilo').value = at.estilo || 'clasico';
+  ajustarEstiloAlModelo();
   document.getElementById('apSubtitulo').value = at.subtitulo || '';
   document.getElementById('apCarrito').checked = !!at.carrito;
   // El interruptor solo aparece si el plan lo incluye Y el modelo sabe
@@ -3743,6 +3757,7 @@ function recolectarApariencia() {
       fuente_titulo: document.getElementById('apFuenteTitulo').value.trim(),
       fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
       nav: navElegido(),
+      estilo: estiloElegido(),
       plan: document.getElementById('apPlan').value,
       url_modo: document.getElementById('apUrlModo').value,
       zona_horaria: document.getElementById('apZonaHoraria').value,
@@ -3870,6 +3885,29 @@ function navElegido() {
   return document.getElementById('apNavModelo').value
       || state.restaurante?.atributos?.nav
       || 'topnav';
+}
+
+// ── ESTILO DEL CARRETE ────────────────────────────────────────
+// Solo el modelo vertical tiene estilos. Enseñar el desplegable en los demás
+// sería ofrecer un control que no hace nada, y eso es peor que no tenerlo:
+// quien lo usa cree que está trabajando.
+function ajustarEstiloAlModelo() {
+  const fila = document.getElementById('apEstiloFila');
+  if (fila) fila.style.display = navElegido() === 'vertical' ? 'block' : 'none';
+}
+
+// El estilo se guarda SIEMPRE, también en los modelos que no lo usan. Si se
+// borrara al cambiar de modelo, quien pruebe otro y vuelva al vertical se
+// encontraría su elección perdida sin haberla tocado. Un atributo que nadie
+// lee no molesta a nadie.
+//
+// Mismo guardia que navElegido, y por lo mismo: un <select> al que se le
+// asigna un valor que no está entre sus opciones se queda en cadena vacía, y
+// guardar eso borraría el estilo del restaurante sin que nadie lo pidiera.
+function estiloElegido() {
+  return document.getElementById('apEstilo').value
+      || state.restaurante?.atributos?.estilo
+      || 'clasico';
 }
 
 // Aplica las restricciones del plan a la interfaz. Es una barrera para ti,
