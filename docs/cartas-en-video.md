@@ -459,9 +459,10 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
 - [ ] Medir los parámetros nuevos del master (`-crf 21 -preset medium` con audio); los de la sección 7 son los de la prueba vieja
 - [ ] Verificar la portada a `-q:v 5` — los ~80 KB son estimación, se midió a `-q:v 3` (155 KB)
 - [ ] Convertir con el servidor sirviendo tráfico real, para ver si `nice` basta
-- [ ] Pruebas para `argumentosEntregable` / `argumentosMaster` / `argumentosPortada`
-      (están exportadas para eso). Sí hay pruebas de la puerta de plan y del panel
-- [ ] Pruebas para `limpieza.recogerNombres`
+- [x] Pruebas para `argumentosEntregable` (8: encuadre por formato, calidad por
+      formato, formato desconocido, y lo que NO debe cambiar con él)
+- [ ] Pruebas para `argumentosMaster` / `argumentosPortada` (están exportadas para eso)
+- [x] Pruebas para `limpieza.recogerNombres` — y para `pasada`, que es la que borra
 
 ### Seguridad
 
@@ -478,7 +479,12 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
 
 ### Infraestructura
 
-- [x] Limpiador de huérfanos activo (primera pasada: 35 archivos, 8,7 MB)
+- [x] Limpiador de huérfanos activo y BORRANDO desde el 21 de agosto, con tope
+      de seguridad al 50 % del disco y pruebas. La primera pasada real dio
+      `0/0 de 148 archivos`: correcto, porque los cuatro que sobraban tenían
+      menos de los 7 días de gracia. La primera que borre algo cae sobre el 25.
+      (Aquí ponía "primera pasada: 35 archivos, 8,7 MB", que no cuadra con
+      ningún registro observado — llevaba desde entonces en simulacro.)
 - [ ] **Copia de seguridad de `/opt/menus/uploads`.** El bind mount protege de los despliegues, no de perder el servidor. Dokploy respalda la base, no esa carpeta
 - [ ] Reinicio pendiente por actualización de kernel, más 27 actualizaciones sin aplicar. Con los restaurantes cerrados
 - [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
