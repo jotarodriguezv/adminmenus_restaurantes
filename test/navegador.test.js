@@ -499,6 +499,66 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('mensajeDeSubida · qué se lee cuando falla un video', () => {
+	// Un video son decenas de megas por una conexión doméstica. El panel
+	// enseñaba "Error" a secas para todas las formas de fallar ahí, y con eso
+	// no se puede diagnosticar nada: pasó de verdad con el Tartar de Indigo y
+	// hubo que reconstruirlo desde los registros de Supabase.
+	const { mensajeDeSubida } = cargar('index.html',
+		'function mensajeDeSubida', 'function enviarVideo', {});
+
+	test('cortarse a medias dice por dónde iba', () => {
+		// El porcentaje es lo que separa "es tu conexión" de "es el servidor".
+		assert.match(mensajeDeSubida({ tipo: 'red', porcentaje: 8.4 }),  /8%/);
+		assert.match(mensajeDeSubida({ tipo: 'red', porcentaje: 61.7 }), /62%/);
+		assert.match(mensajeDeSubida({ tipo: 'red', porcentaje: 61.7 }), /no llegó entero/);
+	});
+
+	test('subido entero y sin respuesta NO invita a reintentar', () => {
+		// Aquí el trabajo puede estar ya encolado. Decir "vuelve a intentarlo"
+		// es pedir el mismo video dos veces y dejar uno huérfano en el disco.
+		const m = mensajeDeSubida({ tipo: 'red', porcentaje: 100 });
+		assert.match(m, /se subió entero/);
+		assert.ok(!/vuelve a intentarlo/i.test(m), 'no debe empujar a reintentar');
+	});
+
+	test('lo que explique el servidor manda sobre cualquier texto nuestro', () => {
+		// "El archivo pasa del límite de 200 MB" y "Solo MP4 o MOV" están
+		// escritos para leerse; taparlos con un genérico sería peor.
+		assert.equal(
+			mensajeDeSubida({ tipo: 'http', estado: 400, error: 'Solo MP4 o MOV' }),
+			'Solo MP4 o MOV');
+		assert.equal(
+			mensajeDeSubida({ tipo: 'http', estado: 507, error: 'No hay espacio suficiente en el servidor' }),
+			'No hay espacio suficiente en el servidor');
+	});
+
+	test('un estado sin cuerpo legible no se queda en "Error"', () => {
+		// Es exactamente el caso que no supimos leer: algo por delante del
+		// servidor contesta su propia página HTML y el panel no la entiende.
+		assert.match(mensajeDeSubida({ tipo: 'http', estado: 413 }), /413/);
+		assert.match(mensajeDeSubida({ tipo: 'http', estado: 413 }), /tamaño/);
+		for (const estado of [502, 503, 504])
+			assert.match(mensajeDeSubida({ tipo: 'http', estado }), new RegExp(String(estado)));
+		assert.match(mensajeDeSubida({ tipo: 'http', estado: 418 }), /418/);
+	});
+
+	test('ningún camino devuelve vacío ni la palabra "Error" a secas', () => {
+		const casos = [
+			{ tipo: 'red', porcentaje: 0 }, { tipo: 'red', porcentaje: 100 },
+			{ tipo: 'http', estado: 400 }, { tipo: 'http', estado: 413 },
+			{ tipo: 'http', estado: 500 }, { tipo: 'http', estado: 504 },
+			{ tipo: 'http', estado: 0 },
+		];
+		for (const c of casos) {
+			const m = mensajeDeSubida(c);
+			assert.ok(m && m.length > 20, `mensaje pobre en ${JSON.stringify(c)}: ${m}`);
+			assert.notEqual(m, 'Error');
+		}
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('trabajoEnCursoDe · una conversión en marcha se ve al reabrir', () => {
 	// La vigilancia sobrevive a cerrar la ficha, pero no a recargar la página.
 	// Sin esto, el plato vuelve a decir "Sin video" mientras el worker todavía
