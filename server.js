@@ -104,9 +104,52 @@ const almacenVideo = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+    const nombre = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+    // Se apunta la ruta AQUÍ, que es cuando se decide, y no al terminar.
+    // Multer solo publica req.file cuando el archivo llegó entero; si la
+    // subida se corta antes, req.file no existe nunca y lo que se llevaba
+    // escrito no lo borra nadie. Ver limpiarSubidaCortada.
+    req._archivoEnVuelo = path.join(__dirname, 'uploads', video.CARPETAS.origen, nombre);
+    cb(null, nombre);
   }
 });
+
+// ── SUBIDAS QUE SE CORTAN A MEDIAS ────────────────────────────
+// Pasó de verdad, y costó encontrarlo: dos intentos de subir un video de 70
+// MB se cayeron a media transferencia y dejaron los dos trozos en el disco,
+// 150 MB, sin que nada los recogiera.
+//
+// El descartar() de la ruta no sirve para esto: vive DENTRO del manejador, y
+// cuando el cliente se va multer nunca llama a next(), así que el manejador
+// no llega a ejecutarse. Tiene que limpiar alguien de más afuera.
+//
+// 'close' sin 'complete' es la forma correcta de detectarlo: complete solo es
+// cierto si el cuerpo entró entero. (req.aborted diría lo mismo, pero está
+// desaconsejado desde Node 16.)
+//
+// El limpiador de huérfanos también acabaría recogiéndolos, pero tarda siete
+// días. Una racha de subidas cortadas en una conexión mala llena el disco
+// mucho antes de eso, y con el disco lleno no se cae el video: se cae el
+// servidor entero.
+function limpiarSubidaCortada(req, res, next) {
+  req.on('close', () => {
+    if (req.complete) return;              // llegó entero, no hay nada que limpiar
+    const ruta = req._archivoEnVuelo;
+    if (!ruta) return;                     // se cortó antes de escribir un byte
+    // Un respiro para que multer suelte su escritura antes de borrar.
+    setTimeout(() => {
+      let bytes = 0;
+      try { bytes = fs.statSync(ruta).size; } catch { return; }
+      try {
+        fs.unlinkSync(ruta);
+        console.warn(`⚠️  subida cortada a medias: descartados ${(bytes / 1048576).toFixed(1)} MB (${path.basename(ruta)})`);
+      } catch (e) {
+        console.error(`⚠️  subida cortada y no se pudo borrar ${path.basename(ruta)}: ${e.message}`);
+      }
+    }, 500).unref();
+  });
+  next();
+}
 
 const subidaVideo = multer({
   storage: almacenVideo,
@@ -656,6 +699,9 @@ app.post('/api/video', auth,
       return res.status(507).json({ error: 'No hay espacio suficiente en el servidor' });
     next();
   },
+  // Va antes de multer a propósito: tiene que estar escuchando desde antes de
+  // que se escriba el primer byte.
+  limpiarSubidaCortada,
   subidaVideo.single('file'),
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No se recibió video' });
