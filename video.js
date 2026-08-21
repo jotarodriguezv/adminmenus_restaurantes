@@ -90,18 +90,44 @@ const desdeDe = seg => (seg > 0 ? ['-ss', String(seg)] : []);
 //
 // El master no cambia: sigue sin recortar en los dos casos. Por eso pasar un
 // restaurante de un formato al otro es reconvertir, no volver a grabar.
-const MEDIDAS = {
-  horizontal: [1280, 720],
-  vertical:   [720, 1280],
+// Cada formato con su medida Y su calidad, en una sola tabla. Van juntas
+// porque la calidad que hace falta depende de dónde se va a mirar el video, y
+// eso lo decide el formato.
+//
+// Los dos tienen el mismo número de píxeles —720x1280 y 1280x720 son lo
+// mismo girado—, así que la diferencia no es de resolución sino de tamaño en
+// pantalla. El apaisado se ve en una tarjeta dentro de una lista; el vertical
+// ocupa la pantalla entera del móvil. A ese tamaño el mismo archivo perdona
+// muchísimo menos: se le nota el bloque en las sombras y el ruido en los
+// degradados.
+//
+// De ahí que el vertical gaste más bits. Sale a algo más del doble de peso
+// (de ~1 MB a ~2,3 MB por plato), y es donde tiene sentido gastarlos: es el
+// modelo cuyo único contenido es el video a tamaño completo.
+//
+// El maxrate sube con el crf a propósito. Con el tope en 1500k, bajar el crf
+// no serviría de nada en los planos con movimiento —justo donde se ve el
+// problema—: el limitador recortaría la mejora antes de que llegue.
+//
+// Ojo: esto solo afecta a las conversiones NUEVAS. Los videos ya convertidos
+// se quedan como están; para rehacerlos hay que volver a codificar desde su
+// master, que para eso se guarda sin recortar.
+const FORMATOS = {
+  horizontal: { ancho: 1280, alto:  720, crf: 30, maxrate: '1500k', bufsize: '3000k' },
+  vertical:   { ancho:  720, alto: 1280, crf: 26, maxrate: '2500k', bufsize: '5000k' },
 };
 
+// Compatibilidad hacia atrás: había código y pruebas mirando MEDIDAS.
+const MEDIDAS = Object.fromEntries(
+  Object.entries(FORMATOS).map(([k, f]) => [k, [f.ancho, f.alto]]));
+
 function argumentosEntregable(entrada, salida, desde = 0, formato = 'horizontal') {
-  const [ancho, alto] = MEDIDAS[formato] || MEDIDAS.horizontal;
+  const f = FORMATOS[formato] || FORMATOS.horizontal;
   return [...COMUNES, ...desdeDe(desde), '-i', entrada,
     '-t', String(DURACION_MAX),
-    '-vf', recorte(ancho, alto),
+    '-vf', recorte(f.ancho, f.alto),
     '-c:v', 'libx264', '-profile:v', 'main', '-pix_fmt', 'yuv420p',
-    '-crf', '30', '-maxrate', '1500k', '-bufsize', '3000k', '-preset', 'slow',
+    '-crf', String(f.crf), '-maxrate', f.maxrate, '-bufsize', f.bufsize, '-preset', 'slow',
     // faststart mueve el índice al principio del archivo: sin esto el
     // navegador descarga el video entero antes de pintar el primer cuadro.
     '-movflags', '+faststart',
@@ -407,7 +433,7 @@ async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 
 
 module.exports = {
   arrancar, encolar,
-  CARPETAS, DURACION_MAX, DURACION_MIN, MEDIDAS,
+  CARPETAS, DURACION_MAX, DURACION_MIN, MEDIDAS, FORMATOS,
   // Exportados para las pruebas: son puros y se pueden comprobar sin
   // ejecutar ffmpeg ni tocar el disco.
   argumentosEntregable, argumentosMaster, argumentosPortada, instantePortada,
