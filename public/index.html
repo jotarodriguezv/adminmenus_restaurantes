@@ -896,7 +896,11 @@
 						<!-- Solo con el modelo vertical: los demás no tienen estilos.
 						     Lo enseña y lo esconde ajustarEstiloAlModelo(). -->
 						<div class="form-group" id="apEstiloFila" style="margin-top:14px;margin-bottom:0;display:none">
-							<label class="form-label">Estilo <span style="color:var(--text-dim);font-weight:400">(solo cambia el aspecto, no el funcionamiento)</span></label>
+							<!-- "Estilo" a secas no vale: en Apariencia hay otro control
+							     llamado "Estilo del fondo", y con dos etiquetas iguales
+							     hay que abrir las dos para saber cuál es cuál. El nombre
+							     dice a qué se aplica. -->
+							<label class="form-label">Estilo de la carta vertical <span style="color:var(--text-dim);font-weight:400">(solo cambia el aspecto, no el funcionamiento)</span></label>
 							<select class="form-select" id="apEstilo">
 								<option value="clasico">Clásico — el que ya conoces</option>
 								<option value="intenso">Intenso — a sangre, texto grande y mucho contraste</option>
