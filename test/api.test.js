@@ -337,6 +337,39 @@ describe('POST /api/video · la carta en video depende del plan', () => {
 		const despues = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
 		assert.equal(despues, antes, 'el video rechazado no debe quedarse en uploads/originales');
 	});
+
+	test('una subida que se corta a medias tampoco deja el trozo', async () => {
+		// Pasó de verdad: dos intentos de subir un video de 70 MB se cayeron a
+		// media transferencia y dejaron 150 MB tirados en el disco.
+		//
+		// El descartar() de la ruta no cubre esto. Vive dentro del manejador, y
+		// cuando el cliente se va multer nunca llama a next(), así que el
+		// manejador no llega a correr: no hay req.file y no hay nadie que
+		// borre. Tiene que limpiar alguien de más afuera.
+		const dir = path.join(__dirname, '..', 'uploads', 'originales');
+		const antes = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
+
+		conPlan('video');
+		await S.subirYCortar('/api/video', { restaurante_id: IDS.restaurante }, tokenCliente);
+
+		// El borrado va con medio segundo de respiro, para que multer suelte su
+		// escritura antes.
+		await new Promise(r => setTimeout(r, 1500));
+
+		const despues = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
+		assert.equal(despues, antes, 'el trozo a medio subir debe borrarse solo');
+	});
+
+	test('una subida cortada no encola ningún trabajo', async () => {
+		// Media conversión de medio archivo no le sirve a nadie, y dejaría una
+		// fila en 'pendiente' que el worker intentaría tres veces antes de
+		// rendirse.
+		conPlan('video');
+		await S.subirYCortar('/api/video', { restaurante_id: IDS.restaurante }, tokenCliente);
+		await new Promise(r => setTimeout(r, 300));
+
+		assert.equal(S.llamadas.some(l => l.tabla === 'trabajos_video'), false);
+	});
 });
 
 // ═══════════════════════════════════════════════════════════════
