@@ -1787,7 +1787,17 @@ async function apiFetch(method, endpoint, body=null, isForm=false) {
   else if (body && isForm) { opts.body=body; }
   const res = await fetch(`${API}${endpoint}`, opts);
   if (res.status===401) { logout(); return null; }
-  if (!res.ok) { const e=await res.json().catch(()=>({error:'Error'})); throw new Error(e.error||'Error'); }
+  // Un cuerpo que no es JSON no lo pone esta aplicación: lo pone algo por
+  // delante (el proxy que corta por tamaño, una pasarela que se cansa de
+  // esperar) o algo que se rompió antes de llegar. Decir "Error" a secas en
+  // ese caso deja al usuario sin nada que contar y a nosotros sin nada que
+  // buscar — pasó con una subida de video y costó una noche de rastreo.
+  // El código de estado es lo único que distingue esos casos, así que va en
+  // el mensaje.
+  if (!res.ok) {
+    const e = await res.json().catch(() => null);
+    throw new Error(e?.error || `El servidor respondió ${res.status} sin explicación`);
+  }
   return res.json();
 }
 
@@ -2541,6 +2551,67 @@ function avisarSiSePasaElVideo() {
 		: '';
 }
 
+// ── QUÉ DECIR CUANDO LA SUBIDA FALLA ──────────────────────────
+// Un video son decenas de megas por una conexión doméstica, y ahí se falla
+// de maneras que no dejan mensaje: el proxy corta por tamaño y devuelve su
+// propia página HTML, la pasarela se cansa de esperar, o el enlace se cae a
+// media subida y ni siquiera hay respuesta. El panel enseñaba "Error" a
+// secas para las tres, que es tanto como no decir nada.
+//
+// La distinción que más importa es la última de la lista: si el archivo
+// llegó entero y lo que faltó fue la respuesta, el trabajo PUEDE estar ya
+// encolado. Decirle a alguien que reintente ahí es pedirle que suba el mismo
+// video dos veces y deje uno huérfano ocupando disco.
+function mensajeDeSubida(f) {
+	if (f.tipo === 'red') {
+		return f.porcentaje >= 100
+			? 'El archivo se subió entero pero el servidor no contestó. Espera un momento y mira si el video aparece antes de volver a subirlo.'
+			: `Se cortó la conexión al ${Math.round(f.porcentaje)}% de la subida. El archivo no llegó entero, vuelve a intentarlo.`;
+	}
+	// Lo que explique el servidor manda: son mensajes escritos para leerse
+	// ("El archivo pasa del límite de 200 MB", "Solo MP4 o MOV").
+	if (f.error) return f.error;
+	if (f.estado === 413) return 'Algo entre tu navegador y el servidor rechazó el archivo por tamaño (413). Prueba con un video más corto.';
+	if (f.estado === 502 || f.estado === 503 || f.estado === 504)
+		return `El servidor no terminó de atender la subida (${f.estado}). Suele ser que tardó demasiado; vuelve a intentarlo.`;
+	return `El servidor respondió ${f.estado} sin explicación.`;
+}
+
+// fetch() no sabe decir cuánto lleva subido, y en un archivo de 70 MB eso es
+// justo lo que hace falta saber: si se cortó al 8% es la conexión, si se
+// cortó al 100% es el servidor. XMLHttpRequest sí lo cuenta.
+function enviarVideo(fd, alProgresar) {
+	return new Promise((resolve, reject) => {
+		const xhr = new XMLHttpRequest();
+		let porcentaje = 0;
+
+		const falla = f => reject(Object.assign(new Error(mensajeDeSubida(f)), f));
+
+		xhr.open('POST', `${API}/api/video`);
+		xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+		xhr.upload.onprogress = e => {
+			if (!e.lengthComputable) return;
+			porcentaje = e.loaded / e.total * 100;
+			alProgresar(porcentaje);
+		};
+
+		xhr.onload = () => {
+			if (xhr.status === 401) { logout(); return reject(new Error('La sesión caducó. Vuelve a entrar.')); }
+			let cuerpo = null;
+			try { cuerpo = JSON.parse(xhr.responseText); } catch { /* no era JSON */ }
+			if (xhr.status >= 200 && xhr.status < 300 && cuerpo) return resolve(cuerpo);
+			falla({ tipo: 'http', estado: xhr.status, error: cuerpo?.error, porcentaje });
+		};
+
+		// Los tres son lo mismo para quien mira: no hubo respuesta.
+		xhr.onerror = xhr.ontimeout = xhr.onabort =
+			() => falla({ tipo: 'red', porcentaje });
+
+		xhr.send(fd);
+	});
+}
+
 async function confirmarSubidaVideo() {
 	if (!videoElegido) return;
 	const productoId = document.getElementById('editProductId').value;
@@ -2553,7 +2624,8 @@ async function confirmarSubidaVideo() {
 
 	const desde = Math.max(0, Number(document.getElementById('videoDesde').value) || 0);
 	const btn = document.getElementById('btnConfirmarVideo');
-	st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
+	const megas = (videoElegido.size / 1048576).toFixed(0);
+	st.textContent = `Subiendo... 0% de ${megas} MB`; st.style.color = 'var(--text-muted)';
 	btn.disabled = true;
 
 	try {
@@ -2562,7 +2634,11 @@ async function confirmarSubidaVideo() {
 		fd.append('producto_id', productoId);
 		fd.append('desde', String(desde));
 		fd.append('file', videoElegido);
-		const r = await apiFetch('POST', '/api/video', fd, true);
+		const r = await enviarVideo(fd, pct => {
+			// Sin el porcentaje, una subida larga y una subida colgada se ven
+			// exactamente igual, y la gente vuelve a darle al botón.
+			st.textContent = `Subiendo... ${Math.round(pct)}% de ${megas} MB`;
+		});
 
 		st.textContent = 'Convirtiendo... (1-2 min)';
 		// La previsualización local se queda puesta mientras convierte: así se
@@ -2576,6 +2652,17 @@ async function confirmarSubidaVideo() {
 	} catch (e) {
 		st.textContent = e.message || 'Error al subir';
 		st.style.color = 'var(--danger)';
+
+		// Si el archivo llegó entero y lo que se perdió fue la respuesta, el
+		// trabajo puede estar ya en la cola. En vez de dejarlo a que el
+		// usuario adivine, se pregunta: si aparece, la ficha se repinta sola
+		// diciendo "Convirtiendo" y apagando el botón de subir. Es la misma
+		// comprobación que se hace al abrir el plato.
+		if (e.tipo === 'red' && e.porcentaje >= 100) {
+			await cargarTrabajosVideo();
+			const p = (state.productos || []).find(x => x.id === productoId);
+			if (p && trabajoEnCursoDe(productoId)) return pintarVideoPlato(p);
+		}
 	} finally {
 		btn.disabled = false;
 	}
