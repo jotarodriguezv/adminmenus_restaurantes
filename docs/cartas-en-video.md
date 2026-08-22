@@ -485,7 +485,11 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       menos de los 7 días de gracia. La primera que borre algo cae sobre el 25.
       (Aquí ponía "primera pasada: 35 archivos, 8,7 MB", que no cuadra con
       ningún registro observado — llevaba desde entonces en simulacro.)
-- [ ] **Copia de seguridad de `/opt/menus/uploads`.** El bind mount protege de los despliegues, no de perder el servidor. Dokploy respalda la base, no esa carpeta
+- [x] **Copia de seguridad de `/opt/menus/uploads`** (22/08/2026). Instantáneas
+      con restic en Backblaze B2, a diario, con restauración comprobada byte a
+      byte y la clave verificada. Ver `docs/servidor.md` y `respaldo/LEEME.md`.
+      Queda un agujero: nadie se entera si deja de correr — `MAILTO` no avisa
+      porque el servidor no sabe enviar correo
 - [ ] Reinicio pendiente por actualización de kernel, más 27 actualizaciones sin aplicar. Con los restaurantes cerrados
 - [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
 - [ ] Borrar el bucket `vmenus-imagenes` de Supabase (los 14 MB viejos, ya sin referencias)
@@ -516,8 +520,10 @@ esporádica, probablemente nunca haga falta.
 
 ### Pendientes de mantenimiento
 
-- `/opt/menus/uploads` **no está respaldado**. El bind mount protege de los
-  despliegues, no de perder el servidor. Dokploy respalda la base de datos, no esa carpeta.
+- `/opt/menus/uploads` **ya está respaldado** desde el 22/08/2026 — instantáneas
+  diarias en Backblaze, con restauración comprobada. Todo lo operativo (rutas,
+  cron, secretos, cómo recuperar) está en `docs/servidor.md`; cómo se montó, en
+  `respaldo/LEEME.md`. Lo que sigue abierto es enterarse si deja de correr.
 - Hay un reinicio pendiente por actualización de kernel y actualizaciones de
   seguridad sin aplicar. Hacer en horario de restaurantes cerrados.
 - Revisar `docker system df`: 26 GB usados de 48 sin video de por medio, y las
