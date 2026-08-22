@@ -60,6 +60,23 @@ chmod 600 /root/.respaldo.env
 > cosas importantes, y no solo en este servidor: si el motivo para restaurar es
 > que se perdió el servidor, la contraseña se habría perdido con él.
 
+### 3.bis. Poner los scripts en el anfitrión
+
+Estos archivos viven en el repositorio, así que el despliegue los mete **dentro
+del contenedor**. Pero el respaldo tiene que correr en el **anfitrión**:
+`/opt/menus/uploads` es una carpeta del anfitrión y dentro del contenedor esa
+ruta no existe.
+
+```bash
+mkdir -p /opt/menus/respaldo
+docker cp $(docker ps -q --filter "name=adminvmenus"):/app/respaldo/. /opt/menus/respaldo/
+chmod +x /opt/menus/respaldo/*.sh
+```
+
+> **Cada despliegue actualiza el contenedor, no `/opt/menus/respaldo/`.** Si
+> algún día se cambian estos scripts, hay que repetir ese `docker cp`. Si no, el
+> anfitrión sigue corriendo la versión vieja sin que nada lo diga.
+
 ### 4. Iniciar el repositorio y hacer la primera copia
 
 ```bash
@@ -81,6 +98,22 @@ por carpeta y **compara byte a byte** los cinco más grandes. No toca
 
 Un respaldo que nunca se ha restaurado no es un respaldo: es la esperanza de
 tener uno. Hasta que esto no salga en verde, no está hecho.
+
+### 5.bis. Comprobar que la clave ANOTADA es la buena
+
+Hay dos copias de la contraseña: la de `/root/.respaldo.env`, que funciona
+porque `restic init` la aceptó, y la que se guardó en el gestor. Si al
+escribirla se fue un carácter, **no hay forma de notar que no coinciden** hasta
+el día que haga falta restaurar sin el servidor delante — que es justo el día en
+que la anotada es la única que queda.
+
+```bash
+env -u RESTIC_PASSWORD restic key list
+```
+
+Ignora la clave del archivo y la pide por teclado. Se escribe **la anotada**. Si
+sale una tabla con una llave, la copia es correcta; si dice `wrong password`,
+hay que corregirla mientras todavía se tiene la buena.
 
 ### 6. Automatizarlo
 
