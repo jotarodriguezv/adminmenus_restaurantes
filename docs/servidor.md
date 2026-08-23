@@ -76,6 +76,7 @@ Ninguno está en el repositorio, y así debe seguir.
 |---|---|---|
 | `RESTIC_PASSWORD` | `/root/.respaldo.env` + gestor de contraseñas | **el respaldo entero es irrecuperable** |
 | `B2_ACCOUNT_ID` / `B2_ACCOUNT_KEY` | `/root/.respaldo.env` | se generan otras en Backblaze |
+| `RESPALDO_PING` | `/root/.respaldo.env` | se regenera en healthchecks.io |
 | `PIN_ADMIN` | variables de entorno de Dokploy | se cambia en el panel de Dokploy |
 | PIN de cada restaurante | tabla `restaurantes_privado`, como hash bcrypt | se reasigna desde el panel |
 
@@ -128,6 +129,13 @@ anterior. Para moverlo a la madrugada de allá habría que poner `30 9`.
 > servidor apagado no manda un correo diciendo que está apagado, y un silencio
 > solo lo nota quien esperaba noticias desde fuera. Ver "Lo que falta".
 
+Confirmado el 23/08/2026 que el cron dispara de verdad: apareció una
+instantánea de las 04:30 UTC que no la lanzó nadie a mano.
+
+`respaldo.sh` avisa además a healthchecks.io al terminar — a la URL de éxito
+si todo fue bien, y a `<url>/fail` con el motivo si algo falló. Esa es la
+alarma real; el `MAILTO` de arriba no cuenta.
+
 Dentro del contenedor del panel corren además, sin cron, arrancados por
 `server.js`:
 
@@ -144,8 +152,10 @@ Dentro del contenedor del panel corren además, sin cron, arrancados por
 /opt/menus/respaldo/verificar.sh
 ```
 
-Dice cuándo fue la última copia y sale con error si pasa de 30 h. **Merece la
-pena correrlo una vez a la semana** mientras no haya vigilancia externa.
+Dice cuándo fue la última copia y sale con error si pasa de 30 h. Ya no hace
+falta acordarse de correrlo: desde el 23/08/2026 la vigilancia de
+healthchecks.io avisa sola si el respaldo deja de reportar. Esto queda para
+mirarlo a mano cuando se quiera comprobar algo concreto.
 
 ### ¿Qué está borrando el limpiador?
 
@@ -236,12 +246,10 @@ Recogidas por haberlas sufrido:
 
 ## 8. Lo que falta
 
-- **La vigilancia del respaldo está lista pero hay que darla de alta.**
-  `respaldo.sh` hace un ping a `RESPALDO_PING` al terminar, solo si todo fue
-  bien. Falta crear el check en healthchecks.io y añadir esa variable a
-  `/root/.respaldo.env` — ver el paso 7 de `respaldo/LEEME.md`. Mientras no
-  esté, nadie se entera si el respaldo deja de correr: `MAILTO` no sirve
-  porque el servidor no sabe enviar correo.
+- ~~La vigilancia del respaldo~~ — **hecho el 23/08/2026.** Check en
+  healthchecks.io (periodo 1 día, margen 6 h) y `RESPALDO_PING` en
+  `/root/.respaldo.env`. Probada en los dos sentidos: una copia buena lo pone
+  en verde, y un fallo lo pone en rojo con el motivo dentro.
 - **Reinicio pendiente por kernel** (corre 6.8.0-134, instalado 6.8.0-138) más
   actualizaciones de seguridad sin aplicar. Con los restaurantes cerrados.
 - **`docker system df`**: 26 GB usados de 48. Las imágenes viejas suelen ser lo
@@ -254,6 +262,23 @@ Recogidas por haberlas sufrido:
 ---
 
 ## Registro de cambios
+
+**23/08/2026 — Vigilancia del respaldo**
+
+Faltaba lo único que no se puede resolver desde el propio servidor: enterarse
+de que dejó de correr. Un servidor apagado no manda un correo diciendo que
+está apagado.
+
+- Check en healthchecks.io, periodo 1 día y margen 6 h — los mismos 30 h que
+  usa `verificar.sh`, para que los dos digan lo mismo.
+- Éxito → ping. Fallo → `<url>/fail` **con el motivo dentro**, así que el
+  aviso llega enseguida y ya explica qué pasó, en vez de un silencio que
+  tarda seis horas en notarse.
+- Probada en los dos sentidos, que es lo que la convierte en alarma: una que
+  solo se ha visto funcionar cuando todo va bien no está comprobada.
+
+El mismo día se confirmó que el cron dispara solo: apareció una instantánea de
+las 04:30 UTC que no lanzó nadie.
 
 **22/08/2026 — Respaldo de `/opt/menus/uploads`**
 
