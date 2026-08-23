@@ -936,11 +936,38 @@ function imagenParaCompartir(r) {
   return at.portada_url || r?.logo_url || r?.fondo_url || null;
 }
 
-function paginaOpenGraph(r, url) {
+// Y si el restaurante no tiene ninguna de las tres, una foto de plato antes
+// que rendirse. Sale de mirar los datos de verdad: de siete restaurantes,
+// tres no tenían logo — y dos de ellos tenían seis platos fotografiados cada
+// uno. Mandar una tarjeta sin foto teniendo eso es tirar lo que más llama la
+// atención de un menú.
+//
+// Va como último recurso y no antes que el logo: el logo lo eligió el
+// negocio para representarse, y una tarjeta de WhatsApp es pequeña. Pero
+// entre un plato y nada, el plato.
+//
+// Solo se pregunta cuando hace falta, así que a los que tienen logo no les
+// cuesta una consulta de más.
+async function fotoDeAlgunPlato(restauranteId) {
+  if (!restauranteId) return null;
+  try {
+    const { data } = await supabase.from('productos')
+      .select('imagen_url')
+      .eq('restaurante_id', restauranteId)
+      .eq('disponible', true)
+      .not('imagen_url', 'is', null)
+      .limit(1).maybeSingle();
+    return data?.imagen_url || null;
+  } catch { return null; }
+}
+
+// 'imagenSuelta' la pasa quien llama cuando el restaurante no trae ninguna
+// suya: así esta función sigue sin tocar la base y se puede comprobar sola.
+function paginaOpenGraph(r, url, imagenSuelta) {
   const at = r?.atributos || {};
   const titulo = r?.nombre || 'Carta digital';
   const desc = at.subtitulo || `Mira la carta de ${titulo}`;
-  const img = imagenParaCompartir(r);
+  const img = imagenParaCompartir(r) || imagenSuelta || null;
 
   return `<!doctype html>
 <html lang="es"><head><meta charset="utf-8">
@@ -1019,7 +1046,7 @@ app.get('/api/og', async (req, res) => {
 
   try {
     const { data } = await supabase.from('restaurantes')
-      .select('nombre, slug, logo_url, fondo_url, activo, atributos')
+      .select('id, nombre, slug, logo_url, fondo_url, activo, atributos')
       .eq('slug', slug).maybeSingle();
 
     // Un restaurante inactivo o inexistente NO se anuncia con su nombre: se
@@ -1028,7 +1055,10 @@ app.get('/api/og', async (req, res) => {
     if (!data || data.activo === false) {
       return res.status(200).send(paginaOpenGraph({ nombre: 'Carta digital' }, destino));
     }
-    res.send(paginaOpenGraph(data, destino));
+    // Solo si no trae ninguna propia: a los que tienen logo no les cuesta
+    // una consulta de más.
+    const respaldo = imagenParaCompartir(data) ? null : await fotoDeAlgunPlato(data.id);
+    res.send(paginaOpenGraph(data, destino, respaldo));
   } catch (e) {
     // Que un fallo de base de datos no deje al robot sin nada: peor tarjeta,
     // pero tarjeta. Y nunca un 500, que algunos robots recuerdan.
