@@ -467,3 +467,157 @@ describe('POST /api/login · límite de intentos', () => {
 		assert.match(r.body.error, /intentos/i);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('GET /api/og/:slug · la vista previa al compartir', () => {
+	// El robot de WhatsApp pide la URL, lee el HTML crudo y se va: no ejecuta
+	// JavaScript. Como la carta pública se pinta en el navegador, el HTML que
+	// sale del servidor no sabe de qué restaurante es, y por eso compartir un
+	// enlace mandaba una tarjeta vacía. Esto es lo que la rellena.
+	const conRestaurante = fila => S.conTabla(st =>
+		st.tabla === 'restaurantes' ? { data: fila, error: null } : { data: null, error: null });
+
+	// nginx manda host y path porque es el único que sabe con qué dominio
+	// entraron: la misma carta responde de las dos formas.
+	const og = (host, path) => `/api/og?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}`;
+
+	const BONZAS = {
+		nombre: 'Bonzas', slug: 'bonzas', activo: true,
+		logo_url: 'https://admin.example.com/uploads/logos/bonzas.png',
+		fondo_url: 'https://admin.example.com/uploads/fondos/textura.jpg',
+		atributos: { subtitulo: 'Carta Digital · 2026' },
+	};
+
+	test('devuelve HTML, no JSON, y sin pedir credenciales', async () => {
+		// Un robot no se autentica. Si esto pidiera token, no habría vista previa.
+		conRestaurante(BONZAS);
+		const r = await S.pedirTexto(og('menu.vmenus.co', '/bonzas'));
+		assert.equal(r.status, 200);
+		assert.match(r.tipo, /text\/html/);
+	});
+
+	test('el nombre y el subtítulo del restaurante van en la tarjeta', async () => {
+		conRestaurante(BONZAS);
+		const { html } = await S.pedirTexto(og('menu.vmenus.co', '/bonzas'));
+		assert.match(html, /<meta property="og:title" content="Bonzas">/);
+		assert.match(html, /og:description" content="Carta Digital · 2026"/);
+		assert.match(html, /<title>Bonzas<\/title>/);
+	});
+
+	test('la imagen es el logo, no el fondo', async () => {
+		// Un fondo suele ser una textura, y una textura en la vista previa no
+		// dice de quién es la carta.
+		conRestaurante(BONZAS);
+		const { html } = await S.pedirTexto(og('menu.vmenus.co', '/bonzas'));
+		assert.match(html, /og:image" content="[^"]*logos\/bonzas\.png"/);
+		assert.ok(!html.includes('textura.jpg'), 'el fondo no debe ganarle al logo');
+	});
+
+	test('sin ninguna imagen no se inventa una etiqueta vacía', async () => {
+		// Un og:image vacío hace que algunos clientes enseñen un hueco roto;
+		// sin la etiqueta, enseñan la tarjeta de solo texto, que se ve bien.
+		conRestaurante({ nombre: 'Sin Fotos', slug: 'sinfotos', activo: true, atributos: {} });
+		const { html } = await S.pedirTexto(og('menu.vmenus.co', '/sinfotos'));
+		assert.ok(!html.includes('og:image'), 'no debe haber og:image');
+		assert.match(html, /twitter:card" content="summary"/, 'tarjeta pequeña sin imagen');
+	});
+
+	test('og:site_name es el restaurante, no la plataforma', async () => {
+		// La tarjeta es del negocio. Los planes sin marca pagan por eso.
+		conRestaurante(BONZAS);
+		const { html } = await S.pedirTexto(og('menu.vmenus.co', '/bonzas'));
+		assert.match(html, /og:site_name" content="Bonzas"/);
+		assert.ok(!/og:site_name" content="VMenus"/.test(html));
+	});
+
+	test('un restaurante que no existe da tarjeta genérica, no un error', async () => {
+		// Y no confirma qué slugs existen. Un 404 o un 500 quedan recordados
+		// por algunos robots y luego cuesta que vuelvan a mirar.
+		conRestaurante(null);
+		const r = await S.pedirTexto(og('menu.vmenus.co', '/noexiste'));
+		assert.equal(r.status, 200);
+		assert.match(r.html, /Carta digital/);
+	});
+
+	test('un restaurante suspendido no se anuncia con su nombre', async () => {
+		conRestaurante({ ...BONZAS, activo: false });
+		const { html } = await S.pedirTexto(og('menu.vmenus.co', '/bonzas'));
+		assert.ok(!html.includes('Bonzas'), 'no debe filtrar el nombre de un negocio suspendido');
+	});
+
+	test('el destino puede venir de nginx, que sabe con qué dominio entraron', async () => {
+		// La misma carta responde en menu.vmenus.co/bonzas y en bonzas.vmenus.co.
+		conRestaurante(BONZAS);
+		const { html } = await S.pedirTexto(og('bonzas.vmenus.co', '/'));
+		assert.match(html, /og:url" content="https:\/\/bonzas\.vmenus\.co\/"/);
+		assert.match(html, /http-equiv="refresh" content="0;url=https:\/\/bonzas\.vmenus\.co\/"/);
+	});
+
+
+	test('las dos formas de URL resuelven el mismo restaurante', async () => {
+		// menu.vmenus.co/bonzas y bonzas.vmenus.co son la misma carta. La regla
+		// es la misma que leerSlug() en vmenus-app/core/loader.js — están
+		// duplicadas porque son dos aplicaciones distintas, y si se
+		// desincronizan la tarjeta anuncia un restaurante y el enlace abre otro.
+		for (const [host, path] of [['menu.vmenus.co', '/bonzas'], ['bonzas.vmenus.co', '/']]) {
+			S.reiniciar();
+			conRestaurante(BONZAS);
+			await S.pedirTexto(og(host, path));
+			// Se mira el slug que se CONSULTÓ, no el nombre que salió: el
+			// Supabase de pruebas devuelve la misma fila pida lo que pida, así
+			// que afirmar sobre el nombre pasaría aunque la resolución
+			// estuviera rota. Lo comprobé rompiéndola: no fallaba nada.
+			const consulta = S.llamadas.find(l => l.tabla === 'restaurantes');
+			assert.equal(consulta?.filtros?.slug, 'bonzas', `con ${host}${path}`);
+		}
+	});
+
+	test('cada forma apunta a su propia dirección', async () => {
+		// En el subdominio el slug ya está en el dominio: poner /bonzas ahí
+		// daría una URL que no es la que el visitante compartió.
+		conRestaurante(BONZAS);
+		assert.match((await S.pedirTexto(og('menu.vmenus.co', '/bonzas'))).html,
+			/og:url" content="https:\/\/menu\.vmenus\.co\/bonzas"/);
+		assert.match((await S.pedirTexto(og('bonzas.vmenus.co', '/'))).html,
+			/og:url" content="https:\/\/bonzas\.vmenus\.co\/"/);
+	});
+
+	test('el dominio en mayúsculas encuentra el restaurante igual', async () => {
+		// Los nombres de dominio no distinguen mayúsculas y un robot puede
+		// mandarlo como quiera, pero el slug en la base está en minúsculas: sin
+		// normalizar, la consulta no encuentra nada y sale la tarjeta genérica.
+		conRestaurante(BONZAS);
+		await S.pedirTexto(og('MENU.VMENUS.CO', '/BONZAS'));
+		assert.equal(S.llamadas.find(l => l.tabla === 'restaurantes')?.filtros?.slug, 'bonzas');
+	});
+
+	test('los subdominios de la plataforma no son restaurantes', async () => {
+		// www.vmenus.co/bonzas es la carta de bonzas, no la de un restaurante
+		// llamado "www". Misma lista de reservados que en loader.js.
+		conRestaurante(BONZAS);
+		await S.pedirTexto(og('www.vmenus.co', '/bonzas'));
+		assert.equal(S.llamadas.find(l => l.tabla === 'restaurantes')?.filtros?.slug, 'bonzas');
+	});
+
+	test('un destino que no es una URL no se acepta', async () => {
+		// Llega de una cadena de consulta: si se colara un javascript: ahí, el
+		// enlace de "Entrar" sería un ataque servido desde nuestro dominio.
+		conRestaurante(BONZAS);
+		const { html } = await S.pedirTexto(og('javascript:alert(1)', '/bonzas'));
+		assert.ok(!html.includes('javascript:'), 'debe caer al destino por defecto');
+		assert.match(html, /og:url" content="https:\/\/menu\.vmenus\.co\/bonzas"/);
+	});
+
+	test('el nombre no puede inyectar etiquetas', async () => {
+		conRestaurante({ ...BONZAS, nombre: '"><script>alert(1)</script>' });
+		const { html } = await S.pedirTexto(og('menu.vmenus.co', '/bonzas'));
+		assert.ok(!html.includes('<script>'), 'debe ir escapado');
+		assert.match(html, /&lt;script&gt;/);
+	});
+
+	test('se puede cachear: los robots piden lo mismo muchas veces', async () => {
+		conRestaurante(BONZAS);
+		const r = await S.pedirTexto(og('menu.vmenus.co', '/bonzas'));
+		assert.match(r.cache, /max-age=\d+/);
+	});
+});
