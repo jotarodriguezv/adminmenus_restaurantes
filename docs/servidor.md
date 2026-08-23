@@ -122,7 +122,11 @@ anterior. Para moverlo a la madrugada de allá habría que poner `30 9`.
 > **`MAILTO` probablemente no avisa de nada.** El servidor no tiene con qué
 > enviar correo, y aunque lo tuviera, el correo directo desde la IP de un VPS
 > suele acabar en spam. Está puesto porque no estorba, pero **no cuenta como
-> alarma**. Ver "Lo que falta".
+> alarma**.
+>
+> La alarma de verdad es el ping de `respaldo.sh` a un servicio externo: un
+> servidor apagado no manda un correo diciendo que está apagado, y un silencio
+> solo lo nota quien esperaba noticias desde fuera. Ver "Lo que falta".
 
 Dentro del contenedor del panel corren además, sin cron, arrancados por
 `server.js`:
@@ -232,10 +236,12 @@ Recogidas por haberlas sufrido:
 
 ## 8. Lo que falta
 
-- **Nadie se entera si el respaldo deja de correr.** `MAILTO` no sirve (ver
-  arriba). Lo estándar es un ping a un servicio externo al final del script: si
-  no llega a su hora, avisan ellos. `healthchecks.io` tiene plan gratuito de
-  sobra. **Es el único agujero que le queda al respaldo.**
+- **La vigilancia del respaldo está lista pero hay que darla de alta.**
+  `respaldo.sh` hace un ping a `RESPALDO_PING` al terminar, solo si todo fue
+  bien. Falta crear el check en healthchecks.io y añadir esa variable a
+  `/root/.respaldo.env` — ver el paso 7 de `respaldo/LEEME.md`. Mientras no
+  esté, nadie se entera si el respaldo deja de correr: `MAILTO` no sirve
+  porque el servidor no sabe enviar correo.
 - **Reinicio pendiente por kernel** (corre 6.8.0-134, instalado 6.8.0-138) más
   actualizaciones de seguridad sin aplicar. Con los restaurantes cerrados.
 - **`docker system df`**: 26 GB usados de 48. Las imágenes viejas suelen ser lo
