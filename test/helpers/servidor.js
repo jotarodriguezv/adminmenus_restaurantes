@@ -34,6 +34,11 @@ function clienteFalso() {
         delete() { st.op = 'delete'; return q; },
         eq(c, v) { st.filtros[c] = v; return q; },
         neq() { return q; }, in() { return q; },
+        // 'not' y 'limit' los usa la búsqueda de foto de respaldo del endpoint
+        // de Open Graph. Sin ellos la cadena revienta, el try/catch del
+        // servidor se lo traga y la prueba mide un null que no es el de verdad.
+        not(c, op, v) { st.filtros[c] = `not.${op}.${v}`; return q; },
+        limit(n) { st.limite = n; return q; },
         gte(_, v) { st.gte = v; return q; }, lte(_, v) { st.lte = v; return q; },
         order() { return q; }, single() { return q; }, maybeSingle() { return q; },
         then(res, rej) { llamadas.push(st); return Promise.resolve(responderTabla(st)).then(res, rej); },
