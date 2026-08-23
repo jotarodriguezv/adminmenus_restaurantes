@@ -241,6 +241,15 @@ Recogidas por haberlas sufrido:
 - **Migrar datos y desplegar código el mismo día** deja una ventana de "código
   viejo con datos nuevos". El orden correcto es: desplegar código tolerante,
   esperar, y luego migrar.
+- **El aviso de "1 zombie process" al entrar es de Dokploy, no nuestro.** Es un
+  `curl` que su proceso (`node -r dotenv/config dist/server.mjs`) lanza para sus
+  comprobaciones y no recoge. Uno suelto no consume nada; lo que habría que
+  mirar es que se acumularan. Investigado el 23/08/2026: uno solo tras cuatro
+  horas de uptime. Para comprobarlo otro día:
+
+  ```bash
+  ps -eo stat,ppid,pid,comm | awk '$1 ~ /Z/'    # cuántos y de quién cuelgan
+  ```
 
 ---
 
