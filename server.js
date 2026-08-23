@@ -896,6 +896,135 @@ app.get('/api/estadisticas', auth, async (req, res) => {
   });
 });
 
+// ── VISTA PREVIA AL COMPARTIR (Open Graph) ────────────────────
+// Cuando alguien manda el enlace de una carta por WhatsApp, el robot de
+// WhatsApp pide la URL, lee el HTML CRUDO y se va. No ejecuta JavaScript.
+//
+// Y la carta pública es una página que se pinta en el navegador leyendo de
+// Supabase: el HTML que sale del servidor no sabe todavía de qué restaurante
+// es. Por eso hoy compartir cualquier carta manda un enlace pelado, sin foto
+// ni nombre, y por eso NO se arregla desde loader.js — cuando ese código
+// corre, la vista previa ya se decidió.
+//
+// La solución es que alguien conteste HTML con las etiquetas ya puestas, y
+// ese alguien tiene que leer la base de datos: este servidor. nginx manda
+// aquí SOLO a los robots (ver nginx.conf de vmenus-app); las personas siguen
+// recibiendo la aplicación de siempre y no pasan por aquí. Si esto se cayera,
+// se pierden las miniaturas, no las cartas.
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// La imagen de la tarjeta, por orden de lo que mejor representa al negocio.
+// El logo antes que el fondo porque un fondo suele ser una textura, y una
+// textura en la vista previa no dice de quién es la carta.
+function imagenParaCompartir(r) {
+  const at = r?.atributos || {};
+  return at.portada_url || r?.logo_url || r?.fondo_url || null;
+}
+
+function paginaOpenGraph(r, url) {
+  const at = r?.atributos || {};
+  const titulo = r?.nombre || 'Carta digital';
+  const desc = at.subtitulo || `Mira la carta de ${titulo}`;
+  const img = imagenParaCompartir(r);
+
+  return `<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<title>${escHtml(titulo)}</title>
+<meta name="description" content="${escHtml(desc)}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${escHtml(titulo)}">
+<meta property="og:title" content="${escHtml(titulo)}">
+<meta property="og:description" content="${escHtml(desc)}">
+<meta property="og:url" content="${escHtml(url)}">
+${img ? `<meta property="og:image" content="${escHtml(img)}">
+<meta property="og:image:alt" content="${escHtml(titulo)}">` : ''}
+<meta name="twitter:card" content="${img ? 'summary_large_image' : 'summary'}">
+<meta name="twitter:title" content="${escHtml(titulo)}">
+<meta name="twitter:description" content="${escHtml(desc)}">
+${img ? `<meta name="twitter:image" content="${escHtml(img)}">` : ''}
+<meta http-equiv="refresh" content="0;url=${escHtml(url)}">
+</head><body>
+<p>Cargando la carta de ${escHtml(titulo)}… <a href="${escHtml(url)}">Entrar</a></p>
+</body></html>`;
+}
+
+// og:site_name lleva el nombre del restaurante y no "VMenus" a propósito. La
+// tarjeta es del negocio, no de la plataforma — y los planes sin marca pagan
+// justamente por eso.
+// ⚠ ESTA REGLA ESTÁ DUPLICADA. La original es leerSlug() en
+// vmenus-app/core/loader.js, y son dos aplicaciones desplegadas por separado
+// así que no se puede compartir el módulo. Si allí cambia, aquí también.
+//
+// Que se desincronicen no rompe la carta: rompe la vista previa, que
+// anunciaría un restaurante distinto del que se abre al pulsar. Peor que no
+// tener tarjeta.
+const SUBDOMINIOS_RESERVADOS = ['menu', 'www', 'admin', 'app', 'api'];
+
+function slugDesde(host, ruta) {
+  // A minúsculas ANTES de comparar con los reservados. En el navegador esto
+  // no hace falta porque location.hostname ya viene normalizado, pero aquí el
+  // host lo manda un robot y puede venir como quiera: sin esto,
+  // MENU.VMENUS.CO/BONZAS trataría a "MENU" como si fuera un restaurante y la
+  // tarjeta saldría genérica. Los nombres de dominio no distinguen caja.
+  const h = String(host || '').toLowerCase();
+  const porRuta = String(ruta || '').split('/').filter(Boolean)[0] || '';
+  const partes = h.split('.');
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(h) || partes.length < 3) return porRuta;
+  return SUBDOMINIOS_RESERVADOS.includes(partes[0]) ? porRuta : partes[0];
+}
+
+app.get('/api/og', async (req, res) => {
+  // host y path llegan de nginx, que es el único que sabe con qué dominio
+  // entró la petición: la misma carta responde en menu.vmenus.co/bonzas y en
+  // bonzas.vmenus.co.
+  const host = String(req.query.host || '');
+  const slug = slugDesde(host, req.query.path).toLowerCase();
+
+  // El destino que verá quien pulse, y lo que va en og:url. Se construye
+  // aquí en vez de aceptarlo de la petición: una URL que llegue de fuera y se
+  // escriba en un href es una redirección abierta servida desde nuestro
+  // dominio. Solo se admite el host que dice nginx, y con la forma de host.
+  //
+  // Y con la ruta que corresponda: en bonzas.vmenus.co el slug ya está en el
+  // dominio, así que el destino es la raíz. Poner /bonzas ahí daría una URL
+  // que no es la que el visitante compartió.
+  const hostBueno = /^[a-z0-9][a-z0-9.-]{0,252}[a-z0-9]$/i.test(host);
+  const enSubdominio = slug && !String(req.query.path || '').includes(slug);
+  const destino = !hostBueno
+    ? `https://menu.vmenus.co/${encodeURIComponent(slug)}`
+    : enSubdominio ? `https://${host}/`
+    : `https://${host}/${encodeURIComponent(slug)}`;
+
+  // Cabecera puesta antes de cualquier salida: hasta el caso de error
+  // devuelve HTML, porque quien pregunta es un robot que espera HTML.
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  // Media hora de caché. Los robots de WhatsApp y Facebook piden la misma
+  // URL muchas veces cuando un enlace circula, y esto no cambia por minuto.
+  res.set('Cache-Control', 'public, max-age=1800');
+
+  try {
+    const { data } = await supabase.from('restaurantes')
+      .select('nombre, slug, logo_url, fondo_url, activo, atributos')
+      .eq('slug', slug).maybeSingle();
+
+    // Un restaurante inactivo o inexistente NO se anuncia con su nombre: se
+    // devuelve la tarjeta genérica. Enseñar "Restaurante X" de un negocio
+    // suspendido, o confirmar qué slugs existen, no ayuda a nadie.
+    if (!data || data.activo === false) {
+      return res.status(200).send(paginaOpenGraph({ nombre: 'Carta digital' }, destino));
+    }
+    res.send(paginaOpenGraph(data, destino));
+  } catch (e) {
+    // Que un fallo de base de datos no deje al robot sin nada: peor tarjeta,
+    // pero tarjeta. Y nunca un 500, que algunos robots recuerdan.
+    console.error('[og] ', e.message);
+    res.status(200).send(paginaOpenGraph({ nombre: 'Carta digital' }, destino));
+  }
+});
+
 // multer lanza cuando el archivo pasa del límite o la extensión no vale. Sin
 // esto Express responde con una página HTML de error y el panel enseña algo
 // ilegible en vez de decir qué pasó. Va después de las rutas porque un
