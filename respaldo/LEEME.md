@@ -137,6 +137,30 @@ El modo de fallo de un respaldo no es reventar: es **dejar de correr sin que
 nadie se entere**. Igual que el limpiador, que estuvo semanas en simulacro
 escribiendo en un registro que nadie leía.
 
+### 7. Vigilancia externa
+
+Un servidor apagado no manda un correo diciendo que está apagado. Un silencio
+solo lo nota alguien de fuera que esperaba noticias — por eso esto no se puede
+resolver desde el propio servidor, y por eso `MAILTO` no basta.
+
+En [healthchecks.io](https://healthchecks.io) (plan gratuito de sobra): crear un
+check, ponerle periodo de 1 día y margen de 6 horas, y copiar su URL de ping.
+Luego añadirla a las credenciales:
+
+```bash
+echo 'export RESPALDO_PING=https://hc-ping.com/TU-UUID' >> /root/.respaldo.env
+```
+
+`respaldo.sh` la llama **al final y solo si todo salió bien**. Si algo falla, el
+`set -e` corta antes y el ping no se manda: el silencio es la señal. Un respaldo
+que falla y avisa de que fue bien sería peor que no avisar.
+
+Sin `RESPALDO_PING` configurado el script no hace nada distinto, así que se
+puede dejar sin poner.
+
+Para comprobar que llega, forzar una ejecución y mirar en healthchecks que el
+check pasó a verde.
+
 ## Recuperar
 
 Ver qué hay:
