@@ -906,3 +906,66 @@ describe('trabajoFallidoDe · un video que falló tiene que verse', () => {
 		assert.equal(ctx.trabajoFallidoDe('p1'), null);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('estilo del carrete · aspecto sin tocar el funcionamiento', () => {
+	// Tres aspectos del mismo modelo vertical. No son plantillas distintas:
+	// todo lo que los separa es CSS. Aquí se comprueba lo único que decide el
+	// panel — cuándo se ofrece la elección y qué se guarda.
+	const conModelo = (nav, estiloSelect, estiloGuardado) => {
+		const mapa = {
+			apEstiloFila: { style: {} },
+			apNavModelo:  { value: nav ?? '' },
+			apEstilo:     { value: estiloSelect ?? '' },
+		};
+		const ctx = cargar('index.html', [
+			['function navElegido', 'function aplicarPlanAlPanel'],
+		], {
+			state: { restaurante: { atributos: { nav, estilo: estiloGuardado } } },
+			document: { getElementById: id => mapa[id] },
+		});
+		return { ctx, mapa };
+	};
+
+	test('el estilo solo se ofrece en el modelo vertical', () => {
+		// Un control que no hace nada es peor que no tenerlo: quien lo usa cree
+		// que está trabajando.
+		const { ctx, mapa } = conModelo('vertical');
+		ctx.ajustarEstiloAlModelo();
+		assert.equal(mapa.apEstiloFila.style.display, 'block');
+	});
+
+	test('en los demás modelos ni aparece', () => {
+		for (const nav of ['topnav', 'sidebar', 'carrito', 'explorar', 'video']) {
+			const { ctx, mapa } = conModelo(nav);
+			ctx.ajustarEstiloAlModelo();
+			assert.equal(mapa.apEstiloFila.style.display, 'none', `en ${nav}`);
+		}
+	});
+
+	test('sin elegir nada se guarda el clásico', () => {
+		const { ctx } = conModelo('vertical', '', undefined);
+		assert.equal(ctx.estiloElegido(), 'clasico');
+	});
+
+	test('un desplegable vacío conserva lo que ya tenía', () => {
+		// Mismo fallo que costó una carta en video: a un <select> se le asigna
+		// un valor que no está entre sus opciones y se queda en cadena vacía.
+		// Guardar eso le borraría el estilo a un restaurante que no lo tocó.
+		const { ctx } = conModelo('vertical', '', 'avance');
+		assert.equal(ctx.estiloElegido(), 'avance');
+	});
+
+	test('lo elegido manda sobre lo guardado', () => {
+		const { ctx } = conModelo('vertical', 'intenso', 'clasico');
+		assert.equal(ctx.estiloElegido(), 'intenso');
+	});
+
+	test('el estilo se conserva al pasar por otro modelo', () => {
+		// Se guarda siempre, también donde no se usa. Si se borrara al cambiar
+		// de modelo, quien pruebe otro y vuelva se encontraría su elección
+		// perdida sin haberla tocado.
+		const { ctx } = conModelo('topnav', '', 'avance');
+		assert.equal(ctx.estiloElegido(), 'avance');
+	});
+});
