@@ -621,3 +621,45 @@ describe('GET /api/og/:slug · la vista previa al compartir', () => {
 		assert.match(r.cache, /max-age=\d+/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('POST /api/restaurantes · la dirección repetida se explica', () => {
+	// Dos restaurantes SÍ pueden llamarse igual: hay una Doña Rosa en San Gil
+	// y otra en Bucaramanga. Lo que no puede repetirse es la dirección, y esa
+	// restricción la pone la base (restaurantes_slug_key).
+	const conChoque = () => S.conTabla(st =>
+		st.tabla === 'restaurantes' && st.op === 'insert'
+			? { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "restaurantes_slug_key"' } }
+			: { data: { id: IDS.restaurante }, error: null });
+
+	test('dice qué pasó y qué hacer, en vez del error de Postgres', async () => {
+		conChoque();
+		const r = await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Doña Rosa', slug: 'donarosa', pin: '1234' }, tokenAdmin);
+
+		assert.equal(r.status, 409);
+		assert.match(r.body.error, /ya la usa otro restaurante/);
+		assert.match(r.body.error, /donarosa-bucaramanga/, 'debe sugerir la salida');
+	});
+
+	test('no se filtra el nombre del índice de la base', async () => {
+		// Enseñar "restaurantes_slug_key" no ayuda a nadie y cuenta cómo está
+		// hecha la base por dentro.
+		conChoque();
+		const r = await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Doña Rosa', slug: 'donarosa', pin: '1234' }, tokenAdmin);
+		assert.ok(!/constraint|slug_key|duplicate key/.test(r.body.error));
+	});
+
+	test('un fallo distinto no se disfraza de dirección repetida', async () => {
+		// Si cualquier error de insert dijera "la dirección está repetida", el
+		// día que falle otra cosa se buscaría en el sitio equivocado.
+		S.conTabla(st => st.tabla === 'restaurantes' && st.op === 'insert'
+			? { data: null, error: { code: '08006', message: 'connection failure' } }
+			: { data: { id: IDS.restaurante }, error: null });
+		const r = await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Nuevo', slug: 'nuevo', pin: '1234' }, tokenAdmin);
+		assert.equal(r.status, 500);
+		assert.ok(!/ya la usa/.test(r.body.error));
+	});
+});
