@@ -482,7 +482,10 @@ describe('GET /api/og/:slug · la vista previa al compartir', () => {
 	const og = (host, path) => `/api/og?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}`;
 
 	const BONZAS = {
-		nombre: 'Bonzas', slug: 'bonzas', activo: true,
+		// El id hace falta: sin él, fotoDeAlgunPlato() sale sin consultar y la
+		// prueba de "no se gasta una consulta de más" pasaría siempre, mida lo
+		// que mida. Comprobado quitando la guarda: no fallaba nada.
+		id: 'r-bonzas', nombre: 'Bonzas', slug: 'bonzas', activo: true,
 		logo_url: 'https://admin.example.com/uploads/logos/bonzas.png',
 		fondo_url: 'https://admin.example.com/uploads/fondos/textura.jpg',
 		atributos: { subtitulo: 'Carta Digital · 2026' },
@@ -520,6 +523,40 @@ describe('GET /api/og/:slug · la vista previa al compartir', () => {
 		const { html } = await S.pedirTexto(og('menu.vmenus.co', '/sinfotos'));
 		assert.ok(!html.includes('og:image'), 'no debe haber og:image');
 		assert.match(html, /twitter:card" content="summary"/, 'tarjeta pequeña sin imagen');
+	});
+
+
+	test('sin logo, una foto de plato antes que rendirse', async () => {
+		// De siete restaurantes reales, tres no tenían logo — y dos de ellos
+		// tenían seis platos fotografiados cada uno. Mandar la tarjeta sin foto
+		// teniendo eso es tirar lo que más llama la atención de un menú.
+		S.conTabla(st => {
+			if (st.tabla === 'restaurantes') return { data: { id: 'r1', nombre: 'Voro', slug: 'voro', activo: true, atributos: {} }, error: null };
+			if (st.tabla === 'productos') return { data: { imagen_url: 'https://x/uploads/productos/tartar.jpg' }, error: null };
+			return { data: null, error: null };
+		});
+		const { html } = await S.pedirTexto(og('menu.vmenus.co', '/voro'));
+		assert.match(html, /og:image" content="[^"]*tartar\.jpg"/);
+		assert.match(html, /twitter:card" content="summary_large_image"/);
+	});
+
+	test('con logo no se gasta una consulta de más', async () => {
+		// El logo lo eligió el negocio para representarse; la foto de plato es
+		// el último recurso, no una mejora.
+		conRestaurante(BONZAS);
+		const { html } = await S.pedirTexto(og('menu.vmenus.co', '/bonzas'));
+		assert.match(html, /og:image" content="[^"]*logos\/bonzas\.png"/);
+		assert.equal(S.llamadas.some(l => l.tabla === 'productos'), false,
+			'no debería haber preguntado por platos');
+	});
+
+	test('sin logo y sin platos con foto, tarjeta de texto', async () => {
+		S.conTabla(st => st.tabla === 'restaurantes'
+			? { data: { id: 'r1', nombre: 'A Ojo Cerrado', slug: 'aojocerrado', activo: true, atributos: {} }, error: null }
+			: { data: null, error: null });
+		const { html } = await S.pedirTexto(og('menu.vmenus.co', '/aojocerrado'));
+		assert.ok(!html.includes('og:image'));
+		assert.match(html, /og:title" content="A Ojo Cerrado"/);
 	});
 
 	test('og:site_name es el restaurante, no la plataforma', async () => {
