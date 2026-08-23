@@ -31,7 +31,19 @@ CONFIG="${RESPALDO_ENV:-/root/.respaldo.env}"
 
 decir() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$REGISTRO"; }
 
-fallar() { decir "❌ FALLÓ: $*"; exit 1; }
+fallar() {
+  decir "❌ FALLÓ: $*"
+  # Avisar del fallo, no solo callarse. Sin esto, un respaldo que revienta se
+  # ve exactamente igual que uno que no llegó a correr: en los dos casos la
+  # vigilancia solo nota el silencio, y solo después de horas de margen.
+  # Diciéndolo, el aviso llega enseguida y con el motivo dentro.
+  #
+  # El || true no sobra: si además falla el aviso, el mensaje de arriba ya
+  # está en el registro y no hay que enterrarlo bajo un error de curl.
+  [ -n "${RESPALDO_PING:-}" ] && \
+    curl -fsS -m 10 --data-raw "$*" "$RESPALDO_PING/fail" > /dev/null 2>&1 || true
+  exit 1
+}
 
 [ -r "$CONFIG" ] || fallar "no se puede leer $CONFIG (¿lo creaste? ¿chmod 600?)"
 # shellcheck disable=SC1090
