@@ -358,6 +358,18 @@ app.post('/api/restaurantes', auth, async (req, res) => {
   const { data, error } = await supabase.from('restaurantes')
     .insert([{ nombre, slug, color_primario: color_primario||'#3dd68c', color_secundario: color_secundario||'#a374af', activo: activo!==false, promo_activa: false, atributos }])
     .select().single();
+  // La dirección repetida es el choque más probable de todos y merece
+  // explicarse: dos restaurantes SÍ pueden llamarse igual —hay una Doña Rosa
+  // en San Gil y otra en Bucaramanga— pero la dirección es única por
+  // definición, y la restricción la pone la base de datos (restaurantes_slug_key).
+  //
+  // Sin esto salía el mensaje crudo de Postgres, que habla de constraints y no
+  // dice qué hacer. Y de paso enseñaba el nombre interno de un índice.
+  if (error?.code === '23505' || /restaurantes_slug_key|duplicate key/.test(error?.message || '')) {
+    return res.status(409).json({
+      error: `La dirección "${slug}" ya la usa otro restaurante. Prueba añadiendo la ciudad, por ejemplo "${slug}-bucaramanga".`
+    });
+  }
   if (error) return res.status(500).json({ error: error.message });
 
   const { error: errPin } = await supabase.from('restaurantes_privado')
