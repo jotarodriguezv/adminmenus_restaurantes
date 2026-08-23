@@ -151,9 +151,13 @@ Luego añadirla a las credenciales:
 echo 'export RESPALDO_PING=https://hc-ping.com/TU-UUID' >> /root/.respaldo.env
 ```
 
-`respaldo.sh` la llama **al final y solo si todo salió bien**. Si algo falla, el
-`set -e` corta antes y el ping no se manda: el silencio es la señal. Un respaldo
-que falla y avisa de que fue bien sería peor que no avisar.
+`respaldo.sh` la llama **al final y solo si todo salió bien**. Un respaldo que
+falla y avisa de que fue bien sería peor que no avisar.
+
+Y si falla, no se calla: manda el aviso a `<url>/fail` con el motivo dentro, así
+que el correo llega enseguida y ya dice qué pasó, en vez de un "lleva 30 horas
+sin reportar" seis horas después. El silencio queda para lo único que no se
+puede avisar desde dentro: que el servidor esté apagado.
 
 Sin `RESPALDO_PING` configurado el script no hace nada distinto, así que se
 puede dejar sin poner.
