@@ -93,7 +93,10 @@ H.264 bien apretado.
 - **Manifiesto PWA por restaurante** (`/api/manifest/<slug>/`), con nombre e icono
   del local. Permite añadir la carta a la pantalla de inicio.
 - **Etiquetas Open Graph** con imagen 1200×630. Al compartir por WhatsApp sale con
-  foto y nombre. *(VMenus no tiene ninguna etiqueta meta hoy — solo el viewport.)*
+  foto y nombre. *(Hecho el 23/08/2026, aunque por otro camino: ellos las pueden
+  poner en su HTML porque lo genera el servidor; nuestras cartas se pintan en el
+  navegador, así que hacen falta un endpoint aparte y que nginx mande ahí a los
+  robots. Ver la sección de pendientes.)*
 
 ### 2.4 Lo que no
 
@@ -474,7 +477,12 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
 
 ### Cartas públicas (no es video, pero está abierto)
 
-- [ ] **Etiquetas Open Graph** en `vmenus-app/index.html`. Hoy no hay ninguna meta salvo el viewport: compartir una carta por WhatsApp sale sin foto ni nombre. En Colombia es por donde más circulan
+- [x] **Etiquetas Open Graph** (23/08/2026). NO están en `vmenus-app/index.html`
+      y no pueden estarlo: el robot de WhatsApp lee el HTML crudo y no ejecuta
+      JavaScript, así que una carta que se pinta en el navegador nunca llega a
+      tiempo. Las sirve `/api/og` del panel, y nginx manda ahí solo a los robots.
+      Comprobado en producción con Malparados (logo) y Voro (foto de plato como
+      respaldo). Ver `docs/servidor.md`
 - [ ] Manifiesto PWA por restaurante, para añadir la carta a la pantalla de inicio con el logo del local
 
 ### Infraestructura
