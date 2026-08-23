@@ -177,6 +177,30 @@ Las dos conclusiones que salen de ahí:
 2. **720p basta para entregar.** Si con el 1080p al lado no se nota, en un teléfono
    menos. El 1080p se queda como archivo interno, no como entregable.
 
+### Dónde se toca esto hoy
+
+Los valores vigentes están en `video.js`, en una sola tabla:
+
+```js
+const FORMATOS = {
+  horizontal: { ancho: 1280, alto:  720, crf: 30, maxrate: '1500k', bufsize: '3000k' },
+  vertical:   { ancho:  720, alto: 1280, crf: 26, maxrate: '2500k', bufsize: '5000k' },
+};
+```
+
+Cada formato lleva su propia calidad **a propósito**: los dos tienen los mismos
+píxeles, pero el vertical ocupa la pantalla entera del móvil y ahí el mismo
+archivo perdona mucho menos.
+
+Tres cosas al ajustarlo:
+
+1. **CRF más bajo = mejor calidad.** Va al revés de lo que sugiere la palabra.
+2. **Subir el `maxrate` junto con el CRF.** Bajarlo dejando el tope no sirve en
+   los planos con movimiento —justo donde se ve el problema—: el limitador
+   recorta la mejora antes de que llegue.
+3. **Solo afecta a conversiones NUEVAS.** Lo ya convertido se rehace desde su
+   master, que se guarda sin recortar para esto.
+
 ### Notas sobre el método
 
 - `preset slow` frente a `medium` a bitrate fijo dio **el mismo peso** (769 vs 771 KB).
@@ -505,9 +529,24 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
 
 ### Producto
 
-- [ ] Decidir quién graba: el restaurante, un equipo contratado, o generación con IA
-- [ ] Si se va por IA: probar 3-4 modelos con la misma foto de plato y comparar. Verificar precios vigentes y licencia comercial
-- [ ] Escribir la guía de grabación para restaurantes que suban sus propios videos
+- [x] **Quién graba** (decidido el 23/08/2026). Depende de la distancia:
+      - **En el área de San Gil**, graba el equipo. Es parte del servicio y
+        permite controlar encuadre, luz y duración desde el principio.
+      - **Fuera del área, no.** No hay compromiso de desplazarse. El
+        restaurante graba por su cuenta o contrata a una agencia.
+
+      La consecuencia es que **la carta tiene que aguantar material que nadie
+      del equipo ha visto antes de subirse**: mal encuadrado, mal iluminado, en
+      proporción rara. Eso ya está cubierto —el recorte es forzado a 16:9 o
+      9:16 con `increase`+`crop`, así que nunca salen franjas negras— pero
+      conviene no romperlo.
+- [ ] **Escribir la guía de grabación.** Deja de ser un extra: es el entregable
+      para los restaurantes de fuera del área. Debería decir en horizontal o
+      vertical según su modelo, cuántos segundos, con qué luz, y que no hace
+      falta editar nada porque el recorte lo hace el servidor
+- [ ] Generación con IA: queda como posible salida para los de fuera del área
+      que no quieran grabar ni contratar. Si se explora, probar 3-4 modelos con
+      la misma foto de plato y verificar precios vigentes y licencia comercial
 
 ---
 
