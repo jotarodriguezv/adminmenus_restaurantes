@@ -250,8 +250,9 @@ Recogidas por haberlas sufrido:
   healthchecks.io (periodo 1 día, margen 6 h) y `RESPALDO_PING` en
   `/root/.respaldo.env`. Probada en los dos sentidos: una copia buena lo pone
   en verde, y un fallo lo pone en rojo con el motivo dentro.
-- **Reinicio pendiente por kernel** (corre 6.8.0-134, instalado 6.8.0-138) más
-  actualizaciones de seguridad sin aplicar. Con los restaurantes cerrados.
+- ~~Reinicio pendiente por kernel~~ — **hecho el 23/08/2026.** Corre
+  6.8.0-138 y no quedan actualizaciones pendientes. Los 17 contenedores
+  volvieron solos.
 - **`docker system df`**: 26 GB usados de 48. Las imágenes viejas suelen ser lo
   que más ocupa.
 - **La base de datos la respalda Supabase**, no esto. Conviene mirar qué
@@ -262,6 +263,22 @@ Recogidas por haberlas sufrido:
 ---
 
 ## Registro de cambios
+
+**23/08/2026 — Reinicio y actualizaciones**
+
+Kernel 6.8.0-134 → 6.8.0-138 y las 27 actualizaciones de seguridad que había
+pendientes. Los 17 contenedores levantaron solos; no hizo falta tocar nada.
+
+Se hizo un domingo por la tarde porque los restaurantes de San Gil abren
+después de las cinco. **Antes de reiniciar se apuntó el estado** —kernel,
+número de contenedores, servicios activos, si había algún video
+convirtiéndose— para que la comprobación de después fuera una comparación y
+no una impresión. Es barato y quita toda la duda.
+
+La limpieza de Docker se dejó para otro día a propósito: `system prune` puede
+llevarse una imagen que Dokploy necesite, y justo después de un reinicio
+distinguir "no arrancó por el kernel" de "no arrancó porque le falta la
+imagen" es tiempo perdido. Un cambio cada vez.
 
 **23/08/2026 — Vigilancia del respaldo**
 
