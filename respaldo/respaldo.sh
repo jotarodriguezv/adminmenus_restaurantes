@@ -74,3 +74,29 @@ restic forget --tag uploads \
   || fallar "restic forget"
 
 decir "✅ listo · $(restic snapshots --tag uploads --json | grep -o '"time"' | wc -l) instantáneas guardadas"
+
+# ── AVISAR DE QUE SIGUE VIVO ──────────────────────────────────
+# El modo de fallo de un respaldo no es reventar: es dejar de correr sin que
+# nadie se entere. Y no se puede resolver desde aquí — un servidor apagado no
+# manda un correo diciendo que está apagado. Solo lo nota alguien de fuera que
+# esperaba noticias y no las recibe.
+#
+# Eso es un ping a un servicio de vigilancia: si no llega a su hora, avisan
+# ellos. Es la única forma de enterarse de un silencio.
+#
+# Va al FINAL y solo si todo lo anterior salió bien: cualquier fallo de arriba
+# corta el script por el set -e y el ping no se manda, que es exactamente lo
+# que tiene que pasar. Un respaldo que falla y avisa de que fue bien es peor
+# que no avisar.
+#
+# Sin RESPALDO_PING configurado no hace nada y no estorba.
+if [ -n "${RESPALDO_PING:-}" ]; then
+  if curl -fsS -m 10 --retry 3 "$RESPALDO_PING" > /dev/null; then
+    decir "── vigilancia avisada"
+  else
+    # Que no llegue el ping no invalida el respaldo, que ya está hecho. Se
+    # anota y se sigue: sería absurdo dar por fallida una copia buena porque
+    # falló el aviso.
+    decir "⚠️  el respaldo salió bien pero no se pudo avisar a la vigilancia"
+  fi
+fi
