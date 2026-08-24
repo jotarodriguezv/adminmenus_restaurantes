@@ -221,9 +221,45 @@ Lo que quedó decidido al escribirla:
 la llama todavía. Va al `tick` de la cola en la fase 2, cuando existan reservas
 que rescatar; añadir hoy un temporizador que no hace nada sería ruido.
 
-**Fase 2 — Integración.** Llamada a Replicate, guardado del identificador antes
-de esperar (§6.1), consulta en el `tick` de la cola, descarga a `originales/` y
-la cola sigue como siempre.
+**Fase 2 — Integración. Módulo hecho el 24/08/2026; falta engancharlo.**
+
+`ia.js` habla con Replicate y no sabe de nada más: ni de cupos, ni de la cola,
+ni de ffmpeg. Está separado así porque es lo único que depende de un tercero —
+el día que cambie el proveedor o el modelo, se reescribe eso y nada más. 18
+pruebas, **sin una sola llamada real**: se sustituye `fetch` y se comprueba qué
+se habría mandado y cómo se interpreta lo que vuelve.
+
+Confirmado contra el editor JSON del propio modelo:
+
+```json
+{ "first_frame_image": "<url de la foto>", "prompt": "...",
+  "duration": 6, "resolution": "768p", "prompt_optimizer": false }
+```
+
+- **No hay campo de proporción**, así que se hereda de la foto. El recorte al
+  formato del restaurante lo sigue haciendo ffmpeg después, igual que con un
+  video grabado: §6.3 queda cerrado, y el recorte no desaparece.
+- `first_frame_image` es una **URL**, no un archivo. Las fotos de producto ya
+  son públicas, así que sirve tal cual — pero significa que Replicate tiene que
+  poder descargarla, y por eso una ruta relativa o un `data:` se rechaza **antes
+  de llamar**: ese fallo pasaría del otro lado y puede costar dinero.
+- **`prompt_optimizer` va apagado**: reescribe el prompt por su cuenta, y el
+  prompt es justamente lo que sujeta el "no añadas ingredientes" de §9.
+- **El prompt lo fija la plataforma**, no el restaurante. Un campo de texto
+  libre en el panel sería la forma más directa de acabar con una guarnición que
+  el negocio no sirve — y de pagar cada intento. Vive en `IA_PROMPT` para poder
+  afinarlo sin desplegar.
+- Un **4xx se marca definitivo** y no se reintenta: daría el mismo error y
+  gastaría otra del cupo. Los 5xx y el 429 sí se reintentan.
+
+> ⚠ **Lo que sigue sin comprobar:** las rutas (`/models/{modelo}/predictions`,
+> `/predictions/{id}`) y los nombres `status`/`output` son la API general de
+> Replicate, no se pudieron verificar contra su documentación —el entorno donde
+> se escribió esto tiene bloqueado `replicate.com`— y hay que verlas funcionar
+> una vez. **La primera generación real es esa comprobación**, y cuesta $0,27.
+
+**Falta:** el carril propio en la cola (§6.2), la descarga a `originales/`, la
+ruta que lo dispara y enganchar `rescatarReservas()`.
 
 **Fase 3 — Panel.** Botón en la ficha del plato, contador de cupo visible, y el
 paso de **aprobación antes de publicar**: el video generado llega convertido pero
