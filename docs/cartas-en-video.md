@@ -1,9 +1,11 @@
 # Cartas en video — análisis técnico y decisiones
 
-**Estado:** en producción. Cola, panel y plantilla funcionando de punta a punta;
-primeros videos reales convertidos y servidos (restaurante `voro`).
-Los parámetros de la sección 7 son los vigentes; los de la sección 4 son las
+**Estado:** en producción, en dos encuadres. `voro` con el modelo horizontal y
+`indigo` con el vertical, este último con tres estilos. Cola, panel, respaldo y
+vista previa al compartir funcionando de punta a punta.
+Los parámetros vigentes están en la **sección 6**; los de la sección 4 son las
 mediciones del análisis inicial y varios ya no se usan — ver sección 5.
+**Última revisión de este documento:** 23 de agosto de 2026
 **Fecha del análisis:** agosto de 2026
 **Servidor de las pruebas:** Hostinger KVM 1 · 1 vCPU · Ubuntu 24.04.4 · ffmpeg 6.1.1
 
@@ -172,8 +174,17 @@ Las dos conclusiones que salen de ahí:
 
    > **Revisado después.** Esta comparación se hizo en pantalla de computador contra
    > un original 4K. Repetida en el móvil de destino y a tamaño real, CRF 26 y CRF 30
-   > no se distinguen, y el 30 pesa la mitad. El valor vigente es **30** (decisión 3).
-   > La lección: comparar en la pantalla donde se va a ver, no en la mejor que haya.
+   > no se distinguen, y el 30 pesa la mitad. El valor vigente **para el horizontal**
+   > es **30** (decisión 3). La lección: comparar en la pantalla donde se va a ver, no
+   > en la mejor que haya.
+   >
+   > **Y otra vez después.** Toda esta comparación se hizo sobre una tarjeta 16:9
+   > dentro de una lista. El vertical ocupa la pantalla entera, así que el mismo
+   > fotograma se mira ~4 veces más grande y el argumento de "a tamaño real no se
+   > distinguen" deja de aplicar: ahí el valor vigente es **26**, con el techo de
+   > bitrate subido a 2.500k para que el 26 pueda gastar lo que pida. Los valores
+   > por formato están en `FORMATOS` (`video.js`); esta sección solo cuenta de
+   > dónde salieron.
 2. **720p basta para entregar.** Si con el 1080p al lado no se nota, en un teléfono
    menos. El 1080p se queda como archivo interno, no como entregable.
 
@@ -220,6 +231,7 @@ Tres cosas al ajustarlo:
 | 1 | Los archivos van al **disco del servidor**, no a Supabase Storage ni a Postgres | El egreso no se factura en el VPS y se factura por GB en Supabase; el bind mount ya está confirmado; el 98 % de las imágenes ya vive ahí |
 | 2 | **Nunca dentro de la base de datos** | Infla las copias de seguridad y no permite peticiones de rango (sin 206 no hay reproducción progresiva ni saltos) |
 | 3 | Entregable **1280×720 horizontal, CRF 30**, sin audio | 20 de los 25 videos de la competencia son exactamente 1280×720 (§3). El CRF bajó de 26 a 30 tras comparar las tres versiones en el móvil de destino: a tamaño real no se distinguen, y el archivo pasa de 1,27 MB a 0,68 — la mitad de datos para el comensal y la mitad de decodificación para su teléfono |
+| 3.bis | El **vertical no hereda esos números**: 720×1280, CRF 26, techo 2.500k | El 30 se eligió mirando una tarjeta 16:9 dentro de una lista. A pantalla completa el mismo fotograma se ve ~4 veces más grande y los defectos del 30 sí se notan. Mismos píxeles, distinta distancia de mirada, distinto CRF. Pendiente de confirmar con videos reales de comida (§8) |
 | 4 | Se guarda un **master sin recortar, con audio** | Permite recodificar en el futuro sin pedirle nada a los clientes — y recortar a otra proporción, que un master ya recortado no permite |
 | 5 | El **original del móvil se borra** tras convertir con éxito | 22 GB libres; los originales de 25 MB llenan el disco y con el disco lleno se para el servidor entero |
 | 6 | Tope de **8 segundos** por video, **desde el segundo que elija el restaurante** | Acota el coste de CPU y es la decisión de producto que hace viable todo lo demás. Cuáles 8 lo decide quien sube: los originales duran veinte o cuarenta segundos y lo bueno casi nunca está al principio |
@@ -263,15 +275,41 @@ opinión.
 
 ### Entregable
 
+Hay **dos**, uno por formato. Cuál se usa lo decide el servidor a partir del
+modelo del restaurante (`atributos.nav`), no el navegador.
+
+> ⚠ La fuente de verdad es la tabla `FORMATOS` de `video.js`. Lo de aquí abajo
+> es su reflejo a 23/08/2026 y puede quedarse atrás — antes de fiarse, mirar el
+> código. (Esta sección ya dijo `-crf 26` durante días después de que el
+> horizontal pasara a 30.)
+
+**Horizontal** (modelo `video` — tarjeta 16:9 dentro de una lista):
+
 ```bash
 ffmpeg -nostdin -y -ss DESDE -i ENTRADA \
   -t 8 \
   -vf "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,fps=30" \
   -c:v libx264 -profile:v main -pix_fmt yuv420p \
-  -crf 26 -maxrate 1500k -bufsize 3000k -preset slow \
+  -crf 30 -maxrate 1500k -bufsize 3000k -preset slow \
   -movflags +faststart -an \
   SALIDA.mp4
 ```
+
+**Vertical** (modelo `vertical` — a pantalla completa):
+
+```bash
+ffmpeg -nostdin -y -ss DESDE -i ENTRADA \
+  -t 8 \
+  -vf "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,fps=30" \
+  -c:v libx264 -profile:v main -pix_fmt yuv420p \
+  -crf 26 -maxrate 2500k -bufsize 5000k -preset slow \
+  -movflags +faststart -an \
+  SALIDA.mp4
+```
+
+Mismo número de píxeles en los dos; lo que cambia es **dónde se mira**. El
+vertical ocupa la pantalla entera del móvil y ahí el mismo archivo perdona
+mucho menos, así que gasta más bits a propósito.
 
 ### Master
 
@@ -302,8 +340,8 @@ ffmpeg -nostdin -y -i SALIDA.mp4 -ss 1 -frames:v 1 -update 1 -q:v 5 PORTADA.jpg
 | `scale …:increase` + `crop` | Llena el 16:9 recortando lo que sobre, sin barras negras. Solo en el entregable: el master no se recorta nunca. |
 | `scale=w=min(1920\,iw)…:decrease` | Solo en el master: limita el lado largo sin recortar y conserva la proporción original. El `min()` evita que una fuente pequeña se **amplíe**: con la caja fija en 1920 un 1280×959 saldría 1920×1438, más pesado que el original y sin información nueva. |
 | `force_divisible_by=2` | Evita lados impares, que `yuv420p` no admite. Requiere ffmpeg 5 o superior. |
-| `-crf 30` | Calidad fija; el peso varía según el contenido. A 26 el archivo se pegaba al techo de 1.500k, señal de que el codificador quería más bits de los que hacían falta. |
-| `-maxrate` / `-bufsize` | Techo de bitrate, para que ningún video se dispare. |
+| `-crf` | Calidad fija; el peso varía según el contenido. **Depende del formato:** 30 en horizontal, 26 en vertical. En horizontal, a 26 el archivo se pegaba al techo de 1.500k — señal de que el codificador quería más bits de los que hacían falta para una tarjeta pequeña. En vertical el fotograma se mira a pantalla completa, así que sí hacen falta: por eso va a 26 **y** con el techo subido. |
+| `-maxrate` / `-bufsize` | Techo de bitrate, para que ningún video se dispare. 1.500k/3.000k en horizontal, 2.500k/5.000k en vertical. Subirlo sin bajar el CRF no cambia nada: el techo solo actúa cuando el CRF pide más de lo que cabe. |
 | `-pix_fmt yuv420p` | Sin esto, los videos de iPhone no se ven en algunos Android. |
 | `-movflags +faststart` | Mueve el índice al principio del archivo: la reproducción empieza antes de terminar la descarga. **Crítico.** |
 | `-an` | Quita el audio del entregable (ningún navegador móvil autoreproduce con sonido). El master sí lo conserva. |
@@ -361,6 +399,7 @@ Eso es lo que hace viable un solo núcleo para empezar.
 | **La portada a `-q:v 5`** | Medida a `-q:v 3` (155 KB). Los ~80 KB son estimación. |
 | **Concurrencia real** | Nunca se ha ejecutado ffmpeg mientras el servidor atendía tráfico de comensales. |
 | **Videos con poca luz** | Todas las pruebas son sobre un único archivo. Contenido oscuro o con mucho grano comprime peor. |
+| **El CRF 26 del vertical** | Elegido por razonamiento —a pantalla completa el fotograma se ve ~4 veces más grande que en la tarjeta 16:9 donde se decidió el 30—, **no medido**. Nadie ha comparado 26 contra 30 en vertical, a pantalla completa, en el móvil de destino y con comida real. Hasta que se haga, es una apuesta razonable, no un valor comprobado. Se decide cuando haya videos reales de restaurante. |
 
 ---
 
@@ -473,19 +512,26 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
 - [x] **Paso 1 — Ingesta y conversión.** Tabla, worker, ffmpeg en la imagen, rutas
 - [x] **Paso 2 — Panel.** Subir video desde la ficha del plato, con estado que se
       refresca solo y elección del segundo de inicio
-- [ ] Botón para descartar trabajos fallidos (la ruta `DELETE /api/video/trabajos/:id`
-      existe; falta el botón en el panel)
+- [x] Botón para descartar trabajos fallidos (`descartarVideoFallido()`, en el aviso
+      rojo de la ficha del plato)
 - [x] **Paso 3 — Cartas.** `temas/video.js` en vmenus-app: carga perezosa, portada
       primero, un solo video en marcha a la vez
+- [x] **Plantilla vertical** (`temas/vertical.js`): pantalla completa, un plato por
+      deslizamiento con `scroll-snap`, tres estilos (`clasico`, `intenso`, `avance`)
+      elegibles desde el panel. En producción en Indigo; Voro sigue de demo
+      horizontal
 - [ ] **Paso 4 — Generación con IA.** Foto → video contra un servicio externo, a la misma cola
 - [x] Probado el recorte 16:9 con origen vertical: el plato queda centrado, pero se
       pierde el 69 % de la altura. Decisión tomada: se mantiene 16:9 y se recomienda
       al restaurante grabar en horizontal
 - [x] `force_divisible_by=2` comprobado en el servidor con cuatro proporciones.
       Redondea al par más cercano, no hacia abajo
-- [ ] Medir los parámetros nuevos del master (`-crf 21 -preset medium` con audio); los de la sección 7 son los de la prueba vieja
+- [ ] Medir los parámetros nuevos del master (`-crf 21 -preset medium` con audio); los de la sección 6 son los de la prueba vieja
 - [ ] Verificar la portada a `-q:v 5` — los ~80 KB son estimación, se midió a `-q:v 3` (155 KB)
 - [ ] Convertir con el servidor sirviendo tráfico real, para ver si `nice` basta
+- [ ] **Confirmar el CRF del vertical.** El 26 está razonado, no medido (§8).
+      Comparar 26 contra 30 a pantalla completa, en el móvil, con comida real —
+      cuando haya videos de restaurante de verdad
 - [x] Pruebas para `argumentosEntregable` (8: encuadre por formato, calidad por
       formato, formato desconocido, y lo que NO debe cambiar con él)
 - [ ] Pruebas para `argumentosMaster` / `argumentosPortada` (están exportadas para eso)
@@ -520,11 +566,16 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
 - [x] **Copia de seguridad de `/opt/menus/uploads`** (22/08/2026). Instantáneas
       con restic en Backblaze B2, a diario, con restauración comprobada byte a
       byte y la clave verificada. Ver `docs/servidor.md` y `respaldo/LEEME.md`.
-      Queda un agujero: nadie se entera si deja de correr — `MAILTO` no avisa
-      porque el servidor no sabe enviar correo
-- [ ] Reinicio pendiente por actualización de kernel, más 27 actualizaciones sin aplicar. Con los restaurantes cerrados
+      Vigilancia externa añadida el 23/08/2026 (healthchecks.io), probada en
+      los dos sentidos: verde al terminar bien, rojo con el motivo si falla
+- [x] **Reinicio y actualizaciones** (23/08/2026). Kernel 6.8.0-138, cero
+      pendientes, los 17 contenedores volvieron solos
 - [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
-- [ ] Borrar el bucket `vmenus-imagenes` de Supabase (los 14 MB viejos, ya sin referencias)
+- [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Comprobado el
+      23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
+      tamaño de uno solo, `fondos/bonzas.png`), del 10 de julio, y **ninguno
+      referenciado** por restaurantes, productos ni categorías. Seguro de
+      borrar
 - [ ] Ampliar a KVM 2 (2 vCPU) cuando haya 2-3 clientes usando video
 
 ### Producto
