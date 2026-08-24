@@ -67,6 +67,39 @@ function carpetaDe(req) {
   return CARPETAS_VALIDAS.has(req.query.folder) ? req.query.folder : CARPETA_POR_DEFECTO;
 }
 
+// La extensión es lo ÚNICO que el nombre del archivo hereda de quien sube:
+// el resto lo genera el servidor. Por eso tiene que salir de una lista y no
+// de la cadena que mandó el navegador.
+//
+// Antes se comprobaba con /jpeg|jpg|png|webp/ SIN anclar, así que bastaba que
+// esas letras aparecieran en algún sitio: '.apng', '.webpx' y '.jpg;rm'
+// pasaban, y la extensión entera —con lo que llevara dentro— se escribía en
+// el disco tal cual.
+//
+// El daño no era el que parece. No es que se pudiera subir un ejecutable: es
+// que limpieza.js reconoce los nombres con [A-Za-z0-9._-]+, así que de
+// 'foto.jpg;rm' guardado en la base solo leía hasta el punto y coma. El
+// archivo del disco y la referencia de la base dejaban de coincidir, y a los
+// siete días el limpiador borraba una foto que SÍ estaba en uso.
+//
+// Devolver la extensión de la lista, y no la del usuario, cierra las dos
+// cosas de una vez: lo que se guarda solo puede ser una de estas.
+const EXTENSIONES_IMAGEN = ['.jpg', '.jpeg', '.png', '.webp'];
+const EXTENSIONES_VIDEO  = ['.mp4', '.mov', '.m4v'];
+
+function extensionSegura(nombre, permitidas) {
+  const ext = path.extname(String(nombre || '')).toLowerCase();
+  return permitidas.includes(ext) ? ext : null;
+}
+
+// El nombre lo pone entero el servidor. Irrepetible para que dos subidas
+// simultáneas no se pisen, y sin un solo carácter del original.
+function nombreGenerado(ext) {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+}
+
+const IMAGEN_MAX_MB = Number(process.env.IMAGEN_MAX_MB || 10);
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Leer folder desde query params (?folder=promos) porque en multipart
@@ -77,15 +110,15 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+    // No puede ser null: fileFilter ya rechazó lo que no está en la lista.
+    cb(null, nombreGenerado(extensionSegura(file.originalname, EXTENSIONES_IMAGEN)));
   }
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: IMAGEN_MAX_MB * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (/jpeg|jpg|png|webp/.test(path.extname(file.originalname).toLowerCase())) cb(null, true);
+    if (extensionSegura(file.originalname, EXTENSIONES_IMAGEN)) cb(null, true);
     else cb(new Error('Solo JPG, PNG o WEBP'));
   }
 });
@@ -103,8 +136,7 @@ const almacenVideo = multer.diskStorage({
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const nombre = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+    const nombre = nombreGenerado(extensionSegura(file.originalname, EXTENSIONES_VIDEO));
     // Se apunta la ruta AQUÍ, que es cuando se decide, y no al terminar.
     // Multer solo publica req.file cuando el archivo llegó entero; si la
     // subida se corta antes, req.file no existe nunca y lo que se llevaba
@@ -159,7 +191,7 @@ const subidaVideo = multer({
     // y no prueba nada, y además varios mandan octet-stream para .mov, con lo
     // que rechazaría archivos buenos. Quien valida de verdad es ffmpeg: si no
     // es video, la conversión falla y el trabajo queda en error.
-    if (/^\.(mp4|mov|m4v)$/.test(path.extname(file.originalname).toLowerCase())) cb(null, true);
+    if (extensionSegura(file.originalname, EXTENSIONES_VIDEO)) cb(null, true);
     else cb(new Error('Solo MP4 o MOV'));
   }
 });
@@ -625,6 +657,25 @@ function normalizarPrecio(body) {
   return null;
 }
 
+// Una categoría de OTRO restaurante no se puede usar. El permiso se
+// comprueba sobre restaurante_id, que no dice nada sobre a quién pertenece la
+// categoría: sin esto, un plato podía quedar colgado de una categoría ajena.
+//
+// El daño es callado, que es lo que lo hace molesto de encontrar: el plato se
+// guarda bien y el panel dice que todo fue, pero la carta pública agrupa por
+// las categorías DEL restaurante, así que ese plato no aparece en ningún
+// sitio. Desde fuera parece que se perdió al guardar.
+//
+// Devuelve un mensaje de error, o null si la categoría vale.
+async function categoriaAjena(categoriaId, restauranteId) {
+  if (!categoriaId) return null;           // un plato sin categoría es válido
+  const { data } = await supabase.from('categorias')
+    .select('restaurante_id').eq('id', categoriaId).maybeSingle();
+  if (!data) return 'Esa categoría no existe';
+  if (data.restaurante_id !== restauranteId) return 'Esa categoría no es de este restaurante';
+  return null;
+}
+
 // ── PRODUCTOS ─────────────────────────────────────────────────
 app.get('/api/productos', auth, async (req, res) => {
   const rid = req.query.restaurante_id;
@@ -641,6 +692,8 @@ app.post('/api/productos', auth, async (req, res) => {
   const p = { precio: req.body.precio, precio_numerico: req.body.precio_numerico };
   const errPrecio = normalizarPrecio(p);
   if (errPrecio) return res.status(400).json({ error: errPrecio });
+  const errCat = await categoriaAjena(categoria_id, restaurante_id);
+  if (errCat) return res.status(400).json({ error: errCat });
   const { data, error } = await supabase.from('productos')
     .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, atributos: atributos || {} }])
     .select().single();
@@ -655,6 +708,11 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
   const errPrecio = normalizarPrecio(body);
   if (errPrecio) return res.status(400).json({ error: errPrecio });
+  // Mover un plato de categoría es normal; moverlo a la de otro negocio no.
+  if (body.categoria_id !== undefined) {
+    const errCat = await categoriaAjena(body.categoria_id, prod.restaurante_id);
+    if (errCat) return res.status(400).json({ error: errCat });
+  }
   const { data, error } = await supabase.from('productos').update(body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -1072,9 +1130,14 @@ app.get('/api/og', async (req, res) => {
 // ilegible en vez de decir qué pasó. Va después de las rutas porque un
 // manejador de errores solo recibe lo que ellas dejan escapar.
 app.use((err, req, res, next) => {
-  if (err instanceof multer.MulterError)
+  if (err instanceof multer.MulterError) {
+    // El tope depende de la ruta: 200 MB para un video, 10 para una foto.
+    // Anunciar siempre el del video le decía a quien subía una foto de 12 MB
+    // que el límite eran 200, así que volvía a intentarlo con la misma foto.
+    const tope = req.path === '/api/video' ? VIDEO_MAX_MB : IMAGEN_MAX_MB;
     return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE'
-      ? `El archivo pasa del límite de ${VIDEO_MAX_MB} MB` : err.message });
+      ? `El archivo pasa del límite de ${tope} MB` : err.message });
+  }
   if (/^Solo /.test(err?.message || '')) return res.status(400).json({ error: err.message });
   next(err);
 });
