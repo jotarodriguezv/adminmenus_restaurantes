@@ -1049,3 +1049,38 @@ describe('/api/ia/cupo · el freno de la factura', () => {
 		assert.equal(r.status, 200);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('/api/resumen-video · la vista de la lista de restaurantes', () => {
+	test('solo el superadmin lo ve', async () => {
+		// Es la vista de operación de la plataforma, no del negocio.
+		assert.equal((await S.pedir('GET', '/api/resumen-video', null, tokenCliente)).status, 403);
+		assert.equal((await S.pedir('GET', '/api/resumen-video')).status, 401);
+	});
+
+	test('devuelve el agregado tal cual lo da la base', async () => {
+		S.conRpc(() => ({ data: { [IDS.restaurante]: {
+			videos_listos: 4, videos_en_curso: 1, videos_error: 0, ia_usadas: 3, ia_cupo: 24,
+		} }, error: null }));
+
+		const r = await S.pedir('GET', '/api/resumen-video', null, tokenAdmin);
+		assert.equal(r.status, 200);
+		assert.equal(r.body[IDS.restaurante].videos_listos, 4);
+		assert.equal(r.body[IDS.restaurante].ia_usadas, 3);
+	});
+
+	test('lo agrega la base, no Node', async () => {
+		// Contarlo aquí serían dos consultas por restaurante y eso crece con
+		// los clientes. Es el mismo criterio que las estadísticas.
+		S.conRpc(() => ({ data: {}, error: null }));
+		await S.pedir('GET', '/api/resumen-video', null, tokenAdmin);
+		assert.ok(S.llamadas.some(l => l.tipo === 'rpc' && l.nombre === 'resumen_video_restaurantes'));
+	});
+
+	test('si la base falla, no se filtra su mensaje', async () => {
+		S.conRpc(() => ({ data: null, error: { message: 'relation "x" does not exist' } }));
+		const r = await S.pedir('GET', '/api/resumen-video', null, tokenAdmin);
+		assert.equal(r.status, 500);
+		assert.doesNotMatch(r.body.error, /relation/);
+	});
+});
