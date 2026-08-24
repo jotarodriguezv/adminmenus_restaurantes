@@ -789,7 +789,25 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       imagen hace `COPY . /usr/share/nginx/html`, así que `/nginx.conf` y
       `/Dockerfile` se servían a cualquiera. No enseñaban ningún secreto —el
       host del panel ya está en `core/analytics.js`— pero lo que se añada mañana
-      a esos archivos se habría regalado igual
+      a esos archivos se habría regalado igual.
+
+      **Dos trampas, las dos sufridas:**
+
+      1. `nginx.conf` **no se puede excluir en `.dockerignore`**. Eso lo saca
+         del contexto de construcción ENTERO, y entonces el
+         `COPY nginx.conf /etc/nginx/conf.d/default.conf` se queda sin archivo:
+         `ERROR: "/nginx.conf": not found`, y el despliegue no termina. Se quita
+         con un `rm` en el Dockerfile, después de copiarlo donde hace falta.
+         (`Dockerfile` sí se puede excluir: Docker no lo necesita dentro.)
+
+      2. **No se comprueba esperando un 404.** Con `try_files $uri $uri/
+         /index.html`, ninguna ruta inexistente da 404: todas devuelven la
+         carta. Al pedir `/nginx.conf` sale "No se pudo cargar el menú" y en la
+         consola "Restaurante no encontrado" — porque la aplicación toma
+         `nginx.conf` como si fuera el slug de un restaurante. **Eso es lo
+         correcto**, no un fallo. La prueba limpia es comparar con una ruta
+         inventada: si `/nginx.conf` y `/esto-no-existe-12345` se comportan
+         igual, el archivo ya no está
 - [x] **`search_path` fijado en `tocar_actualizado_en()`** (24/08/2026). El aviso
       desapareció del linter. Se comprobó que el trigger sigue disparando —de él
       depende el rescate de trabajos colgados— con una tabla temporal y `rollback`
