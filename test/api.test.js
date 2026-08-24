@@ -112,6 +112,11 @@ describe('PATCH y POST /api/productos · precio coherente', () => {
 	});
 
 	test('el alta sin precio queda en $ 0, no en nulo', async () => {
+		// La categoría tiene que existir y ser del mismo restaurante: desde que
+		// eso se comprueba, el falso Supabase tiene que contestarlo.
+		S.conTabla(st => st.tabla === 'categorias'
+			? { data: { restaurante_id: IDS.restaurante }, error: null }
+			: { data: null, error: null });
 		const r = await S.pedir('POST', '/api/productos',
 			{ restaurante_id: IDS.restaurante, categoria_id: IDS.categoria, nombre: 'Sin precio' }, tokenCliente);
 		assert.equal(r.status, 200);
@@ -698,5 +703,122 @@ describe('POST /api/restaurantes · la dirección repetida se explica', () => {
 			{ nombre: 'Nuevo', slug: 'nuevo', pin: '1234' }, tokenAdmin);
 		assert.equal(r.status, 500);
 		assert.ok(!/ya la usa/.test(r.body.error));
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('POST /api/upload · la extensión no la escribe quien sube', () => {
+	// El nombre del archivo lo genera el servidor entero salvo la extensión.
+	// Antes se comprobaba con /jpeg|jpg|png|webp/ sin anclar, así que bastaba
+	// con que esas letras salieran en algún sitio y la extensión se escribía
+	// en el disco tal cual llegara.
+	const dirProductos = () => path.join(__dirname, '..', 'uploads', 'productos');
+	const listar = () => (fs.existsSync(dirProductos()) ? fs.readdirSync(dirProductos()) : []);
+
+	test('rechaza extensiones que solo CONTIENEN una buena', async () => {
+		// '.apng' y '.webpx' son formatos que no se sirven; '.jpeg2000' tampoco.
+		for (const nombre of ['foto.apng', 'foto.webpx', 'foto.jpeg2000']) {
+			const r = await S.pedirArchivo('/api/upload', {}, tokenCliente, nombre);
+			assert.equal(r.status, 400, `${nombre} no debería entrar`);
+		}
+	});
+
+	test('rechaza una extensión con caracteres raros dentro', async () => {
+		// Este es el que hacía daño de verdad. 'foto.jpg;rm' pasaba el filtro y
+		// se guardaba con el punto y coma en el nombre; limpieza.js lee los
+		// nombres con [A-Za-z0-9._-]+ y de la URL guardada solo reconocía hasta
+		// el ';'. Disco y base dejaban de coincidir y, pasados los siete días de
+		// gracia, el limpiador borraba una foto que estaba EN USO.
+		for (const nombre of ['foto.jpg;rm', 'foto.png?x=1', 'foto.jpg ']) {
+			const r = await S.pedirArchivo('/api/upload', {}, tokenCliente, nombre);
+			assert.equal(r.status, 400, `${nombre} no debería entrar`);
+		}
+	});
+
+	test('lo que se guarda solo lleva extensiones de la lista', async () => {
+		const antes = new Set(listar());
+		const r = await S.pedirArchivo('/api/upload', {}, tokenCliente, 'MiFoto.JPEG');
+
+		assert.equal(r.status, 200);
+		// La caja no importa: se normaliza a minúsculas.
+		assert.match(r.body.filename, /^\d+-[a-z0-9]+\.jpeg$/,
+			'el nombre lo genera el servidor entero salvo la extensión');
+
+		// Y lo que quedó en el disco se llama exactamente igual que lo que se
+		// devolvió: es lo que hace que la base y el disco no se separen.
+		const nuevos = listar().filter(f => !antes.has(f));
+		assert.deepEqual(nuevos, [r.body.filename]);
+		for (const f of nuevos) fs.unlinkSync(path.join(dirProductos(), f));
+	});
+
+	test('el nombre original no llega al disco', async () => {
+		const antes = new Set(listar());
+		const r = await S.pedirArchivo('/api/upload', {}, tokenCliente, 'nombre del cliente.png');
+
+		assert.equal(r.status, 200);
+		assert.ok(!r.body.filename.includes('nombre'), 'no debe quedar rastro del original');
+		assert.ok(!/\s/.test(r.body.filename), 'ni espacios, que limpieza.js no reconoce');
+
+		for (const f of listar().filter(x => !antes.has(x))) fs.unlinkSync(path.join(dirProductos(), f));
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('productos · la categoría tiene que ser del mismo restaurante', () => {
+	// El permiso se comprueba sobre restaurante_id, y eso no dice nada sobre a
+	// quién pertenece la categoría. El daño es callado: el plato se guarda, el
+	// panel dice que todo fue bien, y la carta pública —que agrupa por las
+	// categorías DEL restaurante— no lo enseña en ningún sitio. Desde fuera
+	// parece que se perdió al guardar.
+	const AJENA = '44444444-4444-4444-8444-444444444444';
+	const OTRO  = '55555555-5555-4555-8555-555555555555';
+
+	const conCategoriaDe = restauranteId => S.conTabla(st => {
+		if (st.tabla === 'categorias') return { data: { restaurante_id: restauranteId }, error: null };
+		if (st.tabla === 'productos')  return { data: { restaurante_id: IDS.restaurante }, error: null };
+		return { data: null, error: null };
+	});
+
+	test('no se puede crear un plato en la categoría de otro negocio', async () => {
+		conCategoriaDe(OTRO);
+		const r = await S.pedir('POST', '/api/productos',
+			{ restaurante_id: IDS.restaurante, categoria_id: AJENA, nombre: 'Colado' }, tokenCliente);
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /no es de este restaurante/);
+	});
+
+	test('tampoco se puede mover uno existente a ella', async () => {
+		conCategoriaDe(OTRO);
+		const r = await S.pedir('PATCH', `/api/productos/${IDS.producto}`,
+			{ categoria_id: AJENA }, tokenCliente);
+		assert.equal(r.status, 400);
+	});
+
+	test('una categoría que no existe se rechaza en vez de guardarse', async () => {
+		S.conTabla(st => st.tabla === 'productos'
+			? { data: { restaurante_id: IDS.restaurante }, error: null }
+			: { data: null, error: null });
+		const r = await S.pedir('PATCH', `/api/productos/${IDS.producto}`,
+			{ categoria_id: AJENA }, tokenCliente);
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /no existe/);
+	});
+
+	test('la categoría propia sí pasa', async () => {
+		conCategoriaDe(IDS.restaurante);
+		const r = await S.pedir('PATCH', `/api/productos/${IDS.producto}`,
+			{ categoria_id: IDS.categoria }, tokenCliente);
+		assert.equal(r.status, 200);
+	});
+
+	test('un plato sin categoría sigue siendo válido', async () => {
+		// Se admite a propósito: hay altas que se guardan antes de decidir en
+		// qué categoría van.
+		S.conTabla(st => st.tabla === 'productos'
+			? { data: { restaurante_id: IDS.restaurante }, error: null }
+			: { data: null, error: null });
+		const r = await S.pedir('PATCH', `/api/productos/${IDS.producto}`,
+			{ nombre: 'Sin categoría' }, tokenCliente);
+		assert.equal(r.status, 200);
 	});
 });
