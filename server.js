@@ -542,6 +542,15 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     if (choque) return res.status(409).json({ error: 'Ese slug ya está en uso por otro restaurante' });
   }
 
+  // Aunque el admin puede escribir 'atributos' entero, estas dos claves ya no
+  // viven ahí: tienen su propia tabla, fuera de la lectura pública. Se quitan
+  // aquí para que ninguna pantalla vieja ni ninguna llamada suelta las vuelva
+  // a colar en la tabla que ve todo el mundo.
+  if (body.atributos && typeof body.atributos === 'object') {
+    const { dia_pago, ultimo_pago, ...resto } = body.atributos;
+    body.atributos = resto;
+  }
+
   if (body.atributos && req.user.rol !== 'admin') {
     // Nunca confiar en el objeto "atributos" completo que manda el cliente:
     // se reconstruye a partir de lo que ya existe + solo las claves permitidas.
@@ -573,6 +582,66 @@ app.delete('/api/restaurantes/:id', auth, async (req, res) => {
   await supabase.from('categorias').delete().eq('restaurante_id', id);
   await supabase.from('restaurantes_privado').delete().eq('restaurante_id', id);
   const { error } = await supabase.from('restaurantes').delete().eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// ── FACTURACIÓN ───────────────────────────────────────────────
+// Cuándo cobra la plataforma a cada restaurante y cuándo pagó por última
+// vez. Vivía dentro de restaurantes.atributos, y esa tabla tiene lectura
+// pública: la carta pide 'atributos' entero, así que estos dos datos
+// viajaban al navegador de cada comensal y se veían en el inspector sin
+// ninguna llave. Con la llave publishable, que está en el JS de la carta,
+// se podían pedir los de todos a la vez.
+//
+// No es una credencial y con ella no se entra a ningún sitio. Es
+// información comercial nuestra: quién paga, cuándo, y quién va atrasado.
+//
+// Ahora vive en restaurantes_facturacion, con RLS y sin políticas — solo
+// la llave de servicio la alcanza, y esta API es la única puerta.
+//
+// SOLO ADMIN, las dos rutas. Un restaurante no tiene por qué ver ni
+// escribir su propio estado de cobranza: es un dato de la plataforma
+// sobre él, no suyo. Por eso no se usa canAccessRestaurante() aquí.
+
+app.get('/api/facturacion', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  const { data, error } = await supabase.from('restaurantes_facturacion')
+    .select('restaurante_id, dia_pago, ultimo_pago');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.patch('/api/facturacion/:restauranteId', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+
+  const fila = { restaurante_id: req.params.restauranteId, actualizado_at: new Date().toISOString() };
+
+  // Se distingue "no lo mandó" de "lo mandó vacío": lo primero deja el valor
+  // como está, lo segundo lo borra. Sin esa diferencia no habría forma de
+  // quitarle el día de pago a un restaurante.
+  if (req.body.dia_pago !== undefined) {
+    if (req.body.dia_pago === null || req.body.dia_pago === '') fila.dia_pago = null;
+    else {
+      const n = parseInt(req.body.dia_pago, 10);
+      if (!Number.isInteger(n) || n < 1 || n > 31)
+        return res.status(400).json({ error: 'El día de pago va del 1 al 31' });
+      fila.dia_pago = n;
+    }
+  }
+
+  if (req.body.ultimo_pago !== undefined) {
+    if (req.body.ultimo_pago === null || req.body.ultimo_pago === '') fila.ultimo_pago = null;
+    // Se valida la forma antes de ir a la base: una fecha mal escrita daría
+    // un error de Postgres con nombres de tabla dentro.
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.ultimo_pago))) fila.ultimo_pago = req.body.ultimo_pago;
+    else return res.status(400).json({ error: 'La fecha de pago debe ser AAAA-MM-DD' });
+  }
+
+  // upsert: un restaurante creado antes de que existiera esta tabla no tiene
+  // fila, y anotarle un pago tiene que crearla en vez de fallar.
+  const { error } = await supabase.from('restaurantes_facturacion')
+    .upsert(fila, { onConflict: 'restaurante_id' });
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
