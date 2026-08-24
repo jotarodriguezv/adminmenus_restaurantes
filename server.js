@@ -10,6 +10,7 @@ const crypto  = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const video    = require('./video');
 const limpieza = require('./limpieza');
+const cupo     = require('./cupo');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -584,6 +585,56 @@ app.delete('/api/restaurantes/:id', auth, async (req, res) => {
   const { error } = await supabase.from('restaurantes').delete().eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
+});
+
+// ── CUPO DE GENERACIONES CON IA ───────────────────────────────
+// Generar un video con IA cuesta dinero cada vez, así que el cupo existe
+// antes que el botón que lo gasta. Ver cupo.js.
+//
+// A diferencia de la cobranza, el restaurante SÍ ve su cupo: es información
+// que necesita para usar la función —"te quedan 12 animaciones"— y no un
+// dato nuestro sobre él. Lo que no puede es cambiarlo.
+
+app.get('/api/ia/cupo', auth, async (req, res) => {
+  const rid = req.query.restaurante_id;
+  if (!rid) return res.status(400).json({ error: 'Falta restaurante_id' });
+  if (!canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+  try {
+    res.json(await cupo.estado(supabase, rid));
+  } catch (e) {
+    // Sin saber cuántas quedan, el panel no debe enseñar el botón de generar:
+    // es preferible un error visible a dejar creer que hay cupo de sobra.
+    console.error('[ia] no se pudo leer el cupo:', e.message);
+    res.status(500).json({ error: 'No se pudo consultar el cupo' });
+  }
+});
+
+// Ampliar (o recortar) el cupo de un restaurante. Solo superadmin: es la
+// palanca comercial de "escríbenos para ampliar", no una preferencia del
+// negocio.
+app.patch('/api/ia/cupo/:restauranteId', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+
+  // Sin parseInt a propósito: parseInt('1.5') da 1, y guardar un número
+  // distinto del que se mandó no es aceptable en el dato que autoriza el
+  // gasto. Lo que no sea un entero exacto se rechaza en vez de redondearse.
+  //
+  // null tampoco pasa: no mandar cupo no es lo mismo que poner 0, y Number(null)
+  // vale 0.
+  const bruto = req.body.cupo;
+  const n = typeof bruto === 'number' ? bruto
+          : (typeof bruto === 'string' && bruto.trim() !== '' ? Number(bruto) : NaN);
+
+  // El tope de arriba no es un límite técnico: es un freno para que una
+  // errata de teclado no autorice mil generaciones.
+  if (!Number.isInteger(n) || n < 0 || n > 500)
+    return res.status(400).json({ error: 'El cupo va de 0 a 500' });
+
+  const { error } = await supabase.from('restaurantes_ia')
+    .upsert({ restaurante_id: req.params.restauranteId, cupo: n, actualizado_at: new Date().toISOString() },
+            { onConflict: 'restaurante_id' });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true, cupo: n });
 });
 
 // ── FACTURACIÓN ───────────────────────────────────────────────
