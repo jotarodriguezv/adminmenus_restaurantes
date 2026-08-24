@@ -1748,6 +1748,8 @@ let state = {
   restaurante: null, categorias: [], productos: [],
   catFiltro: 'all', pendingImgUrl: null,
   extraImgs: [],
+  facturacion: [],           // cobranza por restaurante, fuera de atributos
+  facturacionCargada: false, // si es false el campo vacío significa "no se sabe"
   filtrosDisponibles: [],   // filtros que el restaurante activó (modelo explorar)
   prodFiltros: [],          // filtros marcados en el producto que se edita
   prodBadges: {},           // badges (popular/chef/nuevo) del producto que se edita
@@ -3474,12 +3476,28 @@ async function handlePromoUpload(input) {
 }
 
 // ── DATOS DEL RESTAURANTE (nombre + slug) ──────────────────────
-function renderDatosResto() {
+// La cobranza llega por su propia ruta, así que puede no estar cargada
+// todavía: a la lista de restaurantes se llega por un camino y a la ficha de
+// uno solo por otro. Sin esto, entrar directo a un restaurante enseñaba el
+// día de pago vacío — y guardar desde ahí lo habría BORRADO, que es peor que
+// no enseñarlo.
+async function asegurarFacturacion() {
+  if (state.rol !== 'admin' || state.facturacionCargada) return;
+  try {
+    state.facturacion = await apiFetch('GET', '/api/facturacion') || [];
+    state.facturacionCargada = true;
+  } catch { state.facturacion = []; }   // sigue en false: no se guardará a ciegas
+}
+
+async function renderDatosResto() {
   const r = state.restaurante;
   document.getElementById('apNombreResto').value = r.nombre || '';
   document.getElementById('apSlugResto').value = r.slug || '';
-  document.getElementById('apDiaPago').value = r.atributos?.dia_pago || '';
   document.getElementById('apDatosRestoStatus').textContent = '';
+  // El día de pago ya no vive en atributos: esa columna es de lectura
+  // pública y estos datos son de nuestra cobranza, no del restaurante.
+  await asegurarFacturacion();
+  document.getElementById('apDiaPago').value = facturacionDe(r.id)?.dia_pago ?? '';
 }
 
 async function guardarDatosResto() {
@@ -3503,9 +3521,23 @@ async function guardarDatosResto() {
     if (!ok) return;
   }
 
-  const atributos = { ...(state.restaurante.atributos || {}), dia_pago };
   try {
-    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { nombre, slug, atributos });
+    // Dos llamadas porque son dos sitios: el nombre y la dirección son del
+    // restaurante y viajan en su tabla; el día de pago es nuestro y va a la
+    // suya, que no tiene lectura pública.
+    //
+    // Solo si de verdad se pudo leer antes. Si la carga falló, el campo está
+    // vacío porque no se sabe, no porque nadie lo haya puesto: mandarlo
+    // igualmente borraría el día de pago de ese restaurante sin que nadie lo
+    // pidiera.
+    if (state.facturacionCargada) {
+      const anterior = facturacionDe(state.restaurante.id);
+      await apiFetch('PATCH', `/api/facturacion/${state.restaurante.id}`, { dia_pago });
+      state.facturacion = (state.facturacion || []).filter(f => f.restaurante_id !== state.restaurante.id);
+      state.facturacion.push({ ...(anterior || {}), restaurante_id: state.restaurante.id, dia_pago });
+    }
+
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { nombre, slug });
     state.restaurante = data;
     document.getElementById('topbarResto').textContent = data.nombre.toUpperCase();
     if (slugCambio) {
@@ -4512,15 +4544,24 @@ function siguienteOcurrencia(cicloInicio, diaPago) {
   return diaDelMesClamped(anio, mes, diaPago);
 }
 
-function estadoPagoHtml(atributos) {
-  const diaPago = atributos?.dia_pago;
+// Recibe la fila de facturación del restaurante, no sus atributos: el dato
+// cambió de sitio y la firma lo dice, para que no quede una llamada vieja
+// pasando algo que ya no lleva estas claves.
+// La cobranza llega en su propia lista, no dentro de cada restaurante: son
+// dos tablas distintas y se piden por separado.
+function facturacionDe(restauranteId) {
+  return (state.facturacion || []).find(f => f.restaurante_id === restauranteId) || null;
+}
+
+function estadoPagoHtml(fact) {
+  const diaPago = fact?.dia_pago;
   if (!diaPago) return '';
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const fmt = d => d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 
   const cicloInicio = inicioCicloPago(diaPago, hoy);
   const proxima = siguienteOcurrencia(cicloInicio, diaPago);
-  const ultimoPago = atributos?.ultimo_pago ? new Date(atributos.ultimo_pago + 'T00:00:00') : null;
+  const ultimoPago = fact?.ultimo_pago ? new Date(fact.ultimo_pago + 'T00:00:00') : null;
   const pagado = ultimoPago && ultimoPago >= cicloInicio;
 
   if (!pagado) {
@@ -4539,9 +4580,7 @@ async function marcarComoPagado(id, nombre) {
   const hoy = new Date();
   const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
   try {
-    const resto = (state.listaRestos || []).find(r => r.id === id);
-    const atributos = { ...(resto?.atributos || {}), ultimo_pago: hoyStr };
-    await apiFetch('PATCH', `/api/restaurantes/${id}`, { atributos });
+    await apiFetch('PATCH', `/api/facturacion/${id}`, { ultimo_pago: hoyStr });
     showToast(`${nombre}: pago registrado`, 'success');
     await cargarListaRestos();
   } catch (e) { showToast('Error al registrar el pago', 'error'); }
@@ -4565,10 +4604,19 @@ async function cargarListaRestos() {
   const list=document.getElementById('adminRestoList');
   list.innerHTML='<div class="empty-state">Cargando...</div>';
   try {
-    const restos=await apiFetch('GET','/api/restaurantes');
+    // Las dos a la vez: la lista no se puede pintar sin el estado de pago y
+    // esperar una detrás de otra no aporta nada.
+    const [restos, facturacion] = await Promise.all([
+      apiFetch('GET','/api/restaurantes'),
+      // Si esta fallara, la lista se pinta igual y sin insignias de cobro.
+      // Es información nuestra: no vale la pena dejar sin panel al que entra.
+      apiFetch('GET','/api/facturacion').catch(() => []),
+    ]);
     if(!restos||!restos.length){list.innerHTML='<div class="empty-state">Sin restaurantes</div>';return;}
     list.innerHTML='';
     state.listaRestos = restos;
+    state.facturacion = facturacion || [];
+    state.facturacionCargada = true;
     const clonarSelect = document.getElementById('newRestoClonar');
     clonarSelect.innerHTML = '<option value="">Ninguno — empezar en blanco</option>';
     restos.forEach(r => {
@@ -4583,7 +4631,7 @@ async function cargarListaRestos() {
         <div class="resto-card-info">
           <div class="resto-card-name">${esc(r.nombre)}</div>
           <div class="resto-card-slug">${esc(r.slug)}</div>
-          ${estadoPagoHtml(r.atributos)}
+          ${estadoPagoHtml(facturacionDe(r.id))}
           <span class="resto-card-plan">Plan ${planDe(r).nombre}</span>
         </div>
         <div class="resto-card-actions">
