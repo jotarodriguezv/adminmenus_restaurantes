@@ -1750,6 +1750,7 @@ let state = {
   extraImgs: [],
   facturacion: [],           // cobranza por restaurante, fuera de atributos
   facturacionCargada: false, // si es false el campo vacío significa "no se sabe"
+  resumenVideo: {},          // videos y cupo de IA por restaurante, para la lista
   filtrosDisponibles: [],   // filtros que el restaurante activó (modelo explorar)
   prodFiltros: [],          // filtros marcados en el producto que se edita
   prodBadges: {},           // badges (popular/chef/nuevo) del producto que se edita
@@ -4547,6 +4548,30 @@ function siguienteOcurrencia(cicloInicio, diaPago) {
 // Recibe la fila de facturación del restaurante, no sus atributos: el dato
 // cambió de sitio y la firma lo dice, para que no quede una llamada vieja
 // pasando algo que ya no lleva estas claves.
+// Cuántos videos lleva el restaurante y cuánto le queda de cupo de IA.
+//
+// Se enseña solo si tiene algo que enseñar: un restaurante sin video no gana
+// nada con un "0 videos" ocupando sitio en la tarjeta.
+//
+// Los que están en curso van aparte de los listos a propósito. Es la
+// diferencia entre "va bien" y "hay algo atascado", y sin separarlos un
+// trabajo colgado se vería como un video más.
+function resumenVideoHtml(r) {
+  if (!r) return '';
+  const partes = [];
+  if (r.videos_listos)   partes.push(`🎬 ${r.videos_listos} video${r.videos_listos === 1 ? '' : 's'}`);
+  if (r.videos_en_curso) partes.push(`⏳ ${r.videos_en_curso} convirtiendo`);
+  if (r.videos_error)    partes.push(`⚠ ${r.videos_error} con error`);
+  // El cupo solo cuando ya se usó algo: antes de la primera generación es
+  // ruido, y en cuanto se usa es lo que hay que vigilar.
+  if (r.ia_usadas)       partes.push(`✨ ${r.ia_usadas}/${r.ia_cupo} con IA`);
+  if (!partes.length) return '';
+
+  const apurado = r.ia_usadas && r.ia_usadas >= r.ia_cupo;
+  return `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;font-family:var(--mono)${
+    apurado ? ';color:var(--danger)' : ''}">${esc(partes.join(' · '))}</div>`;
+}
+
 // La cobranza llega en su propia lista, no dentro de cada restaurante: son
 // dos tablas distintas y se piden por separado.
 function facturacionDe(restauranteId) {
@@ -4606,17 +4631,19 @@ async function cargarListaRestos() {
   try {
     // Las dos a la vez: la lista no se puede pintar sin el estado de pago y
     // esperar una detrás de otra no aporta nada.
-    const [restos, facturacion] = await Promise.all([
+    const [restos, facturacion, resumen] = await Promise.all([
       apiFetch('GET','/api/restaurantes'),
-      // Si esta fallara, la lista se pinta igual y sin insignias de cobro.
+      // Si estas dos fallaran, la lista se pinta igual y sin sus insignias.
       // Es información nuestra: no vale la pena dejar sin panel al que entra.
       apiFetch('GET','/api/facturacion').catch(() => []),
+      apiFetch('GET','/api/resumen-video').catch(() => ({})),
     ]);
     if(!restos||!restos.length){list.innerHTML='<div class="empty-state">Sin restaurantes</div>';return;}
     list.innerHTML='';
     state.listaRestos = restos;
     state.facturacion = facturacion || [];
     state.facturacionCargada = true;
+    state.resumenVideo = resumen || {};
     const clonarSelect = document.getElementById('newRestoClonar');
     clonarSelect.innerHTML = '<option value="">Ninguno — empezar en blanco</option>';
     restos.forEach(r => {
@@ -4632,6 +4659,7 @@ async function cargarListaRestos() {
           <div class="resto-card-name">${esc(r.nombre)}</div>
           <div class="resto-card-slug">${esc(r.slug)}</div>
           ${estadoPagoHtml(facturacionDe(r.id))}
+          ${resumenVideoHtml(resumen[r.id])}
           <span class="resto-card-plan">Plan ${planDe(r).nombre}</span>
         </div>
         <div class="resto-card-actions">
