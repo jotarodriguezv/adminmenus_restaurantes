@@ -979,3 +979,73 @@ describe('/api/facturacion · la cobranza sale de la tabla pública', () => {
 		assert.equal(g.atributos.color_card, '#111', 'lo que sí es apariencia pasa igual');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('/api/ia/cupo · el freno de la factura', () => {
+	// Generar con IA cuesta dinero cada vez. El cupo se expone para que el
+	// panel pueda enseñar "te quedan N" y para que el superadmin lo amplíe.
+
+	// El fake compartido no sabe de conteos con head:true, que es lo que usa
+	// cupo.usadas(). Se le enseña aquí.
+	const conCupo = (cupoConfigurado, usadas) => S.conTabla(st => {
+		if (st.tabla === 'restaurantes_ia') return { data: { cupo: cupoConfigurado }, error: null, count: null };
+		if (st.tabla === 'generaciones_ia') return { data: [], error: null, count: usadas };
+		return { data: null, error: null };
+	});
+
+	test('el restaurante puede ver su propio cupo', async () => {
+		// A diferencia de la cobranza, esto SÍ es información que necesita para
+		// usar la función.
+		conCupo(24, 5);
+		const r = await S.pedir('GET', `/api/ia/cupo?restaurante_id=${IDS.restaurante}`, null, tokenCliente);
+		assert.equal(r.status, 200);
+		assert.deepEqual(r.body, { cupo: 24, usadas: 5, disponibles: 19 });
+	});
+
+	test('pero no el de otro restaurante', async () => {
+		conCupo(24, 0);
+		const r = await S.pedir('GET', '/api/ia/cupo?restaurante_id=99999999-9999-4999-8999-999999999999',
+			null, tokenCliente);
+		assert.equal(r.status, 403);
+	});
+
+	test('sin restaurante_id no adivina de quién', async () => {
+		assert.equal((await S.pedir('GET', '/api/ia/cupo', null, tokenCliente)).status, 400);
+	});
+
+	test('agotado, disponibles llega a cero y no a negativo', async () => {
+		conCupo(24, 30);
+		const r = await S.pedir('GET', `/api/ia/cupo?restaurante_id=${IDS.restaurante}`, null, tokenCliente);
+		assert.equal(r.body.disponibles, 0);
+	});
+
+	test('el restaurante NO puede ampliarse el cupo', async () => {
+		// Es la palanca comercial de "escríbenos para ampliar". Si el cliente
+		// pudiera moverla, no sería un freno.
+		const r = await S.pedir('PATCH', `/api/ia/cupo/${IDS.restaurante}`, { cupo: 500 }, tokenCliente);
+		assert.equal(r.status, 403);
+	});
+
+	test('el superadmin sí, y queda escrito', async () => {
+		const r = await S.pedir('PATCH', `/api/ia/cupo/${IDS.restaurante}`, { cupo: 40 }, tokenAdmin);
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes_ia').cupo, 40);
+	});
+
+	test('un cupo absurdo se rechaza antes de guardarse', async () => {
+		// El tope no es técnico: es para que una errata de teclado no autorice
+		// mil generaciones.
+		// 1.5 estaba pasando: parseInt lo convertía en 1 y lo guardaba en
+		// silencio. En el número que autoriza el gasto, guardar algo distinto
+		// de lo que se mandó no vale.
+		for (const malo of [-1, 501, 'muchas', null, 1.5, '', {}]) {
+			const r = await S.pedir('PATCH', `/api/ia/cupo/${IDS.restaurante}`, { cupo: malo }, tokenAdmin);
+			assert.equal(r.status, 400, String(malo));
+		}
+	});
+
+	test('cero es válido: apaga la función para ese restaurante', async () => {
+		const r = await S.pedir('PATCH', `/api/ia/cupo/${IDS.restaurante}`, { cupo: 0 }, tokenAdmin);
+		assert.equal(r.status, 200);
+	});
+});
