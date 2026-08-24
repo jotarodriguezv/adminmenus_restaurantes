@@ -10,7 +10,18 @@ RUN apk add --no-cache ffmpeg
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --production
+
+# 'npm ci' y no 'npm install', por el mismo motivo por el que el workflow
+# fija la versión de Node: que lo que corre en producción sea lo que se
+# probó. 'npm install' puede resolver versiones distintas de las del
+# lockfile —una dependencia indirecta que publicó un parche entre el push y
+# el despliegue—, así que las pruebas pasarían sobre un árbol y el servidor
+# correría otro. 'ci' instala exactamente el lockfile y falla si package.json
+# y el lockfile se han separado, en vez de inventarse una resolución.
+#
+# --omit=dev es el reemplazo de --production, que quedó obsoleto en npm 9.
+RUN npm ci --omit=dev --no-audit --no-fund
+
 COPY . .
 
 # El volumen de Dokploy se monta encima de uploads/ al arrancar, así que
