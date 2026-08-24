@@ -11,6 +11,7 @@ const { createClient } = require('@supabase/supabase-js');
 const video    = require('./video');
 const limpieza = require('./limpieza');
 const cupo     = require('./cupo');
+const colaia   = require('./colaia');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -585,6 +586,51 @@ app.delete('/api/restaurantes/:id', auth, async (req, res) => {
   const { error } = await supabase.from('restaurantes').delete().eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
+});
+
+// ── GENERAR UN VIDEO A PARTIR DE LA FOTO ──────────────────────
+// Responde en cuanto la petición sale hacia Replicate; la generación tarda
+// minutos y la recoge colaia.js por su cuenta. Igual que la subida de video:
+// ninguna petición HTTP debería esperar a eso.
+//
+// El prompt lo fija la plataforma y no se acepta del navegador. No es
+// desconfianza: es que el prompt es lo que sujeta el "no añadas ni cambies
+// ingredientes", y si el modelo agrega una guarnición que el negocio no sirve,
+// el expuesto ante la SIC es el cliente. Ver docs/video-con-ia.md §9.
+app.post('/api/ia/generar', auth, async (req, res) => {
+  const { restaurante_id, producto_id } = req.body;
+  if (!restaurante_id || !canAccessRestaurante(req.user, restaurante_id))
+    return res.status(403).json({ error: 'Sin permiso' });
+  if (!producto_id) return res.status(400).json({ error: 'Falta el plato' });
+
+  // El plato tiene que ser de este restaurante Y tener foto: la foto ES la
+  // entrada del modelo. Sin ella no hay nada que animar.
+  const { data: prod } = await supabase.from('productos')
+    .select('restaurante_id, imagen_url').eq('id', producto_id).maybeSingle();
+  if (!prod || prod.restaurante_id !== restaurante_id)
+    return res.status(403).json({ error: 'Ese plato no es de este restaurante' });
+  if (!prod.imagen_url)
+    return res.status(400).json({ error: 'Ese plato no tiene foto todavía. La foto es de donde sale el video.' });
+
+  // Misma comprobación de plan que la subida de video: convertir y generar
+  // son la misma capacidad y cuestan dinero de dos formas distintas.
+  const { data: resto } = await supabase.from('restaurantes')
+    .select('atributos').eq('id', restaurante_id).single();
+  if (req.user.rol !== 'admin' && !planDe(resto?.atributos).videos)
+    return res.status(403).json({ error: 'La carta en video no está incluida en el plan actual' });
+
+  try {
+    const r = await colaia.lanzar(supabase, {
+      restaurante_id, producto_id, foto_url: prod.imagen_url,
+    });
+    res.json(r);
+  } catch (e) {
+    // Quedarse sin cupo no es un error del sistema: es la respuesta esperada
+    // y el panel la enseña tal cual, con el texto que invita a escribir.
+    if (e.sinCupo) return res.status(409).json({ error: e.message, sinCupo: true });
+    console.error('[ia] no se pudo lanzar la generación:', e.message);
+    res.status(502).json({ error: 'No se pudo pedir la generación. Inténtalo de nuevo.' });
+  }
 });
 
 // ── RESUMEN DE VIDEO POR RESTAURANTE ──────────────────────────
@@ -1315,5 +1361,9 @@ app.listen(PORT, () => {
   // Se puede apagar con VIDEO_WORKER=0 si algún día conviene moverlo a un
   // proceso aparte.
   if (process.env.VIDEO_WORKER !== '0') video.arrancar(supabase);
+  // La cola de IA solo arranca si hay con qué llamar: sin token no haría más
+  // que fallar cada veinte segundos y llenar los registros de ruido.
+  if (process.env.VIDEO_WORKER !== '0' && process.env.REPLICATE_API_TOKEN) colaia.arrancar(supabase);
+  else if (!process.env.REPLICATE_API_TOKEN) console.log('✨ cola de IA apagada: falta REPLICATE_API_TOKEN');
   limpieza.arrancar(supabase);
 });
