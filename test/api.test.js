@@ -822,3 +822,76 @@ describe('productos · la categoría tiene que ser del mismo restaurante', () =>
 		assert.equal(r.status, 200);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('productos · qué se puede escribir dentro de "atributos"', () => {
+	// Restaurantes y categorías ya filtraban su objeto "atributos"; productos
+	// no. Llegaba entero desde el navegador y se guardaba tal cual.
+	//
+	// Importa porque 'imagenes' se pinta en el PANEL, y el panel lo abre el
+	// superadmin para cualquier restaurante con su token en sessionStorage:
+	// es la vía para que lo que escribe un restaurante acabe ejecutándose en
+	// la sesión de quien administra a todos.
+	const conProducto = atributos => S.conTabla(st => {
+		if (st.tabla === 'productos')  return { data: { restaurante_id: IDS.restaurante, atributos }, error: null };
+		if (st.tabla === 'categorias') return { data: { restaurante_id: IDS.restaurante }, error: null };
+		return { data: null, error: null };
+	});
+
+	test('una clave inventada no se guarda', async () => {
+		conProducto({});
+		await S.pedir('PATCH', `/api/productos/${IDS.producto}`,
+			{ atributos: { popular: true, colada: 'lo que sea' } }, tokenCliente);
+
+		const g = S.ultimaEscritura('productos');
+		assert.equal(g.atributos.popular, true, 'lo legítimo sí pasa');
+		assert.equal(g.atributos.colada, undefined, 'lo demás no');
+	});
+
+	test('el cliente no puede inventarse el video de un plato', async () => {
+		// Lo pone el worker al terminar de convertir. Aceptarlo del navegador
+		// dejaría a un plato apuntando a un archivo de cualquier sitio.
+		conProducto({});
+		await S.pedir('PATCH', `/api/productos/${IDS.producto}`,
+			{ atributos: { video: { url: 'https://otro-sitio/x.mp4' } } }, tokenCliente);
+
+		assert.equal(S.ultimaEscritura('productos').atributos.video, undefined);
+	});
+
+	test('pero guardar otra cosa NO borra el video que ya tenía', async () => {
+		// El panel manda el objeto completo, así que descartar 'video' sin más
+		// se lo llevaría por delante al cambiar el nombre de un plato. Ocho
+		// platos en producción tienen video: esto es lo que impide perderlos.
+		const video = { url: 'https://panel/uploads/videos/a.mp4', portada: 'https://panel/uploads/miniaturas/a.jpg', duracion: 8 };
+		conProducto({ video });
+
+		await S.pedir('PATCH', `/api/productos/${IDS.producto}`,
+			{ atributos: { popular: true } }, tokenCliente);
+
+		assert.deepEqual(S.ultimaEscritura('productos').atributos.video, video,
+			'el video del plato tiene que sobrevivir a cualquier otro guardado');
+	});
+
+	test('el alta también filtra', async () => {
+		S.conTabla(st => st.tabla === 'categorias'
+			? { data: { restaurante_id: IDS.restaurante }, error: null }
+			: { data: null, error: null });
+		await S.pedir('POST', '/api/productos', {
+			restaurante_id: IDS.restaurante, categoria_id: IDS.categoria, nombre: 'Nuevo',
+			atributos: { filtros: ['vegetariano'], colada: 1, video: { url: 'https://otro/x.mp4' } },
+		}, tokenCliente);
+
+		const g = S.ultimaEscritura('productos');
+		assert.deepEqual(g.atributos.filtros, ['vegetariano']);
+		assert.equal(g.atributos.colada, undefined);
+		assert.equal(g.atributos.video, undefined);
+	});
+
+	test('un PATCH sin "atributos" no los toca', async () => {
+		// Cambiar solo el precio no puede vaciarle la personalización al plato.
+		conProducto({ popular: true, video: { url: 'x' } });
+		await S.pedir('PATCH', `/api/productos/${IDS.producto}`, { nombre: 'Otro' }, tokenCliente);
+
+		assert.equal(S.ultimaEscritura('productos').atributos, undefined);
+	});
+});
