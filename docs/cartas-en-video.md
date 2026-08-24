@@ -529,6 +529,70 @@ Ahora la extensión se devuelve **de la lista** (`EXTENSIONES_IMAGEN` /
 `EXTENSIONES_VIDEO`) en vez de copiarse del original, así que lo que se escribe
 en el disco solo puede ser una de ellas. Cuatro pruebas nuevas en `test/api.test.js`.
 
+### 9.4 Una imagen del carrusel podía ejecutarse en la sesión del superadmin
+
+Detectado al revisar `public/index.html` contra su propio `esc()`.
+**Resuelto el 24/08/2026.**
+
+El panel ya tiene escapado de HTML, y su comentario explica exactamente por
+qué: *"el superadmin abre el panel de CUALQUIER restaurante, y su token vive en
+sessionStorage"*. La regla estaba escrita. Lo que pasó es que una plantilla se
+quedó fuera:
+
+```js
+item.innerHTML = `<img src="${url}" alt="">…`   // renderExtraImgs()
+```
+
+Esa `url` sale de `productos.atributos.imagenes`, y `PATCH /api/productos/:id`
+era el único endpoint que **no filtraba** su objeto `atributos` — restaurantes y
+categorías sí lo hacían. Así que un restaurante podía guardar ahí cualquier
+cadena, y al abrir el superadmin la ficha de ese plato, se ejecutaba con su
+sesión: acceso a todos los restaurantes.
+
+Se cerró por los dos lados, porque cada mitad sola deja el agujero abierto:
+
+1. **El panel escapa** esa plantilla como todas las demás.
+2. **El servidor filtra** `atributos` de producto contra una lista
+   (`imagenes`, `personalizacion`, `filtros`, `popular`, `chef`, `nuevo`).
+
+Con un detalle que no se puede pasar por alto: `video` lo escribe el worker, no
+el navegador, así que no se acepta de fuera — pero **tampoco se descarta**. El
+panel manda el objeto completo, y descartarlo sin más le habría borrado el video
+al plato al guardar cualquier otro cambio. Se conserva el que ya estaba en la
+base. Hay ocho platos con video en producción; hay una prueba para eso.
+
+### 9.5 `dia_pago` y `ultimo_pago` son públicos
+
+Detectado al revisar las políticas RLS contra el contenido real de la tabla.
+**Pendiente — decisión de producto.**
+
+`restaurantes` tiene lectura pública (`USING true`) y la llave publishable está,
+como debe, dentro de `core/supabase.js`. Eso es correcto para una carta que se
+pinta en el navegador. El problema es **qué** hay dentro de `atributos`:
+
+| clave | en cuántos restaurantes |
+|---|---|
+| `dia_pago` | 3 |
+| `ultimo_pago` | 2 |
+
+Son datos de **tu** cobranza, no del restaurante. Y `loader.js` pide `atributos`
+entero, así que hoy viajan al navegador de cada comensal que abre esas cartas:
+se ven en las herramientas de desarrollo sin ninguna llave. Con la llave del
+repositorio se pueden pedir los de todos a la vez.
+
+No es una credencial y no permite entrar a ningún sitio. Es información
+comercial: quién te paga, cuándo, y quién va atrasado.
+
+Es el mismo patrón que evitó el paso 1 —"los secretos no se crean en la tabla
+pública"— pero aplicado a **columnas**. `atributos` es una columna pública, y
+dentro de ella se metieron datos administrativos.
+
+**Lo que hay que hacer:** sacarlos de `restaurantes.atributos` a una tabla
+`restaurantes_privado` (que ya existe, con RLS y cero políticas) o a columnas
+nuevas fuera del `select` público. Es una migración con orden obligatorio, como
+la del PIN: primero desplegar el panel leyendo del sitio nuevo, después mover el
+dato. Por eso no se hace en el mismo cambio que lo demás.
+
 ---
 
 ## 10. Plan por fases
@@ -626,6 +690,11 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       nada sobre a quién pertenece `categoria_id`. El daño era callado: el plato
       se guardaba, el panel decía que bien, y la carta pública —que agrupa por
       las categorías del restaurante— no lo enseñaba en ningún sitio
+- [x] **`atributos` de producto filtrado y el panel escapando la lista de
+      imágenes** (24/08/2026). Era la vía para que lo que escribe un restaurante
+      se ejecutara en la sesión del superadmin. Ver §9.4
+- [ ] **Sacar `dia_pago` y `ultimo_pago` de `restaurantes.atributos`**, que es
+      público. Hoy viajan al navegador de cada comensal. Ver §9.5
 - [ ] **Alargar `PIN_ADMIN`** a una frase de 20+ caracteres. No lo teclea nadie en móvil; no hay razón para que sea corto
 
 ### Cartas públicas (no es video, pero está abierto)
@@ -668,6 +737,18 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       los dos sentidos: verde al terminar bien, rojo con el motivo si falla
 - [x] **Reinicio y actualizaciones** (23/08/2026). Kernel 6.8.0-138, cero
       pendientes, los 17 contenedores volvieron solos
+- [ ] **`npm ci --omit=dev` en el Dockerfile** en vez de `npm install --production`.
+      Las pruebas corren con `npm ci` (versiones exactas del lockfile) y la
+      imagen de producción resuelve por su cuenta: es el mismo argumento que ya
+      fija la versión de Node en el workflow
+- [ ] **Excluir `Dockerfile` y `nginx.conf` del `.dockerignore` de vmenus-app.**
+      La imagen hace `COPY . /usr/share/nginx/html`, así que hoy los dos se
+      sirven en la web pública
+- [ ] **Fijar `search_path` en `tocar_actualizado_en()`** (`set search_path = ''`).
+      Lo marca el linter de Supabase; `estadisticas_restaurante` ya lo tiene
+- [ ] **Revisar la tabla `menu_activo`**: 37 filas, RLS activo, sin políticas y
+      **sin una sola referencia en el código de los dos repositorios**. O se usa
+      desde algún sitio que no está en git, o es residuo que conviene retirar
 - [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
 - [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Comprobado el
       23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
