@@ -74,8 +74,11 @@ chmod +x /opt/menus/respaldo/*.sh
 ```
 
 > **Cada despliegue actualiza el contenedor, no `/opt/menus/respaldo/`.** Si
-> algún día se cambian estos scripts, hay que repetir ese `docker cp`. Si no, el
-> anfitrión sigue corriendo la versión vieja sin que nada lo diga.
+> algún día se cambian estos scripts, hay que repetir el `docker cp` **y el
+> `chmod +x` de arriba** — los archivos llegan con los permisos del
+> repositorio, que son 644, así que sin el chmod el cron no puede ejecutarlos.
+> Si no se repite la copia, el anfitrión sigue corriendo la versión vieja sin
+> que nada lo diga.
 
 ### 4. Iniciar el repositorio y hacer la primera copia
 
