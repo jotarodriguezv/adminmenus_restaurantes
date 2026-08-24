@@ -895,3 +895,87 @@ describe('productos · qué se puede escribir dentro de "atributos"', () => {
 		assert.equal(S.ultimaEscritura('productos').atributos, undefined);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('/api/facturacion · la cobranza sale de la tabla pública', () => {
+	// dia_pago y ultimo_pago vivían en restaurantes.atributos, que tiene
+	// lectura pública: la carta pide 'atributos' entero, así que viajaban al
+	// navegador de cada comensal y se veían en el inspector sin ninguna llave.
+	// No es una credencial — es información nuestra: quién paga y quién no.
+
+	test('un restaurante no puede ver la cobranza', async () => {
+		// Ni la suya. Es un dato de la plataforma SOBRE él, no suyo, así que
+		// aquí no vale canAccessRestaurante().
+		const r = await S.pedir('GET', '/api/facturacion', null, tokenCliente);
+		assert.equal(r.status, 403);
+	});
+
+	test('ni escribirla', async () => {
+		const r = await S.pedir('PATCH', `/api/facturacion/${IDS.restaurante}`,
+			{ ultimo_pago: '2026-08-24' }, tokenCliente);
+		assert.equal(r.status, 403);
+	});
+
+	test('sin credenciales tampoco', async () => {
+		assert.equal((await S.pedir('GET', '/api/facturacion')).status, 401);
+	});
+
+	test('el superadmin sí, y va contra la tabla nueva', async () => {
+		S.conTabla(() => ({ data: [{ restaurante_id: IDS.restaurante, dia_pago: 1, ultimo_pago: '2026-07-12' }], error: null }));
+		const r = await S.pedir('GET', '/api/facturacion', null, tokenAdmin);
+
+		assert.equal(r.status, 200);
+		assert.equal(r.body[0].dia_pago, 1);
+		assert.ok(S.llamadas.some(l => l.tabla === 'restaurantes_facturacion'),
+			'tiene que leer de restaurantes_facturacion, no de restaurantes');
+	});
+
+	test('anotar un pago escribe la fecha', async () => {
+		await S.pedir('PATCH', `/api/facturacion/${IDS.restaurante}`,
+			{ ultimo_pago: '2026-08-24' }, tokenAdmin);
+
+		const g = S.ultimaEscritura('restaurantes_facturacion');
+		assert.equal(g.ultimo_pago, '2026-08-24');
+		assert.equal(g.restaurante_id, IDS.restaurante);
+	});
+
+	test('un día fuera del mes se rechaza', async () => {
+		for (const dia of [0, 32, -1, 'lunes']) {
+			const r = await S.pedir('PATCH', `/api/facturacion/${IDS.restaurante}`, { dia_pago: dia }, tokenAdmin);
+			assert.equal(r.status, 400, String(dia));
+		}
+	});
+
+	test('una fecha mal escrita se rechaza antes de llegar a la base', async () => {
+		// Si llegara, Postgres respondería con nombres de tabla dentro.
+		const r = await S.pedir('PATCH', `/api/facturacion/${IDS.restaurante}`,
+			{ ultimo_pago: '24/08/2026' }, tokenAdmin);
+		assert.equal(r.status, 400);
+	});
+
+	test('vacío borra, ausente no toca', async () => {
+		// Sin esa diferencia no habría forma de quitarle el día de pago a un
+		// restaurante: mandar '' tendría que significar lo mismo que no mandarlo.
+		await S.pedir('PATCH', `/api/facturacion/${IDS.restaurante}`, { dia_pago: '' }, tokenAdmin);
+		assert.equal(S.ultimaEscritura('restaurantes_facturacion').dia_pago, null, 'vacío borra');
+
+		S.reiniciar();
+		await S.pedir('PATCH', `/api/facturacion/${IDS.restaurante}`, { ultimo_pago: '2026-08-24' }, tokenAdmin);
+		const g = S.ultimaEscritura('restaurantes_facturacion');
+		assert.equal('dia_pago' in g, false, 'lo que no se manda no se toca');
+	});
+
+	test('nadie puede volver a colar la cobranza dentro de atributos', async () => {
+		// La otra mitad de la migración. Si esto no estuviera, una pantalla
+		// vieja o una llamada suelta devolvería el dato a la tabla pública y
+		// la fuga volvería sin que nadie se diera cuenta.
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: {} }, error: null }));
+		await S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`,
+			{ atributos: { dia_pago: 15, ultimo_pago: '2026-08-24', color_card: '#111' } }, tokenAdmin);
+
+		const g = S.ultimaEscritura('restaurantes');
+		assert.equal(g.atributos.dia_pago, undefined);
+		assert.equal(g.atributos.ultimo_pago, undefined);
+		assert.equal(g.atributos.color_card, '#111', 'lo que sí es apariencia pasa igual');
+	});
+});
