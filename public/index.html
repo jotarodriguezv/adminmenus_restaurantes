@@ -2786,7 +2786,12 @@ function renderExtraImgs(urls) {
   (urls || []).forEach((url, idx) => {
     const item = document.createElement('div');
     item.className = 'img-gallery-item';
-    item.innerHTML = `<img src="${url}" alt=""><button class="img-gallery-del" title="Eliminar">✕</button>`;
+    // esc() y no la URL cruda: esto es innerHTML y la lista sale de
+    // atributos.imagenes del producto, que lo escribe el restaurante. Es
+    // justo el caso que describe el comentario de esc(): el superadmin abre
+    // la ficha de cualquier restaurante con su token en sessionStorage, así
+    // que una comilla bien puesta aquí se ejecutaría con SU sesión.
+    item.innerHTML = `<img src="${esc(url)}" alt=""><button class="img-gallery-del" title="Eliminar">✕</button>`;
     item.querySelector('.img-gallery-del').onclick = () => {
       state.extraImgs.splice(idx, 1);
       renderExtraImgs(state.extraImgs);
