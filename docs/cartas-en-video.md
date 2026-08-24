@@ -5,7 +5,7 @@
 vista previa al compartir funcionando de punta a punta.
 Los parámetros vigentes están en la **sección 6**; los de la sección 4 son las
 mediciones del análisis inicial y varios ya no se usan — ver sección 5.
-**Última revisión de este documento:** 23 de agosto de 2026
+**Última revisión de este documento:** 24 de agosto de 2026
 **Fecha del análisis:** agosto de 2026
 **Servidor de las pruebas:** Hostinger KVM 1 · 1 vCPU · Ubuntu 24.04.4 · ffmpeg 6.1.1
 
@@ -464,6 +464,71 @@ Las credenciales de restaurante en texto plano (`PIN_BONZAS`, `PIN_MALPARADOS`,
 despliegue: el código no las leía desde que los PIN viven como hash bcrypt en
 `restaurantes_privado`.
 
+### 9.2 La vista previa del panel era un parámetro de la URL
+
+Detectado al revisar `vmenus-app/core/loader.js`. **Resuelto el 24/08/2026.**
+
+El panel abre la carta pública con `?preview=<json>` para enseñar la apariencia
+antes de guardarla, y `loader.js` fundía ese JSON entero sobre los atributos del
+restaurante. El detalle que lo convierte en un problema:
+
+> ese JSON lo escribe **quien construye la URL**, y cualquiera puede construir
+> una. No hace falta entrar al panel ni tener credenciales.
+
+Lo aprovechable no era el aspecto sino `whatsapp_pedidos`, que es el número al
+que el carrito manda el pedido:
+
+```
+menu.vmenus.co/<carta>?preview={"atributos":{"whatsapp_pedidos":"57..."}}
+```
+
+Eso abre la carta de verdad —su logo, sus platos, sus precios— y manda los
+pedidos al teléfono de quien repartió el enlace. Afectaba a **indigo,
+perroscriollos y voro**, que son los tres que tienen WhatsApp de pedidos
+configurado. El aviso amarillo de "vista previa" era la única señal, y se podía
+quitar desde el mismo parámetro: `css_custom` también entraba por ahí, así que
+una regla de CSS lo escondía.
+
+**Qué se hizo:**
+
+1. `core/preview.js` — una lista de claves que la vista previa puede tocar. Solo
+   apariencia: colores, fondo, tipografías, modelo y estilo, y las banderas que
+   enseñan o esconden bloques. Los **destinos** (`whatsapp_pedidos`,
+   `metodos_pago`, `social_*`) salen siempre de la base de datos, también durante
+   una vista previa.
+2. El aviso pasa a un **shadow root cerrado**, donde el CSS de la página no
+   llega. Es lo único que separa una vista previa de una carta real a ojos del
+   comensal y tenía que sobrevivir a lo que traiga el parámetro.
+
+**Efecto secundario aceptado:** al editar una red social y pulsar "Vista previa",
+el enlace que se ve es el guardado, no el del formulario. Se prefiere eso a que
+un enlace preparado pueda apuntar los botones de un cliente a otro sitio. La
+regla para ampliar la lista está escrita en `core/preview.js`: si un desconocido
+pudiera fijar ese valor, ¿qué consigue? Si la respuesta es "que se vea distinto",
+entra; si es "que el pedido acabe en otro sitio", no.
+
+### 9.3 La extensión del archivo la escribía quien subía
+
+Detectado al revisar `server.js` contra `limpieza.js`. **Resuelto el 24/08/2026.**
+
+El nombre de lo subido lo genera el servidor entero **salvo la extensión**, que
+salía de `path.extname(file.originalname)`. El filtro que la validaba,
+`/jpeg|jpg|png|webp/`, no estaba anclado: bastaba que esas letras aparecieran en
+algún sitio. Pasaban `.apng`, `.webpx`, `.jpeg2000` — y también `.jpg;rm`.
+
+El daño no es el que parece a primera vista. No es que se pudiera subir un
+ejecutable; es que **`limpieza.js` reconoce los nombres con `[A-Za-z0-9._-]+`**,
+así que de `foto.jpg;rm` guardado en la base solo leía hasta el punto y coma. El
+archivo del disco y la referencia de la base dejaban de coincidir, y pasados los
+siete días de gracia el limpiador borraba **una foto que sí estaba en uso**.
+
+Es el modo de fallo que el tope del 50 % no cubre: no borra de más, borra
+exactamente un archivo, el equivocado, y en silencio.
+
+Ahora la extensión se devuelve **de la lista** (`EXTENSIONES_IMAGEN` /
+`EXTENSIONES_VIDEO`) en vez de copiarse del original, así que lo que se escribe
+en el disco solo puede ser una de ellas. Cuatro pruebas nuevas en `test/api.test.js`.
+
 ---
 
 ## 10. Plan por fases
@@ -534,6 +599,12 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       cuando haya videos de restaurante de verdad
 - [x] Pruebas para `argumentosEntregable` (8: encuadre por formato, calidad por
       formato, formato desconocido, y lo que NO debe cambiar con él)
+- [x] **El rescate de trabajos colgados pasa a ser periódico** (24/08/2026). Corría
+      solo al arrancar, así que un trabajo que se quedara en `procesando` —porque
+      el proceso murió a mitad de conversión— no lo desbloqueaba nadie: no vuelve
+      a la cola porque ya no está `pendiente`, y el restaurante veía
+      "convirtiendo" indefinidamente. La única cura era otro despliegue. Ahora se
+      reintenta cada 30 min dentro del mismo `tick`
 - [ ] Pruebas para `argumentosMaster` / `argumentosPortada` (están exportadas para eso)
 - [x] Pruebas para `limpieza.recogerNombres` — y para `pasada`, que es la que borra
 
@@ -543,6 +614,18 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
 - [x] PIN de restaurante en claro eliminados de las variables de entorno
 - [x] Límite de intentos en `/api/login` (10 fallos / 15 min por IP, con pruebas)
 - [x] Comparación en tiempo constante para `PIN_ADMIN`
+- [x] **La vista previa ya no puede desviar los pedidos** (24/08/2026). `?preview=`
+      solo cambia apariencia; el WhatsApp, los métodos de pago y las redes salen
+      siempre de la base. El aviso va en un shadow root para que `css_custom` no
+      lo esconda. Ver §9.2 y `vmenus-app/test/preview.test.js`
+- [x] **La extensión de lo subido sale de una lista** (24/08/2026). El filtro sin
+      anclar dejaba pasar `.jpg;rm`, y eso desincronizaba `limpieza.js` hasta
+      borrar fotos en uso. Ver §9.3
+- [x] **La categoría de un plato tiene que ser del mismo restaurante**
+      (24/08/2026). El permiso se comprueba sobre `restaurante_id` y eso no dice
+      nada sobre a quién pertenece `categoria_id`. El daño era callado: el plato
+      se guardaba, el panel decía que bien, y la carta pública —que agrupa por
+      las categorías del restaurante— no lo enseñaba en ningún sitio
 - [ ] **Alargar `PIN_ADMIN`** a una frase de 20+ caracteres. No lo teclea nadie en móvil; no hay razón para que sea corto
 
 ### Cartas públicas (no es video, pero está abierto)
@@ -553,6 +636,21 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       tiempo. Las sirve `/api/og` del panel, y nginx manda ahí solo a los robots.
       Comprobado en producción con Malparados (logo) y Voro (foto de plato como
       respaldo). Ver `docs/servidor.md`
+- [x] **Un modelo mal escrito ya no apaga la carta** (24/08/2026). `atributos.nav`
+      se valida contra los modelos que existen antes de importar el archivo; una
+      errata cae en `topnav` en vez de dejar "No se pudo cargar el menú"
+- [x] **Los videos vuelven a moverse al volver a la pestaña** (24/08/2026). El
+      observador solo avisa cuando algo cruza un umbral, y cambiar de pestaña no
+      mueve nada: el plato se quedaba congelado hasta deslizar
+- [x] **Editar un plato personalizado ya no puede perder el recargo**
+      (24/08/2026). Al pulsar "editar" en el carrito, la selección se
+      reconstruía leyendo el texto de la línea y partiéndolo por `', '`. Un
+      topping con coma en el nombre —"Salsa de la casa, picante"— se partía en
+      dos que no existen en el catálogo, el modal abría sin nada marcado y, al
+      guardar, la línea volvía SIN el recargo. Ningún error a la vista y el
+      pedido llega con el precio de menos. Hoy ningún restaurante tiene comas en
+      sus toppings, así que estaba latente. Ahora la selección se guarda aparte
+      (`sel`) y el texto solo se usa para leerlo
 - [ ] Manifiesto PWA por restaurante, para añadir la carta a la pantalla de inicio con el logo del local
 
 ### Infraestructura
