@@ -587,6 +587,23 @@ app.delete('/api/restaurantes/:id', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── RESUMEN DE VIDEO POR RESTAURANTE ──────────────────────────
+// Para la lista del superadmin: cuántos videos lleva cada uno y cuánto le
+// queda de cupo de IA, sin tener que entrar a cada restaurante.
+//
+// Lo agrega la base (resumen_video_restaurantes) y no Node, por lo mismo que
+// las estadísticas: pedirlo desde aquí serían dos consultas por restaurante y
+// eso crece con los clientes. Así viaja el resultado y nada más.
+app.get('/api/resumen-video', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  const { data, error } = await supabase.rpc('resumen_video_restaurantes');
+  if (error) {
+    console.error('[resumen] ', error.message);
+    return res.status(500).json({ error: 'No se pudo calcular el resumen' });
+  }
+  res.json(data || {});
+});
+
 // ── CUPO DE GENERACIONES CON IA ───────────────────────────────
 // Generar un video con IA cuesta dinero cada vez, así que el cupo existe
 // antes que el botón que lo gasta. Ver cupo.js.
