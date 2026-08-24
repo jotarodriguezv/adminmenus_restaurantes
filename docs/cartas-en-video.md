@@ -564,7 +564,7 @@ base. Hay ocho platos con video en producción; hay una prueba para eso.
 ### 9.5 `dia_pago` y `ultimo_pago` eran públicos
 
 Detectado al revisar las políticas RLS contra el contenido real de la tabla.
-**Paso 1 y 2 hechos el 24/08/2026. Falta el 3, que va después de desplegar.**
+**Cerrado el 24/08/2026, los tres pasos.**
 
 `restaurantes` tiene lectura pública (`USING true`) y la llave publishable está,
 como debe, dentro de `core/supabase.js`. Eso es correcto para una carta que se
@@ -611,11 +611,18 @@ ventana de código viejo con datos nuevos"*):
 |---|---|---|
 | 1 | Crear la tabla y **copiar** el dato (queda duplicado a propósito) | ✅ 24/08/2026 |
 | 2 | Desplegar el panel que lee de la tabla nueva | ✅ código listo |
-| 3 | Borrar las dos claves de `restaurantes.atributos` | ⏳ **después de desplegar** |
+| 3 | Borrar las dos claves de `restaurantes.atributos` | ✅ 24/08/2026 |
 
-Entre 1 y 3 el dato está en los dos sitios y todo funciona: el panel viejo sigue
-leyendo de `atributos`, el nuevo de la tabla. Correr el paso 3 antes de desplegar
-deja al superadmin sin ver quién le debe.
+Entre 1 y 3 el dato estuvo en los dos sitios y todo siguió funcionando: el panel
+viejo leyendo de `atributos`, el nuevo de la tabla. Correr el paso 3 antes de
+desplegar habría dejado al superadmin sin ver quién le debe.
+
+El paso 3 se autorizó con dos comprobaciones, no con una: que el panel **ya
+desplegado** siguiera enseñando las insignias de cobro (si las enseña, está
+leyendo de la tabla nueva), y que la consulta de contraste diera cero filas —
+cada dato de `atributos` con su copia idéntica al lado. Después: cero claves en
+la tabla pública, los dos restaurantes con fecha intactos en la privada, y el
+resto de `atributos` sin tocar.
 
 **Un detalle que casi se cuela.** El día de pago se pinta en la ficha de un
 restaurante, y la cobranza ahora llega por una ruta aparte que puede no haberse
@@ -728,10 +735,10 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       Tabla `restaurantes_facturacion` con RLS y cero políticas, API solo
       admin, y `PATCH /api/restaurantes` los quita de `atributos` para que no
       vuelvan. Ver §9.5 y `sql/06`
-- [ ] **Paso 3 de esa migración**: borrar las dos claves de
-      `restaurantes.atributos` — la parte B de `sql/06`, **después** de
-      desplegar el panel. Hasta entonces el dato está en los dos sitios y no
-      pasa nada
+- [x] **Paso 3 de esa migración** (24/08/2026). Las dos claves borradas de
+      `restaurantes.atributos` tras confirmar el panel desplegado. La fuga
+      queda cerrada: lo que hoy viaja al navegador de un comensal es solo
+      apariencia, redes y datos de pedido — nada de cobranza
 - [ ] **Alargar `PIN_ADMIN`** a una frase de 20+ caracteres. No lo teclea nadie en móvil; no hay razón para que sea corto
 
 ### Cartas públicas (no es video, pero está abierto)
