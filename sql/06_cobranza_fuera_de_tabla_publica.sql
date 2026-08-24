@@ -67,7 +67,23 @@ on conflict (restaurante_id) do nothing;
 
 
 -- ───────────────────────────────────────────────────────────────
--- PARTE B — EJECUTAR SOLO DESPUÉS DE DESPLEGAR EL PANEL
+-- PARTE B — YA APLICADA el 24/08/2026, tras desplegar el panel
+-- ───────────────────────────────────────────────────────────────
+-- Se guarda como registro de lo que se ejecutó.
+--
+-- Antes de correrla se comprobaron las dos cosas que la autorizan:
+--   1. En el panel YA DESPLEGADO, la lista de restaurantes seguía
+--      enseñando las insignias de cobro de Bonzas y Malparados. Si las
+--      enseña, está leyendo de la tabla nueva.
+--   2. La consulta de más abajo devolvió 0 filas.
+--
+-- Estado que había justo antes de borrar:
+--   bonzas      dia_pago=1  ultimo_pago=2026-07-12
+--   malparados  dia_pago=1  ultimo_pago=2026-07-12
+--   sanjavier   las dos claves presentes, con valor nulo
+--
+-- Después: 0 restaurantes con esas claves en la tabla pública, 2 con datos
+-- en la privada, y el resto de 'atributos' intacto (21, 25 y 18 claves).
 -- ───────────────────────────────────────────────────────────────
 -- Comprobación previa: esto debe devolver 0 filas. Si devuelve algo, hay un
 -- dato que no se copió y NO hay que seguir — se perdería al borrar.
@@ -84,14 +100,13 @@ on conflict (restaurante_id) do nothing;
 -- enseñando las insignias de cobro. Si las enseña, está leyendo de la tabla
 -- nueva y esto se puede borrar sin perder nada.
 
--- begin;
---
--- update public.restaurantes
--- set atributos = atributos - 'dia_pago' - 'ultimo_pago'
--- where atributos ? 'dia_pago' or atributos ? 'ultimo_pago';
---
--- -- Debe devolver 0.
--- select count(*) from public.restaurantes
--- where atributos ? 'dia_pago' or atributos ? 'ultimo_pago';
---
--- commit;
+-- El operador '-' sobre jsonb quita la CLAVE entera, no la deja en null.
+-- Importa porque el código pregunta con '?' (existe la clave), no por su
+-- valor: dejarla en null habría sido un borrado a medias.
+update public.restaurantes
+set atributos = atributos - 'dia_pago' - 'ultimo_pago'
+where atributos ? 'dia_pago' or atributos ? 'ultimo_pago';
+
+-- Comprobación posterior. Devolvió 0.
+select count(*) from public.restaurantes
+where atributos ? 'dia_pago' or atributos ? 'ultimo_pago';
