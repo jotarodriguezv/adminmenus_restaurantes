@@ -657,6 +657,33 @@ function normalizarPrecio(body) {
   return null;
 }
 
+// Lo que se puede escribir dentro de "atributos" de un PRODUCTO. Mismo
+// criterio que ya se aplica a restaurantes y a categorías, que aquí faltaba:
+// el objeto llegaba entero desde el navegador y se guardaba tal cual.
+//
+// Importa por una razón concreta. 'imagenes' se pinta en el panel, y el
+// panel lo abre el SUPERADMIN para cualquier restaurante con su token en
+// sessionStorage. Una lista de imágenes con algo que no es una imagen es la
+// vía para que lo que escribe un restaurante acabe ejecutándose en la sesión
+// de quien administra a todos. El escapado del panel es la otra mitad de
+// esto; las dos hacen falta.
+const ATRIBUTOS_PRODUCTO_PERMITIDOS = ['imagenes', 'personalizacion', 'filtros', 'popular', 'chef', 'nuevo'];
+
+// 'video' lo escribe el worker cuando termina de convertir, nunca el
+// navegador. Pero NO se puede simplemente descartar: el panel manda el
+// objeto completo, así que ignorarlo sin más borraría el video del plato al
+// guardar cualquier otro cambio. Se conserva el que ya estaba guardado.
+const ATRIBUTOS_PRODUCTO_DEL_SERVIDOR = ['video'];
+
+function atributosProducto(entrantes, actuales) {
+  const out = {};
+  for (const clave of ATRIBUTOS_PRODUCTO_PERMITIDOS)
+    if (entrantes?.[clave] !== undefined) out[clave] = entrantes[clave];
+  for (const clave of ATRIBUTOS_PRODUCTO_DEL_SERVIDOR)
+    if (actuales?.[clave] !== undefined) out[clave] = actuales[clave];
+  return out;
+}
+
 // Una categoría de OTRO restaurante no se puede usar. El permiso se
 // comprueba sobre restaurante_id, que no dice nada sobre a quién pertenece la
 // categoría: sin esto, un plato podía quedar colgado de una categoría ajena.
@@ -695,19 +722,21 @@ app.post('/api/productos', auth, async (req, res) => {
   const errCat = await categoriaAjena(categoria_id, restaurante_id);
   if (errCat) return res.status(400).json({ error: errCat });
   const { data, error } = await supabase.from('productos')
-    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, atributos: atributos || {} }])
+    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, atributos: atributosProducto(atributos, null) }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
 
 app.patch('/api/productos/:id', auth, async (req, res) => {
-  const { data: prod } = await supabase.from('productos').select('restaurante_id').eq('id', req.params.id).single();
+  // 'atributos' hace falta para conservar lo que pone el worker (el video).
+  const { data: prod } = await supabase.from('productos').select('restaurante_id, atributos').eq('id', req.params.id).single();
   if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden', 'atributos'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
   const errPrecio = normalizarPrecio(body);
   if (errPrecio) return res.status(400).json({ error: errPrecio });
+  if (body.atributos !== undefined) body.atributos = atributosProducto(body.atributos, prod.atributos);
   // Mover un plato de categoría es normal; moverlo a la de otro negocio no.
   if (body.categoria_id !== undefined) {
     const errCat = await categoriaAjena(body.categoria_id, prod.restaurante_id);
