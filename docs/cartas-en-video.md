@@ -561,10 +561,10 @@ panel manda el objeto completo, y descartarlo sin más le habría borrado el vid
 al plato al guardar cualquier otro cambio. Se conserva el que ya estaba en la
 base. Hay ocho platos con video en producción; hay una prueba para eso.
 
-### 9.5 `dia_pago` y `ultimo_pago` son públicos
+### 9.5 `dia_pago` y `ultimo_pago` eran públicos
 
 Detectado al revisar las políticas RLS contra el contenido real de la tabla.
-**Pendiente — decisión de producto.**
+**Paso 1 y 2 hechos el 24/08/2026. Falta el 3, que va después de desplegar.**
 
 `restaurantes` tiene lectura pública (`USING true`) y la llave publishable está,
 como debe, dentro de `core/supabase.js`. Eso es correcto para una carta que se
@@ -587,11 +587,42 @@ Es el mismo patrón que evitó el paso 1 —"los secretos no se crean en la tabl
 pública"— pero aplicado a **columnas**. `atributos` es una columna pública, y
 dentro de ella se metieron datos administrativos.
 
-**Lo que hay que hacer:** sacarlos de `restaurantes.atributos` a una tabla
-`restaurantes_privado` (que ya existe, con RLS y cero políticas) o a columnas
-nuevas fuera del `select` público. Es una migración con orden obligatorio, como
-la del PIN: primero desplegar el panel leyendo del sitio nuevo, después mover el
-dato. Por eso no se hace en el mismo cambio que lo demás.
+**Cómo se resolvió.** Tabla propia `restaurantes_facturacion`, con RLS y cero
+políticas —solo la llave de servicio la alcanza—, y una API que es la única
+puerta: `GET /api/facturacion` y `PATCH /api/facturacion/:id`, las dos **solo
+admin**. Un restaurante no ve ni escribe su propia cobranza: es un dato de la
+plataforma *sobre* él, no suyo, así que aquí no vale `canAccessRestaurante()`.
+
+Tabla propia y no `restaurantes_privado`: ahí viven los secretos de acceso y su
+`pin_hash` es `NOT NULL`. Un restaurante puede no tener PIN todavía y aun así
+deberte una mensualidad; mezclarlos obligaría a inventarle una credencial para
+poder anotarle una fecha.
+
+Y la otra mitad, sin la cual la fuga volvería sola: `PATCH /api/restaurantes/:id`
+**quita** `dia_pago` y `ultimo_pago` de cualquier `atributos` que le llegue,
+incluso del superadmin. Así ninguna pantalla vieja ni ninguna llamada suelta los
+devuelve a la tabla que ve todo el mundo.
+
+**Orden, que es lo que importa** (el de `sql/06`, y el mismo que pide
+`docs/servidor.md` §7 — *"migrar datos y desplegar código el mismo día deja una
+ventana de código viejo con datos nuevos"*):
+
+| # | Qué | Estado |
+|---|---|---|
+| 1 | Crear la tabla y **copiar** el dato (queda duplicado a propósito) | ✅ 24/08/2026 |
+| 2 | Desplegar el panel que lee de la tabla nueva | ✅ código listo |
+| 3 | Borrar las dos claves de `restaurantes.atributos` | ⏳ **después de desplegar** |
+
+Entre 1 y 3 el dato está en los dos sitios y todo funciona: el panel viejo sigue
+leyendo de `atributos`, el nuevo de la tabla. Correr el paso 3 antes de desplegar
+deja al superadmin sin ver quién le debe.
+
+**Un detalle que casi se cuela.** El día de pago se pinta en la ficha de un
+restaurante, y la cobranza ahora llega por una ruta aparte que puede no haberse
+pedido todavía: a la lista se llega por un camino y a la ficha de uno solo por
+otro. Con el campo vacío por "no se sabe", guardar habría **borrado** el día de
+pago. Por eso `state.facturacionCargada`: mientras sea falso, ese campo no se
+escribe. Un dato que no se pudo leer no se puede guardar.
 
 ---
 
@@ -693,8 +724,14 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
 - [x] **`atributos` de producto filtrado y el panel escapando la lista de
       imágenes** (24/08/2026). Era la vía para que lo que escribe un restaurante
       se ejecutara en la sesión del superadmin. Ver §9.4
-- [ ] **Sacar `dia_pago` y `ultimo_pago` de `restaurantes.atributos`**, que es
-      público. Hoy viajan al navegador de cada comensal. Ver §9.5
+- [x] **`dia_pago` y `ultimo_pago` fuera de la tabla pública** (24/08/2026).
+      Tabla `restaurantes_facturacion` con RLS y cero políticas, API solo
+      admin, y `PATCH /api/restaurantes` los quita de `atributos` para que no
+      vuelvan. Ver §9.5 y `sql/06`
+- [ ] **Paso 3 de esa migración**: borrar las dos claves de
+      `restaurantes.atributos` — la parte B de `sql/06`, **después** de
+      desplegar el panel. Hasta entonces el dato está en los dos sitios y no
+      pasa nada
 - [ ] **Alargar `PIN_ADMIN`** a una frase de 20+ caracteres. No lo teclea nadie en móvil; no hay razón para que sea corto
 
 ### Cartas públicas (no es video, pero está abierto)
@@ -744,11 +781,17 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
 - [ ] **Excluir `Dockerfile` y `nginx.conf` del `.dockerignore` de vmenus-app.**
       La imagen hace `COPY . /usr/share/nginx/html`, así que hoy los dos se
       sirven en la web pública
-- [ ] **Fijar `search_path` en `tocar_actualizado_en()`** (`set search_path = ''`).
-      Lo marca el linter de Supabase; `estadisticas_restaurante` ya lo tiene
-- [ ] **Revisar la tabla `menu_activo`**: 37 filas, RLS activo, sin políticas y
-      **sin una sola referencia en el código de los dos repositorios**. O se usa
-      desde algún sitio que no está en git, o es residuo que conviene retirar
+- [x] **`search_path` fijado en `tocar_actualizado_en()`** (24/08/2026). El aviso
+      desapareció del linter. Se comprobó que el trigger sigue disparando —de él
+      depende el rescate de trabajos colgados— con una tabla temporal y `rollback`
+- [ ] **Averiguar quién escribe en `menu_activo`.** 37 filas, columnas `id`,
+      `created_at`, `num` (siempre 1), y **sin una sola referencia en el código
+      de los dos repositorios**. Parece un contador de visitas anterior a
+      `eventos_analitica`, pero **no está muerto**: la última fila es del
+      22/08/2026. Algo que no está en git le sigue escribiendo — el candidato
+      son los despliegues por restaurante (`menubonza`, `menumalparados`…)
+      corriendo código viejo. **No borrarla hasta saberlo**: si algo la escribe,
+      algo la puede estar leyendo
 - [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
 - [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Comprobado el
       23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
