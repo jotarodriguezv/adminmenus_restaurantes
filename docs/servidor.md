@@ -1,6 +1,6 @@
 # El servidor: qué hay, dónde y cómo se comprueba
 
-Estado a **22 de agosto de 2026**. Este documento describe la máquina tal como
+Estado a **23 de agosto de 2026**. Este documento describe la máquina tal como
 está montada, no cómo montarla. Para instalar el respaldo desde cero está
 `respaldo/LEEME.md`; esto es el mapa de lo que ya existe.
 
@@ -268,6 +268,13 @@ Recogidas por haberlas sufrido:
   retención da el plan contratado, que no es la misma en el gratuito.
 - **Los archivos de menos de un día no están en ninguna copia.** Un video subido
   a las 10:00 y perdido a las 12:00 se perdió.
+
+> Esta lista es solo lo del **servidor**. Los pendientes de infraestructura que
+> no viven aquí —borrar el bucket `vmenus-imagenes` de Supabase, alargar
+> `PIN_ADMIN`, ampliar a KVM 2— están en la checklist de
+> `docs/cartas-en-video.md` (§11), que es la única lista completa. No se
+> duplican a propósito: dos listas del mismo pendiente se desincronizan y
+> entonces ninguna es de fiar.
 
 ---
 
