@@ -781,24 +781,43 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       los dos sentidos: verde al terminar bien, rojo con el motivo si falla
 - [x] **Reinicio y actualizaciones** (23/08/2026). Kernel 6.8.0-138, cero
       pendientes, los 17 contenedores volvieron solos
-- [ ] **`npm ci --omit=dev` en el Dockerfile** en vez de `npm install --production`.
-      Las pruebas corren con `npm ci` (versiones exactas del lockfile) y la
-      imagen de producción resuelve por su cuenta: es el mismo argumento que ya
-      fija la versión de Node en el workflow
-- [ ] **Excluir `Dockerfile` y `nginx.conf` del `.dockerignore` de vmenus-app.**
-      La imagen hace `COPY . /usr/share/nginx/html`, así que hoy los dos se
-      sirven en la web pública
+- [x] **`npm ci --omit=dev` en el Dockerfile** (24/08/2026), en vez de
+      `npm install --production`. Mismo argumento que ya fija la versión de Node
+      en el workflow: que lo que corre en producción sea lo que se probó.
+      `--production` además quedó obsoleto en npm 9
+- [x] **`Dockerfile` y `nginx.conf` fuera de la web pública** (24/08/2026). La
+      imagen hace `COPY . /usr/share/nginx/html`, así que `/nginx.conf` y
+      `/Dockerfile` se servían a cualquiera. No enseñaban ningún secreto —el
+      host del panel ya está en `core/analytics.js`— pero lo que se añada mañana
+      a esos archivos se habría regalado igual
 - [x] **`search_path` fijado en `tocar_actualizado_en()`** (24/08/2026). El aviso
       desapareció del linter. Se comprobó que el trigger sigue disparando —de él
       depende el rescate de trabajos colgados— con una tabla temporal y `rollback`
-- [ ] **Averiguar quién escribe en `menu_activo`.** 37 filas, columnas `id`,
-      `created_at`, `num` (siempre 1), y **sin una sola referencia en el código
-      de los dos repositorios**. Parece un contador de visitas anterior a
-      `eventos_analitica`, pero **no está muerto**: la última fila es del
-      22/08/2026. Algo que no está en git le sigue escribiendo — el candidato
-      son los despliegues por restaurante (`menubonza`, `menumalparados`…)
-      corriendo código viejo. **No borrarla hasta saberlo**: si algo la escribe,
-      algo la puede estar leyendo
+- [x] **`menu_activo` resuelto** (24/08/2026). **NO borrar: hace falta.** No es
+      un contador de visitas ni código viejo: es el *keep-alive* del proyecto de
+      Supabase. Lo escribe un `pg_cron` que vive dentro de la propia base, por
+      eso no aparecía en ningún repositorio:
+
+      ```sql
+      -- cron.job, jobid 1, jobname 'menus_activos'
+      0 0 */3 * *   insert into menu_activo(num) values(1);
+      ```
+
+      El plan de la organización es **free**, y ahí Supabase pausa un proyecto
+      tras 7 días sin actividad. Una escritura cada 3 días lo mantiene despierto
+      con margen. Encaja con todo lo observado: siempre a las 00:00:00 UTC,
+      siempre `num = 1`, siempre cada 3 días exactos.
+
+      Se puede retirar el día que la organización deje de ser free —o cuando
+      haya tráfico real suficiente—, pero entonces hay que quitar **las dos
+      cosas a la vez**: el job y la tabla. Quitar solo la tabla deja un cron
+      fallando cada tres días contra una tabla que no existe.
+
+      Para verlo:
+      ```sql
+      select jobid, jobname, schedule, command, active from cron.job;
+      select * from cron.job_run_details order by start_time desc limit 5;
+      ```
 - [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
 - [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Comprobado el
       23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
