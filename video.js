@@ -398,8 +398,14 @@ async function rescatarColgados(supabase) {
   if (data?.length) console.log(`♻️  ${data.length} trabajo(s) de video rescatados`);
 }
 
+// Cada cuánto se vuelve a mirar si hay trabajos abandonados. No en cada
+// vuelta de la cola: son 15 segundos y esto es una consulta que casi siempre
+// no encuentra nada.
+const RESCATE_CADA_MS = 30 * 60 * 1000;
+
 function arrancar(supabase) {
   let ocupado = false;
+  let ultimoRescate = 0;
 
   const tick = async () => {
     // Uno a la vez. Con un núcleo, dos ffmpeg en paralelo tardan el doble
@@ -407,6 +413,16 @@ function arrancar(supabase) {
     if (ocupado) return;
     ocupado = true;
     try {
+      // El rescate corría SOLO al arrancar. Un trabajo se queda en
+      // 'procesando' cuando el proceso muere a mitad de conversión —un
+      // reinicio del contenedor, un OOM—, y ese estado no lo desbloquea
+      // nadie: el trabajo no vuelve a la cola porque ya no está
+      // 'pendiente', y el restaurante ve "convirtiendo" para siempre. Con
+      // el rescate solo al arranque, la única cura era otro despliegue.
+      if (Date.now() - ultimoRescate >= RESCATE_CADA_MS) {
+        ultimoRescate = Date.now();
+        await rescatarColgados(supabase);
+      }
       const t = await tomarSiguiente(supabase);
       if (t) await procesarTrabajo(supabase, t);
     } catch (e) {
@@ -417,6 +433,7 @@ function arrancar(supabase) {
   };
 
   rescatarColgados(supabase).catch(() => {});
+  ultimoRescate = Date.now();
   // unref para que este temporizador no mantenga vivo el proceso por sí
   // solo; quien lo mantiene es el servidor HTTP.
   setInterval(tick, INTERVALO_MS).unref();
