@@ -1,6 +1,6 @@
 # Video generado con IA — análisis y decisiones
 
-**Estado:** análisis cerrado. **Fase 1 (cupo) implementada** el 24/08/2026; fases 2 y 3 pendientes.
+**Estado:** fases 1 y 2 implementadas el 24/08/2026. Falta la 3 (panel) y la primera generación real.
 **Fecha:** 24 de agosto de 2026
 **Modelo elegido:** `minimax/hailuo-02` en Replicate (foto → video)
 
@@ -258,8 +258,52 @@ Confirmado contra el editor JSON del propio modelo:
 > se escribió esto tiene bloqueado `replicate.com`— y hay que verlas funcionar
 > una vez. **La primera generación real es esa comprobación**, y cuesta $0,27.
 
-**Falta:** el carril propio en la cola (§6.2), la descarga a `originales/`, la
-ruta que lo dispara y enganchar `rescatarReservas()`.
+**Fase 2 completa el 24/08/2026.** `colaia.js` une las tres piezas que no se
+conocen entre sí —`cupo.js`, `ia.js` y `video.js`— y la ruta
+`POST /api/ia/generar` la dispara. 14 pruebas más, tampoco con llamadas reales.
+
+El resultado que confirma el §2: **`trabajos_video` no sabe que la IA existe.**
+El video generado se descarga a `originales/` y se encola como cualquier otro,
+así que el recorte, el master, la portada y la limpieza no cambiaron una línea.
+
+Lo que las pruebas fijan, y que no se ve mirando cada pieza por separado:
+
+- **El orden**: reservar → llamar → anotar el identificador. Si se llamara antes
+  de reservar, el cupo no serviría; si no se anotara el identificador, un corte
+  de red haría que el reintento pagara otra vez.
+- **Si la llamada falla, el cupo vuelve.** No se generó nada, así que no se
+  cobró nada.
+- **Si la generación falla, el cupo NO vuelve.** Llegó a ejecutarse: se pagó.
+  Devolverlo sería regalar dinero en cada resultado malo.
+- **Si falla la descarga, tampoco vuelve.** El video existe y está cobrado; el
+  fallo es nuestro al recogerlo.
+- **El nombre del archivo lo pone el servidor**, no la URL del proveedor. Lo que
+  llega de fuera no nombra archivos en este disco.
+- **La descarga se corta por tamaño aunque la cabecera calle**, porque puede
+  faltar o mentir y para entonces ya se estaría escribiendo. Con el disco lleno
+  no se cae el video: se cae el servidor entero.
+
+La cola de IA **no arranca sin `REPLICATE_API_TOKEN`**: sin él no haría más que
+fallar cada veinte segundos y llenar los registros de ruido.
+
+### Cómo probar la primera vez — cuesta $0,27
+
+La forma de la API sigue sin comprobarse (ver el aviso de arriba), y la primera
+generación real ES esa comprobación. Conviene hacerla en un restaurante de
+pruebas, no en Voro ni en Indigo.
+
+1. `REPLICATE_API_TOKEN` en las variables de Dokploy del panel, y desplegar.
+2. Un restaurante de pruebas con `nav: 'video'` y un plato **con foto** — la
+   foto es la entrada del modelo; sin ella no hay nada que animar.
+3. `POST /api/ia/generar` con `{restaurante_id, producto_id}`.
+4. Mirar los registros: `✨ generación lista y encolada` y después el
+   `🎬 video listo` de la cola de siempre.
+
+Si algo falla ahí, será en los nombres de las rutas o en `status`/`output`, que
+es justo lo que no se pudo verificar. Se arregla en `ia.js` y en ningún sitio
+más — para eso está separado.
+
+**Falta la fase 3:** el botón en el panel y el paso de aprobación.
 
 **Fase 3 — Panel.** Botón en la ficha del plato, contador de cupo visible, y el
 paso de **aprobación antes de publicar**: el video generado llega convertido pero
