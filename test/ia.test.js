@@ -37,15 +37,34 @@ describe('entradaDe · lo que se le pide al modelo', () => {
 	});
 
 	test('el optimizador de prompt va apagado', () => {
-		// Reescribe el prompt por su cuenta, y el prompt es justamente lo que
-		// sujeta el "no añadas ingredientes" que evita la publicidad engañosa.
+		// El texto se afinó a mano hasta dar con el movimiento que se quería;
+		// dejar que el modelo lo reescriba es perder justo eso.
 		assert.equal(ia.entradaDe(FOTO).prompt_optimizer, false);
 	});
 
-	test('el prompt por defecto prohíbe cambiar el plato', () => {
-		// No es cosmético: si el modelo agrega una guarnición que el restaurante
-		// no sirve, el expuesto ante la SIC es el cliente.
-		assert.match(ia.PROMPT, /do not add, remove or change any ingredient/i);
+	test('el prompt fija el movimiento, no lo deja al modelo', () => {
+		// Sin decir QUÉ movimiento, cada generación sale distinta y la carta
+		// queda con seis videos que no se parecen entre sí. Este es el texto que
+		// se probó a mano en Replicate y dio buen resultado.
+		assert.match(ia.PROMPT, /orbits around the dish/i);
+	});
+
+	test('el prompt mantiene el plato quieto y el resto de la escena también', () => {
+		// Las dos mitades del mismo problema: sin la primera el plato flota, y
+		// sin la segunda el modelo anima el fondo o los cubiertos.
+		assert.match(ia.PROMPT, /completely still/i);
+		assert.match(ia.PROMPT, /no other movement/i);
+	});
+
+	// ⚠ Lo que este prompt NO fija: que no se inventen ingredientes. Y la
+	// órbita es justo lo que más lo pide, porque al girar hacia 3/4 el modelo
+	// tiene que rellenar el lado del plato que la foto no enseña.
+	//
+	// No hay prueba de eso porque no sería verdad: el texto no lo dice. Poner
+	// una que pasara igualmente sería peor que no tenerla — daría por cubierto
+	// algo que está abierto. Lo cubre el paso de aprobación de la fase 3.
+	test('el prompt pide fotorrealismo, no una interpretación', () => {
+		assert.match(ia.PROMPT, /photorealistic/i);
 	});
 
 	test('no se manda proporción porque el modelo no la acepta', () => {
