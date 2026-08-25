@@ -1424,6 +1424,28 @@
 								</button>
 								<div id="videoUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
 							</div>
+
+							<!-- ── GENERAR A PARTIR DE LA FOTO ──────────────────────
+							     Solo aparece si el plato TIENE foto: la foto es la
+							     entrada del modelo, no un adorno. Sin ella no hay nada
+							     que animar, y el servidor lo rechaza igual.
+
+							     El contador de cupo va pegado al botón a propósito.
+							     Cada pulsación cuesta dinero de verdad, así que lo que
+							     queda tiene que estar donde se decide, no en otra
+							     pantalla. -->
+							<div id="iaBloque" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+								<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+									<button type="button" id="btnGenerarIA" onclick="generarConIA()"
+										style="padding:6px 12px;border-radius:6px;border:1px solid var(--accent);
+										background:transparent;color:var(--accent);font-family:var(--mono);font-size:9px;
+										letter-spacing:1px;cursor:pointer;white-space:nowrap;">
+										✨ Generar video con IA
+									</button>
+									<div id="iaCupo" style="font-size:10px;font-family:var(--mono);color:var(--text-muted)"></div>
+								</div>
+								<div id="iaEstado" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:8px;line-height:1.5"></div>
+							</div>
 						</div>
 						<!-- Un trabajo que falló mientras nadie miraba no aparecía en ningún
 						     sitio: el plato se quedaba sin video y sin explicación. -->
@@ -1750,6 +1772,7 @@ let state = {
   extraImgs: [],
   facturacion: [],           // cobranza por restaurante, fuera de atributos
   facturacionCargada: false, // si es false el campo vacío significa "no se sabe"
+  cupoIA: null,              // cuántas animaciones le quedan al restaurante
   resumenVideo: {},          // videos y cupo de IA por restaurante, para la lista
   filtrosDisponibles: [],   // filtros que el restaurante activó (modelo explorar)
   prodFiltros: [],          // filtros marcados en el producto que se edita
@@ -2325,6 +2348,11 @@ function openEditProductModal(id) {
 	state.pendingImgUrl=null;
 	document.getElementById('productModalTitle').textContent='Editar producto';
 	document.getElementById('editProductId').value=p.id;
+	// El estado de la generación es de la ficha anterior: si no se limpia, el
+	// plato nuevo abre diciendo "generando..." de otro.
+	detenerVigilanciaIA();
+	const estIA = document.getElementById('iaEstado');
+	if (estIA) { estIA.textContent = ''; estIA.style.color = 'var(--text-muted)'; }
 	document.getElementById('editNombre').value=p.nombre||'';
 	document.getElementById('editPrecioNum').value=p.precio_numerico||'';
 	document.getElementById('precioPreview').textContent=formatPrecio(p.precio_numerico);
@@ -2828,6 +2856,129 @@ async function handleExtraImgUpload(input) {
 // La misma ficha sirve para los cinco modelos, así que hay controles que
 // sobran según cuál tenga el restaurante. Un control que no hace nada es
 // peor que no tenerlo: quien lo usa cree que está trabajando.
+// ── GENERAR VIDEO A PARTIR DE LA FOTO ─────────────────────────
+// El botón vive junto al de subir video porque son las dos formas de llegar
+// al mismo sitio: un plato con video. Lo que cambia es de dónde sale.
+//
+// Cada pulsación cuesta dinero, así que aquí hay tres frenos y ninguno
+// sobra: solo se enseña con foto, se dice cuánto queda antes de pulsar, y se
+// pregunta antes de gastar.
+
+let vigilanciaIA = null;
+
+function detenerVigilanciaIA() {
+	if (vigilanciaIA) { clearInterval(vigilanciaIA); vigilanciaIA = null; }
+}
+
+// Cuánto le queda al restaurante. Se pide al abrir la ficha y se vuelve a
+// pedir después de generar: el número que se enseña tiene que ser el de
+// ahora, no el de cuando se abrió la pantalla.
+async function refrescarCupoIA() {
+	const el = document.getElementById('iaCupo');
+	const btn = document.getElementById('btnGenerarIA');
+	if (!el || !btn) return;
+
+	try {
+		const c = await apiFetch('GET', `/api/ia/cupo?restaurante_id=${state.restaurante.id}`);
+		state.cupoIA = c;
+
+		if (c.disponibles > 0) {
+			el.textContent = `quedan ${c.disponibles} de ${c.cupo}`;
+			el.style.color = c.disponibles <= 3 ? 'var(--warning, #ffb020)' : 'var(--text-muted)';
+			btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
+		} else {
+			// Agotado no es un error: es la conversación comercial. El texto
+			// invita a escribir en vez de dejar un botón muerto sin explicación.
+			el.textContent = `sin animaciones disponibles (${c.cupo} usadas)`;
+			el.style.color = 'var(--danger)';
+			btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
+		}
+	} catch {
+		// Sin saber el cupo NO se deja generar. Es preferible un botón apagado
+		// a dejar creer que hay de sobra y descubrirlo con la factura.
+		el.textContent = 'no se pudo consultar el cupo';
+		el.style.color = 'var(--danger)';
+		btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
+	}
+}
+
+async function generarConIA() {
+	const productoId = document.getElementById('editProductId').value;
+	const est = document.getElementById('iaEstado');
+	const btn = document.getElementById('btnGenerarIA');
+
+	if (!productoId) {
+		est.textContent = 'Guarda el plato primero'; est.style.color = 'var(--danger)';
+		return;
+	}
+
+	const quedan = state.cupoIA?.disponibles ?? 0;
+	// Se pregunta porque esto gasta dinero y no tiene vuelta atrás: una vez
+	// pedida, la generación se paga salga bien o mal.
+	const ok = confirm(
+		`Se va a generar un video de 6 segundos a partir de la foto de este plato.\n\n` +
+		`Esto consume 1 de las ${quedan} animaciones que te quedan, y se consume ` +
+		`aunque el resultado no te guste.\n\n¿Continuar?`);
+	if (!ok) return;
+
+	btn.disabled = true; btn.style.opacity = '.45';
+	est.textContent = 'Pidiendo la generación...'; est.style.color = 'var(--text-muted)';
+
+	try {
+		await apiFetch('POST', '/api/ia/generar', {
+			restaurante_id: state.restaurante.id, producto_id: productoId,
+		});
+		est.textContent = '✨ Generando... esto tarda un par de minutos. Puedes cerrar esta ficha.';
+		est.style.color = 'var(--accent)';
+		await refrescarCupoIA();
+		vigilarGeneracion(productoId);
+	} catch (e) {
+		// El mensaje del servidor ya explica el caso de quedarse sin cupo, así
+		// que se enseña tal cual en vez de traducirlo a un "error" genérico.
+		est.textContent = e.message || 'No se pudo pedir la generación';
+		est.style.color = 'var(--danger)';
+		await refrescarCupoIA();
+	}
+}
+
+// La generación no crea un trabajo de video hasta que termina: primero hay
+// que esperar a Replicate y descargar el resultado. Así que esto espera a que
+// APAREZCA ese trabajo y, en cuanto lo hace, le pasa el testigo a la
+// vigilancia de siempre — que ya sabe enseñar la conversión y el video final.
+function vigilarGeneracion(productoId) {
+	detenerVigilanciaIA();
+	const desde = Date.now();
+	const conocidos = new Set((state.trabajosVideo || []).map(t => t.id));
+
+	vigilanciaIA = setInterval(async () => {
+		// Un cuarto de hora es más de lo que tarda; pasado eso, algo pasó y es
+		// mejor decirlo que dejar un "generando..." eterno en pantalla.
+		if (Date.now() - desde > 15 * 60 * 1000) {
+			detenerVigilanciaIA();
+			const est = document.getElementById('iaEstado');
+			if (est) {
+				est.textContent = 'La generación está tardando más de lo normal. Mira el estado más tarde.';
+				est.style.color = 'var(--danger)';
+			}
+			return;
+		}
+
+		try {
+			const trabajos = await apiFetch('GET', `/api/video/trabajos?restaurante_id=${state.restaurante.id}`);
+			state.trabajosVideo = trabajos || [];
+			const nuevo = state.trabajosVideo.find(t => t.producto_id === productoId && !conocidos.has(t.id));
+			if (!nuevo) return;
+
+			// Ya está en la cola de conversión: de aquí en adelante es un video
+			// como cualquier otro y lo cuenta quien ya sabía contarlo.
+			detenerVigilanciaIA();
+			const est = document.getElementById('iaEstado');
+			if (est) { est.textContent = '✓ Video generado, convirtiendo...'; est.style.color = 'var(--success)'; }
+			vigilarVideo(nuevo.id, productoId);
+		} catch { /* un fallo suelto de red no tiene por qué cortar la espera */ }
+	}, 15000);
+}
+
 function ajustarFichaAlModelo() {
 	const esVideo = esModeloDeVideo(state.restaurante?.atributos?.nav);
 
@@ -2858,6 +3009,17 @@ function ajustarFichaAlModelo() {
 	const etiquetaVideo = document.getElementById('labelVideo');
 	if (etiquetaVideo) etiquetaVideo.innerHTML =
 		`Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a ${proporcion} y se guardan 8 segundos)</span>`;
+
+	// El bloque de IA solo si el plato tiene foto: la foto ES la entrada del
+	// modelo. Enseñar el botón sin ella sería ofrecer algo que el servidor va
+	// a rechazar, y el usuario no tendría forma de saber por qué.
+	const bloqueIA = document.getElementById('iaBloque');
+	if (bloqueIA) {
+		const hayFoto = !!(state.pendingImgUrl && state.pendingImgUrl !== '__remove__')
+			|| !!document.getElementById('imgEditPreview')?.src?.includes('/uploads/');
+		bloqueIA.style.display = esVideo && hayFoto ? 'block' : 'none';
+		if (esVideo && hayFoto) refrescarCupoIA();
+	}
 
 	// Un 9:16 a todo el ancho de la ficha mide vez y media la pantalla de alto
 	// y empuja el botón de guardar fuera de la vista, así que en vertical manda
