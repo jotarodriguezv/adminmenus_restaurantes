@@ -35,17 +35,32 @@ const LIMITE_MIRAR_MS  = 15_000;
 // segundo es el que manda:
 //
 //   1. Un prompt libre da resultados impredecibles y cada intento se paga.
-//   2. La restricción de producto: movimiento de cámara sobre el plato REAL,
-//      sin añadir ingredientes ni cambiar la presentación. Si el modelo agrega
-//      una guarnición que el restaurante no sirve, eso es publicidad engañosa
-//      y el expuesto ante la SIC es el cliente. Un campo de texto libre en el
-//      panel sería justo la forma de que eso pase.
+//   2. La restricción de producto: movimiento de cámara sobre el plato REAL.
+//      Si el modelo agrega una guarnición que el restaurante no sirve, eso es
+//      publicidad engañosa y el expuesto ante la SIC es el cliente. Un campo de
+//      texto libre en el panel sería justo la forma de que eso pase.
+//
+// Este texto es el que se probó a mano en Replicate y dio buen resultado. Fija
+// tres cosas y conviene no perderlas al retocarlo:
+//
+//   · el MOVIMIENTO — una órbita de frente a 3/4, no un zoom ni un barrido
+//   · el PLATO QUIETO — "centered and completely still", para que no flote
+//   · NADA MÁS SE MUEVE — sin esto el modelo anima el fondo, los cubiertos,
+//     lo que pille
+//
+// ⚠ Lo que NO fija: que no se inventen ingredientes. Y la órbita es
+// precisamente lo que más lo pide, porque al girar hacia 3/4 el modelo tiene
+// que RELLENAR el lado del plato que la foto no muestra. Ahí es donde puede
+// aparecer una guarnición que nadie sirve. Está sin cubrir a conciencia —el
+// prompt es del usuario y este es el que le funcionó—, y la red que lo atrapa
+// es el paso de aprobación de la fase 3. Ver docs/video-con-ia.md §9.
 //
 // Se deja en una variable de entorno para poder afinarlo sin desplegar.
 const PROMPT = process.env.IA_PROMPT ||
-  'Subtle, realistic camera movement over the dish. Keep the food exactly as it is: ' +
-  'do not add, remove or change any ingredient, garnish or plating. ' +
-  'Gentle steam and natural light only. Photorealistic, no text, no people.';
+  'Camera slowly orbits around the dish from front to a 3/4 side angle, ' +
+  'plate stays centered and completely still, steady smooth camera motion, ' +
+  'consistent soft natural lighting, shallow depth of field, ' +
+  'photorealistic food photography style, no other movement in the scene';
 
 // ── El cuerpo de la petición ──────────────────────────────────
 // Función pura y exportada a propósito, igual que argumentosEntregable en
@@ -60,8 +75,9 @@ function entradaDe(fotoUrl, prompt = PROMPT) {
     prompt,
     duration: DURACION,
     resolution: RESOLUCION,
-    // El optimizador reescribe el prompt por su cuenta, y aquí el prompt es
-    // justamente lo que sujeta la restricción de "no añadas ingredientes".
+    // El optimizador reescribe el prompt por su cuenta. Este texto se afinó a
+    // mano hasta dar con el movimiento que se quería —una órbita concreta, no
+    // un zoom— y dejar que lo reescriba es perder justo eso.
     prompt_optimizer: false,
   };
 }
