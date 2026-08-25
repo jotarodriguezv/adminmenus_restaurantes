@@ -1,6 +1,6 @@
 # Video generado con IA — análisis y decisiones
 
-**Estado:** fases 1 y 2 implementadas el 24/08/2026. Falta la 3 (panel) y la primera generación real.
+**Estado:** fases 1, 2 y el botón de la 3, el 24/08/2026. Falta la aprobación y la primera generación real.
 **Fecha:** 24 de agosto de 2026
 **Modelo elegido:** `minimax/hailuo-02` en Replicate (foto → video)
 
@@ -303,7 +303,36 @@ Si algo falla ahí, será en los nombres de las rutas o en `status`/`output`, qu
 es justo lo que no se pudo verificar. Se arregla en `ia.js` y en ningún sitio
 más — para eso está separado.
 
-**Falta la fase 3:** el botón en el panel y el paso de aprobación.
+**Fase 3 — Panel. Botón hecho el 24/08/2026; falta la aprobación.**
+
+El botón vive **junto al de subir video**, no en otra pestaña: son las dos
+formas de llegar al mismo sitio —un plato con video— y lo único que cambia es
+de dónde sale el archivo.
+
+Tres frenos, y ninguno sobra porque cada pulsación cuesta dinero:
+
+1. **Solo se enseña si el plato tiene foto.** La foto *es* la entrada del
+   modelo, no un adorno. Sin ella el servidor rechaza igual, y ofrecer un botón
+   que va a fallar no le dice a nadie por qué.
+2. **El cupo se enseña pegado al botón** ("quedan 21 de 24"), no en otra
+   pantalla. Lo que queda tiene que estar donde se decide.
+3. **Se pregunta antes de gastar**, diciendo que la animación se consume
+   aunque el resultado no guste.
+
+Y uno que no se ve: **si no se puede leer el cupo, el botón se apaga**. Es
+preferible eso a dejar creer que hay de sobra y descubrirlo con la factura.
+
+La espera se resuelve reutilizando lo que ya había. La generación no crea un
+trabajo de video hasta que termina, así que el panel espera a que ese trabajo
+**aparezca** y entonces le pasa el testigo a `vigilarVideo()`, que ya sabía
+enseñar la conversión y el video final. Nada nuevo que mantener.
+
+**Falta el paso de aprobación.** Hoy el video generado se publica en la carta
+en cuanto termina de convertirse, igual que uno subido a mano. Para un
+restaurante de pruebas está bien; para un cliente no, y el motivo está en §9.
+Se hace después de que la primera generación real confirme que la API responde
+como se espera: montar la aprobación encima de una integración sin estrenar
+sería construir sobre algo que quizá haya que mover.
 
 **Fase 3 — Panel.** Botón en la ficha del plato, contador de cupo visible, y el
 paso de **aprobación antes de publicar**: el video generado llega convertido pero
