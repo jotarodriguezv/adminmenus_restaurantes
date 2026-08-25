@@ -347,6 +347,32 @@ panes en la carta de un cliente"*.
 Movimiento de cámara sobre la foto real. **Sin añadir ingredientes ni cambiar la
 presentación.**
 
+El prompt en producción (afinado a mano en Replicate, 24/08/2026) es:
+
+> *Camera slowly orbits around the dish from front to a 3/4 side angle, plate
+> stays centered and completely still, steady smooth camera motion, consistent
+> soft natural lighting, shallow depth of field, photorealistic food photography
+> style, no other movement in the scene*
+
+Fija tres cosas: **qué movimiento** (una órbita, no un zoom ni un barrido), que
+el **plato no se mueva**, y que **nada más en la escena se mueva** — sin esto
+último el modelo anima el fondo o los cubiertos.
+
+**Lo que no fija, y hay que tenerlo presente:** que no se inventen ingredientes.
+Y la órbita es precisamente lo que más lo pide, porque **al girar hacia 3/4 el
+modelo tiene que rellenar el lado del plato que la foto no enseña**. Ahí es donde
+puede aparecer una guarnición que el restaurante no sirve.
+
+Está así a conciencia: es el prompt que se probó y funcionó, y añadirle cláusulas
+sin volver a medir podría estropear el movimiento que costó afinar. Pero
+significa que **la red que atrapa ese caso es el paso de aprobación de la fase
+3**, no el prompt. Mientras la aprobación no exista, conviene mirar cada video
+generado antes de enseñárselo a un cliente.
+
+Si en algún momento se quiere cerrar por prompt, la frase sería del tipo *"do not
+add, remove or change any ingredient or garnish"* — y habría que comprobar que no
+degrada la órbita.
+
 Si el modelo agrega una guarnición que el restaurante no sirve, eso es publicidad
 engañosa, y el expuesto ante la SIC es el cliente, no la plataforma. Esta
 restricción va en el prompt, pero sobre todo va en el paso de aprobación de la
