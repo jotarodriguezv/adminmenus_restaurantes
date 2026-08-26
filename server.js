@@ -588,6 +588,17 @@ app.delete('/api/restaurantes/:id', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// De la URL pública de una subida al archivo en disco. Solo reconoce lo que
+// sirvió este mismo servidor: una foto alojada fuera devuelve null y quien
+// llama sigue sin ella, que es lo correcto — no se puede medir lo que no está.
+//
+// La comprobación de que no se sale de uploads/ la hace video.js, la misma que
+// usa el worker antes de darle un archivo a ffmpeg.
+function rutaLocalDeSubida(url) {
+  const m = /\/uploads\/([^/]+)\/([^/?#]+)$/.exec(String(url || ''));
+  return m ? video.rutaDentroDeUploads(path.join(m[1], m[2])) : null;
+}
+
 // ── GENERAR UN VIDEO A PARTIR DE LA FOTO ──────────────────────
 // Responde en cuanto la petición sale hacia Replicate; la generación tarda
 // minutos y la recoge colaia.js por su cuenta. Igual que la subida de video:
@@ -618,6 +629,28 @@ app.post('/api/ia/generar', auth, async (req, res) => {
     .select('atributos').eq('id', restaurante_id).single();
   if (req.user.rol !== 'admin' && !planDe(resto?.atributos).videos)
     return res.status(403).json({ error: 'La carta en video no está incluida en el plan actual' });
+
+  // ── ¿LA FOTO SIRVE PARA ESTE FORMATO? ───────────────────────
+  // El modelo hereda la proporción de la foto, así que lo que no encaje lo
+  // recorta ffmpeg después — sobre un video ya pagado y sin reintento. En una
+  // carta vertical el video ocupa la pantalla entera y una foto apaisada no
+  // sobrevive al recorte: se le cortan los lados al plato. Ver
+  // video.encajeDeFoto(), que es donde está el porqué de la regla.
+  //
+  // El panel ya avisa antes de preguntar, pero avisar no es impedir: esta ruta
+  // se puede llamar directamente, y lo que hay al otro lado es dinero.
+  const rutaFoto = rutaLocalDeSubida(prod.imagen_url);
+  if (rutaFoto && fs.existsSync(rutaFoto)) {
+    const m = await video.medidasDe(rutaFoto);
+    // Si no se pueden leer las medidas NO se bloquea. No saber la proporción
+    // arriesga un resultado feo; no saber el cupo arriesga la factura. Por eso
+    // aquel falla cerrado y este no.
+    if (m) {
+      const encaje = video.encajeDeFoto(m.ancho, m.alto, video.formatoDe(resto?.atributos));
+      if (encaje.veredicto === 'rechaza')
+        return res.status(400).json({ error: encaje.mensaje, encaje });
+    }
+  }
 
   try {
     const r = await colaia.lanzar(supabase, {
@@ -1108,7 +1141,7 @@ app.post('/api/video', auth,
     // y no puede quedar un trabajo pidiendo un formato que su carta no usa.
     // Se guarda en el trabajo, no se lee después del restaurante — si el
     // negocio cambia de modelo, sus videos ya convertidos no cambian solos.
-    const formato = resto?.atributos?.nav === 'vertical' ? 'vertical' : 'horizontal';
+    const formato = video.formatoDe(resto?.atributos);
 
     // Desde qué segundo del original se recorta. Llega como texto del
     // formulario, y lo que no sea un número razonable se trata como 0: es
@@ -1150,10 +1183,14 @@ app.get('/api/video/trabajos', auth, async (req, res) => {
   // ellas el panel no puede distinguir un video convertido que ya está en la
   // carta de uno generado que sigue esperando revisión. Los dos son 'listo'.
   const { data, error } = await supabase.from('trabajos_video')
-    .select('id, producto_id, estado, error, intentos, origen_tipo, aprobado, creado_en, actualizado_en')
+    .select('id, producto_id, estado, error, intentos, origen_tipo, aprobado, formato, master, creado_en, actualizado_en')
     .eq('restaurante_id', rid).order('creado_en', { ascending: false }).limit(100);
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+
+  // El master sigue sin salir de aquí: es un archivo interno y su carpeta ni
+  // siquiera se sirve. Lo que el panel necesita saber no es dónde está sino si
+  // existe — es lo que decide si se puede reconvertir sin volver a grabar.
+  res.json((data || []).map(({ master, ...t }) => ({ ...t, tiene_master: !!master })));
 });
 
 // Descartar un trabajo fallido. Al borrar la fila, el original deja de estar
@@ -1168,6 +1205,92 @@ app.delete('/api/video/trabajos/:id', auth, async (req, res) => {
   const { error } = await supabase.from('trabajos_video').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
+});
+
+// ── RECONVERTIR DESDE EL MASTER ───────────────────────────────
+// El master se guarda sin recortar para poder volver a cortarlo el día que la
+// carta pida otra proporción — pasar de horizontal a vertical no debería
+// significar volver a grabar veinticinco platos. Eso estaba escrito en video.js
+// desde el principio y no era verdad: se guardaban los masters y no existía
+// forma de usarlos. Estas dos rutas son lo que faltaba.
+//
+// No cuesta dinero y no gasta cupo: no se llama a nadie, solo se vuelve a
+// recortar un archivo que ya está en el disco.
+
+// Ya hay una conversión en marcha para ese plato. Dos a la vez compiten por el
+// mismo campo del producto: gana la que termine después, que no tiene por qué
+// ser la que se pidió, y la otra queda ocupando disco sin que nada la enseñe.
+async function hayConversionEnMarcha(productoId) {
+  if (!productoId) return false;
+  const { data } = await supabase.from('trabajos_video')
+    .select('id').eq('producto_id', productoId).in('estado', ['pendiente', 'procesando']).limit(1);
+  return !!data?.length;
+}
+
+app.post('/api/video/trabajos/:id/reconvertir', auth, async (req, res) => {
+  const { data: t } = await supabase.from('trabajos_video')
+    .select('id, restaurante_id, producto_id, formato, master, origen_tipo, aprobado')
+    .eq('id', req.params.id).maybeSingle();
+  if (!t || !canAccessRestaurante(req.user, t.restaurante_id))
+    return res.status(403).json({ error: 'Sin permiso' });
+
+  const { data: resto } = await supabase.from('restaurantes')
+    .select('atributos').eq('id', t.restaurante_id).single();
+
+  // Por defecto, el formato que la carta usa AHORA — que es el motivo por el
+  // que casi siempre se llega aquí. Se acepta pedir otro, pero solo uno real.
+  const pedido = req.body?.formato;
+  const formato = (pedido === 'horizontal' || pedido === 'vertical')
+    ? pedido : video.formatoDe(resto?.atributos);
+
+  if (await hayConversionEnMarcha(t.producto_id))
+    return res.status(409).json({ error: 'Ese plato ya tiene una conversión en marcha' });
+
+  try {
+    const nuevo = await video.reconvertir(supabase, t, formato);
+    res.json({ trabajo_id: nuevo.id, formato });
+  } catch (e) {
+    // "No tiene master" y "el master ya no está" son del que pide, no del
+    // servidor: se contestan tal cual porque explican qué hacer.
+    res.status(e.definitivo ? 400 : 500).json({ error: e.message });
+  }
+});
+
+// Todos los videos de un restaurante que quedaron en el formato anterior. Es
+// la operación de verdad detrás de "cambié el modelo de la carta": hacerla
+// plato a plato con veinticinco platos no la hace nadie.
+app.post('/api/video/reconvertir', auth, async (req, res) => {
+  const rid = req.body?.restaurante_id;
+  if (!rid || !canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+
+  const { data: resto } = await supabase.from('restaurantes')
+    .select('atributos').eq('id', rid).single();
+  const formato = video.formatoDe(resto?.atributos);
+
+  // Solo los terminados, con master y en el formato que ya no toca. Un trabajo
+  // en curso no se reconvierte: todavía no se sabe en qué va a quedar.
+  const { data: viejos } = await supabase.from('trabajos_video')
+    .select('id, restaurante_id, producto_id, formato, master, origen_tipo, aprobado')
+    .eq('restaurante_id', rid).eq('estado', 'listo').neq('formato', formato)
+    .not('master', 'is', null);
+
+  const encolados = [];
+  const saltados  = [];
+  for (const t of viejos || []) {
+    // Uno que no se pueda reconvertir no puede parar a los demás: con
+    // veinticinco platos, fallar entero por un master perdido dejaría la carta
+    // a medias y sin forma de saber cuáles sí se pudieron.
+    try {
+      if (await hayConversionEnMarcha(t.producto_id)) { saltados.push({ id: t.id, motivo: 'ya tiene una conversión en marcha' }); continue; }
+      const nuevo = await video.reconvertir(supabase, t, formato);
+      encolados.push(nuevo.id);
+    } catch (e) {
+      saltados.push({ id: t.id, motivo: e.message });
+    }
+  }
+
+  console.log(`♻️  reconversión a ${formato}: ${encolados.length} encolados, ${saltados.length} saltados`);
+  res.json({ formato, encolados: encolados.length, saltados });
 });
 
 // ── ANALÍTICA ─────────────────────────────────────────────────
