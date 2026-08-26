@@ -10,7 +10,7 @@ const PLATO = '33333333-3333-4333-8333-333333333333';
 
 // Un Supabase de mentira con lo justo: el tope configurado, cuántas filas
 // cuentan hoy, y un registro de lo que se le mandó escribir.
-function supabaseFalso({ cupoConfigurado = null, filasQueCuentan = 0, fallarConteo = false } = {}) {
+function supabaseFalso({ cupoConfigurado = null, filasQueCuentan = 0, fallarConteo = false, activa = true } = {}) {
 	const escrituras = [];
 	const inserciones = [];
 
@@ -49,7 +49,7 @@ function supabaseFalso({ cupoConfigurado = null, filasQueCuentan = 0, fallarCont
 				}
 				if (nombre === 'restaurantes_ia') {
 					return Promise.resolve({
-						data: cupoConfigurado === null ? null : { cupo: cupoConfigurado },
+						data: cupoConfigurado === null ? null : { cupo: cupoConfigurado, activa },
 						error: null,
 					}).then(res, rej);
 				}
@@ -67,12 +67,12 @@ describe('cuántas le quedan', () => {
 		// Dar de alta a alguien no debería exigir tocar dos tablas.
 		const sb = supabaseFalso({ cupoConfigurado: null, filasQueCuentan: 0 });
 		assert.deepEqual(await cupo.estado(sb, RESTO),
-			{ cupo: cupo.CUPO_POR_DEFECTO, usadas: 0, disponibles: cupo.CUPO_POR_DEFECTO });
+			{ cupo: cupo.CUPO_POR_DEFECTO, activa: true, usadas: 0, disponibles: cupo.CUPO_POR_DEFECTO });
 	});
 
 	test('un cupo propio manda sobre el de por defecto', async () => {
 		const sb = supabaseFalso({ cupoConfigurado: 40, filasQueCuentan: 10 });
-		assert.deepEqual(await cupo.estado(sb, RESTO), { cupo: 40, usadas: 10, disponibles: 30 });
+		assert.deepEqual(await cupo.estado(sb, RESTO), { cupo: 40, activa: true, usadas: 10, disponibles: 30 });
 	});
 
 	test('gastadas de más no da disponibles negativas', async () => {
@@ -184,5 +184,67 @@ describe('rescatarReservas · el cupo que se pierde en silencio', () => {
 		// algo que todavía se está haciendo — y se cobraría sin contarlo.
 		assert.ok(cupo.RESCATE_MS >= 10 * 60 * 1000,
 			'una generación tarda minutos; el rescate tiene que esperar más');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('activa · que una carta sea de video no la habilita a generar', () => {
+	// Son dos cosas distintas y hasta el 26/08/2026 eran la misma. El caso que
+	// lo pide: un restaurante con la carta ya completa no necesita seguir
+	// generando, y dejarle la puerta abierta es dejar abierta una forma de
+	// gastar. Apagarlo no puede exigir bajarle el plan —seguiría necesitando
+	// servir sus videos— ni tocarle el cupo, que significa otra cosa.
+
+	test('sin fila en restaurantes_ia, activa', async () => {
+		// Es lo que hacía la plataforma antes de que la columna existiera. El
+		// fallo seguro aquí es no quitarle a nadie algo que ya tenía.
+		const e = await cupo.estado(supabaseFalso({ cupoConfigurado: null }), RESTO);
+		assert.equal(e.activa, true);
+		assert.equal(e.disponibles, cupo.CUPO_POR_DEFECTO);
+	});
+
+	test('apagada no deja ninguna disponible, mire el cupo lo que mire', async () => {
+		// Se calcula en el servidor y no en el panel para que no haya dos
+		// cuentas que puedan discrepar.
+		const e = await cupo.estado(supabaseFalso({ cupoConfigurado: 24, activa: false }), RESTO);
+		assert.equal(e.activa, false);
+		assert.equal(e.cupo, 24, 'el cupo se conserva: encenderla lo devuelve donde iba');
+		assert.equal(e.disponibles, 0);
+	});
+
+	test('apagada se rechaza como apagada, no como sin cupo', async () => {
+		// Decir "se te acabaron" llevaría a ampliarle un cupo que no es el
+		// problema. Son dos conversaciones distintas y la ruta las distingue.
+		await assert.rejects(
+			() => cupo.reservar(supabaseFalso({ cupoConfigurado: 24, activa: false }), { restaurante_id: RESTO }),
+			e => e.iaApagada === true && e.sinCupo === undefined);
+	});
+
+	test('apagada no llega a reservar nada', async () => {
+		// Si insertara la fila, la generación contaría como gastada sin que
+		// nadie la pidiera.
+		const sb = supabaseFalso({ cupoConfigurado: 24, activa: false });
+		await assert.rejects(() => cupo.reservar(sb, { restaurante_id: RESTO, producto_id: PLATO }));
+		assert.deepEqual(sb.inserciones, []);
+	});
+
+	test('encendida pero agotada sigue siendo "sin cupo"', async () => {
+		await assert.rejects(
+			() => cupo.reservar(supabaseFalso({ cupoConfigurado: 24, filasQueCuentan: 24 }), { restaurante_id: RESTO }),
+			e => e.sinCupo === true && e.iaApagada === undefined);
+	});
+
+	test('los tres estados no se confunden entre sí', async () => {
+		// La tabla que hace legible el sistema: cada "no" tiene su motivo, y
+		// cada motivo lleva a una acción distinta.
+		const apagada = await cupo.estado(supabaseFalso({ cupoConfigurado: 24, activa: false }), RESTO);
+		const sinNada = await cupo.estado(supabaseFalso({ cupoConfigurado: 0 }), RESTO);
+		const agotada = await cupo.estado(supabaseFalso({ cupoConfigurado: 24, filasQueCuentan: 24 }), RESTO);
+
+		assert.deepEqual(
+			[apagada, sinNada, agotada].map(e => [e.activa, e.cupo, e.disponibles]),
+			[[false, 24, 0],   // no genera: decisión de producto
+			 [true,   0, 0],   // podría, pero no se le ha dado ninguna
+			 [true,  24, 0]]); // se le acabaron: conversación comercial
 	});
 });
