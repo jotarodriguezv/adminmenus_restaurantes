@@ -1,0 +1,155 @@
+# Planes, modelos y capacidades
+
+**Para qué es este documento:** para contestar en treinta segundos "¿qué tiene
+este restaurante?" sin abrir el código ni acordarse de nada. Si algo de aquí ya
+no coincide con lo que hace la plataforma, manda el código y hay que corregir
+este archivo.
+
+---
+
+## 1. Tres cosas que se confunden y no son la misma
+
+Casi toda la confusión de esta parte del sistema viene de mezclar tres
+conceptos que responden a preguntas distintas.
+
+| | Qué contesta | Dónde vive | Quién lo cambia |
+|---|---|---|---|
+| **Plan** | Cuánto paga y qué tiene contratado | `restaurantes.atributos.plan` | Solo el superadmin |
+| **Modelo** | Qué FORMA tiene su carta | `restaurantes.atributos.nav` | Superadmin, desde Apariencia |
+| **Capacidad** | Qué puede HACER | se deriva del plan | Nadie: sale de la tabla de planes |
+
+Un ejemplo de por qué importa: *Bonzas* es **Plan Completo**. Eso dice que no
+lleva nuestra marca, que tiene estadísticas, horarios y carrito. Lo que **no**
+dice —y era justo la pregunta que había que hacerse cada vez— es que su carta
+es de **fotos**, porque el plan Completo no incluye video. Para eso hay que
+mirar el plan *y* el modelo a la vez, que es lo que hace la línea de la lista.
+
+---
+
+## 2. Los planes
+
+`PLANES` vive en dos sitios que **tienen que decir lo mismo**:
+`adminmenus_restaurantes/public/index.html` y `vmenus-app/core/planes.js`. Son
+dos aplicaciones desplegadas por separado; si discrepan, el panel ofrece algo
+que la carta no pinta.
+
+| Plan | Marca | QR | Estad. | Horarios | Carrito | Video |
+|---|---|---|---|---|---|---|
+| **Vitrina** | sí | — | — | — | — | — |
+| **Pedidos** | sí | ✓ | ✓ | ✓ | ✓ | — |
+| **Completo** | — | ✓ | ✓ | ✓ | ✓ | — |
+| **Video** | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+*"Marca: sí"* significa que la carta lleva el crédito **Hecho con VMenus**. Es
+al revés de lo que parece: pagar más lo quita.
+
+El plan por defecto es **Pedidos**, y eso es a propósito: es exactamente lo que
+hacía la plataforma antes de que existieran los planes, así que un restaurante
+sin plan asignado no nota nada.
+
+**Video es su propio plan y no un extra del Completo** porque su coste no se
+parece: cada plato es un archivo que hay que almacenar, convertir y servir
+muchas veces.
+
+---
+
+## 3. Los modelos
+
+El modelo decide la forma de la carta. Cada plan permite unos cuantos.
+
+| Modelo | Qué es | Enseña |
+|---|---|---|
+| `topnav` | Categorías arriba | fotos |
+| `sidebar` | Categorías al lado | fotos |
+| `explorar` | Buscador y filtros | fotos |
+| `carrito` | Pedido como página entera | fotos |
+| `video` | Columna de tarjetas **16:9** | video |
+| `vertical` | Pantalla completa **9:16**, un plato por deslizamiento | video |
+
+Sin modelo asignado, `topnav`.
+
+### `video` y `vertical` son el mismo plan, no dos
+
+Cuesta lo mismo servir uno que otro: los dos entregables tienen el mismo número
+de píxeles (1280×720 y 720×1280 son lo mismo girado). Lo que cambia es el
+encuadre con el que se graba o se genera, y eso lo decide el restaurante. Por
+eso no son dos planes ni dos precios: **son dos modelos del plan Video.**
+
+⚠ **Pero el encuadre no es cosmético.** El formato de recorte se guarda en cada
+trabajo de conversión, así que cambiar el modelo **no re-recorta lo ya
+convertido**: los videos viejos siguen como estaban y se ven como una franja
+del centro. Para eso existe el botón *Reconvertir* de la ficha del plato, que
+vuelve a cortar desde el master sin volver a grabar ni pagar. Ver
+`docs/cartas-en-video.md`.
+
+---
+
+## 4. La IA no viene con el plan de video
+
+**Que una carta sea de video no significa que pueda fabricar video.** Servir un
+archivo cuesta almacenamiento; generarlo cuesta dinero cada vez, a un tercero.
+
+Por eso el interruptor es aparte (`restaurantes_ia.activa`), y por eso hay
+**tres estados distintos que antes se confundían en uno**. Cada uno lleva a una
+acción diferente, y esa es toda la razón de separarlos:
+
+| Estado | Qué significa | Qué se ve | Qué se hace |
+|---|---|---|---|
+| `activa = false` | Esta carta no genera. Decisión de producto. | El botón **no existe** | Encenderla desde la lista |
+| `cupo = 0` | Podría, pero no se le ha dado ninguna | "sin animaciones disponibles" | Darle cupo |
+| `usadas >= cupo` | Se le acabaron | "sin animaciones disponibles" | Conversación comercial |
+
+El caso que hizo falta: **un restaurante con la carta ya completa no necesita
+seguir generando**, y dejarle la puerta abierta es dejar abierta una forma de
+gastar. Apagarlo no puede exigir bajarle el plan —seguiría necesitando servir
+sus videos— ni ponerle el cupo a cero, que significa otra cosa y le invita a
+pedir más.
+
+**Apagar esconde el botón, no lo deja muerto.** Un botón apagado con un "no
+disponible" invita a preguntar por algo que se quitó a propósito. El cupo se
+conserva: si se vuelve a encender, sigue donde iba.
+
+---
+
+## 5. Cómo leer la lista de restaurantes
+
+Cada tarjeta lleva ahora una línea que contesta las cuatro preguntas en el
+orden en que se hacen:
+
+```
+📷 solo fotos · Topnav · 🛒 pedidos · Plan Completo
+🎬 video vertical 9:16 · Vertical · 🛒 pedidos · ✨ IA · Plan Video
+🎬 video apaisado 16:9 · Video · 🛒 pedidos · ✨ IA apagada · Plan Video
+```
+
+1. **Qué le enseña al comensal** — fotos o video, y en qué encuadre
+2. **El modelo** — la forma de la carta
+3. **Si puede pedir** — solo aparece cuando lo tiene; "sin carrito" en tres
+   cuartas partes de la lista sería ruido
+4. **La IA** — solo en planes con video, pero ahí **siempre**, encendida o
+   apagada: el silencio se leería como "no la tiene", y son cosas distintas
+5. **El plan**, al final, porque es lo que menos cambia
+
+Debajo, cuando hay algo que contar, la segunda línea con el estado del video:
+
+```
+🎬 12 videos · 👀 1 sin revisar · ⏳ 2 convirtiendo · ✨ 14/24 con IA
+```
+
+**"sin revisar" no está en la carta.** Es un video generado, convertido y
+pagado que espera a que alguien lo mire; hasta entonces el plato sigue
+enseñando su foto. Se publica o se descarta desde la ficha del plato.
+
+---
+
+## 6. Dónde tocar cada cosa
+
+| Para cambiar... | Se toca |
+|---|---|
+| Qué incluye un plan | `PLANES` en **los dos** repos |
+| Qué modelos permite un plan | `PLANES[x].modelos`, en los dos |
+| El modelo de un restaurante | Panel → Apariencia |
+| El plan de un restaurante | Panel → Apariencia (solo superadmin) |
+| Si un restaurante genera con IA | Botón **✨ IA** de la lista |
+| Cuántas animaciones tiene | Panel, cupo (solo superadmin) |
+| El prompt de generación | Variable `IA_PROMPT`, sin desplegar |
