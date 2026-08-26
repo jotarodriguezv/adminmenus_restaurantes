@@ -3119,18 +3119,33 @@ function encajeDeFoto(ancho, alto) {
 	const foto = ancho / alto;
 	const conservado = Math.min(foto, objetivo) / Math.max(foto, objetivo);
 	const perdido = Math.round((1 - conservado) * 100);
+	const lado = foto > objetivo ? 'ancho' : 'alto';
+	const tamaño = `${ancho}×${alto}`;
 
-	if (vertical && foto >= 1) return { veredicto: 'rechaza', perdido,
-		mensaje: `⚠ La foto de este plato es apaisada y esta carta es vertical. El video ` +
-		         `ocupa la pantalla entera, así que habría que recortarle los lados al plato ` +
-		         `(se perdería el ${perdido}% del ancho). Sube una foto vertical del plato.` };
+	// El recorte más grande con la proporción de la carta que cabe en la foto.
+	// Es lo que convierte el aviso en algo que se puede hacer: un número que se
+	// teclea en el recortador del móvil, no un "no encaja".
+	const ideal = (foto > objetivo)
+		? { ancho: Math.round(alto * objetivo), alto }
+		: { ancho, alto: Math.round(ancho / objetivo) };
 
-	if (conservado < 0.8) return { veredicto: 'avisa', perdido,
-		mensaje: `La foto no tiene la proporción de la carta: al video se le recortará el ` +
-		         `${perdido}%. Suele quedar bien si el plato está centrado, pero la animación ` +
-		         `se gasta igual.` };
+	if (vertical && foto >= 1) return { veredicto: 'rechaza', perdido, ideal,
+		mensaje: `⚠ Tu foto es ${tamaño} y esta carta es vertical, donde el video ocupa la ` +
+		         `pantalla entera. Recortarla dejaría solo el ${100 - perdido}% del ancho y al ` +
+		         `plato se le irían los lados. Sube una foto vertical del plato — proporción ` +
+		         `9:16, por ejemplo 1080×1920.` };
 
-	return { veredicto: 'bien', perdido, mensaje: '' };
+	// Aviso, NO bloqueo. Lo primero que se lee tiene que ser "se puede generar":
+	// el texto anterior lo decía de refilón y se leyó como un rechazo, y esa
+	// confusión costó una generación pagada.
+	if (conservado < 0.8) return { veredicto: 'avisa', perdido, ideal,
+		mensaje: `Se puede generar igual. Aviso: tu foto es ${tamaño} y esta carta es ` +
+		         `${vertical ? 'vertical (9:16)' : 'apaisada (16:9)'}, así que al video se le ` +
+		         `recortará el ${perdido}% del ${lado}. Suele quedar bien si el plato está ` +
+		         `centrado. Para que no se recorte nada, súbela recortada a ` +
+		         `${ideal.ancho}×${ideal.alto}.` };
+
+	return { veredicto: 'bien', perdido, ideal, mensaje: '' };
 }
 
 // Se lee del <img> que la ficha ya tiene cargado: naturalWidth es el tamaño
@@ -3140,6 +3155,18 @@ function encajeDeLaFotoActual() {
 	const img = document.getElementById('imgEditPreview');
 	if (!img || !img.naturalWidth || !img.naturalHeight) return null;
 	return encajeDeFoto(img.naturalWidth, img.naturalHeight);
+}
+
+// naturalWidth vale 0 hasta que la imagen termina de bajar, y la ficha se
+// pinta antes que eso. Sin esta espera el aviso no sale NUNCA en una foto que
+// tarde un poco: se calcula una vez, sale null, y nadie lo vuelve a mirar.
+//
+// Una sola vez y sin quitar el manejador a mano: {once:true} lo suelta solo,
+// y si la imagen ya estaba lista el evento no llega y no hace falta.
+function reintentarEncajeAlCargarLaFoto() {
+	const img = document.getElementById('imgEditPreview');
+	if (!img || img.naturalWidth || !img.getAttribute('src')) return;
+	img.addEventListener('load', () => refrescarCupoIA(), { once: true });
 }
 
 let vigilanciaIA = null;
@@ -3168,6 +3195,8 @@ async function refrescarCupoIA() {
 			// su propio elemento: escribirla en el del estado borraba el
 			// "✨ Generando..." con un aviso que parece un rechazo.
 			const enc = encajeDeLaFotoActual();
+			// Todavía no se pudo medir: se vuelve a intentar cuando cargue.
+			if (!enc) reintentarEncajeAlCargarLaFoto();
 			const nota = document.getElementById('iaEncaje');
 			if (nota) {
 				nota.textContent = (enc && enc.veredicto !== 'bien') ? enc.mensaje : '';
@@ -5196,6 +5225,24 @@ async function cargarListaRestos() {
       const editBtn=document.createElement('button');
       editBtn.className='btn-sm accent'; editBtn.textContent='Editar menú';
       editBtn.onclick=()=>entrarARestaurante(r.slug);
+      // Botón ver la carta pública. Es la comprobación que más se hace —cambias
+      // algo y quieres ver cómo quedó de verdad— y hasta ahora obligaba a
+      // salirse del panel y teclear la dirección a mano.
+      //
+      // Va como <a> y no como <button> con window.open: así el clic central y
+      // el "abrir en pestaña nueva" del menú del botón derecho funcionan como
+      // en cualquier enlace. Con un onclick no funcionan, y quien revisa
+      // varios restaurantes seguidos hace justo eso.
+      //
+      // noopener es obligatorio con target=_blank: sin él la página abierta
+      // recibe window.opener y puede redirigir la pestaña del panel.
+      const verBtn=document.createElement('a');
+      verBtn.className='btn-sm'; verBtn.textContent='Ver carta ↗';
+      verBtn.href=urlPublica(r);
+      verBtn.target='_blank'; verBtn.rel='noopener noreferrer';
+      verBtn.title=urlPublica(r);
+      // Un <a> no hereda la alineación del texto de los <button> hermanos.
+      verBtn.style.cssText='display:inline-flex;align-items:center;text-decoration:none;';
       // Botón cambiar PIN
       const pinBtn=document.createElement('button');
       pinBtn.className='btn-sm'; pinBtn.textContent='Cambiar PIN';
@@ -5211,6 +5258,7 @@ async function cargarListaRestos() {
       delBtn.onclick=()=>eliminarRestaurante(r.id,r.nombre);
       card.querySelector('.resto-card-actions').appendChild(toggleBtn);
       card.querySelector('.resto-card-actions').appendChild(editBtn);
+      card.querySelector('.resto-card-actions').appendChild(verBtn);
       card.querySelector('.resto-card-actions').appendChild(pinBtn);
       card.querySelector('.resto-card-actions').appendChild(pagoBtn);
       card.querySelector('.resto-card-actions').appendChild(delBtn);
