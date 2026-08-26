@@ -1461,6 +1461,43 @@
 								🗑 Descartar y volver a intentar
 							</button>
 						</div>
+						<!-- ── LO QUE GENERÓ EL MODELO, ANTES DE PUBLICARLO ────
+						     Un video generado NO entra solo en la carta. El modelo
+						     no copia el plato: lo interpreta, y al girar hacia 3/4
+						     tiene que rellenar el lado que la foto no enseña. Si ahí
+						     aparece una guarnición que el negocio no sirve, el
+						     comensal pide una cosa y le llega otra.
+
+						     Por eso esto no es un aviso que se pueda cerrar: es el
+						     video a tamaño de mirar, con controles, y dos botones.
+						     Mientras nadie decida, el plato sigue enseñando su foto. -->
+						<div id="iaRevision" style="display:none;margin-top:10px;padding:12px;border:1px solid var(--accent);border-radius:8px;">
+							<div style="font-family:var(--mono);font-size:10px;color:var(--accent);line-height:1.5;margin-bottom:8px">
+								✨ Video generado — revísalo antes de publicarlo
+							</div>
+							<video id="iaRevisionVideo" style="width:100%;border-radius:6px;background:#000" controls muted loop playsinline></video>
+							<div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:8px;line-height:1.6">
+								Míralo entero y comprueba que el plato es el tuyo: el modelo
+								puede añadir algo que no sirves. Si publicas un video que no
+								corresponde con lo que llega a la mesa, el problema es del
+								restaurante.
+							</div>
+							<div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
+								<button type="button" id="btnPublicarIA" onclick="publicarVideoIA()"
+									style="padding:6px 12px;border-radius:6px;border:1px solid var(--success);
+									background:transparent;color:var(--success);font-family:var(--mono);font-size:9px;
+									letter-spacing:1px;cursor:pointer;white-space:nowrap;">
+									✓ Publicar en la carta
+								</button>
+								<button type="button" id="btnDescartarIA" onclick="descartarVideoIA()"
+									style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);
+									background:transparent;color:var(--text);font-family:var(--mono);font-size:9px;
+									letter-spacing:1px;cursor:pointer;white-space:nowrap;">
+									🗑 Descartar
+								</button>
+								<div id="iaRevisionEstado" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);flex:1"></div>
+							</div>
+						</div>
 						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" onchange="prepararVideoElegido(this)">
 					</div>
 					<div class="form-group">
@@ -1773,6 +1810,8 @@ let state = {
   facturacion: [],           // cobranza por restaurante, fuera de atributos
   facturacionCargada: false, // si es false el campo vacío significa "no se sabe"
   cupoIA: null,              // cuántas animaciones le quedan al restaurante
+  videosPorAprobar: [],      // generados y convertidos, esperando que alguien los mire
+  videoEnRevisionActual: null, // el que se está mirando en la ficha abierta
   resumenVideo: {},          // videos y cupo de IA por restaurante, para la lista
   filtrosDisponibles: [],   // filtros que el restaurante activó (modelo explorar)
   prodFiltros: [],          // filtros marcados en el producto que se edita
@@ -2403,10 +2442,24 @@ function openEditProductModal(id) {
 // aparecía en ningún sitio: el plato se quedaba sin video y sin explicación,
 // y volver a subirlo daba exactamente el mismo error.
 async function cargarTrabajosVideo() {
-	if (!planActual().videos) { state.trabajosVideo = []; return; }
+	if (!planActual().videos) { state.trabajosVideo = []; state.videosPorAprobar = []; return; }
 	try {
 		state.trabajosVideo = await apiFetch('GET', `/api/video/trabajos?restaurante_id=${state.restaurante.id}`) || [];
 	} catch { state.trabajosVideo = []; }
+
+	// En una llamada aparte porque trae lo que la otra no puede traer: la URL
+	// del archivo. Aprobar sin poder VER el video sería firmar a ciegas, que es
+	// exactamente lo que este paso existe para impedir.
+	try {
+		state.videosPorAprobar = await apiFetch('GET', `/api/ia/por-aprobar?restaurante_id=${state.restaurante.id}`) || [];
+	} catch { state.videosPorAprobar = []; }
+}
+
+// El video generado que espera revisión para este plato, si lo hay.
+function videoPorAprobarDe(productoId) {
+	return (state.videosPorAprobar || [])
+		.filter(t => t.producto_id === productoId)
+		.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0] || null;
 }
 
 // El fallido más reciente de un plato, si lo hay.
@@ -2445,6 +2498,59 @@ async function descartarVideoFallido() {
 	} catch (e) {
 		showToast('No se pudo descartar: ' + e.message, 'error');
 	}
+}
+
+// ── DECIDIR SOBRE UN VIDEO GENERADO ───────────────────────────
+// Las dos hacen lo mismo salvo la ruta y el texto, así que comparten cuerpo:
+// tener dos copias de "apagar botones, llamar, recargar, repintar" es cómo una
+// acaba olvidándose de recargar.
+async function decidirVideoIA(accion, textoOk) {
+	const id = state.videoEnRevisionActual;
+	if (!id) return;
+
+	const est = document.getElementById('iaRevisionEstado');
+	const botones = ['btnPublicarIA', 'btnDescartarIA'].map(x => document.getElementById(x));
+	// Se apagan LOS DOS. Publicar y descartar son excluyentes y ninguna tiene
+	// vuelta atrás: dejar el otro encendido mientras el primero viaja es
+	// invitar a pulsarlo.
+	for (const b of botones) { b.disabled = true; b.style.opacity = '.45'; b.style.cursor = 'not-allowed'; }
+	est.textContent = 'Un momento...'; est.style.color = 'var(--text-muted)';
+
+	try {
+		await apiFetch('POST', `/api/ia/por-aprobar/${id}/${accion}`);
+
+		// El plato cambia en las dos: publicar le pone el video, descartar lo
+		// deja como estaba. Se relee en vez de suponerlo — el que decide qué
+		// enseña la carta es el servidor.
+		state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
+		await cargarTrabajosVideo();
+		renderProducts();
+
+		const productoId = document.getElementById('editProductId').value;
+		const p = (state.productos || []).find(x => x.id === productoId);
+		if (p) pintarVideoPlato(p);
+		showToast(textoOk, 'success');
+	} catch (e) {
+		est.textContent = e.message || 'No se pudo completar'; est.style.color = 'var(--danger)';
+		for (const b of botones) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; }
+	}
+}
+
+function publicarVideoIA() {
+	decidirVideoIA('publicar', 'Video publicado. Ya se ve en la carta.');
+}
+
+// Se pregunta porque no hay vuelta atrás en los dos sentidos: se borran los
+// archivos Y la animación gastada no vuelve al cupo. Se generó y se pagó.
+function descartarVideoIA() {
+	const quedan = state.cupoIA?.disponibles;
+	const ok = confirm(
+		'Se va a descartar este video y el plato se quedará con su foto.\n\n' +
+		'La animación gastada NO vuelve al cupo: ya se generó y ya se pagó' +
+		(typeof quedan === 'number' ? ` (te quedan ${quedan})` : '') +
+		'.\n\n¿Descartarlo?');
+	if (!ok) return;
+	decidirVideoIA('descartar', 'Video descartado.');
 }
 
 let vigilanciaVideo = null;   // temporizador de la consulta de estado
@@ -2498,6 +2604,33 @@ function pintarVideoPlato(p) {
 		prev.src = url; prev.style.display = 'block'; vacio.style.display = 'none';
 	} else {
 		prev.removeAttribute('src'); prev.style.display = 'none'; vacio.style.display = 'block';
+	}
+
+	// ── UN VIDEO GENERADO ESPERANDO REVISIÓN ──────────────────
+	// Convive con todo lo anterior en vez de sustituirlo: el plato puede tener
+	// ya un video publicado Y una animación nueva esperando. Los dos se ven,
+	// que es justo lo que hace falta para decidir.
+	const enRevision = p?.id ? videoPorAprobarDe(p.id) : null;
+	state.videoEnRevisionActual = enRevision?.id || null;
+	const revision = document.getElementById('iaRevision');
+	const vRevision = document.getElementById('iaRevisionVideo');
+	document.getElementById('iaRevisionEstado').textContent = '';
+	if (enRevision) {
+		revision.style.display = 'block';
+		vRevision.src = enRevision.video;
+		if (enRevision.portada) vRevision.poster = enRevision.portada;
+		for (const id of ['btnPublicarIA', 'btnDescartarIA']) {
+			const b = document.getElementById(id);
+			b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer';
+		}
+	} else {
+		revision.style.display = 'none';
+		// Sin quitar el src, el navegador se queda con el archivo cargado y el
+		// siguiente plato abre enseñando el video del anterior durante un
+		// instante — el tiempo justo para creer que es suyo.
+		vRevision.removeAttribute('src');
+		vRevision.removeAttribute('poster');
+		vRevision.load();
 	}
 
 	// ── UNA CONVERSIÓN EN MARCHA ──────────────────────────────
@@ -2761,8 +2894,23 @@ function vigilarVideo(trabajoId, productoId) {
 				// que el panel siga creyendo que el plato no tiene video.
 				state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
 				await cargarTrabajosVideo();
-				decir('✓ Video listo', 'var(--success)');
 				permitirSubir();
+
+				// Un video generado termina de convertirse igual, pero el plato
+				// NO lo enseña todavía. Decir '✓ Video listo' aquí sería mentir
+				// dos veces: ni está en la carta, ni hay nada que se vea si no
+				// se hace nada. Se repinta la ficha, que es quien saca el bloque
+				// de revisión con el video y los dos botones.
+				if (t.origen_tipo === 'ia' && t.aprobado === null) {
+					decir('✓ Video generado — revísalo antes de publicarlo', 'var(--accent)');
+					if (enPantalla()) {
+						const p = state.productos.find(x => x.id === productoId);
+						if (p) pintarVideoPlato(p);
+					}
+					return;
+				}
+
+				decir('✓ Video listo', 'var(--success)');
 
 				const url = state.productos.find(x => x.id === productoId)?.atributos?.video?.url;
 				if (url && enPantalla()) {
