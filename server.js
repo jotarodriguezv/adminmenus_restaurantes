@@ -639,6 +639,29 @@ app.post('/api/ia/generar', auth, async (req, res) => {
   //
   // El panel ya avisa antes de preguntar, pero avisar no es impedir: esta ruta
   // se puede llamar directamente, y lo que hay al otro lado es dinero.
+  // ── ¿YA HAY UNA PARA ESTE PLATO? ────────────────────────────
+  // Este es el freno que de verdad cuida el dinero, y existe porque falló:
+  // el 26/08/2026 un mismo plato se generó dos veces con 21 segundos de
+  // diferencia. El panel había apagado el botón y volvió a encenderlo solo
+  // —refrescarCupoIA() deshacía el apagado—, y encima pisó el
+  // "✨ Generando..." con un aviso naranja que se lee como un rechazo. Quien
+  // lo ve da por hecho que no salió y vuelve a pulsar.
+  //
+  // Aquello se arregló en el panel, pero el panel es la puerta bonita. Lo que
+  // impide pagar dos veces por la misma decisión tiene que estar aquí.
+  const { data: yaGenerando } = await supabase.from('generaciones_ia')
+    .select('id').eq('producto_id', producto_id).eq('estado', 'generando').limit(1);
+  if (yaGenerando?.length)
+    return res.status(409).json({ error: 'Ese plato ya tiene una generación en camino. Espera a que termine.' });
+
+  // Y una ya generada que nadie ha mirado cuenta igual: pedir otra es pagar
+  // por una decisión que todavía no se ha tomado.
+  const { data: sinRevisar } = await supabase.from('trabajos_video')
+    .select('id').eq('producto_id', producto_id).eq('origen_tipo', 'ia')
+    .is('aprobado', null).in('estado', ['pendiente', 'procesando', 'listo']).limit(1);
+  if (sinRevisar?.length)
+    return res.status(409).json({ error: 'Ese plato ya tiene un video generado esperando revisión. Publícalo o descártalo antes de generar otro.' });
+
   const rutaFoto = rutaLocalDeSubida(prod.imagen_url);
   if (rutaFoto && fs.existsSync(rutaFoto)) {
     const m = await video.medidasDe(rutaFoto);
