@@ -1077,6 +1077,8 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 			state: { restaurante: { id: 'r1' }, generandoIA },
 			document: { getElementById: id => mapa[id] },
 			encajeDeLaFotoActual: () => encaje,
+			// Vive en otro trozo del archivo; aquí solo importa que no estorbe.
+			reintentarEncajeAlCargarLaFoto: () => {},
 			videoPorAprobarDe: () => porAprobar,
 			trabajoEnCursoDe: () => enCurso,
 		});
