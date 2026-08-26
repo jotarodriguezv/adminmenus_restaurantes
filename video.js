@@ -26,6 +26,24 @@ const CARPETAS = {
   portada: 'miniaturas',   // el fotograma que se muestra antes de reproducir
 };
 
+// Un trabajo cuyo ORIGEN vive en masters/ es una reconversión: se parte del
+// master de una conversión anterior en vez de un archivo recién subido.
+//
+// No hizo falta columna nueva. El origen ya dice de dónde se parte, y la
+// carpeta ya distingue un master de todo lo demás — inventar un booleano para
+// repetir lo que la ruta ya cuenta es tener dos fuentes para el mismo dato.
+//
+// Cambia tres cosas, y las tres importan:
+//
+//   · NO se genera master nuevo. Se reutiliza el que ya hay. Re-codificar un
+//     master desde otro master pierde calidad en cada pasada, y el master
+//     existe justamente para que eso no ocurra nunca.
+//   · NO se borra el origen al terminar. El origen ES el master: borrarlo
+//     tiraría el archivo que permite volver a hacer esto.
+//   · Se ahorra media conversión. La pasada del master es la cara de las dos.
+const esReconversion = trabajo =>
+  path.dirname(String(trabajo?.origen || '')) === CARPETAS.master;
+
 const DURACION_MAX     = 8;                 // segundos que se guardan
 // Por debajo de esto el bucle de la carta da tirones y marea más que vender.
 // Se rechaza en vez de convertirlo: un video de un segundo no es un video
@@ -121,6 +139,13 @@ const FORMATOS = {
 const MEDIDAS = Object.fromEntries(
   Object.entries(FORMATOS).map(([k, f]) => [k, [f.ancho, f.alto]]));
 
+// Qué formato usa un restaurante. La ternaria estaba escrita en tres sitios
+// —la subida de video, la cola de IA y la ruta de generar— y las tres tenían
+// que decir lo mismo para siempre. Ahora lo dicen porque son la misma línea.
+function formatoDe(atributos) {
+  return atributos?.nav === 'vertical' ? 'vertical' : 'horizontal';
+}
+
 function argumentosEntregable(entrada, salida, desde = 0, formato = 'horizontal') {
   const f = FORMATOS[formato] || FORMATOS.horizontal;
   return [...COMUNES, ...desdeDe(desde), '-i', entrada,
@@ -197,6 +222,82 @@ async function duracionDe(archivo) {
   }
 }
 
+// Lo mismo que duracionDe pero para el tamaño, y sirve igual para una foto
+// que para un video: ffprobe lee los dos. Se usa ffprobe y no una librería de
+// imágenes a propósito — ya es una dependencia obligatoria del servidor, y
+// añadir otra para leer dos números sería pagar mantenimiento por nada.
+async function medidasDe(archivo) {
+  try {
+    const { stdout } = await ejecutar('ffprobe',
+      ['-v', 'error', '-select_streams', 'v:0',
+       '-show_entries', 'stream=width,height', '-of', 'csv=p=0:s=x', archivo],
+      { timeout: 30_000 });
+    const [ancho, alto] = String(stdout).trim().split('x').map(Number);
+    return (ancho > 0 && alto > 0) ? { ancho, alto } : null;
+  } catch {
+    return null;
+  }
+}
+
+// ── ¿ESTA FOTO SIRVE PARA ESTE FORMATO? ───────────────────────
+// El modelo hereda la proporción de la foto: su JSON de entrada no tiene campo
+// de proporción (ver ia.js). Así que lo que no encaje en el formato del
+// restaurante lo recorta ffmpeg DESPUÉS, sobre un video que ya se pagó y que
+// no tiene reintento.
+//
+// La regla no es simétrica, y eso no es un descuido:
+//
+//   · En HORIZONTAL el video se ve en una tarjeta dentro de una lista. Una foto
+//     3:4 pierde el 58% de la altura y aun así queda bien: el plato está
+//     centrado y la banda del medio se lo lleva entero. Está medido — es la
+//     Salchipapa de Juan Mar, generada el 24/08/2026 desde una foto 3:4.
+//
+//   · En VERTICAL el video ocupa la pantalla ENTERA. Una foto apaisada obliga a
+//     sacar una tira estrecha del centro —queda el 32% del ancho— y a ampliarla
+//     ×1,67 para llenar 1280 de alto. Ahí el plato no sobrevive: se le cortan
+//     los lados, y a tamaño completo se nota todo.
+//
+// Por eso en vertical la foto apaisada se RECHAZA antes de llamar, y en
+// horizontal solo se avisa. Rechazar de más costaría una foto que sí servía;
+// avisar de menos cuesta una generación pagada que no se puede repetir.
+const ENCAJE_AVISA = 0.8;
+
+function encajeDeFoto(ancho, alto, formato = 'horizontal') {
+  const f = FORMATOS[formato] || FORMATOS.horizontal;
+  const objetivo = f.ancho / f.alto;
+  const foto = ancho / alto;
+
+  // Qué fracción del lado que sobra sigue estando en el video final. Da igual
+  // por dónde sobre: el recorte se lleva ancho o alto según cuál de los dos
+  // vaya más suelto respecto al objetivo.
+  const conservado = Math.min(foto, objetivo) / Math.max(foto, objetivo);
+  const perdido = Math.round((1 - conservado) * 100);
+
+  // Apaisada contra un formato vertical: el caso que no se deja pasar.
+  if (formato === 'vertical' && foto >= 1) {
+    return {
+      conservado, perdido, veredicto: 'rechaza',
+      mensaje: 'Esta carta es vertical y el video ocupa la pantalla entera, ' +
+               'pero la foto de este plato es apaisada. El modelo copia la ' +
+               'proporción de la foto, así que habría que recortarle los lados ' +
+               `al plato (se perdería el ${perdido}% del ancho). Sube una foto ` +
+               'vertical del plato y vuelve a intentarlo.',
+    };
+  }
+
+  if (conservado < ENCAJE_AVISA) {
+    return {
+      conservado, perdido, veredicto: 'avisa',
+      mensaje: `La foto no tiene la proporción de la carta, así que al video ` +
+               `generado se le recortará el ${perdido}%. Suele quedar bien si el ` +
+               `plato está centrado, pero con una foto de la proporción correcta ` +
+               `queda mejor — y la animación se gasta igual.`,
+    };
+  }
+
+  return { conservado, perdido, veredicto: 'bien', mensaje: '' };
+}
+
 // El nombre viene de nuestra propia ruta de subida, pero comprobarlo cuesta
 // tres líneas y evita que un fallo futuro ahí se convierta en un ffmpeg
 // leyendo /etc/passwd.
@@ -231,6 +332,7 @@ async function convertir(trabajo) {
 
   // numeric de Postgres puede llegar como cadena según el cliente.
   const desde = Number(trabajo.desde) || 0;
+  const reconversion = esReconversion(trabajo);
 
   // Se mide antes de convertir, no después. Un clip demasiado corto no
   // mejora reintentando y convertirlo cuesta minuto y medio para acabar en
@@ -258,7 +360,8 @@ async function convertir(trabajo) {
   const pPortada = path.join(RAIZ, CARPETAS.portada, nPortada);
 
   await correrFfmpeg(argumentosEntregable(entrada, pVideo, desde, trabajo.formato));
-  await correrFfmpeg(argumentosMaster(entrada, pMaster, desde));
+  // En una reconversión el master ya existe y es la propia entrada.
+  if (!reconversion) await correrFfmpeg(argumentosMaster(entrada, pMaster, desde));
 
   // Comprobar antes de dar por bueno: ffmpeg puede terminar con código 0 y
   // dejar un archivo de cero segundos. Si se borrara el original confiando
@@ -276,7 +379,10 @@ async function convertir(trabajo) {
 
   return {
     video:   path.join(CARPETAS.video,   nVideo),
-    master:  path.join(CARPETAS.master,  nMaster),
+    // El master de una reconversión es el de siempre: el archivo del que se
+    // acaba de partir. Escribir aquí una ruta nueva dejaría al trabajo
+    // apuntando a un archivo que nadie creó.
+    master:  reconversion ? trabajo.origen : path.join(CARPETAS.master, nMaster),
     portada: path.join(CARPETAS.portada, nPortada),
     duracion,
   };
@@ -323,9 +429,15 @@ async function purgarAnteriores(supabase, trabajo) {
     .neq('id', trabajo.id)
     .in('estado', ['listo', 'error']);
 
+  // Un reconvertido COMPARTE master con el trabajo del que salió. Purgar sin
+  // mirar borraría el archivo al que el nuevo acaba de apuntar, y con él la
+  // única copia sin recortar que queda del video.
+  const enUso = new Set([trabajo.video, trabajo.master, trabajo.portada].filter(Boolean));
+
   for (const v of viejos || []) {
     for (const relativa of [v.video, v.master, v.portada]) {
-      const abs = relativa && rutaDentroDeUploads(relativa);
+      if (!relativa || enUso.has(relativa)) continue;
+      const abs = rutaDentroDeUploads(relativa);
       if (abs && fs.existsSync(abs)) { try { fs.unlinkSync(abs); } catch {} }
     }
     await supabase.from('trabajos_video').delete().eq('id', v.id);
@@ -418,8 +530,13 @@ async function procesarTrabajo(supabase, trabajo) {
     // El último paso, y solo si todo lo anterior fue bien. Si se borrara
     // antes y fallara la escritura en base de datos, el trabajo quedaría
     // pendiente sin archivo del que partir.
-    const orig = rutaDentroDeUploads(trabajo.origen);
-    if (orig && fs.existsSync(orig)) { try { fs.unlinkSync(orig); } catch {} }
+    //
+    // Salvo en una reconversión: ahí el origen ES el master, y borrarlo sería
+    // tirar el archivo que permite volver a recortar mañana.
+    if (!esReconversion(trabajo)) {
+      const orig = rutaDentroDeUploads(trabajo.origen);
+      if (orig && fs.existsSync(orig)) { try { fs.unlinkSync(orig); } catch {} }
+    }
 
     console.log(`🎬 video listo (${r.duracion.toFixed(1)}s) · trabajo ${trabajo.id}`);
   } catch (e) {
@@ -506,17 +623,53 @@ function arrancar(supabase) {
   console.log('🎬 cola de video en marcha');
 }
 
-async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 0, formato = 'horizontal', origen_tipo = 'subido' }) {
+async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 0, formato = 'horizontal', origen_tipo = 'subido', aprobado = null }) {
   const { data, error } = await supabase.from('trabajos_video')
-    .insert([{ restaurante_id, producto_id: producto_id || null, origen, desde, formato, origen_tipo }])
+    .insert([{ restaurante_id, producto_id: producto_id || null, origen, desde, formato, origen_tipo, aprobado }])
     .select().single();
   if (error) throw new Error(error.message);
   return data;
 }
 
+// ── RECONVERTIR DESDE EL MASTER ───────────────────────────────
+// El master se guarda SIN recortar justamente para esto: si mañana la carta
+// pide otra proporción, se vuelve a cortar desde aquí en vez de pedirle al
+// restaurante que vuelva a grabar. Eso estaba escrito en este archivo desde el
+// principio y no era verdad — se guardaban los masters y no había forma de
+// usarlos. Esta función es lo que faltaba.
+//
+// Cuesta media conversión y cero dinero: no se vuelve a llamar a nadie, y en
+// un video generado con IA no se gasta otra animación.
+async function reconvertir(supabase, trabajo, formato) {
+  if (!trabajo?.master)
+    throw new ErrorDefinitivo('Ese video no tiene master del que reconvertir');
+
+  const abs = rutaDentroDeUploads(trabajo.master);
+  if (!abs || !fs.existsSync(abs))
+    throw new ErrorDefinitivo('El master de ese video ya no está en el disco');
+
+  return encolar(supabase, {
+    restaurante_id: trabajo.restaurante_id,
+    producto_id: trabajo.producto_id,
+    origen: trabajo.master,
+    // El master ya viene recortado en el tiempo: volver a saltar segundos aquí
+    // se comería el principio del trozo que el restaurante eligió una vez.
+    desde: 0,
+    formato,
+    // La procedencia se hereda: un video generado sigue siendo generado
+    // después de recortarlo de otra manera.
+    origen_tipo: trabajo.origen_tipo || 'subido',
+    // Y la decisión también. Recortar no es contenido nuevo: si alguien ya miró
+    // este video y lo publicó, volver a pedirle que lo apruebe sería
+    // preguntarle por algo que ya contestó.
+    aprobado: trabajo.aprobado ?? null,
+  });
+}
+
 module.exports = {
-  arrancar, encolar,
-  CARPETAS, DURACION_MAX, DURACION_MIN, MEDIDAS, FORMATOS,
+  arrancar, encolar, reconvertir, esReconversion,
+  CARPETAS, DURACION_MAX, DURACION_MIN, MEDIDAS, FORMATOS, ENCAJE_AVISA,
+  formatoDe, medidasDe, encajeDeFoto,
   // Exportados para las pruebas: son puros y se pueden comprobar sin
   // ejecutar ffmpeg ni tocar el disco.
   argumentosEntregable, argumentosMaster, argumentosPortada, instantePortada,
