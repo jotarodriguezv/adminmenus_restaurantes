@@ -103,6 +103,23 @@ describe('argumentos de ffmpeg · lo que no se puede perder', () => {
 		assert.match(vfMaster, /decrease/, 'solo reduce');
 	});
 
+	test('la portada es UN fotograma, no un video de un cuadro', () => {
+		// Las tres banderas van juntas y ninguna sobra. Sin -frames:v 1, ffmpeg
+		// escribe la secuencia entera. Sin -update 1, avisa de que está
+		// sobreescribiendo el mismo archivo una y otra vez y puede acabar
+		// dejando el ÚLTIMO fotograma en vez del que se pidió.
+		const args = video.argumentosPortada('s.mp4', 'p.jpg');
+		assert.equal(valorDe(args, '-frames:v'), '1');
+		assert.equal(valorDe(args, '-update'), '1');
+	});
+
+	test('la portada se guarda con calidad de mirar, no de archivo', () => {
+		// -q:v va de 2 (mejor) a 31. En 5 la miniatura de un plato pesa unos
+		// 40 KB y es lo primero que se ve de la carta: subirlo se nota en la
+		// carga y bajarlo se nota en el plato.
+		assert.equal(valorDe(video.argumentosPortada('s.mp4', 'p.jpg'), '-q:v'), '5');
+	});
+
 	test('el master no amplía una fuente pequeña', () => {
 		// Con la caja fija en 1920, 'decrease' agranda lo que sea menor: un
 		// 1280x959 saldría 1920x1438, más pesado que el original y sin un píxel
@@ -258,5 +275,135 @@ describe('formatos · cada modelo pide su encuadre y su calidad', () => {
 			assert.equal(valorDe(args(f), '-movflags'), '+faststart', `en ${f}`);
 			assert.equal(valorDe(args(f), '-t'), String(video.DURACION_MAX), `en ${f}`);
 		}
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('aprobación · lo que genera un modelo no entra solo en la carta', () => {
+	// El modelo no copia el plato: lo interpreta. Al orbitar hacia 3/4 tiene
+	// que rellenar el lado que la foto no enseña, y ahí puede aparecer una
+	// guarnición que el negocio no sirve. Publicar eso sin mirarlo es
+	// publicidad engañosa, y el expuesto es el restaurante.
+	//
+	// Un video subido a mano no pasa por aquí: quien graba su plato ya lo vio.
+
+	test('un video subido se publica solo', () => {
+		assert.equal(video.esperaAprobacion({ origen_tipo: 'subido' }), false);
+		// Sin la columna tampoco espera: son todos los que ya existían antes
+		// de que este paso existiera, y ninguno debe quedarse fuera de la carta.
+		assert.equal(video.esperaAprobacion({}), false);
+	});
+
+	test('un video generado espera, y deja de esperar al aprobarlo', () => {
+		assert.equal(video.esperaAprobacion({ origen_tipo: 'ia' }), true);
+		assert.equal(video.esperaAprobacion({ origen_tipo: 'ia', aprobado: null }), true);
+		assert.equal(video.esperaAprobacion({ origen_tipo: 'ia', aprobado: false }), true,
+			'descartado no es publicado: tampoco entra en la carta');
+		assert.equal(video.esperaAprobacion({ origen_tipo: 'ia', aprobado: true }), false);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('publicarTrabajo · el mismo final, en diferido', () => {
+	// Publica lo que procesarTrabajo habría publicado solo si el video no
+	// viniera de un modelo. Por eso reutiliza guardarEnProducto y
+	// purgarAnteriores en vez de repetir la lógica: dos copias del "qué se
+	// escribe en el plato" es cómo acaban discrepando.
+
+	const supabaseFalso = () => {
+		const escrituras = [];
+		const q = {
+			select: () => q, eq: () => q, neq: () => q,
+			maybeSingle: () => Promise.resolve({ data: { atributos: { imagenes: ['foto.jpg'] } } }),
+			in: () => Promise.resolve({ data: [] }),
+			update(obj) { escrituras.push(obj); return { eq: () => Promise.resolve({}) }; },
+			delete: () => ({ eq: () => Promise.resolve({}) }),
+		};
+		return { escrituras, from: () => q };
+	};
+
+	test('un trabajo sin convertir no se puede publicar', async () => {
+		// Sin rutas no hay archivo: la conversión no llegó a terminar. Marcar
+		// eso como aprobado dejaría el plato apuntando a nada.
+		await assert.rejects(
+			() => video.publicarTrabajo(supabaseFalso(), { id: 't1', producto_id: 'p1' }),
+			/todavía no está convertido/);
+	});
+
+	test('un trabajo sin plato tampoco', async () => {
+		await assert.rejects(
+			() => video.publicarTrabajo(supabaseFalso(), { id: 't1', video: 'videos/a.mp4', portada: 'miniaturas/a.jpg' }),
+			/no está asociado a ningún plato/);
+	});
+
+	test('publicar escribe el video en el plato y marca el trabajo', async () => {
+		const sb = supabaseFalso();
+		await video.publicarTrabajo(sb, {
+			id: 't1', producto_id: 'p1',
+			video: 'videos/a.mp4', master: 'masters/a-master.mp4', portada: 'miniaturas/a.jpg',
+		});
+
+		const enPlato = sb.escrituras.find(e => e.atributos);
+		assert.ok(enPlato, 'el plato tiene que recibir su video');
+		assert.match(enPlato.atributos.video.url, /videos\/a\.mp4$/);
+		assert.match(enPlato.atributos.video.portada, /miniaturas\/a\.jpg$/);
+		// Lo que ya tenía el plato sigue ahí: atributos guarda más cosas y un
+		// update directo se las llevaría por delante.
+		assert.deepEqual(enPlato.atributos.imagenes, ['foto.jpg']);
+		// El master NO se expone: es interno y su ruta vive en trabajos_video.
+		assert.equal('master' in enPlato.atributos.video, false);
+
+		assert.ok(sb.escrituras.some(e => e.aprobado === true), 'y el trabajo queda aprobado');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('descartarTrabajo · lo contrario de publicar', () => {
+	const RAIZ = path.join(__dirname, '..', 'uploads');
+
+	const supabaseFalso = () => {
+		const escrituras = [];
+		const q = {
+			select: () => q, eq: () => q,
+			update(obj) { escrituras.push(obj); return { eq: () => Promise.resolve({}) }; },
+		};
+		return { escrituras, from: () => q };
+	};
+
+	test('borra los archivos en el momento y deja constancia', async () => {
+		// No se le dejan al limpiador: espera siete días de gracia, y entre
+		// entregable, master y portada son ~7 MB por descarte en un disco cuyo
+		// espacio ya se vigila antes de cada subida.
+		const base = 'prueba-descarte-' + Date.now();
+		const trio = {
+			video:   `videos/${base}.mp4`,
+			master:  `masters/${base}-master.mp4`,
+			portada: `miniaturas/${base}.jpg`,
+		};
+		for (const rel of Object.values(trio)) {
+			const abs = path.join(RAIZ, rel);
+			fs.mkdirSync(path.dirname(abs), { recursive: true });
+			fs.writeFileSync(abs, 'x');
+		}
+
+		const sb = supabaseFalso();
+		try {
+			await video.descartarTrabajo(sb, { id: 't1', ...trio });
+
+			for (const [que, rel] of Object.entries(trio))
+				assert.equal(fs.existsSync(path.join(RAIZ, rel)), false, `${que} debe borrarse`);
+
+			// La fila NO se borra: se marca. generaciones_ia dice que se generó
+			// —y se pagó—; lo que se decidió después solo consta aquí.
+			assert.deepEqual(sb.escrituras, [{ aprobado: false, video: null, master: null, portada: null }]);
+		} finally {
+			for (const rel of Object.values(trio)) { try { fs.unlinkSync(path.join(RAIZ, rel)); } catch {} }
+		}
+	});
+
+	test('una ruta que se sale de uploads no se toca', async () => {
+		const sb = supabaseFalso();
+		await video.descartarTrabajo(sb, { id: 't1', video: '../../etc/passwd', master: null, portada: null });
+		assert.equal(sb.escrituras[0].aprobado, false, 'la fila se marca igual');
 	});
 });
