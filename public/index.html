@@ -1461,6 +1461,23 @@
 								🗑 Descartar y volver a intentar
 							</button>
 						</div>
+						<!-- ── ESTE VIDEO QUEDÓ EN EL FORMATO ANTERIOR ─────────
+						     Solo aparece cuando de verdad hace falta: el video se
+						     convirtió en un formato y la carta usa el otro. El
+						     master se guarda sin recortar justamente para esto, así
+						     que arreglarlo no cuesta ni dinero ni volver a grabar. -->
+						<div id="videoDesfasado" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--warning, #ffb020);border-radius:8px;">
+							<div id="videoDesfasadoTexto" style="font-family:var(--mono);font-size:10px;color:var(--warning, #ffb020);line-height:1.6"></div>
+							<div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
+								<button type="button" id="btnReconvertir" onclick="reconvertirVideo()"
+									style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);
+									background:transparent;color:var(--text);font-family:var(--mono);font-size:9px;
+									letter-spacing:1px;cursor:pointer;white-space:nowrap;">
+									♻ Reconvertir al formato de la carta
+								</button>
+								<div id="videoDesfasadoEstado" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);flex:1"></div>
+							</div>
+						</div>
 						<!-- ── LO QUE GENERÓ EL MODELO, ANTES DE PUBLICARLO ────
 						     Un video generado NO entra solo en la carta. El modelo
 						     no copia el plato: lo interpreta, y al girar hacia 3/4
@@ -2484,6 +2501,50 @@ function trabajoEnCursoDe(productoId) {
 		.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0] || null;
 }
 
+// El trabajo terminado de un plato: el que produjo el video que se está
+// enseñando. Hace falta para saber en qué formato quedó — el plato guarda la
+// URL del video, no cómo se recortó.
+function trabajoListoDe(productoId) {
+	return (state.trabajosVideo || [])
+		.filter(t => t.producto_id === productoId && t.estado === 'listo')
+		.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0] || null;
+}
+
+// Un video convertido en un formato mientras la carta usa el otro. Pasa al
+// cambiar de modelo: el video ya recortado no se re-recorta solo, y el
+// restaurante ve una franja del centro y cree que la conversión salió mal.
+//
+// Solo cuenta si hay master. Sin él no hay de dónde volver a cortar, y ofrecer
+// un botón que va a fallar no le dice a nadie por qué.
+function videoDesfasadoDe(productoId) {
+	const t = trabajoListoDe(productoId);
+	if (!t || !t.tiene_master) return null;
+	const formato = state.restaurante?.atributos?.nav === 'vertical' ? 'vertical' : 'horizontal';
+	return t.formato && t.formato !== formato ? { trabajo: t, formato } : null;
+}
+
+async function reconvertirVideo() {
+	const d = state.videoDesfasadoActual;
+	if (!d) return;
+
+	const btn = document.getElementById('btnReconvertir');
+	const est = document.getElementById('videoDesfasadoEstado');
+	btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
+	est.textContent = 'Encolando...'; est.style.color = 'var(--text-muted)';
+
+	try {
+		const r = await apiFetch('POST', `/api/video/trabajos/${d.trabajo.id}/reconvertir`, { formato: d.formato });
+		est.textContent = 'Reconvirtiendo... (1-2 min)';
+		await cargarTrabajosVideo();
+		// De aquí en adelante es una conversión como cualquier otra, y quien
+		// sabe contarla ya existe.
+		vigilarVideo(r.trabajo_id, d.trabajo.producto_id);
+	} catch (e) {
+		est.textContent = e.message || 'No se pudo reconvertir'; est.style.color = 'var(--danger)';
+		btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
+	}
+}
+
 async function descartarVideoFallido() {
 	const id = state.trabajoFallidoActual;
 	if (!id) return;
@@ -2604,6 +2665,24 @@ function pintarVideoPlato(p) {
 		prev.src = url; prev.style.display = 'block'; vacio.style.display = 'none';
 	} else {
 		prev.removeAttribute('src'); prev.style.display = 'none'; vacio.style.display = 'block';
+	}
+
+	// ── ¿ESTE VIDEO QUEDÓ EN EL FORMATO ANTERIOR? ─────────────
+	// Solo con video ya publicado: mientras convierte no se sabe en qué queda,
+	// y sin video no hay nada desfasado.
+	const desfasado = (p?.id && url) ? videoDesfasadoDe(p.id) : null;
+	state.videoDesfasadoActual = desfasado;
+	document.getElementById('videoDesfasado').style.display = desfasado ? 'block' : 'none';
+	document.getElementById('videoDesfasadoEstado').textContent = '';
+	if (desfasado) {
+		const btnR = document.getElementById('btnReconvertir');
+		btnR.disabled = false; btnR.style.opacity = '1'; btnR.style.cursor = 'pointer';
+		const eran = desfasado.trabajo.formato === 'vertical' ? 'vertical (9:16)' : 'apaisado (16:9)';
+		const son  = desfasado.formato === 'vertical' ? 'vertical (9:16)' : 'apaisado (16:9)';
+		document.getElementById('videoDesfasadoTexto').textContent =
+			`Este video se recortó ${eran} y tu carta ahora es ${son}, así que se ve una franja ` +
+			`del centro. Se puede volver a recortar desde el original guardado: no cuesta nada ` +
+			`y no hay que volver a grabarlo.`;
 	}
 
 	// ── UN VIDEO GENERADO ESPERANDO REVISIÓN ──────────────────
@@ -3012,6 +3091,49 @@ async function handleExtraImgUpload(input) {
 // sobra: solo se enseña con foto, se dice cuánto queda antes de pulsar, y se
 // pregunta antes de gastar.
 
+// ── ¿LA FOTO SIRVE PARA ESTE FORMATO? ─────────────────────────
+// Copia deliberada de video.encajeDeFoto() del servidor. El panel es un solo
+// index.html sin compilación, así que no puede requerir el módulo de Node: o
+// se duplica la regla, o el aviso llega después de gastar la generación.
+//
+// Se duplica lo MÍNIMO —una división y dos umbrales— y el servidor manda: el
+// panel avisa, pero quien rechaza es POST /api/ia/generar. Si algún día las dos
+// discrepan, gana la del servidor y aquí solo se ve un aviso de más o de menos,
+// nunca una generación pagada que allí se habría rechazado.
+//
+// El porqué de que la regla no sea simétrica está en video.js, y es el motivo
+// de que exista: en horizontal el video es una tarjeta en una lista y una foto
+// 3:4 aguanta el recorte; en vertical ocupa la pantalla entera y una foto
+// apaisada pierde el plato por los lados.
+function encajeDeFoto(ancho, alto) {
+	const vertical = state.restaurante?.atributos?.nav === 'vertical';
+	const objetivo = vertical ? 720 / 1280 : 1280 / 720;
+	const foto = ancho / alto;
+	const conservado = Math.min(foto, objetivo) / Math.max(foto, objetivo);
+	const perdido = Math.round((1 - conservado) * 100);
+
+	if (vertical && foto >= 1) return { veredicto: 'rechaza', perdido,
+		mensaje: `⚠ La foto de este plato es apaisada y esta carta es vertical. El video ` +
+		         `ocupa la pantalla entera, así que habría que recortarle los lados al plato ` +
+		         `(se perdería el ${perdido}% del ancho). Sube una foto vertical del plato.` };
+
+	if (conservado < 0.8) return { veredicto: 'avisa', perdido,
+		mensaje: `La foto no tiene la proporción de la carta: al video se le recortará el ` +
+		         `${perdido}%. Suele quedar bien si el plato está centrado, pero la animación ` +
+		         `se gasta igual.` };
+
+	return { veredicto: 'bien', perdido, mensaje: '' };
+}
+
+// Se lee del <img> que la ficha ya tiene cargado: naturalWidth es el tamaño
+// real del archivo, no el del hueco donde se pinta. Cero peticiones y cero
+// espera — y si la imagen aún no cargó, devuelve null y no se estorba.
+function encajeDeLaFotoActual() {
+	const img = document.getElementById('imgEditPreview');
+	if (!img || !img.naturalWidth || !img.naturalHeight) return null;
+	return encajeDeFoto(img.naturalWidth, img.naturalHeight);
+}
+
 let vigilanciaIA = null;
 
 function detenerVigilanciaIA() {
@@ -3034,6 +3156,19 @@ async function refrescarCupoIA() {
 			el.textContent = `quedan ${c.disponibles} de ${c.cupo}`;
 			el.style.color = c.disponibles <= 3 ? 'var(--warning, #ffb020)' : 'var(--text-muted)';
 			btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
+			// La proporción se dice AQUÍ, donde se decide, y no después de
+			// pagar. Un rechazo apaga el botón: el servidor lo va a rechazar
+			// igual y dejarlo encendido solo lleva al mismo sitio con un
+			// rodeo.
+			const enc = encajeDeLaFotoActual();
+			const est = document.getElementById('iaEstado');
+			if (enc && enc.veredicto !== 'bien' && est) {
+				est.textContent = enc.mensaje;
+				est.style.color = enc.veredicto === 'rechaza' ? 'var(--danger)' : 'var(--warning, #ffb020)';
+			}
+			if (enc && enc.veredicto === 'rechaza') {
+				btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
+			}
 		} else {
 			// Agotado no es un error: es la conversación comercial. El texto
 			// invita a escribir en vez de dejar un botón muerto sin explicación.
@@ -3060,11 +3195,20 @@ async function generarConIA() {
 		return;
 	}
 
+	// El servidor rechaza esto igual; salir aquí solo evita el viaje.
+	const enc = encajeDeLaFotoActual();
+	if (enc?.veredicto === 'rechaza') {
+		est.textContent = enc.mensaje; est.style.color = 'var(--danger)';
+		return;
+	}
+
 	const quedan = state.cupoIA?.disponibles ?? 0;
 	// Se pregunta porque esto gasta dinero y no tiene vuelta atrás: una vez
-	// pedida, la generación se paga salga bien o mal.
+	// pedida, la generación se paga salga bien o mal. Y si la foto encaja
+	// regular, se dice AQUÍ: es lo último que se lee antes de gastarla.
 	const ok = confirm(
 		`Se va a generar un video de 6 segundos a partir de la foto de este plato.\n\n` +
+		(enc?.veredicto === 'avisa' ? `⚠ ${enc.mensaje}\n\n` : '') +
 		`Esto consume 1 de las ${quedan} animaciones que te quedan, y se consume ` +
 		`aunque el resultado no te guste.\n\n¿Continuar?`);
 	if (!ok) return;
