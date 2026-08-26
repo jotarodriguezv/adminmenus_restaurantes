@@ -269,6 +269,47 @@ grabar y subir toda su carta. Con master, es un proceso de una noche que ningún
 cliente nota. Cuesta ~265 MB por restaurante: barato a cambio de poder cambiar de
 opinión.
 
+#### El proceso de una noche no existía (arreglado el 26/08/2026)
+
+Todo lo de arriba era verdad menos la parte que importa: **no había código que
+reconvirtiera desde el master.** Se guardaban desde el primer día, ocupaban sus
+265 MB por restaurante, y ninguna línea del servidor los leía. Cambiar un
+restaurante de horizontal a vertical significaba exactamente lo que el master
+existía para evitar — pedirle que volviera a grabar la carta entera.
+
+Se arregló sin tocar el esquema. Un trabajo cuyo **`origen` vive en `masters/`**
+es una reconversión, y eso cambia tres cosas:
+
+- **No se genera master nuevo.** Se reutiliza el que ya hay. Re-codificar un
+  master desde otro master pierde calidad en cada pasada, y el master existe
+  justamente para que eso no pase nunca.
+- **No se borra el origen al terminar.** El origen *es* el master.
+- **Cuesta media conversión**, porque la pasada del master se salta entera.
+
+No hizo falta una columna: la ruta ya dice de dónde se parte y la carpeta ya
+distingue un master de todo lo demás. Un booleano que repitiera eso serían dos
+fuentes para el mismo dato.
+
+**El fallo que esto destapó, y que sí borraba datos.** Un reconvertido apunta al
+**mismo** master que el trabajo del que salió. `purgarAnteriores()` borra los
+archivos del trabajo anterior sin mirar, así que se habría llevado el master al
+que el nuevo acababa de apuntar — la única copia sin recortar. Ahora compara
+contra lo que el trabajo nuevo usa antes de borrar nada. Tiene prueba propia,
+porque es de los fallos que no se ven hasta que ya no hay de dónde recuperar.
+
+**En el panel** el aviso sale solo cuando de verdad hace falta: video ya
+publicado, con master, y convertido en el formato que la carta ya no usa. Es el
+caso real —cambias de modelo y los videos viejos siguen recortados como estaban,
+así que se ve una franja del centro y parece que la conversión falló— y hasta
+ahora no había ni explicación ni salida.
+
+Rutas: `POST /api/video/trabajos/:id/reconvertir` para uno, y
+`POST /api/video/reconvertir` para todos los de un restaurante que quedaron en el
+formato anterior. La segunda es la operación de verdad detrás de "cambié el
+modelo": con veinticinco platos, plato a plato no lo hace nadie. Ninguna de las
+dos cuesta dinero ni gasta cupo de IA — no se llama a nadie, solo se vuelve a
+recortar un archivo que ya está en el disco.
+
 ---
 
 ## 6. Ficha técnica
@@ -687,7 +728,10 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       deslizamiento con `scroll-snap`, tres estilos (`clasico`, `intenso`, `avance`)
       elegibles desde el panel. En producción en Indigo; Voro sigue de demo
       horizontal
-- [ ] **Paso 4 — Generación con IA.** Foto → video contra un servicio externo, a la misma cola
+- [ ] **Paso 4 — Generación con IA.** Foto → video contra un servicio externo, a la misma cola.
+      **Análisis cerrado el 24/08/2026 en `docs/video-con-ia.md`** — modelo
+      `minimax/hailuo-02`, 6 s, 768p, cupo de 24 generaciones por restaurante.
+      Sin implementar: la fase 0 es medir dos platos reales antes de integrar
 - [x] Probado el recorte 16:9 con origen vertical: el plato queda centrado, pero se
       pierde el 69 % de la altura. Decisión tomada: se mantiene 16:9 y se recomienda
       al restaurante grabar en horizontal
@@ -707,7 +751,16 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       a la cola porque ya no está `pendiente`, y el restaurante veía
       "convirtiendo" indefinidamente. La única cura era otro despliegue. Ahora se
       reintenta cada 30 min dentro del mismo `tick`
-- [ ] Pruebas para `argumentosMaster` / `argumentosPortada` (están exportadas para eso)
+- [x] Pruebas para `argumentosMaster` — están, y son cinco: que no lleva `crop`,
+      que conserva el audio cuando el entregable no, que el `min(1920)` impide
+      ampliar una fuente pequeña, que se corta por el mismo segundo que el
+      entregable y que lleva `-nostdin`. (Esta casilla llevaba tiempo sin marcar
+      diciendo que faltaba algo que ya estaba hecho.)
+- [ ] Pruebas para `argumentosPortada`. Hoy solo se comprueba que lleva
+      `-nostdin`. **Nadie fija que pida un fotograma y no un video**: faltan
+      `-frames:v 1`, `-update 1` y la calidad `-q:v 5`. Si eso se rompiera, en
+      vez de un JPEG saldría otra cosa y el trabajo moriría en "La portada salió
+      vacía", que es un mensaje que no explica la causa. Son 3 pruebas
 - [x] Pruebas para `limpieza.recogerNombres` — y para `pasada`, que es la que borra
 
 ### Seguridad
