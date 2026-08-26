@@ -83,10 +83,38 @@ Con el cupo de 24 generaciones, por restaurante y una sola vez:
 1080p   24 × $0,48  =  $11,52
 ```
 
-> ⚠ **Sin verificar:** no se pudo abrir la ficha de Replicate desde el entorno de
-> análisis. Falta confirmar si el "768p" del modelo es altura 768 en 16:9 —que es
-> lo que asume la tabla— o un formato cuadrado. Si fuera cuadrado, este cálculo
-> cambia y el recorte deja de ser gratis.
+> ⚠ **La tabla de arriba supone que el modelo devuelve 16:9. La primera
+> generación real dice que no.** Medido con `ffprobe` sobre el master del
+> 24/08/2026: **768×1024**. La foto de origen era vertical 3:4 y el video salió
+> vertical 3:4 — el modelo hereda la proporción de la foto, como dice §6.3, y el
+> "768" es el **lado corto**, no la altura.
+>
+> Con esa fuente y un restaurante **horizontal**, ffmpeg hace
+> `scale=1280:720:increase` sobre 768×1024 → 1280×1707, y recorta a 1280×720:
+>
+> - se tira el **58% de la altura** (queda una franja de 1707 líneas)
+> - y es una **ampliación**: 768 px de ancho estirados a 1280 (×1,67)
+>
+> Es decir, el entregable dice 720p pero el detalle real que lleva dentro es el
+> de una zona de ~768×432. En **vertical** sale mejor —960×1280 recortado a
+> 720×1280: 25% de ancho y ×1,25 de ampliación— pero tampoco es gratis.
+>
+> **Lo que esto NO cambia:** la decisión de 768p sobre 1080p sigue en pie. A
+> 1080p el recorte sería el mismo, solo que pagando $0,48. Lo que cambia es de
+> dónde viene la pérdida: no del salto de resolución, sino de la **proporción de
+> la foto**.
+>
+> **Lo que queda por saber, y se resuelve por $0,27:** con una foto ya recortada
+> a 16:9, ¿el modelo devuelve 1366×768 (lado corto 768 → la tabla se cumple y no
+> hay ni recorte ni ampliación) o 768×432 (ancho fijo 768 → habría que subir a
+> 1080p para los restaurantes horizontales)? Una generación desde una foto
+> apaisada y un `ffprobe` lo cierran. Es la medición que la de §8 fase 0 no era:
+> aquí las dos respuestas llevan a decisiones distintas.
+>
+> **La mejora que sugiere, en cualquier caso:** recortar la foto al formato del
+> restaurante **antes** de mandarla a Replicate. El modelo hereda la proporción,
+> así que ese recorte se hace una vez sobre una imagen —gratis— en vez de
+> tirarse el 58% del video ya pagado.
 
 **Lo que reducir de 1080 a 720 sí aporta:** el downscale promedia y limpia algo
 de ruido. No es cero. Pero es medible, y es lo que decide §8.
@@ -175,6 +203,76 @@ apaisadas vuelve a perder altura, exactamente igual que con un video grabado.
 La ventaja que se esperaba de esta ruta no se materializa, y conviene tenerlo
 presente antes de ofrecerle esto a Indigo: ahí la foto de origen importa tanto
 como en la grabación.
+
+**Confirmado con la primera generación real (24/08/2026): 768×1024 desde una
+foto 3:4.** El modelo heredó la proporción de la foto, como se esperaba, y el
+coste del recorte resultó mayor de lo que suponía §4 — el detalle está ahí, con
+los números.
+
+Pero el mismo hecho abre la salida: **si la proporción se hereda de la foto, la
+foto decide la proporción del video.**
+
+### La foto tiene que encajar — comprobado antes de pagar (26/08/2026)
+
+`video.encajeDeFoto()` mide la foto antes de llamar y decide. **La regla no es
+simétrica**, y eso es lo que la hace útil:
+
+| Foto | Carta | Se recorta | Qué pasa |
+|---|---|---|---|
+| 16:9 | horizontal | 0% | pasa |
+| 3:4 | horizontal | **58%** | **avisa, y pasa** |
+| 9:16 | vertical | 0% | pasa |
+| 3:4 | vertical | 25% | avisa, y pasa |
+| cuadrada | vertical | 44% | **rechaza** |
+| 16:9 | vertical | **68%** | **rechaza** |
+
+Salta a la vista lo raro: se deja pasar un 58% de recorte y se rechaza un 44%.
+No es un error. **Lo que decide no es cuánto se recorta, sino a qué tamaño se
+mira:**
+
+- En **horizontal** el video vive en una tarjeta dentro de una lista. Una foto
+  3:4 pierde el 58% de la altura y queda bien porque el plato está centrado y la
+  banda del medio se lo lleva entero. No es teoría: es la Salchipapa de Juan Mar,
+  y el video salió bueno. Rechazarla habría bloqueado una generación que sirvió.
+- En **vertical** el video ocupa la pantalla **entera**. Una foto apaisada obliga
+  a sacar una tira estrecha del centro y a ampliarla ×1,67 para llenar 1280 de
+  alto. Ahí el plato no sobrevive: se le van los lados, y a tamaño completo se
+  ve todo.
+
+El rechazo vive en **dos sitios y no es duplicación por descuido**: el panel
+avisa pegado al botón y apaga el botón —para no hacer el viaje— y
+`POST /api/ia/generar` rechaza de verdad. El panel es un `index.html` sin
+compilación y no puede requerir el módulo de Node; se duplica lo mínimo (una
+división y dos umbrales) y **manda el servidor**. Ocultar un botón nunca fue
+impedir una llamada, y al otro lado hay dinero.
+
+Y una asimetría más, en cómo fallan las dos comprobaciones de esta ruta: si no
+se puede leer el **cupo**, no se genera; si no se pueden leer las **medidas de
+la foto**, se genera igual. No saber el cupo arriesga la factura; no saber la
+proporción arriesga un resultado feo. Distinto riesgo, distinto fallo seguro.
+
+### El techo que nadie había mirado: la foto entra a 800 px
+
+`compressImage(file, 800, 0.82)` del panel reduce **toda** foto de producto a 800
+px de ancho antes de subirla, y solo limita el ancho:
+
+```js
+if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+```
+
+Así que una foto de móvil 3024×4032 llega al servidor como **800×1067**, y eso
+—no el original— es lo que ve el modelo. La cadena completa de una carta vertical
+hoy es:
+
+```
+móvil 3024×4032 → 800×1067 (q82) → Replicate → 768×1024 → recorte+ampliación → 720×1280
+```
+
+Todos los pasos van hacia abajo menos el último, que **amplía**. En horizontal da
+igual: se mira en una tarjeta. En **vertical se mira a pantalla completa**, y ahí
+un JPEG de 800 px al 82% es el suelo de todo lo que venga después. Es candidato a
+subir el tope para los restaurantes con modelo de video — pero **antes hay que
+medirlo**, no cambiarlo por si acaso.
 
 ---
 
@@ -362,18 +460,120 @@ trabajo de video hasta que termina, así que el panel espera a que ese trabajo
 **aparezca** y entonces le pasa el testigo a `vigilarVideo()`, que ya sabía
 enseñar la conversión y el video final. Nada nuevo que mantener.
 
-**Falta el paso de aprobación.** Hoy el video generado se publica en la carta
-en cuanto termina de convertirse, igual que uno subido a mano. Para un
-restaurante de pruebas está bien; para un cliente no, y el motivo está en §9.
-Se hace después de que la primera generación real confirme que la API responde
-como se espera: montar la aprobación encima de una integración sin estrenar
-sería construir sobre algo que quizá haya que mover.
+### El paso de aprobación — hecho el 26/08/2026
 
-**Fase 3 — Panel.** Botón en la ficha del plato, contador de cupo visible, y el
-paso de **aprobación antes de publicar**: el video generado llega convertido pero
-no entra en la carta hasta que alguien lo mira. Esto no es opcional — *"publicar
-automáticamente lo que salga de un modelo es como acaba una hamburguesa con tres
-panes en la carta de un cliente"*.
+Se hizo **después** de que la primera generación real confirmara que la API
+responde como se espera: montar la aprobación encima de una integración sin
+estrenar habría sido construir sobre algo que quizá hubiera que mover.
+
+Ahora el video generado llega convertido pero **no entra en la carta hasta que
+alguien lo mira**. El motivo está en §9 y no es de calidad, es legal.
+
+**Dónde se decide, y por qué ahí.** La conversión no cambió: sigue siendo la
+misma cola, el mismo ffmpeg, el mismo master. Lo único que cambia es el último
+paso de `procesarTrabajo()`, que antes escribía el video en el plato siempre y
+ahora pregunta primero:
+
+```js
+if (esperaAprobacion(trabajo))      // generado y sin mirar → se queda esperando
+else if (trabajo.producto_id)       // subido → a la carta, como siempre
+```
+
+`esperaAprobacion()` está suelta y exportada a propósito: la usan la cola, las
+rutas y las pruebas, y tener esa condición escrita tres veces es exactamente
+cómo acaban discrepando.
+
+**Lo que decide `sql/09`,** con tres estados en una columna de dos valores:
+
+| `aprobado` | qué significa |
+|---|---|
+| `null` | convertido, esperando que alguien lo mire |
+| `true` | publicado: el plato lo enseña |
+| `false` | descartado: los archivos se borraron, el plato sigue con su foto |
+
+Sin `default` a propósito. Un `false` por defecto diría "descartado" de todo lo
+que ya existía; un `true` publicaría solo lo generado. Quien decide es
+`origen_tipo`, que sí lleva default `'subido'` — así **ningún video subido a
+mano cambió de comportamiento** al aplicar la migración, y por eso se pudo
+aplicar antes de desplegar el código.
+
+**Los subidos a mano no se aprueban.** Quien graba su propio plato ya lo vio;
+pedirle que lo apruebe sería preguntarle dos veces lo mismo.
+
+**En el panel** el bloque de revisión sale en la ficha del plato, con el video
+a tamaño de mirar y controles —no una miniatura— y dos botones. Tres decisiones
+que no se ven:
+
+- **Convive con el video ya publicado**, no lo sustituye. Un plato puede tener
+  video en la carta *y* una animación nueva esperando; sin ver los dos no hay
+  con qué comparar.
+- **Los dos botones se apagan a la vez** al pulsar cualquiera. Publicar y
+  descartar son excluyentes y ninguno tiene vuelta atrás: dejar el otro vivo
+  mientras el primero viaja es invitar a pulsarlo.
+- **El `<video>` se suelta al cambiar de plato.** Es el mismo elemento para
+  todos; sin quitarle el `src`, el siguiente plato abre enseñando la animación
+  del anterior — y se aprobaría para un plato el video de otro.
+
+**Descartar borra los archivos en el momento**, no se los deja al limpiador: el
+limpiador espera siete días de gracia y son ~7 MB entre entregable, master y
+portada. La **fila no se borra**, se marca: `generaciones_ia` dice que se generó
+—y que se pagó—; lo que se decidió después solo consta ahí.
+
+**Y la animación descartada NO vuelve al cupo.** Se generó y se cobró.
+Devolverla convertiría el cupo en "intentos hasta que te guste", que es
+justamente el gasto sin techo que el cupo existe para impedir (§5).
+
+Reintentar sigue sin existir: descartar libera el plato, y volver a generar es
+pulsar el botón otra vez y gastar otra del cupo. Es la misma decisión de §3, y
+el descarte no la cambia.
+
+---
+
+### El día que un plato se generó dos veces (26/08/2026)
+
+Primera prueba en vertical, en Pizzería Pierrot. **Un mismo plato consumió dos
+animaciones con 21 segundos de diferencia.** Las dos salieron bien y las dos se
+pagaron. Vale la pena dejarlo escrito porque el fallo no estaba en ninguna de
+las piezas: estaba en cómo se hablaban.
+
+`refrescarCupoIA()` hacía dos cosas de más:
+
+1. Escribía el aviso de proporción en **`iaEstado`**, el mismo elemento donde
+   `generarConIA()` acababa de poner *"✨ Generando... esto tarda un par de
+   minutos"*. Y se llama justo después, para actualizar el contador. Así que el
+   mensaje bueno desaparecía y en su lugar quedaba un aviso naranja —*"la foto no
+   tiene la proporción de la carta... la animación se gasta igual"*— que **se lee
+   como un rechazo**.
+2. Encendía el botón sin mirar, deshaciendo el apagado que `generarConIA()`
+   acababa de hacer.
+
+Juntas dicen exactamente lo contrario de lo que pasaba: parece que no salió, y
+el botón invita a volver a pulsar. Es lo que cualquiera habría hecho.
+
+**Lo que se arregló, en tres capas.** Ninguna sobra, porque cada una falla de
+una manera distinta:
+
+- **El aviso tiene su propio elemento** (`iaEncaje`). No puede pisar el estado
+  aunque quiera.
+- **El botón no se enciende solo** mientras haya algo en marcha para ese plato,
+  y hay tres señales encadenadas para que no quede ningún hueco: la bandera
+  `state.generandoIA` cubre los dos minutos entre pedirla y que exista el
+  trabajo; `trabajoEnCursoDe()` cubre la conversión; `videoPorAprobarDe()` cubre
+  el video ya convertido esperando revisión. Las dos últimas salen de los datos,
+  así que **siguen en pie después de recargar la página** — la bandera no.
+- **El servidor rechaza con 409** una segunda generación para un plato que ya
+  tiene una en camino o una esperando revisión. Es el único freno que cuenta:
+  los otros dos son la puerta bonita.
+
+Y una consecuencia que no era del fallo pero salió con él: `videos_listos` del
+resumen contaba como "video" todo trabajo en estado `'listo'`. Desde que existe
+la aprobación eso miente — la lista del superadmin decía **"2 videos"** de un
+restaurante cuyos platos seguían enseñando la foto. Ahora son dos cuentas
+separadas (`sql/10`), porque es lo que siempre fueron.
+
+**La lección, y es de diseño:** el aviso de proporción se escribió para ahorrar
+dinero y acabó gastándolo. Un mensaje que comparte sitio con otro no es un
+mensaje: es una carrera, y la gana el último que escribe.
 
 ---
 
@@ -400,9 +600,9 @@ puede aparecer una guarnición que el restaurante no sirve.
 
 Está así a conciencia: es el prompt que se probó y funcionó, y añadirle cláusulas
 sin volver a medir podría estropear el movimiento que costó afinar. Pero
-significa que **la red que atrapa ese caso es el paso de aprobación de la fase
-3**, no el prompt. Mientras la aprobación no exista, conviene mirar cada video
-generado antes de enseñárselo a un cliente.
+significa que **la red que atrapa ese caso es el paso de aprobación**, no el
+prompt. Desde el 26/08/2026 esa red existe: ningún video generado entra en la
+carta sin que alguien lo mire (§8, fase 3).
 
 Si en algún momento se quiere cerrar por prompt, la frase sería del tipo *"do not
 add, remove or change any ingredient or garnish"* — y habría que comprobar que no
@@ -410,7 +610,7 @@ degrada la órbita.
 
 Si el modelo agrega una guarnición que el restaurante no sirve, eso es publicidad
 engañosa, y el expuesto ante la SIC es el cliente, no la plataforma. Esta
-restricción va en el prompt, pero sobre todo va en el paso de aprobación de la
-fase 3: es lo que ese paso existe para atrapar.
+restricción va en el prompt, pero sobre todo va en el paso de aprobación: es lo
+que ese paso existe para atrapar.
 
 Queda por revisar la licencia comercial del modelo y de quién es el resultado.
