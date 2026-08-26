@@ -999,7 +999,7 @@ describe('/api/ia/cupo · el freno de la factura', () => {
 		conCupo(24, 5);
 		const r = await S.pedir('GET', `/api/ia/cupo?restaurante_id=${IDS.restaurante}`, null, tokenCliente);
 		assert.equal(r.status, 200);
-		assert.deepEqual(r.body, { cupo: 24, usadas: 5, disponibles: 19 });
+		assert.deepEqual(r.body, { cupo: 24, activa: true, usadas: 5, disponibles: 19 });
 	});
 
 	test('pero no el de otro restaurante', async () => {
