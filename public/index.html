@@ -2050,6 +2050,10 @@ function planActual() { return planDe(state.restaurante); }
 // añada el tercero tendría que acordarse de los dos sitios, y el que se
 // olvide no da error: deja controles puestos que no hacen nada.
 const MODELOS_VIDEO = ['video', 'vertical'];
+// El que usa una carta que nunca eligió modelo. El mismo que en
+// vmenus-app/core/planes.js: si los dos no coinciden, el panel enseña una
+// forma de carta y el comensal ve otra.
+const MODELO_POR_DEFECTO = 'topnav';
 function esModeloDeVideo(nav) { return MODELOS_VIDEO.includes(nav); }
 function idPlanActual() {
   return PLANES[state.restaurante?.atributos?.plan] ? state.restaurante.atributos.plan : PLAN_POR_DEFECTO;
@@ -3187,6 +3191,12 @@ async function refrescarCupoIA() {
 		const c = await apiFetch('GET', `/api/ia/cupo?restaurante_id=${state.restaurante.id}`);
 		state.cupoIA = c;
 
+		// La respuesta llega DESPUÉS de pintar la ficha, así que es aquí donde
+		// se sabe de verdad si esta carta genera. Se esconde el bloque entero:
+		// apagada no es "no te quedan", es que esta carta no hace esto.
+		const bloque = document.getElementById('iaBloque');
+		if (c.activa === false) { if (bloque) bloque.style.display = 'none'; return; }
+
 		if (c.disponibles > 0) {
 			el.textContent = `quedan ${c.disponibles} de ${c.cupo}`;
 			el.style.color = c.disponibles <= 3 ? 'var(--warning, #ffb020)' : 'var(--text-muted)';
@@ -3400,7 +3410,13 @@ function ajustarFichaAlModelo() {
 	if (bloqueIA) {
 		const hayFoto = !!(state.pendingImgUrl && state.pendingImgUrl !== '__remove__')
 			|| !!document.getElementById('imgEditPreview')?.src?.includes('/uploads/');
-		bloqueIA.style.display = esVideo && hayFoto ? 'block' : 'none';
+
+		// Apagada: el bloque no aparece, no aparece apagado. Un botón muerto
+		// con un "no disponible" invita a preguntar por algo que se quitó a
+		// propósito. El estado real lo da el servidor y se relee cada vez:
+		// state.cupoIA puede ser de otro restaurante o de antes del cambio.
+		const apagada = state.cupoIA?.activa === false;
+		bloqueIA.style.display = esVideo && hayFoto && !apagada ? 'block' : 'none';
 		if (esVideo && hayFoto) refrescarCupoIA();
 	}
 
@@ -5099,6 +5115,60 @@ function siguienteOcurrencia(cicloInicio, diaPago) {
 // nada con un "0 videos" ocupando sitio en la tarjeta.
 //
 // Los que están en curso van aparte de los listos a propósito. Es la
+// ── QUÉ TIENE ESTE RESTAURANTE, EN UNA LÍNEA ──────────────────
+// "Plan Completo" dice cuánto paga, no qué tiene. Para saber si una carta era
+// de fotos o de video, apaisada o vertical, con carrito o sin él, había que
+// entrar a Apariencia de cada una y acordarse de qué incluía cada plan.
+//
+// Esta línea contesta las cuatro preguntas que de verdad se hacen al mirar la
+// lista, y en el orden en que se hacen:
+//
+//   1. ¿Qué le enseña al comensal?  fotos o video, y en qué encuadre
+//   2. ¿Puede pedir?                carrito
+//   3. ¿Puede fabricar video?       IA, que NO va incluida por ser de video
+//   4. ¿Cuánto paga?                el plan, al final: es lo que menos cambia
+//
+// El encuadre va con el modelo y no aparte porque en video no es un detalle:
+// decide el recorte de cada archivo, y cambiarlo obliga a reconvertir la carta
+// entera. Ver docs/planes-y-modelos.md.
+function fichaPlanHtml(r) {
+  const plan = planDe(r);
+  const modelo = r?.atributos?.nav || MODELO_POR_DEFECTO;
+  const esVideo = esModeloDeVideo(modelo);
+
+  const gris  = t => `<span style="color:var(--text-dim)">${esc(t)}</span>`;
+  const trozo = (t, color) => `<span style="color:${color}">${esc(t)}</span>`;
+
+  const partes = [];
+
+  // 1. Qué ve el comensal.
+  partes.push(esVideo
+    ? trozo(`🎬 video ${modelo === 'vertical' ? 'vertical 9:16' : 'apaisado 16:9'}`, 'var(--accent)')
+    : gris('📷 solo fotos'));
+
+  // El modelo de página, que es lo que decide la forma de la carta.
+  partes.push(gris(etiquetaModelo(modelo)));
+
+  // 2. Si el comensal puede pedir. Solo cuando lo tiene: enseñar "sin
+  //    carrito" en las tres cuartas partes de la lista es ruido.
+  if (plan.carrito) partes.push(trozo('🛒 pedidos', 'var(--text-muted)'));
+
+  // 3. La IA. Solo tiene sentido nombrarla donde podría existir — en un plan
+  //    sin video no hay nada que encender— y ahí se dice SIEMPRE, encendida o
+  //    apagada: el silencio se leería como "no la tiene" y son cosas
+  //    distintas.
+  if (plan.videos) {
+    const info = state.resumenVideo?.[r.id];
+    partes.push(info && info.ia_activa === false
+      ? trozo('✨ IA apagada', 'var(--text-dim)')
+      : trozo('✨ IA', 'var(--warning, #ffb020)'));
+  }
+
+  return `<div style="font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-top:3px">
+    ${partes.join(gris(' · '))} ${gris('·')} <span class="resto-card-plan">Plan ${esc(plan.nombre)}</span>
+  </div>`;
+}
+
 // diferencia entre "va bien" y "hay algo atascado", y sin separarlos un
 // trabajo colgado se vería como un video más.
 function resumenVideoHtml(r) {
@@ -5208,8 +5278,8 @@ async function cargarListaRestos() {
           <div class="resto-card-name">${esc(r.nombre)}</div>
           <div class="resto-card-slug">${esc(r.slug)}</div>
           ${estadoPagoHtml(facturacionDe(r.id))}
+          ${fichaPlanHtml(r)}
           ${resumenVideoHtml(resumen[r.id])}
-          <span class="resto-card-plan">Plan ${planDe(r).nombre}</span>
         </div>
         <div class="resto-card-actions">
           <span class="status-badge ${activo?'activo':'suspendido'}">${activo?'Activo':'Suspendido'}</span>
@@ -5243,6 +5313,27 @@ async function cargarListaRestos() {
       verBtn.title=urlPublica(r);
       // Un <a> no hereda la alineación del texto de los <button> hermanos.
       verBtn.style.cssText='display:inline-flex;align-items:center;text-decoration:none;';
+      // Interruptor de la IA. Solo en los planes que sirven video: en los
+      // demás no hay nada que encender y sería un botón que no hace nada.
+      //
+      // Va aquí y no en Apariencia porque no es una preferencia del negocio:
+      // es una decisión nuestra sobre cuánto puede gastar, del mismo tipo que
+      // suspender o el cupo. El restaurante la ve —el botón desaparece de su
+      // ficha— pero no la toca.
+      let iaBtn = null;
+      if (planDe(r).videos) {
+        const iaActiva = resumen[r.id]?.ia_activa !== false;
+        iaBtn = document.createElement('button');
+        iaBtn.className = 'btn-sm';
+        iaBtn.textContent = iaActiva ? '✨ IA activa' : '✨ IA apagada';
+        iaBtn.style.cssText = iaActiva
+          ? 'border-color:var(--warning, #ffb020);color:var(--warning, #ffb020);'
+          : 'border-color:var(--border);color:var(--text-dim);';
+        iaBtn.title = iaActiva
+          ? 'Apagar la generación con IA para esta carta'
+          : 'Volver a permitir generar video con IA en esta carta';
+        iaBtn.onclick = () => cambiarIA(r.id, r.nombre, !iaActiva);
+      }
       // Botón cambiar PIN
       const pinBtn=document.createElement('button');
       pinBtn.className='btn-sm'; pinBtn.textContent='Cambiar PIN';
@@ -5259,12 +5350,38 @@ async function cargarListaRestos() {
       card.querySelector('.resto-card-actions').appendChild(toggleBtn);
       card.querySelector('.resto-card-actions').appendChild(editBtn);
       card.querySelector('.resto-card-actions').appendChild(verBtn);
+      if (iaBtn) card.querySelector('.resto-card-actions').appendChild(iaBtn);
       card.querySelector('.resto-card-actions').appendChild(pinBtn);
       card.querySelector('.resto-card-actions').appendChild(pagoBtn);
       card.querySelector('.resto-card-actions').appendChild(delBtn);
       list.appendChild(card);
     });
   } catch(e) { list.innerHTML='<div class="empty-state">Error cargando restaurantes</div>'; }
+}
+
+// Encender o apagar la generación con IA de una carta.
+//
+// Se pregunta solo al APAGAR. Encender no rompe nada —como mucho aparece un
+// botón—, pero apagar le quita al restaurante algo que estaba usando, y desde
+// el panel no se ve quién estaba a mitad de armar su carta.
+async function cambiarIA(id, nombre, activa) {
+  if (!activa && !confirm(
+      `Se va a apagar la generación con IA para ${nombre}.\n\n` +
+      `El botón de generar desaparece de sus platos. Los videos que ya tiene ` +
+      `siguen en la carta, y su cupo se queda como está: si la vuelves a ` +
+      `encender, sigue donde iba.\n\n¿Apagarla?`)) return;
+
+  try {
+    // Solo 'activa'. El cupo no se manda porque no se está cambiando, y
+    // mandarlo obligaría a saber cuál es para no pisarlo.
+    await apiFetch('PATCH', `/api/ia/cupo/${id}`, { activa });
+    showToast(`IA ${activa ? 'activada' : 'apagada'} para ${nombre}`, activa ? 'success' : 'error');
+    // Se recarga la lista entera en vez de retocar el botón: la ficha del plan
+    // también cambia, y repintar dos sitios a mano es cómo acaban discrepando.
+    await loadRestaurantes();
+  } catch (e) {
+    showToast('No se pudo cambiar: ' + e.message, 'error');
+  }
 }
 
 async function toggleSuspension(id, nuevoActivo, nombre) {
