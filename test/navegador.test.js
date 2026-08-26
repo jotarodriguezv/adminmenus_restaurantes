@@ -169,21 +169,25 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		const ids = ['videoGroup', 'videoEditPreview', 'videoEditVacio',
 			'btnSubirVideo', 'videoUploadStatus', 'videoFileInput',
 			'videoDesdeFila', 'btnConfirmarVideo', 'videoDesde', 'videoDesdeAviso',
-				'videoFallido', 'videoFallidoMotivo'];
+				'videoFallido', 'videoFallidoMotivo',
+				// El bloque de revisión de lo que generó el modelo.
+				'iaRevision', 'iaRevisionVideo', 'iaRevisionEstado',
+				'btnPublicarIA', 'btnDescartarIA'];
 		const mapa = {};
 		for (const id of ids) mapa[id] = {
 			style: {}, textContent: '', value: '', disabled: false,
-			removeAttribute() { delete this.src; },
+			removeAttribute(n) { delete this[n === 'poster' ? 'poster' : 'src']; },
+			load() {},
 		};
 		return mapa;
 	};
 
-	const pintar = (videos, plato, mapa, trabajos = []) => {
+	const pintar = (videos, plato, mapa, trabajos = [], porAprobar = []) => {
 		const ctx = cargar('index.html', '// Los trabajos de conversión del restaurante.',
 			'// Elegir el archivo ya no lo sube', {
 				clearInterval() {},
 				planActual: () => ({ videos }),
-				state: { trabajosVideo: trabajos },
+				state: { trabajosVideo: trabajos, videosPorAprobar: porAprobar },
 				document: { getElementById: id => mapa[id] },
 			});
 		ctx.pintarVideoPlato(plato);
@@ -214,6 +218,42 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		assert.equal(m.videoEditPreview.src, url);
 		assert.equal(m.videoEditPreview.style.display, 'block');
 		assert.equal(m.videoEditVacio.style.display, 'none');
+	});
+
+	// ── LO QUE GENERÓ EL MODELO ───────────────────────────────
+	// Un video generado se convierte igual que cualquier otro, pero el plato
+	// no lo enseña hasta que alguien lo mira. Estas tres comprueban que el
+	// panel refleja esa diferencia, porque para la cola los dos son 'listo'.
+	const generado = {
+		id: 'trab-ia', producto_id: 'p1', creado_en: '2026-08-26T10:00:00Z',
+		video: 'https://ejemplo.test/uploads/videos/ia.mp4',
+		portada: 'https://ejemplo.test/uploads/miniaturas/ia.jpg',
+	};
+
+	test('un video generado esperando revisión se enseña con su bloque', () => {
+		const m = pintar(true, { id: 'p1' }, pantalla(), [], [generado]);
+		assert.equal(m.iaRevision.style.display, 'block');
+		assert.equal(m.iaRevisionVideo.src, generado.video);
+		assert.equal(m.iaRevisionVideo.poster, generado.portada);
+	});
+
+	test('el bloque de revisión convive con el video ya publicado', () => {
+		// Un plato puede tener video en la carta Y una animación nueva
+		// esperando. Los dos tienen que verse: sin comparar no hay decisión.
+		const url = 'https://ejemplo.test/uploads/videos/viejo.mp4';
+		const m = pintar(true, { id: 'p1', atributos: { video: { url } } }, pantalla(), [], [generado]);
+		assert.equal(m.videoEditPreview.src, url);
+		assert.equal(m.iaRevision.style.display, 'block');
+	});
+
+	test('el video en revisión no se arrastra al siguiente plato', () => {
+		// Mismo fallo que con la previsualización de arriba, y aquí es peor:
+		// se aprobaría para un plato el video generado de otro.
+		const m = pantalla();
+		pintar(true, { id: 'p1' }, m, [], [generado]);
+		pintar(true, { id: 'p2' }, m, [], [generado]);
+		assert.equal(m.iaRevision.style.display, 'none');
+		assert.equal(m.iaRevisionVideo.src, undefined);
 	});
 
 	test('un plato sin video no arrastra el del anterior', () => {
