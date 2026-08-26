@@ -262,40 +262,64 @@ async function medidasDe(archivo) {
 // avisar de menos cuesta una generación pagada que no se puede repetir.
 const ENCAJE_AVISA = 0.8;
 
+// El recorte más grande con la proporción pedida que cabe dentro de la foto.
+// Es lo que convierte el aviso en algo accionable: en vez de "no encaja", un
+// número que se puede teclear en el recortador del móvil.
+function recorteIdeal(ancho, alto, objetivo) {
+  return (ancho / alto > objetivo)
+    ? { ancho: Math.round(alto * objetivo), alto }          // sobra ancho
+    : { ancho, alto: Math.round(ancho / objetivo) };        // sobra alto
+}
+
+const NOMBRE_FORMATO = {
+  horizontal: 'apaisada (16:9)',
+  vertical:   'vertical (9:16)',
+};
+// Un ejemplo concreto de foto que encaja del todo. No es un mínimo ni un
+// requisito: es para que quien lee sepa qué pedirle a quien toma las fotos.
+const EJEMPLO_FORMATO = { horizontal: '1920×1080', vertical: '1080×1920' };
+
 function encajeDeFoto(ancho, alto, formato = 'horizontal') {
   const f = FORMATOS[formato] || FORMATOS.horizontal;
+  const nombre = NOMBRE_FORMATO[formato] || NOMBRE_FORMATO.horizontal;
   const objetivo = f.ancho / f.alto;
   const foto = ancho / alto;
 
-  // Qué fracción del lado que sobra sigue estando en el video final. Da igual
-  // por dónde sobre: el recorte se lleva ancho o alto según cuál de los dos
-  // vaya más suelto respecto al objetivo.
   const conservado = Math.min(foto, objetivo) / Math.max(foto, objetivo);
   const perdido = Math.round((1 - conservado) * 100);
+  // Qué lado se lleva el recorte. Decirlo importa: "pierde el 25%" no explica
+  // nada, "pierde el 25% del ancho" dice dónde mirar en la foto.
+  const lado = foto > objetivo ? 'ancho' : 'alto';
+  const ideal = recorteIdeal(ancho, alto, objetivo);
+  const tamaño = `${ancho}×${alto}`;
 
-  // Apaisada contra un formato vertical: el caso que no se deja pasar.
+  // Apaisada contra un formato vertical: el único caso que no se deja pasar.
   if (formato === 'vertical' && foto >= 1) {
     return {
-      conservado, perdido, veredicto: 'rechaza',
-      mensaje: 'Esta carta es vertical y el video ocupa la pantalla entera, ' +
-               'pero la foto de este plato es apaisada. El modelo copia la ' +
-               'proporción de la foto, así que habría que recortarle los lados ' +
-               `al plato (se perdería el ${perdido}% del ancho). Sube una foto ` +
-               'vertical del plato y vuelve a intentarlo.',
+      ancho, alto, conservado, perdido, lado, ideal, veredicto: 'rechaza',
+      mensaje:
+        `Tu foto es ${tamaño} y esta carta es vertical, donde el video ocupa la ` +
+        `pantalla entera. Recortarla dejaría solo el ${100 - perdido}% del ancho y al ` +
+        `plato se le irían los lados. Sube una foto vertical del plato — proporción ` +
+        `9:16, por ejemplo ${EJEMPLO_FORMATO.vertical}.`,
     };
   }
 
   if (conservado < ENCAJE_AVISA) {
     return {
-      conservado, perdido, veredicto: 'avisa',
-      mensaje: `La foto no tiene la proporción de la carta, así que al video ` +
-               `generado se le recortará el ${perdido}%. Suele quedar bien si el ` +
-               `plato está centrado, pero con una foto de la proporción correcta ` +
-               `queda mejor — y la animación se gasta igual.`,
+      ancho, alto, conservado, perdido, lado, ideal, veredicto: 'avisa',
+      // Aviso, NO bloqueo: dice qué va a pasar y deja generar. El texto lo
+      // decía de refilón —"la animación se gasta igual"— y se leyó como un
+      // rechazo, lo que costó una generación de más. Ahora lo dice primero.
+      mensaje:
+        `Se puede generar igual. Aviso: tu foto es ${tamaño} y esta carta es ${nombre}, ` +
+        `así que al video se le recortará el ${perdido}% del ${lado}. Suele quedar bien ` +
+        `si el plato está centrado. Para que no se recorte nada, súbela recortada a ` +
+        `${ideal.ancho}×${ideal.alto}.`,
     };
   }
 
-  return { conservado, perdido, veredicto: 'bien', mensaje: '' };
+  return { ancho, alto, conservado, perdido, lado, ideal, veredicto: 'bien', mensaje: '' };
 }
 
 // El nombre viene de nuestra propia ruta de subida, pero comprobarlo cuesta
@@ -424,7 +448,7 @@ async function purgarAnteriores(supabase, trabajo) {
   if (!trabajo.producto_id) return;
 
   const { data: viejos } = await supabase.from('trabajos_video')
-    .select('id, video, master, portada')
+    .select('id, video, master, portada, origen_tipo, aprobado')
     .eq('producto_id', trabajo.producto_id)
     .neq('id', trabajo.id)
     .in('estado', ['listo', 'error']);
@@ -434,7 +458,22 @@ async function purgarAnteriores(supabase, trabajo) {
   // única copia sin recortar que queda del video.
   const enUso = new Set([trabajo.video, trabajo.master, trabajo.portada].filter(Boolean));
 
+  // Y lo que espera revisión NO es "un anterior": es una alternativa sobre la
+  // que nadie ha decidido todavía, y está pagada. Pasó el 26/08/2026 — un
+  // plato tenía dos generaciones esperando, se publicó una, y al publicarla
+  // esta función borró la otra con sus tres archivos sin preguntar. El dueño
+  // no llegó a verla y no había forma de saber a dónde había ido.
+  //
+  // Hoy el servidor impide que lleguen a existir dos a la vez, pero eso es un
+  // freno de entrada: este de aquí es el que decide qué se destruye, y no
+  // puede destruir una decisión que no se ha tomado.
+  const enEspera = (viejos || []).filter(sinRevisar);
+  if (enEspera.length)
+    console.log(`⏸️  ${enEspera.length} video(s) esperando revisión: no se purgan`);
+
   for (const v of viejos || []) {
+    if (sinRevisar(v)) continue;
+
     for (const relativa of [v.video, v.master, v.portada]) {
       if (!relativa || enUso.has(relativa)) continue;
       const abs = rutaDentroDeUploads(relativa);
@@ -443,15 +482,30 @@ async function purgarAnteriores(supabase, trabajo) {
     await supabase.from('trabajos_video').delete().eq('id', v.id);
   }
 
-  if (viejos?.length) console.log(`🧹 ${viejos.length} video(s) anteriores del plato retirados`);
+  const purgados = (viejos?.length || 0) - enEspera.length;
+  if (purgados > 0) console.log(`🧹 ${purgados} video(s) anteriores del plato retirados`);
 }
 
-// Un trabajo espera revisión si lo generó un modelo y nadie lo ha mirado.
-// Función suelta y exportada porque la usan tres sitios —la cola, la ruta de
-// aprobación y las pruebas— y tener la condición escrita tres veces es cómo
-// acaban discrepando.
+// Dos preguntas parecidas que NO son la misma, y confundirlas borró un video
+// pagado el 26/08/2026. Van juntas para que se vea la diferencia de un vistazo.
+
+// ¿Puede entrar solo en la carta? No, si lo generó un modelo y no está
+// aprobado. Un descartado tampoco entra: 'false' no es 'true'.
 function esperaAprobacion(trabajo) {
   return trabajo?.origen_tipo === 'ia' && trabajo?.aprobado !== true;
+}
+
+// ¿Es una alternativa sobre la que NADIE ha decidido todavía? Solo si está en
+// null. Un descartado ya se decidió — se miró y no valía—, así que se puede
+// limpiar; uno sin revisar está pagado y nadie lo ha visto, y destruirlo es
+// tirar dinero y una decisión ajena.
+//
+// purgarAnteriores usaba esperaAprobacion() y por eso respetaba también los
+// descartados —basura que sí hay que barrer— mientras el caso que importaba
+// quedaba tapado por el mismo nombre.
+function sinRevisar(trabajo) {
+  return trabajo?.origen_tipo === 'ia' &&
+         (trabajo?.aprobado === null || trabajo?.aprobado === undefined);
 }
 
 // Publica en la carta un trabajo que ya estaba convertido y esperando. Es lo
@@ -669,10 +723,10 @@ async function reconvertir(supabase, trabajo, formato) {
 module.exports = {
   arrancar, encolar, reconvertir, esReconversion,
   CARPETAS, DURACION_MAX, DURACION_MIN, MEDIDAS, FORMATOS, ENCAJE_AVISA,
-  formatoDe, medidasDe, encajeDeFoto,
+  formatoDe, medidasDe, encajeDeFoto, recorteIdeal,
   // Exportados para las pruebas: son puros y se pueden comprobar sin
   // ejecutar ffmpeg ni tocar el disco.
   argumentosEntregable, argumentosMaster, argumentosPortada, instantePortada,
-  purgarAnteriores, esperaAprobacion, publicarTrabajo, descartarTrabajo, guardarEnProducto,
+  purgarAnteriores, esperaAprobacion, sinRevisar, publicarTrabajo, descartarTrabajo, guardarEnProducto,
   rutaDentroDeUploads,
 };
