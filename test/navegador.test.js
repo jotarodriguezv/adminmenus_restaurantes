@@ -1046,3 +1046,106 @@ describe('estilo del carrete · aspecto sin tocar el funcionamiento', () => {
 		assert.equal(ctx.estiloElegido(), 'avance');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', () => {
+	// Estas pruebas existen por un fallo que costó dinero de verdad. El
+	// 26/08/2026 un mismo plato se generó DOS veces con 21 segundos de
+	// diferencia, y las dos causas estaban aquí:
+	//
+	//   1. Esta función escribía el aviso de proporción en 'iaEstado', el mismo
+	//      elemento donde generarConIA acababa de poner "✨ Generando...". Y se
+	//      llama justo después, así que el mensaje bueno desaparecía y en su
+	//      sitio quedaba un aviso naranja que se lee como un rechazo.
+	//   2. Encendía el botón sin mirar, deshaciendo el apagado que generarConIA
+	//      acababa de hacer.
+	//
+	// Juntas: parece que no salió, y el botón invita a volver a pulsar.
+
+	const pantalla = () => {
+		const mapa = {};
+		for (const id of ['iaCupo', 'btnGenerarIA', 'iaEncaje', 'iaEstado', 'editProductId'])
+			mapa[id] = { style: {}, textContent: '', value: '', disabled: false };
+		mapa.editProductId.value = 'p1';
+		return mapa;
+	};
+
+	const correr = (mapa, { cupo = { disponibles: 20, cupo: 24 }, encaje = null,
+	                        generandoIA = null, porAprobar = null, enCurso = null } = {}) => {
+		const ctx = cargar('index.html', 'async function refrescarCupoIA()', 'async function generarConIA()', {
+			apiFetch: async () => cupo,
+			state: { restaurante: { id: 'r1' }, generandoIA },
+			document: { getElementById: id => mapa[id] },
+			encajeDeLaFotoActual: () => encaje,
+			videoPorAprobarDe: () => porAprobar,
+			trabajoEnCursoDe: () => enCurso,
+		});
+		return ctx.refrescarCupoIA();
+	};
+
+	test('el aviso de proporción NO toca el elemento del estado', async () => {
+		// El fallo exacto: generarConIA deja aquí "✨ Generando..." y esta
+		// función lo borraba. Tiene que seguir intacto.
+		const m = pantalla();
+		m.iaEstado.textContent = '✨ Generando... esto tarda un par de minutos.';
+
+		await correr(m, { encaje: { veredicto: 'avisa', mensaje: 'se recortará el 25%' } });
+
+		assert.equal(m.iaEstado.textContent, '✨ Generando... esto tarda un par de minutos.',
+			'el estado de la generación no se toca');
+		assert.equal(m.iaEncaje.textContent, 'se recortará el 25%', 'el aviso va en su propio sitio');
+	});
+
+	test('con una generación en curso el botón NO se vuelve a encender', async () => {
+		const m = pantalla();
+		m.btnGenerarIA.disabled = true;
+		await correr(m, { generandoIA: 'p1' });
+		assert.equal(m.btnGenerarIA.disabled, true, 'hay una en camino: pulsar otra vez la paga dos veces');
+	});
+
+	test('pero solo para el plato que la está generando', async () => {
+		// El cupo es del restaurante; generar para OTRO plato es legítimo.
+		const m = pantalla();
+		await correr(m, { generandoIA: 'otro-plato' });
+		assert.equal(m.btnGenerarIA.disabled, false);
+	});
+
+	test('con la conversión en marcha tampoco', async () => {
+		// Cubre el hueco de después: la generación terminó, el trabajo existe y
+		// todavía se está convirtiendo. Y esto sí sobrevive a recargar.
+		const m = pantalla();
+		await correr(m, { enCurso: { id: 't1' } });
+		assert.equal(m.btnGenerarIA.disabled, true);
+	});
+
+	test('con uno esperando revisión se apaga y se dice por qué', async () => {
+		// Pedir otra es pagar por una decisión que todavía no se ha tomado.
+		const m = pantalla();
+		await correr(m, { porAprobar: { id: 't1' } });
+		assert.equal(m.btnGenerarIA.disabled, true);
+		assert.match(m.iaEncaje.textContent, /Publícalo o descártalo/);
+	});
+
+	test('una foto que no sirve apaga el botón', async () => {
+		const m = pantalla();
+		await correr(m, { encaje: { veredicto: 'rechaza', mensaje: 'sube una foto vertical' } });
+		assert.equal(m.btnGenerarIA.disabled, true);
+		assert.equal(m.iaEncaje.textContent, 'sube una foto vertical');
+	});
+
+	test('sin nada que lo impida, el botón queda vivo y sin avisos', async () => {
+		const m = pantalla();
+		m.btnGenerarIA.disabled = true;
+		await correr(m, { encaje: { veredicto: 'bien', mensaje: '' } });
+		assert.equal(m.btnGenerarIA.disabled, false);
+		assert.equal(m.iaEncaje.textContent, '');
+		assert.match(m.iaCupo.textContent, /quedan 20 de 24/);
+	});
+
+	test('sin cupo se apaga, pase lo que pase con la foto', async () => {
+		const m = pantalla();
+		await correr(m, { cupo: { disponibles: 0, cupo: 24 }, encaje: { veredicto: 'bien', mensaje: '' } });
+		assert.equal(m.btnGenerarIA.disabled, true);
+		assert.match(m.iaCupo.textContent, /sin animaciones/);
+	});
+});
