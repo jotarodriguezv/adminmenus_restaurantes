@@ -575,6 +575,49 @@ separadas (`sql/10`), porque es lo que siempre fueron.
 dinero y acabó gastándolo. Un mensaje que comparte sitio con otro no es un
 mensaje: es una carrera, y la gana el último que escribe.
 
+### El segundo video no se descartó: se borró solo
+
+Al publicar uno de los dos, el otro **desapareció sin dejar rastro** — ni fila
+ni archivos. No lo descartó nadie: un descarte deja la fila marcada
+(`aprobado = false`), y no había fila.
+
+Lo hizo `purgarAnteriores()`, que borra los trabajos ya terminados del mismo
+plato cuando entra uno nuevo. Correcto para un video **anterior**; destructivo
+para uno que **espera revisión**: eso no es un video viejo, es una alternativa
+pagada sobre la que nadie ha decidido.
+
+La causa de fondo es un nombre que respondía a dos preguntas distintas:
+
+| Pregunta | Función | Un descartado (`aprobado = false`) |
+|---|---|---|
+| ¿Puede entrar solo en la carta? | `esperaAprobacion()` | **No** — `false` no es `true` |
+| ¿Nadie ha decidido todavía? | `sinRevisar()` | **Sí se decidió** — se miró y no valía |
+
+`purgarAnteriores()` preguntaba con la primera. Con eso protegía también a los
+descartados —que son justo la basura que hay que barrer— mientras el caso que
+importaba quedaba tapado detrás del mismo nombre. Ahora pregunta con la
+segunda, que es la suya.
+
+Lo encontró una prueba, al escribir el caso de los tres estados juntos. Es el
+tipo de fallo que no se ve mirando la función: las dos condiciones se leen igual
+y solo difieren en un valor de tres.
+
+### El aviso ahora dice qué hacer
+
+*"La foto no tiene la proporción de la carta"* no se puede accionar, y encima
+enterraba el "se puede generar igual" al final, donde se lee como un rechazo.
+El texto ahora abre por ahí y da números concretos:
+
+> Se puede generar igual. Aviso: tu foto es **2025×2700** y esta carta es
+> vertical (9:16), así que al video se le recortará el **25% del ancho**. Suele
+> quedar bien si el plato está centrado. Para que no se recorte nada, súbela
+> recortada a **1519×2700**.
+
+Tres cosas que antes no estaban: **si es un bloqueo o no** (primero, no al
+final), **qué lado** se recorta —"pierde el 25%" no dice dónde mirar— y **a qué
+medidas recortar**, que sale de la foto de verdad y se puede teclear en el
+recortador del móvil.
+
 ---
 
 ## 9. La restricción que no es técnica
