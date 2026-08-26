@@ -1444,6 +1444,13 @@
 									</button>
 									<div id="iaCupo" style="font-size:10px;font-family:var(--mono);color:var(--text-muted)"></div>
 								</div>
+								<!-- La nota sobre la proporción de la foto vive APARTE del estado.
+								     Compartían elemento, y como refrescarCupoIA() se llama justo
+								     después de pedir la generación, la nota borraba el
+								     "✨ Generando..." y dejaba en su sitio un aviso naranja que se
+								     lee como un rechazo. Quien lo ve da por hecho que no salió y
+								     vuelve a pulsar — y esa segunda pulsación se paga. Pasó. -->
+								<div id="iaEncaje" style="font-family:var(--mono);font-size:10px;margin-top:8px;line-height:1.5"></div>
 								<div id="iaEstado" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:8px;line-height:1.5"></div>
 							</div>
 						</div>
@@ -1828,6 +1835,7 @@ let state = {
   facturacionCargada: false, // si es false el campo vacío significa "no se sabe"
   cupoIA: null,              // cuántas animaciones le quedan al restaurante
   videosPorAprobar: [],      // generados y convertidos, esperando que alguien los mire
+  generandoIA: null,         // plato con una generación pedida y todavía sin trabajo
   videoEnRevisionActual: null, // el que se está mirando en la ficha abierta
   resumenVideo: {},          // videos y cupo de IA por restaurante, para la lista
   filtrosDisponibles: [],   // filtros que el restaurante activó (modelo explorar)
@@ -3155,19 +3163,49 @@ async function refrescarCupoIA() {
 		if (c.disponibles > 0) {
 			el.textContent = `quedan ${c.disponibles} de ${c.cupo}`;
 			el.style.color = c.disponibles <= 3 ? 'var(--warning, #ffb020)' : 'var(--text-muted)';
-			btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
-			// La proporción se dice AQUÍ, donde se decide, y no después de
-			// pagar. Un rechazo apaga el botón: el servidor lo va a rechazar
-			// igual y dejarlo encendido solo lleva al mismo sitio con un
-			// rodeo.
+
+			// La proporción se dice donde se decide, no después de pagar. Y en
+			// su propio elemento: escribirla en el del estado borraba el
+			// "✨ Generando..." con un aviso que parece un rechazo.
 			const enc = encajeDeLaFotoActual();
-			const est = document.getElementById('iaEstado');
-			if (enc && enc.veredicto !== 'bien' && est) {
-				est.textContent = enc.mensaje;
-				est.style.color = enc.veredicto === 'rechaza' ? 'var(--danger)' : 'var(--warning, #ffb020)';
+			const nota = document.getElementById('iaEncaje');
+			if (nota) {
+				nota.textContent = (enc && enc.veredicto !== 'bien') ? enc.mensaje : '';
+				nota.style.color = enc?.veredicto === 'rechaza' ? 'var(--danger)' : 'var(--warning, #ffb020)';
 			}
-			if (enc && enc.veredicto === 'rechaza') {
+
+			// Tres motivos para dejar el botón apagado, y el orden importa
+			// porque el mensaje que se enseña es el del primero que aplique.
+			const productoId = document.getElementById('editProductId')?.value;
+			const motivo =
+				// 1. La foto no sirve para este formato. El servidor lo rechaza
+				//    igual; el botón encendido solo lleva al mismo sitio.
+				enc?.veredicto === 'rechaza' ? 'foto' :
+				// 2. Ya hay una en camino para este plato. refrescarCupoIA() se
+				//    llama JUSTO DESPUÉS de pedirla, para actualizar el
+				//    contador, y sin esto deshacía el apagado que acababa de
+				//    hacer generarConIA: el botón volvía a estar vivo con una
+				//    generación en curso.
+				// La bandera cubre el hueco de dos minutos entre pedirla y que
+				// exista el trabajo; trabajoEnCursoDe() cubre la conversión, y
+				// sobrevive a recargar la página.
+				((state.generandoIA && state.generandoIA === productoId) ||
+				 (productoId && trabajoEnCursoDe(productoId))) ? 'en-curso' :
+				// 3. Ya hay una generada esperando que la mires. Pedir otra es
+				//    pagar dos veces por una decisión que aún no se ha tomado.
+				//    Sale de los datos y no de una bandera, así que sigue en pie
+				//    después de recargar la página.
+				(productoId && videoPorAprobarDe(productoId)) ? 'sin-revisar' : null;
+
+			if (motivo) {
 				btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
+				if (motivo === 'sin-revisar' && nota) {
+					nota.textContent = 'Este plato ya tiene un video generado esperando que lo revises. ' +
+					                   'Publícalo o descártalo antes de gastar otra animación.';
+					nota.style.color = 'var(--warning, #ffb020)';
+				}
+			} else {
+				btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
 			}
 		} else {
 			// Agotado no es un error: es la conversación comercial. El texto
@@ -3202,6 +3240,15 @@ async function generarConIA() {
 		return;
 	}
 
+	// Lo mismo con un video ya generado sin revisar: el servidor lo rechaza
+	// con un 409, pero es mejor decirlo antes que después de pulsar.
+	if (videoPorAprobarDe(productoId)) {
+		est.textContent = 'Este plato ya tiene un video generado esperando revisión. ' +
+		                  'Publícalo o descártalo antes de generar otro.';
+		est.style.color = 'var(--warning, #ffb020)';
+		return;
+	}
+
 	const quedan = state.cupoIA?.disponibles ?? 0;
 	// Se pregunta porque esto gasta dinero y no tiene vuelta atrás: una vez
 	// pedida, la generación se paga salga bien o mal. Y si la foto encaja
@@ -3213,23 +3260,31 @@ async function generarConIA() {
 		`aunque el resultado no te guste.\n\n¿Continuar?`);
 	if (!ok) return;
 
-	btn.disabled = true; btn.style.opacity = '.45';
+	// Se marca ANTES de llamar. Es lo que impide que refrescarCupoIA() vuelva a
+	// encender el botón cuando se llame dos líneas más abajo.
+	state.generandoIA = productoId;
+	btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
 	est.textContent = 'Pidiendo la generación...'; est.style.color = 'var(--text-muted)';
 
 	try {
 		await apiFetch('POST', '/api/ia/generar', {
 			restaurante_id: state.restaurante.id, producto_id: productoId,
 		});
+		await refrescarCupoIA();
+		// El estado se escribe DESPUÉS de refrescar el cupo, no antes. Al revés
+		// —que es como estaba— el refresco pisaba este mensaje.
 		est.textContent = '✨ Generando... esto tarda un par de minutos. Puedes cerrar esta ficha.';
 		est.style.color = 'var(--accent)';
-		await refrescarCupoIA();
 		vigilarGeneracion(productoId);
 	} catch (e) {
-		// El mensaje del servidor ya explica el caso de quedarse sin cupo, así
-		// que se enseña tal cual en vez de traducirlo a un "error" genérico.
+		// No llegó a salir: el plato queda libre para volver a intentarlo.
+		state.generandoIA = null;
+		// El mensaje del servidor ya explica quedarse sin cupo y el "ya hay una
+		// esperando revisión", así que se enseña tal cual en vez de traducirlo
+		// a un "error" genérico.
+		await refrescarCupoIA();
 		est.textContent = e.message || 'No se pudo pedir la generación';
 		est.style.color = 'var(--danger)';
-		await refrescarCupoIA();
 	}
 }
 
@@ -3247,6 +3302,9 @@ function vigilarGeneracion(productoId) {
 		// mejor decirlo que dejar un "generando..." eterno en pantalla.
 		if (Date.now() - desde > 15 * 60 * 1000) {
 			detenerVigilanciaIA();
+			// Se suelta el plato: si no, el botón queda apagado para siempre
+			// por una generación que ya nadie está esperando.
+			state.generandoIA = null;
 			const est = document.getElementById('iaEstado');
 			if (est) {
 				est.textContent = 'La generación está tardando más de lo normal. Mira el estado más tarde.';
@@ -3264,6 +3322,10 @@ function vigilarGeneracion(productoId) {
 			// Ya está en la cola de conversión: de aquí en adelante es un video
 			// como cualquier otro y lo cuenta quien ya sabía contarlo.
 			detenerVigilanciaIA();
+			// La generación terminó: de aquí en adelante quien impide la
+			// segunda pulsación es el trabajo de conversión, que sí se ve en
+			// los datos.
+			state.generandoIA = null;
 			const est = document.getElementById('iaEstado');
 			if (est) { est.textContent = '✓ Video generado, convirtiendo...'; est.style.color = 'var(--success)'; }
 			vigilarVideo(nuevo.id, productoId);
@@ -5014,6 +5076,10 @@ function resumenVideoHtml(r) {
   if (!r) return '';
   const partes = [];
   if (r.videos_listos)   partes.push(`🎬 ${r.videos_listos} video${r.videos_listos === 1 ? '' : 's'}`);
+  // Convertido pero fuera de la carta hasta que alguien lo mire. Iba contado
+  // como "video" y era mentira: la lista decía "2 videos" de un restaurante
+  // cuyos platos seguían enseñando la foto, y no había cómo saber por qué.
+  if (r.videos_por_aprobar) partes.push(`👀 ${r.videos_por_aprobar} sin revisar`);
   if (r.videos_en_curso) partes.push(`⏳ ${r.videos_en_curso} convirtiendo`);
   if (r.videos_error)    partes.push(`⚠ ${r.videos_error} con error`);
   // El cupo solo cuando ya se usó algo: antes de la primera generación es
