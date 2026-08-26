@@ -407,3 +407,188 @@ describe('descartarTrabajo · lo contrario de publicar', () => {
 		assert.equal(sb.escrituras[0].aprobado, false, 'la fila se marca igual');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('encajeDeFoto · la proporción se comprueba antes de pagar', () => {
+	// El modelo hereda la proporción de la foto —su JSON de entrada no tiene
+	// campo de proporción—, así que lo que no encaje lo recorta ffmpeg después,
+	// sobre un video ya pagado y sin reintento. Comprobarlo antes cuesta una
+	// división; no comprobarlo cuesta $0,27.
+
+	test('una foto con la proporción de la carta no pierde nada', () => {
+		assert.equal(video.encajeDeFoto(1600, 900, 'horizontal').veredicto, 'bien');
+		assert.equal(video.encajeDeFoto(720, 1280, 'vertical').veredicto, 'bien');
+	});
+
+	test('una foto 3:4 en una carta horizontal avisa, pero deja pasar', () => {
+		// Es el caso real: la Salchipapa de Juan Mar, generada el 24/08/2026
+		// desde una foto 3:4. Pierde el 58% de la altura y el video quedó bien,
+		// porque en horizontal se ve en una tarjeta y el plato va centrado.
+		// Rechazarlo habría bloqueado una generación que sí sirvió.
+		const r = video.encajeDeFoto(800, 1067, 'horizontal');
+		assert.equal(r.veredicto, 'avisa');
+		assert.equal(r.perdido, 58);
+	});
+
+	test('una foto apaisada en una carta vertical se rechaza', () => {
+		// Aquí el video ocupa la pantalla entera: hay que sacar una tira
+		// estrecha del centro y ampliarla, y al plato se le van los lados.
+		const r = video.encajeDeFoto(1600, 900, 'vertical');
+		assert.equal(r.veredicto, 'rechaza');
+		assert.match(r.mensaje, /foto vertical/i, 'y tiene que decir qué hacer');
+	});
+
+	test('una cuadrada también se rechaza en vertical', () => {
+		// 44% del ancho fuera. No es apaisada, pero al plato le pasa lo mismo.
+		assert.equal(video.encajeDeFoto(1000, 1000, 'vertical').veredicto, 'rechaza');
+	});
+
+	test('la regla NO es simétrica, y es a propósito', () => {
+		// Misma foto 3:4, distinto destino. En horizontal pierde más (58% frente
+		// a 25%) y aun así pasa; en vertical pierde menos y aun así avisa. Lo
+		// que decide no es cuánto se recorta sino a qué tamaño se mira: una
+		// tarjeta en una lista perdona lo que una pantalla completa no.
+		assert.equal(video.encajeDeFoto(800, 1067, 'horizontal').veredicto, 'avisa');
+		assert.equal(video.encajeDeFoto(800, 1067, 'vertical').veredicto, 'avisa');
+		assert.ok(video.encajeDeFoto(800, 1067, 'horizontal').perdido >
+		          video.encajeDeFoto(800, 1067, 'vertical').perdido);
+	});
+
+	test('un formato desconocido no revienta: cae en horizontal', () => {
+		assert.equal(video.encajeDeFoto(1600, 900, 'diagonal').veredicto, 'bien');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('formatoDe · una sola línea para los tres sitios que preguntaban', () => {
+	test('solo "vertical" es vertical', () => {
+		assert.equal(video.formatoDe({ nav: 'vertical' }), 'vertical');
+		for (const nav of ['video', 'topnav', 'explorar', undefined, null])
+			assert.equal(video.formatoDe({ nav }), 'horizontal');
+	});
+
+	test('sin atributos tampoco falla', () => {
+		// Un restaurante recién creado o una lectura que no trajo la columna.
+		assert.equal(video.formatoDe(null), 'horizontal');
+		assert.equal(video.formatoDe(undefined), 'horizontal');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('reconvertir · el master por fin sirve para algo', () => {
+	// video.js dice desde el principio que "pasar un restaurante de un formato
+	// al otro es reconvertir, no volver a grabar". No era verdad: se guardaban
+	// los masters y no había código que los usara. Esto es lo que faltaba.
+
+	test('un origen en masters/ es una reconversión, y nada más lo es', () => {
+		assert.equal(video.esReconversion({ origen: 'masters/x-master.mp4' }), true);
+		assert.equal(video.esReconversion({ origen: 'originales/x.mp4' }), false);
+		assert.equal(video.esReconversion({ origen: 'videos/x.mp4' }), false);
+		// Sin origen no se puede decidir, y "no es reconversión" es el fallo
+		// seguro: como mucho re-codifica de más, nunca borra un master.
+		assert.equal(video.esReconversion({}), false);
+		assert.equal(video.esReconversion(null), false);
+	});
+
+	const RAIZ = path.join(__dirname, '..', 'uploads');
+	const supabaseFalso = () => {
+		const insertados = [];
+		const q = {
+			select: () => q, eq: () => q, single: () => Promise.resolve({ data: { id: 'nuevo' }, error: null }),
+			insert(filas) { insertados.push(filas[0]); return q; },
+		};
+		return { insertados, from: () => q };
+	};
+
+	test('encola el master como origen, desde el segundo 0', async () => {
+		const rel = `masters/prueba-recon-${Date.now()}-master.mp4`;
+		const abs = path.join(RAIZ, rel);
+		fs.mkdirSync(path.dirname(abs), { recursive: true });
+		fs.writeFileSync(abs, 'x');
+
+		const sb = supabaseFalso();
+		try {
+			await video.reconvertir(sb, {
+				id: 't1', restaurante_id: 'r1', producto_id: 'p1',
+				master: rel, formato: 'horizontal', origen_tipo: 'ia', aprobado: true,
+			}, 'vertical');
+
+			const f = sb.insertados[0];
+			assert.equal(f.origen, rel, 'se parte del master, no de un original que ya no existe');
+			assert.equal(f.formato, 'vertical');
+			// El master ya viene recortado en el tiempo: volver a saltar
+			// segundos se comería el trozo que el restaurante eligió una vez.
+			assert.equal(f.desde, 0);
+			// La procedencia se hereda: recortar de otra forma no convierte un
+			// video generado en uno grabado.
+			assert.equal(f.origen_tipo, 'ia');
+			// Y la decisión también. Ya lo miró alguien; recortar no es
+			// contenido nuevo.
+			assert.equal(f.aprobado, true);
+		} finally {
+			try { fs.unlinkSync(abs); } catch {}
+		}
+	});
+
+	test('sin master no se puede, y se dice por qué', async () => {
+		await assert.rejects(
+			() => video.reconvertir(supabaseFalso(), { id: 't1', master: null }, 'vertical'),
+			e => e.definitivo === true && /no tiene master/.test(e.message));
+	});
+
+	test('con el master borrado del disco tampoco', async () => {
+		// La fila puede seguir nombrándolo después de una limpieza o un
+		// despliegue que se llevó el volumen por delante.
+		await assert.rejects(
+			() => video.reconvertir(supabaseFalso(), { id: 't1', master: 'masters/no-existe.mp4' }, 'vertical'),
+			e => e.definitivo === true && /ya no está en el disco/.test(e.message));
+	});
+
+	test('un master fuera de uploads no se toca', async () => {
+		await assert.rejects(
+			() => video.reconvertir(supabaseFalso(), { id: 't1', master: '../../etc/passwd' }, 'vertical'),
+			e => e.definitivo === true);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('purgarAnteriores · un reconvertido comparte master con su origen', () => {
+	// El fallo que esto atrapa borra datos: el reconvertido apunta al MISMO
+	// master que el trabajo del que salió, así que purgar sin mirar se lleva el
+	// archivo al que el nuevo acaba de apuntar — y con él la única copia sin
+	// recortar que queda del video.
+	const RAIZ = path.join(__dirname, '..', 'uploads');
+
+	test('no borra el master que el trabajo nuevo está usando', async () => {
+		const base = 'prueba-compartido-' + Date.now();
+		const master = `masters/${base}-master.mp4`;
+		const videoViejo = `videos/${base}-viejo.mp4`;
+		for (const rel of [master, videoViejo]) {
+			const abs = path.join(RAIZ, rel);
+			fs.mkdirSync(path.dirname(abs), { recursive: true });
+			fs.writeFileSync(abs, 'x');
+		}
+
+		const borradas = [];
+		const q = {
+			select: () => q, eq: () => q, neq: () => q,
+			in: () => Promise.resolve({ data: [{ id: 'viejo', video: videoViejo, master, portada: null }] }),
+			delete: () => ({ eq: (_c, v) => { borradas.push(v); return Promise.resolve({}); } }),
+		};
+
+		try {
+			await video.purgarAnteriores({ from: () => q }, {
+				id: 'nuevo', producto_id: 'p1',
+				video: `videos/${base}-nuevo.mp4`, master, portada: null,
+			});
+
+			assert.equal(fs.existsSync(path.join(RAIZ, master)), true,
+				'el master compartido tiene que sobrevivir');
+			assert.equal(fs.existsSync(path.join(RAIZ, videoViejo)), false,
+				'el entregable viejo sí sobra');
+			assert.deepEqual(borradas, ['viejo'], 'y la fila vieja se limpia igual');
+		} finally {
+			for (const rel of [master, videoViejo]) { try { fs.unlinkSync(path.join(RAIZ, rel)); } catch {} }
+		}
+	});
+});
