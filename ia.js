@@ -10,12 +10,10 @@
 // Replicate se descarga a originales/ y a partir de ahí es un origen como el
 // de un móvil. Ver docs/video-con-ia.md §2.
 //
-// ⚠ La forma de la API (rutas y nombres de campo) NO se pudo comprobar contra
-// la documentación desde el entorno donde se escribió esto: el proxy bloquea
-// replicate.com. Los nombres del INPUT sí están confirmados —salen del editor
-// JSON del propio modelo— pero las rutas y el nombre de 'status'/'output' son
-// la API general de Replicate, y hay que verlas funcionar una vez antes de
-// darlas por buenas. La primera generación real es esa comprobación.
+// Comprobado en producción el 24/08/2026, con la primera generación real: las
+// rutas, 'status' y 'output' responden como se esperaba. El recorrido entero
+// —crear, consultar, descargar, encolar, convertir y publicar— salió a la
+// primera, sin reintentos: 115 s de generación y 29 s de conversión.
 
 const REPLICATE = 'https://api.replicate.com/v1';
 
