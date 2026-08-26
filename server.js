@@ -700,6 +700,95 @@ app.patch('/api/ia/cupo/:restauranteId', auth, async (req, res) => {
   res.json({ ok: true, cupo: n });
 });
 
+// ── APROBAR LO QUE GENERÓ EL MODELO ───────────────────────────
+// Un video generado se convierte como cualquier otro pero NO entra solo en la
+// carta. El motivo no es de calidad, es legal: el modelo no copia el plato, lo
+// interpreta, y al orbitar hacia 3/4 tiene que rellenar el lado que la foto no
+// enseña. Si ahí aparece una guarnición que el negocio no sirve, el comensal
+// pide una cosa y le llega otra — publicidad engañosa, y el expuesto ante la
+// SIC es el restaurante, no nosotros. Ver docs/video-con-ia.md §9.
+//
+// Los videos subidos a mano no pasan por aquí: quien graba su propio plato ya
+// lo ha visto, y pedirle que lo apruebe sería preguntarle dos veces lo mismo.
+
+// El entregable y la portada se sirven desde /uploads sin llave, igual que en
+// la carta pública. El master no: vive en una carpeta privada y no se enseña.
+const urlDeSubida = relativa =>
+  relativa ? `${process.env.BASE_URL}/uploads/${String(relativa).split(path.sep).join('/')}` : null;
+
+// Carga el trabajo y comprueba de una vez las cuatro condiciones. Están juntas
+// porque las dos rutas necesitan exactamente las mismas y separarlas es cómo
+// acaban discrepando: aprobar comprobando una cosa y descartar otra.
+async function trabajoEnRevision(id, user) {
+  const { data: t } = await supabase.from('trabajos_video')
+    .select('id, restaurante_id, producto_id, estado, origen_tipo, aprobado, video, master, portada')
+    .eq('id', id).maybeSingle();
+
+  if (!t || !canAccessRestaurante(user, t.restaurante_id))
+    return { codigo: 403, error: 'Sin permiso' };
+  if (t.origen_tipo !== 'ia')
+    return { codigo: 400, error: 'Ese video no lo generó un modelo: ya está publicado' };
+  if (t.estado !== 'listo')
+    return { codigo: 409, error: 'Ese video todavía no ha terminado de convertirse' };
+  // aprobado ya decidido: ni se vuelve a publicar ni se vuelve a descartar. No
+  // es un error del usuario, es que llegó dos veces —doble clic, dos pestañas—
+  // y la segunda no tiene que deshacer la primera.
+  if (t.aprobado !== null && t.aprobado !== undefined)
+    return { codigo: 409, error: t.aprobado ? 'Ese video ya está publicado' : 'Ese video ya se descartó' };
+
+  return { trabajo: t };
+}
+
+// Lo que hay pendiente de mirar. Devuelve las URL públicas porque sin poder
+// VER el video la aprobación no significa nada: sería firmar a ciegas.
+app.get('/api/ia/por-aprobar', auth, async (req, res) => {
+  const rid = req.query.restaurante_id;
+  if (!rid || !canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+
+  const { data, error } = await supabase.from('trabajos_video')
+    .select('id, producto_id, video, portada, creado_en')
+    .eq('restaurante_id', rid).eq('origen_tipo', 'ia').eq('estado', 'listo')
+    .is('aprobado', null)
+    .order('creado_en', { ascending: false }).limit(50);
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json((data || []).map(t => ({
+    id: t.id, producto_id: t.producto_id, creado_en: t.creado_en,
+    video: urlDeSubida(t.video), portada: urlDeSubida(t.portada),
+  })));
+});
+
+// Publicar: a partir de aquí el plato enseña el video en vez de la foto.
+app.post('/api/ia/por-aprobar/:id/publicar', auth, async (req, res) => {
+  const r = await trabajoEnRevision(req.params.id, req.user);
+  if (r.error) return res.status(r.codigo).json({ error: r.error });
+
+  try {
+    await video.publicarTrabajo(supabase, r.trabajo);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[ia] no se pudo publicar el video generado:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Descartar: se borran los archivos y el plato se queda con su foto. La
+// animación gastada NO vuelve al cupo — se generó y se pagó. Devolverla
+// convertiría el cupo en "intentos hasta que te guste", que es justo el gasto
+// sin techo que el cupo existe para impedir.
+app.post('/api/ia/por-aprobar/:id/descartar', auth, async (req, res) => {
+  const r = await trabajoEnRevision(req.params.id, req.user);
+  if (r.error) return res.status(r.codigo).json({ error: r.error });
+
+  try {
+    await video.descartarTrabajo(supabase, r.trabajo);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[ia] no se pudo descartar el video generado:', e.message);
+    res.status(500).json({ error: 'No se pudo descartar el video' });
+  }
+});
+
 // ── FACTURACIÓN ───────────────────────────────────────────────
 // Cuándo cobra la plataforma a cada restaurante y cuándo pagó por última
 // vez. Vivía dentro de restaurantes.atributos, y esa tabla tiene lectura
@@ -1057,8 +1146,11 @@ app.post('/api/video', auth,
 app.get('/api/video/trabajos', auth, async (req, res) => {
   const rid = req.query.restaurante_id;
   if (!rid || !canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+  // origen_tipo y aprobado no son rutas internas: son dos banderas, y sin
+  // ellas el panel no puede distinguir un video convertido que ya está en la
+  // carta de uno generado que sigue esperando revisión. Los dos son 'listo'.
   const { data, error } = await supabase.from('trabajos_video')
-    .select('id, producto_id, estado, error, intentos, creado_en, actualizado_en')
+    .select('id, producto_id, estado, error, intentos, origen_tipo, aprobado, creado_en, actualizado_en')
     .eq('restaurante_id', rid).order('creado_en', { ascending: false }).limit(100);
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
