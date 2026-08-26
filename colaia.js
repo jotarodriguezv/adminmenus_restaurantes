@@ -143,6 +143,9 @@ async function recoger(supabase, gen) {
     origen: relativa,
     desde: 0,          // lo generado empieza donde tiene que empezar
     formato,
+    // Lo que hace que este video NO entre solo en la carta: se convierte
+    // igual, pero espera a que alguien lo mire. Ver video.esperaAprobacion().
+    origen_tipo: 'ia',
   });
 
   await cupo.marcarLista(supabase, gen.id);
