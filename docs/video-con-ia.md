@@ -1,6 +1,6 @@
 # Video generado con IA — análisis y decisiones
 
-**Estado:** fases 1, 2 y el botón de la 3, el 24/08/2026. Falta la aprobación y la primera generación real.
+**Estado:** funcionando de punta a punta desde el 24/08/2026. Falta el paso de aprobación.
 **Fecha:** 24 de agosto de 2026
 **Modelo elegido:** `minimax/hailuo-02` en Replicate (foto → video)
 
@@ -166,21 +166,56 @@ Son dos límites distintos: la conversión se limita por **CPU**, la generación
 Con video grabado, el recorte forzado cuesta: está **medido** que pasar un
 origen vertical a 16:9 se lleva el **69% de la altura**.
 
-La ruta IA debería librarse de eso, porque se le puede pedir al modelo la
-proporción que hace falta: 16:9 para Voro, 9:16 para Indigo. **Pero eso hay que
-confirmarlo.** Si `hailuo-02` hereda la proporción de la foto de entrada —y las
-fotos de producto son 4:3, cuadradas, lo que salga— entonces Indigo vuelve a
-perder altura y la ventaja desaparece.
+La ruta IA podría librarse de eso si al modelo se le pudiera pedir la
+proporción. **No se puede:** el JSON de entrada de `hailuo-02` no tiene ese
+campo, así que hereda la de la foto.
 
-Es lo primero que hay que mirar en la ficha del modelo.
+**Conclusión: el recorte no desaparece.** Un restaurante vertical con fotos
+apaisadas vuelve a perder altura, exactamente igual que con un video grabado.
+La ventaja que se esperaba de esta ruta no se materializa, y conviene tenerlo
+presente antes de ofrecerle esto a Indigo: ahí la foto de origen importa tanto
+como en la grabación.
 
 ---
 
-## 7. Lo que falta verificar antes de escribir código
+## 7. Lo que se verificó, y lo que queda
+
+**Cerrado el 24/08/2026 con la primera generación real** (Juan Mar · Salchipapa
+Ensueño). El recorrido entero salió **a la primera, con `intentos: 0`**:
+
+| | |
+|---|---|
+| Generación en Replicate | **115 s** |
+| Conversión con ffmpeg | **29 s** |
+| Total de punta a punta | **~2 min 24 s** |
+| Duración publicada | **5,9 s** de los 6 pedidos |
+| Formato aplicado | `horizontal`, el del modelo del restaurante |
+
+Con eso quedan confirmados los dos huecos que tenía este documento: **la forma
+de la API** (rutas, `status` y `output` responden como se esperaba) y que **el
+modelo no acepta proporción** — el JSON de entrada no la lleva, así que la
+hereda de la foto y el recorte lo sigue haciendo ffmpeg.
+
+**Sigue abierto:** si el "768p" del modelo es altura 768 en 16:9 o algo
+distinto. El recorte forzado evita franjas negras pase lo que pase, así que
+mirando el video final no se distingue. Se resuelve preguntándole al **master**,
+que es el único archivo que conserva la proporción sin recortar:
+
+```bash
+docker exec $(docker ps -q --filter "name=adminvmenus") \
+  ffprobe -v error -select_streams v:0 -show_entries stream=width,height \
+  -of csv=p=0 /app/uploads/masters/1787619100287-hu3i5ewab4i-master.mp4
+```
+
+Si sale algo como `1366x768`, la tabla de §4 es correcta y a 768p se paga casi
+exactamente por los píxeles que ve el comensal. Si sale cuadrado, hay que
+rehacer ese cálculo.
+
+### Lo que quedó por medir del análisis original
 
 1. **Qué es "768p" en este modelo**: ¿altura 768 en 16:9, o cuadrado?
-2. **¿Acepta proporción como parámetro, o la hereda de la foto?** (§6.3)
-3. **La forma exacta de la API**: nombre del campo de la imagen, de la duración y
+2. ~~¿Acepta proporción como parámetro?~~ **No.** Confirmado en el JSON de entrada
+3. ~~La forma exacta de la API~~ **Confirmada** en producción. Nombre del campo de la imagen, de la duración y
    de la resolución; y qué devuelve al terminar.
 4. **Si Replicate cobra una predicción que falla** a mitad. Decide si un fallo
    libera el cupo reservado (§5).
