@@ -172,7 +172,9 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 				'videoFallido', 'videoFallidoMotivo',
 				// El bloque de revisión de lo que generó el modelo.
 				'iaRevision', 'iaRevisionVideo', 'iaRevisionEstado',
-				'btnPublicarIA', 'btnDescartarIA'];
+				'btnPublicarIA', 'btnDescartarIA',
+				// El aviso de "este video quedó en el formato anterior".
+				'videoDesfasado', 'videoDesfasadoTexto', 'videoDesfasadoEstado', 'btnReconvertir'];
 		const mapa = {};
 		for (const id of ids) mapa[id] = {
 			style: {}, textContent: '', value: '', disabled: false,
@@ -182,12 +184,13 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		return mapa;
 	};
 
-	const pintar = (videos, plato, mapa, trabajos = [], porAprobar = []) => {
+	const pintar = (videos, plato, mapa, trabajos = [], porAprobar = [], nav = 'video') => {
 		const ctx = cargar('index.html', '// Los trabajos de conversión del restaurante.',
 			'// Elegir el archivo ya no lo sube', {
 				clearInterval() {},
 				planActual: () => ({ videos }),
-				state: { trabajosVideo: trabajos, videosPorAprobar: porAprobar },
+				state: { trabajosVideo: trabajos, videosPorAprobar: porAprobar,
+				         restaurante: { atributos: { nav } } },
 				document: { getElementById: id => mapa[id] },
 			});
 		ctx.pintarVideoPlato(plato);
@@ -218,6 +221,40 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		assert.equal(m.videoEditPreview.src, url);
 		assert.equal(m.videoEditPreview.style.display, 'block');
 		assert.equal(m.videoEditVacio.style.display, 'none');
+	});
+
+	// ── EL VIDEO QUE QUEDÓ EN EL FORMATO ANTERIOR ─────────────
+	// Cambiar el modelo de la carta no re-recorta los videos ya convertidos: se
+	// quedan como estaban y el restaurante ve una franja del centro creyendo
+	// que la conversión salió mal. El master permite arreglarlo sin volver a
+	// grabar, pero solo si el panel dice que se puede.
+	const conVideo = { id: 'p1', atributos: { video: { url: 'https://ejemplo.test/uploads/videos/a.mp4' } } };
+	const listo = (formato, tiene_master = true) => [{
+		id: 't1', producto_id: 'p1', estado: 'listo', formato, tiene_master,
+		creado_en: '2026-08-26T10:00:00Z',
+	}];
+
+	test('un video en el formato de la carta no avisa de nada', () => {
+		const m = pintar(true, conVideo, pantalla(), listo('vertical'), [], 'vertical');
+		assert.equal(m.videoDesfasado.style.display, 'none');
+	});
+
+	test('un video apaisado en una carta vertical ofrece reconvertir', () => {
+		const m = pintar(true, conVideo, pantalla(), listo('horizontal'), [], 'vertical');
+		assert.equal(m.videoDesfasado.style.display, 'block');
+		assert.match(m.videoDesfasadoTexto.textContent, /vertical/);
+		assert.equal(m.btnReconvertir.disabled, false);
+	});
+
+	test('sin master no se ofrece: no hay de dónde volver a cortar', () => {
+		// Ofrecer un botón que va a fallar no le dice a nadie por qué.
+		const m = pintar(true, conVideo, pantalla(), listo('horizontal', false), [], 'vertical');
+		assert.equal(m.videoDesfasado.style.display, 'none');
+	});
+
+	test('sin video publicado tampoco hay nada desfasado', () => {
+		const m = pintar(true, { id: 'p1' }, pantalla(), listo('horizontal'), [], 'vertical');
+		assert.equal(m.videoDesfasado.style.display, 'none');
 	});
 
 	// ── LO QUE GENERÓ EL MODELO ───────────────────────────────
