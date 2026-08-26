@@ -334,6 +334,57 @@ async function purgarAnteriores(supabase, trabajo) {
   if (viejos?.length) console.log(`🧹 ${viejos.length} video(s) anteriores del plato retirados`);
 }
 
+// Un trabajo espera revisión si lo generó un modelo y nadie lo ha mirado.
+// Función suelta y exportada porque la usan tres sitios —la cola, la ruta de
+// aprobación y las pruebas— y tener la condición escrita tres veces es cómo
+// acaban discrepando.
+function esperaAprobacion(trabajo) {
+  return trabajo?.origen_tipo === 'ia' && trabajo?.aprobado !== true;
+}
+
+// Publica en la carta un trabajo que ya estaba convertido y esperando. Es lo
+// mismo que hace procesarTrabajo al terminar, pero en diferido: por eso
+// reutiliza las dos funciones y no repite la lógica.
+//
+// El trabajo tiene que traer ya sus rutas (video, master, portada); si no las
+// tiene es que la conversión no llegó a terminar y no hay nada que publicar.
+async function publicarTrabajo(supabase, trabajo) {
+  if (!trabajo?.video || !trabajo?.portada)
+    throw new Error('Ese video todavía no está convertido');
+  if (!trabajo.producto_id)
+    throw new Error('Ese video no está asociado a ningún plato');
+
+  const duracion = await duracionDe(path.join(RAIZ, trabajo.video));
+  await guardarEnProducto(supabase, trabajo.producto_id, {
+    video: trabajo.video, master: trabajo.master, portada: trabajo.portada, duracion,
+  });
+  await purgarAnteriores(supabase, trabajo);
+  await supabase.from('trabajos_video').update({ aprobado: true }).eq('id', trabajo.id);
+}
+
+// Lo contrario de publicar. Borra los tres archivos aquí mismo en vez de
+// dejárselos al limpiador: el limpiador espera siete días de gracia, y entre
+// entregable, master y portada un video generado ocupa unos 7 MB. Con
+// veinticinco platos y algún descarte en cada uno, eso es medio giga esperando
+// una semana en el mismo disco cuyo espacio ya se vigila antes de cada subida.
+//
+// La fila NO se borra. Se marca, y así queda constancia de que esa generación
+// —que se pagó igual— se miró y no valía. generaciones_ia dice que se generó;
+// lo que se decidió después solo consta aquí.
+async function descartarTrabajo(supabase, trabajo) {
+  for (const relativa of [trabajo.video, trabajo.master, trabajo.portada]) {
+    const abs = relativa && rutaDentroDeUploads(relativa);
+    if (abs && fs.existsSync(abs)) { try { fs.unlinkSync(abs); } catch {} }
+  }
+
+  // Las rutas se dejan en null a la vez que se marca. Si siguieran apuntando a
+  // archivos ya borrados, cualquier cosa que lea la fila —la ficha del plato,
+  // el limpiador contando referencias— creería que todavía están.
+  await supabase.from('trabajos_video').update({
+    aprobado: false, video: null, master: null, portada: null,
+  }).eq('id', trabajo.id);
+}
+
 async function procesarTrabajo(supabase, trabajo) {
   try {
     const r = await convertir(trabajo);
@@ -342,12 +393,27 @@ async function procesarTrabajo(supabase, trabajo) {
       estado: 'listo', video: r.video, master: r.master, portada: r.portada, error: null,
     }).eq('id', trabajo.id);
 
-    if (trabajo.producto_id) await guardarEnProducto(supabase, trabajo.producto_id, r);
+    // Un video generado por un modelo NO entra solo en la carta. El modelo no
+    // copia el plato: lo interpreta, y al orbitar tiene que rellenar el lado
+    // que la foto no enseña. Si ahí aparece una guarnición que el negocio no
+    // sirve, eso es publicidad engañosa y el expuesto es el restaurante.
+    //
+    // Así que el archivo queda convertido y visible en el panel, pero el
+    // plato sigue enseñando su foto hasta que alguien lo mire. Lo publica
+    // publicarTrabajo(), desde la ruta de aprobación.
+    //
+    // Los subidos a mano no pasan por aquí: quien sube un video suyo ya lo ha
+    // visto, y pedirle que lo apruebe sería preguntar dos veces lo mismo.
+    if (esperaAprobacion(trabajo)) {
+      console.log(`🎬 video generado listo, esperando revisión · trabajo ${trabajo.id}`);
+    } else if (trabajo.producto_id) {
+      await guardarEnProducto(supabase, trabajo.producto_id, r);
 
-    // Después de que atributos apunte al nuevo, nunca antes: si esto se
-    // hiciera primero y fallara la escritura, el plato se quedaría señalando
-    // archivos recién borrados.
-    await purgarAnteriores(supabase, trabajo);
+      // Después de que atributos apunte al nuevo, nunca antes: si esto se
+      // hiciera primero y fallara la escritura, el plato se quedaría señalando
+      // archivos recién borrados.
+      await purgarAnteriores(supabase, trabajo);
+    }
 
     // El último paso, y solo si todo lo anterior fue bien. Si se borrara
     // antes y fallara la escritura en base de datos, el trabajo quedaría
@@ -440,9 +506,9 @@ function arrancar(supabase) {
   console.log('🎬 cola de video en marcha');
 }
 
-async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 0, formato = 'horizontal' }) {
+async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 0, formato = 'horizontal', origen_tipo = 'subido' }) {
   const { data, error } = await supabase.from('trabajos_video')
-    .insert([{ restaurante_id, producto_id: producto_id || null, origen, desde, formato }])
+    .insert([{ restaurante_id, producto_id: producto_id || null, origen, desde, formato, origen_tipo }])
     .select().single();
   if (error) throw new Error(error.message);
   return data;
@@ -454,6 +520,6 @@ module.exports = {
   // Exportados para las pruebas: son puros y se pueden comprobar sin
   // ejecutar ffmpeg ni tocar el disco.
   argumentosEntregable, argumentosMaster, argumentosPortada, instantePortada,
-  purgarAnteriores,
+  purgarAnteriores, esperaAprobacion, publicarTrabajo, descartarTrabajo, guardarEnProducto,
   rutaDentroDeUploads,
 };
