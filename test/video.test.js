@@ -301,6 +301,27 @@ describe('aprobación · lo que genera un modelo no entra solo en la carta', () 
 			'descartado no es publicado: tampoco entra en la carta');
 		assert.equal(video.esperaAprobacion({ origen_tipo: 'ia', aprobado: true }), false);
 	});
+
+	test('"no puede publicarse" y "nadie ha decidido" NO son lo mismo', () => {
+		// Un descartado cumple la primera y no la segunda, y esa diferencia de
+		// un solo caso es la que borró un video pagado: purgarAnteriores
+		// preguntaba con esperaAprobacion() —que también protege a los
+		// descartados, que son basura— y el caso que importaba quedaba tapado
+		// detrás del mismo nombre.
+		const descartado = { origen_tipo: 'ia', aprobado: false };
+		assert.equal(video.esperaAprobacion(descartado), true, 'no entra en la carta');
+		assert.equal(video.sinRevisar(descartado), false, 'pero ya se decidió sobre él');
+
+		const esperando = { origen_tipo: 'ia', aprobado: null };
+		assert.equal(video.esperaAprobacion(esperando), true);
+		assert.equal(video.sinRevisar(esperando), true);
+
+		// Y sin la columna todavía —el trabajo viene de antes de la migración—
+		// tampoco cuenta como sin revisar si no lo generó un modelo.
+		assert.equal(video.sinRevisar({ origen_tipo: 'ia' }), true);
+		assert.equal(video.sinRevisar({ origen_tipo: 'subido' }), false);
+		assert.equal(video.sinRevisar({}), false);
+	});
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -418,6 +439,45 @@ describe('encajeDeFoto · la proporción se comprueba antes de pagar', () => {
 	test('una foto con la proporción de la carta no pierde nada', () => {
 		assert.equal(video.encajeDeFoto(1600, 900, 'horizontal').veredicto, 'bien');
 		assert.equal(video.encajeDeFoto(720, 1280, 'vertical').veredicto, 'bien');
+	});
+
+	test('el aviso dice las medidas reales y a cuáles recortar', () => {
+		// "no encaja" no se puede accionar. Un número que se teclea en el
+		// recortador del móvil, sí. Es el caso real de Pizzería Pierrot.
+		const r = video.encajeDeFoto(2025, 2700, 'vertical');
+		assert.match(r.mensaje, /2025×2700/, 'las que subió');
+		assert.match(r.mensaje, /1519×2700/, 'a las que debería recortar');
+		assert.deepEqual(r.ideal, { ancho: 1519, alto: 2700 });
+	});
+
+	test('el aviso empieza diciendo que SÍ se puede generar', () => {
+		// El texto anterior lo decía de refilón, al final, y se leyó como un
+		// rechazo: quien lo vio pulsó otra vez y pagó una generación de más.
+		// Lo primero que se lee tiene que ser que no es un bloqueo.
+		const r = video.encajeDeFoto(2025, 2700, 'vertical');
+		assert.match(r.mensaje.slice(0, 40), /se puede generar/i);
+	});
+
+	test('dice QUÉ lado se recorta, no solo cuánto', () => {
+		// "pierde el 25%" no dice dónde mirar en la foto.
+		assert.equal(video.encajeDeFoto(2025, 2700, 'vertical').lado, 'ancho');
+		assert.equal(video.encajeDeFoto(800, 1067, 'horizontal').lado, 'alto');
+		assert.match(video.encajeDeFoto(2025, 2700, 'vertical').mensaje, /del ancho/);
+	});
+
+	test('el recorte ideal conserva el lado que ya sobraba', () => {
+		// Recortar tiene que quitar de UN lado, nunca inventar del otro.
+		for (const [a, al, f] of [[2025, 2700, 'vertical'], [800, 1067, 'horizontal'], [4000, 3000, 'vertical']]) {
+			const { ideal } = video.encajeDeFoto(a, al, f);
+			assert.ok(ideal.ancho <= a && ideal.alto <= al,
+				`${a}×${al} en ${f} no puede crecer a ${ideal.ancho}×${ideal.alto}`);
+		}
+	});
+
+	test('una foto que ya encaja no pide recortar nada', () => {
+		const r = video.encajeDeFoto(1080, 1920, 'vertical');
+		assert.equal(r.veredicto, 'bien');
+		assert.equal(r.mensaje, '');
 	});
 
 	test('una foto 3:4 en una carta horizontal avisa, pero deja pasar', () => {
@@ -589,6 +649,75 @@ describe('purgarAnteriores · un reconvertido comparte master con su origen', ()
 			assert.deepEqual(borradas, ['viejo'], 'y la fila vieja se limpia igual');
 		} finally {
 			for (const rel of [master, videoViejo]) { try { fs.unlinkSync(path.join(RAIZ, rel)); } catch {} }
+		}
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('purgarAnteriores · lo que espera revisión no es "un anterior"', () => {
+	// Esta prueba existe por una pérdida real. El 26/08/2026 un plato tenía dos
+	// generaciones esperando revisión; al publicar una, purgarAnteriores borró
+	// la otra con sus tres archivos y su fila. El dueño no llegó a verla, ya
+	// estaba pagada, y no había forma de saber a dónde había ido.
+	const RAIZ = path.join(__dirname, '..', 'uploads');
+
+	const conViejos = viejos => {
+		const borradas = [];
+		const q = {
+			select: () => q, eq: () => q, neq: () => q,
+			in: () => Promise.resolve({ data: viejos }),
+			delete: () => ({ eq: (_c, v) => { borradas.push(v); return Promise.resolve({}); } }),
+		};
+		return { borradas, from: () => q };
+	};
+
+	const crear = rel => {
+		const abs = path.join(RAIZ, rel);
+		fs.mkdirSync(path.dirname(abs), { recursive: true });
+		fs.writeFileSync(abs, 'x');
+		return abs;
+	};
+
+	test('un video generado sin revisar sobrevive a que se publique otro', async () => {
+		const base = 'prueba-espera-' + Date.now();
+		const suyo = `videos/${base}-esperando.mp4`;
+		crear(suyo);
+
+		const sb = conViejos([
+			{ id: 'esperando', video: suyo, master: null, portada: null, origen_tipo: 'ia', aprobado: null },
+		]);
+		try {
+			await video.purgarAnteriores(sb, { id: 'publicado', producto_id: 'p1' });
+
+			assert.equal(fs.existsSync(path.join(RAIZ, suyo)), true,
+				'está pagado y nadie ha decidido sobre él');
+			assert.deepEqual(sb.borradas, [], 'su fila tampoco');
+		} finally {
+			try { fs.unlinkSync(path.join(RAIZ, suyo)); } catch {}
+		}
+	});
+
+	test('pero uno ya publicado o descartado sí se purga', async () => {
+		// Sobre esos ya se decidió: son exactamente lo que esta función existe
+		// para limpiar. Sin esto, reemplazar el video de un plato dejaría 7 MB
+		// tirados en cada cambio.
+		const base = 'prueba-decidido-' + Date.now();
+		const aprobado  = `videos/${base}-aprobado.mp4`;
+		const descartado = `videos/${base}-descartado.mp4`;
+		crear(aprobado); crear(descartado);
+
+		const sb = conViejos([
+			{ id: 'aprobado',   video: aprobado,   master: null, portada: null, origen_tipo: 'ia',     aprobado: true },
+			{ id: 'descartado', video: descartado, master: null, portada: null, origen_tipo: 'ia',     aprobado: false },
+			{ id: 'subido',     video: null,       master: null, portada: null, origen_tipo: 'subido', aprobado: null },
+		]);
+		try {
+			await video.purgarAnteriores(sb, { id: 'nuevo', producto_id: 'p1' });
+			assert.equal(fs.existsSync(path.join(RAIZ, aprobado)), false);
+			assert.equal(fs.existsSync(path.join(RAIZ, descartado)), false);
+			assert.deepEqual(sb.borradas.sort(), ['aprobado', 'descartado', 'subido']);
+		} finally {
+			for (const r of [aprobado, descartado]) { try { fs.unlinkSync(path.join(RAIZ, r)); } catch {} }
 		}
 	});
 });
