@@ -34,6 +34,10 @@ function clienteFalso() {
         delete() { st.op = 'delete'; return q; },
         eq(c, v) { st.filtros[c] = v; return q; },
         neq() { return q; }, in() { return q; },
+        // 'is' lo usan las consultas de "sin revisar" (aprobado is null). Sin
+        // él la cadena revienta a mitad y lo que se mide es el fallo del
+        // simulador, no el del servidor.
+        is(c, v) { st.filtros[c] = `is.${v}`; return q; },
         // 'not' y 'limit' los usa la búsqueda de foto de respaldo del endpoint
         // de Open Graph. Sin ellos la cadena revienta, el try/catch del
         // servidor se lo traga y la prueba mide un null que no es el de verdad.
