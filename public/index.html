@@ -2843,11 +2843,32 @@ function prepararVideoElegido(input) {
 	prev.src = urlPrevia;
 	prev.style.display = 'block';
 	prev.onloadedmetadata = avisarSiSePasaElVideo;   // la duración no se sabe antes
+
+	// Hay videos que el navegador NO sabe reproducir aunque ffmpeg los
+	// convierta sin problema. El caso normal, no uno raro: un .mov grabado por
+	// un iPhone viene en HEVC, y ni Chrome ni Firefox lo reproducen. Ese
+	// formato está en la lista de los que se aceptan.
+	//
+	// Sin esto, lo que pasaba era mudo: la previsualización se quedaba en
+	// negro, onloadedmetadata no disparaba nunca —así que no había aviso de
+	// duración— y "usar el punto actual" leía currentTime y siempre daba 0.
+	// El recortador entero dejaba de funcionar sin decir por qué.
+	//
+	// Se avisa y se deja subir, porque subir sí funciona: lo que se pierde es
+	// poder elegir el trozo, no el video.
+	prev.onerror = () => {
+		document.getElementById('videoDesdeAviso').textContent =
+			'Tu navegador no puede reproducir este video (suele pasar con los .mov del iPhone), ' +
+			'así que no se puede previsualizar ni elegir el segundo de inicio. Se puede subir igual: ' +
+			'se convertirá desde el principio.';
+		document.getElementById('videoDesdeAviso').style.color = 'var(--warn)';
+	};
 	document.getElementById('videoEditVacio').style.display = 'none';
 	document.getElementById('videoDesdeFila').style.display = 'block';
 	document.getElementById('btnConfirmarVideo').style.display = 'inline-block';
 	document.getElementById('videoDesde').value = 0;
 	document.getElementById('videoDesdeAviso').textContent = '';
+	document.getElementById('videoDesdeAviso').style.color = '';
 	const st = document.getElementById('videoUploadStatus');
 	st.textContent = ''; st.style.color = 'var(--text-muted)';
 }
@@ -2884,15 +2905,22 @@ function avisarSiSePasaElVideo() {
 
 	if (quedan < DURACION_MIN_VIDEO) {
 		aviso.textContent = `Desde ahí solo quedan ${quedan.toFixed(1)} s y hacen falta al menos ${DURACION_MIN_VIDEO}. Elige otro punto o sube un video más largo.`;
+		aviso.style.color = 'var(--danger)';
 		btn.disabled = true;
 		btn.style.opacity = '.4';
 		return;
 	}
 
 	permitir();
-	aviso.textContent = quedan < 8
+	// El color va con el mensaje y no fijo en el HTML. Esto bloquea o no
+	// bloquea, y decirlo todo en rojo hacía que "se guardará más corto"
+	// —que solo informa— se leyera como un rechazo. Es el mismo fallo que ya
+	// costó una generación de IA de más el 26/08.
+	const corto = quedan < 8;
+	aviso.textContent = corto
 		? `Desde ahí solo quedan ${quedan.toFixed(1)} s: el video se guardará más corto.`
 		: '';
+	aviso.style.color = corto ? 'var(--warn)' : '';
 }
 
 // ── QUÉ DECIR CUANDO LA SUBIDA FALLA ──────────────────────────
@@ -3079,7 +3107,12 @@ function vigilarVideo(trabajoId, productoId) {
 				detenerVigilanciaVideo();
 				// Esto va SIEMPRE, esté la ficha abierta o no: es lo que evita
 				// que el panel siga creyendo que el plato no tiene video.
-				state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
+				const frescos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
+				// apiFetch devuelve null cuando la sesión caduca, y la
+				// vigilancia puede correr media hora contra un token de 8 h.
+				// Sin el guardia, state.productos quedaba en null y el catch de
+				// abajo se tragaba el error sin dejar rastro.
+				if (frescos) state.productos = frescos;
 				await cargarTrabajosVideo();
 				permitirSubir();
 
@@ -3113,6 +3146,12 @@ function vigilarVideo(trabajoId, productoId) {
 				permitirSubir();
 			} else if (t.estado === 'procesando') {
 				decir('Convirtiendo... (1-2 min)', 'var(--text-muted)');
+			} else if (t.estado === 'pendiente') {
+				// Faltaba esta rama, así que un trabajo esperando turno seguía
+				// enseñando el "Convirtiendo... (1-2 min)" que dejó puesto la
+				// subida. Con un solo worker y varios videos en cola, eso es
+				// prometer dos minutos durante bastante más que dos minutos.
+				decir('En cola, esperando turno...', 'var(--text-muted)');
 			}
 		} catch { /* un fallo de red suelto no debe cortar la vigilancia */ }
 	}, 5000);
