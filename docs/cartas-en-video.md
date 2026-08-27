@@ -674,6 +674,263 @@ escribe. Un dato que no se pudo leer no se puede guardar.
 
 ---
 
+### 9.6 Un `throw` dentro de una ruta `async` mataba el proceso entero
+
+Detectado al revisar `server.js` contra la versión de Express instalada.
+**Resuelto el 27/08/2026.**
+
+Express 4 no mira lo que devuelve un manejador. Si es una promesa y se rechaza,
+nadie la captura y Node 22 termina el proceso con código 1. No se colgaba la
+petición: se caía el panel, la cola de conversión, la cola de IA y el limpiador
+a la vez, porque son el mismo proceso.
+
+Llegar ahí no pedía nada raro. Dos caminos, los dos alcanzables por cualquier
+restaurante con la sesión abierta:
+
+- `POST /api/categorias` sin `nombre` — el slug se deriva del nombre, así que
+  `nombre.toLowerCase()` sobre `undefined` lanzaba.
+- `GET /api/estadisticas` con una fecha mal escrita — `Intl` revienta con una
+  `Invalid Date`.
+
+Comprobado levantando un Express 4.22 con el mismo patrón: el manejador de
+errores no se alcanza, no se envía respuesta y el proceso sale con código 1.
+
+> La red se puso **en el registro de las rutas**, no envolviendo cada manejador
+> a mano. A mano hay que acordarse, y la ruta que alguien escriba dentro de seis
+> meses nace descubierta. Es el mismo criterio por el que el escapado de HTML
+> vive en una función compartida y no copiado en cada plantilla.
+
+Detrás quedó un `process.on('unhandledRejection')` que registra en vez de morir,
+y el manejador de errores contesta un 500 sin nada dentro: el mensaje de una
+excepción de Node puede llevar rutas del disco. Después se le quitó trabajo a esa
+red — `POST /api/categorias` valida el nombre y contesta un 400 legible, que es
+lo que toca cuando falta un dato obligatorio.
+
+### 9.7 Dos rutas destructivas sin las comprobaciones que el resto sí hacía
+
+Detectado al revisar las rutas de borrado una contra otra.
+**Resuelto el 27/08/2026.**
+
+**`DELETE /api/upload`** comprobaba cuidadosamente que la ruta no se saliera de
+`uploads/`, y nada más. Ni control de propiedad, ni lista de carpetas: cualquier
+restaurante con sesión podía borrar los archivos de otro, y también los internos
+de `masters/` y `originales/`, que ni siquiera se sirven. Los nombres no había ni
+que adivinarlos — `restaurantes` y `productos` tienen lectura pública, así que
+con la llave publishable que viaja en el JavaScript de la carta se listan los
+`imagen_url`, `logo_url` y `atributos.video.url` de todos.
+
+Era la única ruta destructiva sin control de propiedad; `/api/productos`,
+`/api/categorias` y `/api/video/trabajos` lo comprobaban las tres.
+
+Ahora hacen falta tres cosas: carpeta de imágenes conocida, ruta dentro de
+`uploads/`, y que el archivo sea suyo **o de nadie**. Ese «de nadie» no es un
+descuido: el panel sube la foto en cuanto la eliges y la fila no se escribe hasta
+guardar, así que entre esos dos momentos el archivo no tiene dueño y cancelar
+tiene que poder borrarlo. La pregunta se contesta recorriendo las tablas con la
+misma función que usa `limpieza.js`, para que no haya dos formas distintas de
+leer un nombre de archivo que puedan discrepar.
+
+**`DELETE /api/productos/:id`** partía `imagen_url` por `/uploads/` y pasaba el
+resto a `path.join` sin comprobar contención. Y `imagen_url` lo escribe el
+cliente: está en la lista de campos permitidos del `PATCH`.
+
+```
+PATCH  /api/productos/<mío>   { "imagen_url": "https://x/uploads/../server.js" }
+DELETE /api/productos/<mío>   →  fs.unlinkSync('/app/server.js')
+```
+
+La función correcta ya existía y la usaba el resto del servidor —
+`video.rutaDentroDeUploads()`, la misma que el worker usa antes de darle un
+archivo a ffmpeg. Esta ruta era la única que no.
+
+### 9.8 El master se podía perder por tres caminos distintos
+
+Detectado al revisar `video.js` y las rutas que encolan trabajo.
+**Resuelto el 27/08/2026.**
+
+El master se guarda sin recortar justamente para no tener que pedirle a nadie que
+vuelva a grabar (ver §5, «Por qué existe el master»). Tres caminos lo tiraban.
+
+**Reconvertir borraba el master que acababa de heredar.** `purgarAnteriores()`
+protege el master compartido con un conjunto construido a partir de
+`trabajo.video`, `trabajo.master` y `trabajo.portada`. Pero el `trabajo` que
+recibe desde `procesarTrabajo` es la fila que leyó `tomarSiguiente()` **antes**
+de convertir, y en ese momento esas tres columnas valen `null`. El conjunto
+quedaba vacío justo en el caso que existe para proteger.
+
+Lo que hacía esto difícil de ver es que **había una prueba que lo cubría y
+pasaba**: le entregaba un `trabajo` con las rutas ya escritas, una forma que el
+camino de producción nunca produce. La otra llamada, la de `publicarTrabajo()`,
+sí era correcta porque ahí la fila viene releída de la base.
+
+> Una prueba que llama a la función con una forma que el sistema no produce mide
+> una cosa que no ocurre. La nueva usa la forma de verdad, y `purgarAnteriores`
+> mira además el `origen` cuando es una reconversión, así que contesta bien con
+> las dos maneras de llamarla.
+
+**Borrar un trabajo terminado lo condenaba.** `DELETE /api/video/trabajos/:id`
+solo bloqueaba `procesando`, y la fila de un trabajo terminado es lo único en
+todo el sistema que nombra el master: el entregable y la portada los sigue
+nombrando `productos.atributos.video`, el master no sale de ahí a propósito. Al
+borrar la fila quedaba huérfano y el limpiador se lo llevaba a los siete días —
+el plato seguía enseñando su video y la posibilidad de reconvertirlo desaparecía
+sola una semana después, sin que nadie relacionara una cosa con la otra. Esa ruta
+es para descartar lo que falló, que es para lo que la usa el panel.
+
+**Y la subida manual no tenía freno contra dos conversiones del mismo plato.**
+El panel lo impedía y lo explicaba: dos conversiones compiten por el mismo campo
+del producto, gana la que termine después —que no tiene por qué ser la que se
+pidió— y la otra se queda ocupando disco. Pero el panel es la puerta bonita. De
+las cuatro rutas que encolan trabajo, tres ya comprobaban
+`hayConversionEnMarcha()`; la subida manual, **la más usada de las cuatro**, era
+la única que no. Dos pestañas abiertas sobre el mismo plato bastaban.
+
+### 9.9 Redirección abierta en la vista previa al compartir
+
+Detectado al revisar `/api/og`. **Resuelto el 27/08/2026.**
+
+Esa ruta escribe el destino en un `href` y en un `meta refresh`, así que el
+`host` decide a dónde manda una página servida desde nuestro dominio. Solo se
+comprobaba la **forma** del host —que pareciera un nombre de dominio—, y eso deja
+pasar cualquier dominio del mundo.
+
+Con `?host=atacante.example&path=/bonzas` la página salía con el nombre, el
+subtítulo y el logo **reales** del restaurante en las etiquetas Open Graph, y el
+enlace llevaba a otro sitio. Una tarjeta de WhatsApp convincente servida desde
+nuestro dominio.
+
+Ahora se contrasta contra una lista de dominios propios, configurable por entorno;
+cualquier otro cae al `https://menu.vmenus.co/<slug>` que ya existía como
+respaldo.
+
+### 9.10 `atributos` se reemplazaba entero desde una copia vieja
+
+Detectado al revisar las cinco pantallas que lo escriben.
+**Resuelto el 27/08/2026.**
+
+`restaurantes.atributos` es un solo JSON compartido por seis pantallas que no se
+conocen entre sí: Apariencia, Toppings, Pedidos, Métodos de pago, el orden del
+menú y la portada. Cada una mandaba el objeto **entero**, fundido sobre la copia
+que el panel hubiera cargado al entrar.
+
+Para el cliente el servidor ya fundía, por un motivo de permisos: no fiarse del
+objeto que manda. Para el admin lo escribía tal cual. Y el superadmin es
+justamente quien abre paneles ajenos:
+
+> El superadmin abre la carta de un restaurante a las 10:00. A las 10:05 el dueño
+> cambia su WhatsApp de pedidos desde su sesión. A las 10:10 el superadmin guarda
+> Apariencia — y el WhatsApp vuelve al valor de las 10:00, sin aviso y sin nada
+> en los registros.
+
+Ahora cada pantalla manda solo sus claves y las funde el servidor, que sí tiene la
+versión de ahora. Poner una clave a `null` sigue funcionando, que es como el panel
+quita la portada; hay una prueba para eso, porque una fusión que se comiera los
+nulos dejaría sin forma de borrar nada.
+
+### 9.11 Lo pequeño del panel, en una lista
+
+Detectado al leer los 3.700 renglones de JavaScript de `public/index.html`.
+**Resuelto el 27/08/2026.** Ninguno rompía una prueba.
+
+**Perdían o falseaban datos**
+
+- **Un precio vacío se guardaba como $ 0.** El campo es `type="number"`, así que
+  borrarlo daba cadena vacía y `parseFloat(...) || 0` la convertía en un plato
+  publicado a cero, visible en la carta y sumando cero en el carrito. El cero
+  escrito a mano sí pasa: una cortesía es un precio legítimo.
+- **Renombrar un topping desengancha los platos.** Guardan el **nombre**, no un
+  identificador, así que se quedan apuntando a algo que ya no existe: el chip
+  sale desmarcado y el carrito público no sabe cobrarlo. Guardar identificadores
+  pide migrar todos los platos; mientras tanto, al guardar se listan los platos
+  que van a quedarse colgados y se pide confirmación. Comprobado en la base:
+  **0 casos** el día de la revisión. Es una mina, no un incendio.
+- **`moveCat` intercambiaba dos valores de `orden`.** Con dos categorías
+  empatadas eso es intercambiar un número consigo mismo: no se movía nada y el
+  panel decía «Orden actualizado» igual. Y empatar es fácil, porque
+  `openNewCatModal` siembra `orden = state.categorias.length`. Ahora renumera la
+  lista entera, como ya hacía `moveProd`.
+
+**Se quedaban colgados o gastaban de más**
+
+- **`compressImage` no rechazaba nunca.** Sin `rej`, sin `img.onerror`, sin
+  `r.onerror`: un archivo que no decodificaba dejaba la promesa sin resolver y el
+  panel en «Subiendo...» para siempre, sin más salida que recargar. El
+  `accept="image/*"` no protege — el selector mira el nombre, no el contenido.
+- **Los dos temporizadores sobrevivían a cerrar sesión.** Después de salir, el
+  intervalo seguía preguntando con `token=null`: 401, `logout()` otra vez, y
+  vuelta cada cinco segundos hasta cerrar la pestaña.
+- **`vigilarVideo` no tenía tope.** Era el único sondeo del panel que no paraba
+  nunca, incluso con la fila del trabajo ya borrada. Ahora media hora, que deja
+  sitio de sobra al peor caso legítimo: tres intentos × diez minutos de ffmpeg,
+  más la espera en cola.
+- **Reordenar salía como un `Promise.all`.** Una categoría de cuarenta platos
+  eran cuarenta peticiones a la vez contra la misma caja de un núcleo donde puede
+  estar corriendo ffmpeg. Ahora van de cuatro en cuatro.
+
+**Enseñaban mal**
+
+- **Un logo con transparencia salía con fondo negro.** `compressImage` salía
+  siempre como JPEG, y JPEG no tiene canal alfa: un PNG transparente se aplana
+  sobre negro. Los cuatro logos que había eran `.jpg` justamente porque la
+  función forzaba la extensión. Ahora los logos conservan PNG si el original lo
+  era — **solo los logos**: en una foto de plato no hay transparencia que perder
+  y PNG costaría varias veces el peso a cambio de nada.
+- **`var(--warning)` no existe en ninguno de los dos temas.** Sus nueve usos
+  caían al literal de reserva `#ffb020`, que sobre el blanco del tema claro da
+  **1,8:1** cuando el mínimo legible es 4,5:1. La variable buena, `--warn`, da
+  5,6:1. Afectaba justo a los avisos que hay que leer: cupo de IA bajo, recorte
+  de la foto, video esperando revisión, video desfasado.
+- **Siete de los ocho manejadores de imagen tiraban `e.message`** y enseñaban
+  «Error al subir». Justo el mensaje que el servidor se toma el trabajo de afinar
+  (ver el comentario sobre el límite equivocado en `server.js`).
+- **La gráfica de visitas pintaba una barra por día.** El rango «Todo» arranca en
+  2020, así que son **2.431 barras** — unos 41.000 px de scroll horizontal — y el
+  `Math.max(1, ...dias)` recibía un argumento por día. Ahora se agrupan con un
+  tope de 92 barras. La prueba que más importa no es ninguna de las obvias: que
+  **agrupar no pierde ni duplica ninguna visita**, porque un agrupado que se
+  saltara un día haría mentir a la gráfica sin que nada lo delatara a ojo.
+- **Un `.mov` de iPhone viene en HEVC** y ningún navegador de escritorio lo
+  reproduce. Sin `prev.onerror`, la previsualización se quedaba negra,
+  `onloadedmetadata` no disparaba —sin aviso de duración— y «usar el punto
+  actual» daba siempre 0: el recortador entero dejaba de funcionar sin decir por
+  qué. Ahora se avisa y se deja subir, porque subir sí funciona.
+- **Un trabajo en cola decía «Convirtiendo... (1-2 min)»**: faltaba la rama de
+  `pendiente`.
+
+**Despistaban a quien leyera el código**
+
+- **`zonaRestaurante()` estaba declarada dos veces.** Las declaraciones de función
+  se elevan, así que ganaba la segunda y era la que corría también en los
+  horarios de categoría. Daban el mismo valor, pero eso hacía que
+  `ZONA_POR_DEFECTO` pareciera la única fuente de verdad sin serlo. De 174
+  funciones del panel era la única repetida.
+- **`menuAdminEditingResto` se leía y no la escribía nadie**, así que recargar la
+  página estando dentro de un restaurante devolvía a la lista.
+- **Dos filtros de `pin_hash`** sobre una tabla que ya no tiene esa columna, y un
+  `Dockerfile` que documentaba seis carpetas de imágenes y creaba dos.
+- **Un plato sin categoría** daba un 500 con el mensaje crudo de Postgres: la
+  columna es `NOT NULL` y `categoriaAjena()` decía que era válido.
+- **El borrado de restaurante no nombraba** las cuatro tablas nacidas después
+  (`trabajos_video`, `generaciones_ia`, `restaurantes_ia`,
+  `restaurantes_facturacion`). Caían por la cascada, pero el comentario prometía
+  una independencia que ya no era verdad.
+
+**Pendiente de este repaso**
+
+- **`--text-dim` es ilegible en el tema oscuro**, que es el que viene por
+  defecto: `#2e4232` sobre `#172019` da **1,54:1**. Se usa **78 veces**, en
+  tamaños de 9 a 14 px. En el tema claro da 3,77:1, bajo pero legible.
+- **Las 93 etiquetas del panel no están enlazadas a su campo.** Son `<label>` de
+  verdad, solo les falta el `for`: un lector de pantalla anuncia «cuadro de
+  texto, en blanco» en los 107 campos, y pulsar sobre el texto no enfoca el
+  campo. 60 se enlazan añadiendo solo el atributo; los otros 47 hay que mirarlos
+  uno a uno.
+- El HTML y el CSS del panel salieron limpios en lo demás: **269 IDs sin un solo
+  duplicado**, ningún `getElementById` apuntando a un elemento que no existe, las
+  26 variables CSS definidas y usadas, `viewport` y `lang` presentes, ningún
+  ancho fijo mayor de 360 px y **cero `<form>`**, así que no existe el clásico
+  botón sin `type` que envía el formulario sin querer.
+
 ## 10. Plan por fases
 
 **Paso 0 — Medición.** ✅ Cerrado. Es este documento.
