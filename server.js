@@ -1049,6 +1049,12 @@ app.get('/api/categorias', auth, async (req, res) => {
 app.post('/api/categorias', auth, async (req, res) => {
   const { restaurante_id, nombre, slug, emoji, orden, sin_fotos, atributos } = req.body;
   if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  // El slug se deriva del nombre, así que sin nombre esto reventaba en
+  // `nombre.toLowerCase()`. Antes del envoltorio de conCaptura() eso tumbaba el
+  // proceso entero; ahora es un 500 que no dice nada, y sigue sin ser lo que
+  // toca: falta un dato obligatorio y eso es un 400 que se pueda leer.
+  if (typeof nombre !== 'string' || !nombre.trim())
+    return res.status(400).json({ error: 'Falta el nombre de la categoría' });
   const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', restaurante_id).single();
   const atributosFiltrados = atributosCategoria(atributos, null, req.user.rol === 'admin', planDe(resto?.atributos));
   const { data, error } = await supabase.from('categorias')
