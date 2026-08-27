@@ -112,7 +112,22 @@ async function reservar(supabase, { restaurante_id, producto_id }) {
   const { data, error } = await supabase.from('generaciones_ia')
     .insert([{ restaurante_id, producto_id: producto_id || null }])
     .select().single();
-  if (error) throw new Error(`reservando la generación: ${error.message}`);
+  if (error) {
+    // 23505 es el índice único parcial de sql/13: ya hay una generación en
+    // curso para este plato. Es lo único que cierra de verdad la carrera entre
+    // dos peticiones simultáneas — la comprobación de la ruta lee y luego
+    // escribe, y entre las dos cosas cabe otra petición.
+    //
+    // No es un fallo del sistema, es la respuesta correcta, y por eso lleva
+    // marca propia: quien llama la traduce a un 409 con el mismo texto que da
+    // la comprobación de arriba, para que el usuario lea siempre lo mismo.
+    if (error.code === '23505') {
+      const e = new Error('Ese plato ya tiene una generación en camino. Espera a que termine.');
+      e.yaEnCurso = true;
+      throw e;
+    }
+    throw new Error(`reservando la generación: ${error.message}`);
+  }
   return data;
 }
 
@@ -158,7 +173,16 @@ async function rescatarReservas(supabase) {
   const limite = new Date(Date.now() - RESCATE_MS).toISOString();
   const { data } = await supabase.from('generaciones_ia')
     .update({ estado: ESTADO_LIBERADA, error: 'La petición nunca llegó a salir' })
-    .eq('estado', 'reservada').lt('creado_en', limite).select('id');
+    // Lo que define este caso no es el estado sino la falta de identificador
+    // de predicción: sin él no hay nada que consultar ni nada que cobrar.
+    //
+    // Se miraba solo 'reservada', y eso dejaba fuera una fila que puede
+    // quedarse en 'generando' sin identificador. La cola las salta
+    // —colaia.pasada() hace `if (!gen.prediction_id) continue`— así que nadie
+    // volvía a mirarlas nunca y consumían cupo para siempre.
+    .in('estado', ['reservada', 'generando'])
+    .is('prediction_id', null)
+    .lt('creado_en', limite).select('id');
   if (data?.length) console.log(`♻️  ${data.length} reserva(s) de IA devueltas al cupo`);
   return data?.length || 0;
 }
