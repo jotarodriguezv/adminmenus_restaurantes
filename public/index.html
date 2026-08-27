@@ -3131,7 +3131,7 @@ async function handleProductImgUpload(input) {
     document.getElementById('imgEditPlaceholder').style.display='none';
     document.getElementById('btnQuitarFoto').style.display='block';
     st.textContent='✓ Lista para guardar'; st.style.color='var(--success)';
-  } catch(e) { st.textContent='Error al subir'; st.style.color='var(--danger)'; }
+  } catch(e) { st.textContent=e.message||'Error al subir'; st.style.color='var(--danger)'; }
 }
 
 function quitarFoto() {
@@ -3183,7 +3183,7 @@ async function handleExtraImgUpload(input) {
     state.extraImgs.push(url);
     renderExtraImgs(state.extraImgs);
     showToast('Imagen añadida', 'success');
-  } catch(e) { showToast('Error al subir', 'error'); }
+  } catch(e) { showToast(e.message || 'Error al subir', 'error'); }
   input.value = '';
 }
 
@@ -3893,7 +3893,7 @@ async function handleCatImgUpload(input) {
     document.getElementById('editCatImgPlaceholder').style.display='none';
     document.getElementById('btnQuitarCatImg').style.display='block';
     st.textContent='✓ Lista para guardar'; st.style.color='var(--success)';
-  } catch(e) { st.textContent='Error al subir'; st.style.color='var(--danger)'; }
+  } catch(e) { st.textContent=e.message||'Error al subir'; st.style.color='var(--danger)'; }
 }
 
 function quitarCatImg() {
@@ -4188,7 +4188,7 @@ async function handlePromoUpload(input) {
     state.restaurante.promo_imagen_url=url; renderPromo();
     st.textContent='✓ Imagen actualizada'; st.style.color='var(--success)';
     showToast('Imagen de promo guardada','success');
-  } catch(e) { st.textContent='Error al subir'; st.style.color='var(--danger)'; }
+  } catch(e) { st.textContent=e.message||'Error al subir'; st.style.color='var(--danger)'; }
 }
 
 // ── DATOS DEL RESTAURANTE (nombre + slug) ──────────────────────
@@ -4435,13 +4435,14 @@ async function handleLogoUpload(input) {
   const st = document.getElementById('apLogoUploadStatus');
   st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
   try {
-    const blob = await compressImage(file, 500, .9);
+    // El único que conserva PNG: un logo con fondo transparente es lo normal.
+    const blob = await compressImage(file, 500, .9, { conservarTransparencia: true });
     const url = await uploadImg(blob, 'logos');
     await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: url });
     state.restaurante.logo_url = url; renderApariencia();
     st.textContent = '✓ Logo actualizado'; st.style.color = 'var(--success)';
     showToast('Logo guardado', 'success');
-  } catch (e) { st.textContent = 'Error al subir'; st.style.color = 'var(--danger)'; }
+  } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
 
 async function handleFondoUpload(input) {
@@ -4455,7 +4456,7 @@ async function handleFondoUpload(input) {
     state.restaurante.fondo_url = url; renderApariencia();
     st.textContent = '✓ Fondo actualizado'; st.style.color = 'var(--success)';
     showToast('Fondo guardado', 'success');
-  } catch (e) { st.textContent = 'Error al subir'; st.style.color = 'var(--danger)'; }
+  } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
 
 // La portada del modelo explorar vive en atributos.portada_url (no es una
@@ -4474,7 +4475,7 @@ async function handlePortadaUpload(input) {
     renderApariencia();
     st.textContent = '✓ Portada actualizada'; st.style.color = 'var(--success)';
     showToast('Portada guardada · activada', 'success');
-  } catch (e) { st.textContent = 'Error al subir'; st.style.color = 'var(--danger)'; }
+  } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
 
 // Eliminar una imagen cargada (logo / fondo / portada). Logo y fondo son
@@ -4712,23 +4713,64 @@ function abrirVistaPrevia() {
 }
 
 // ── IMÁGENES ──────────────────────────────────────────────────
-function compressImage(file,maxW,q) {
-  return new Promise(res=>{
-    const r=new FileReader(); r.onload=e=>{
-      const img=new Image(); img.onload=()=>{
-        const c=document.createElement('canvas');
-        let w=img.width,h=img.height;
-        if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
-        c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
-        c.toBlob(b=>res(b),'image/jpeg',q);
-      }; img.src=e.target.result;
-    }; r.readAsDataURL(file);
+// Reduce y recomprime una imagen antes de subirla.
+//
+// ── POR QUÉ 'conservarTransparencia' ──────────────────────────
+// Esto salía SIEMPRE como JPEG, y JPEG no tiene canal alfa. Un PNG con fondo
+// transparente se dibuja sobre un canvas que empieza en negro transparente, y
+// al aplanarlo a JPEG ese fondo se vuelve NEGRO. En una foto de plato da
+// igual, no hay transparencia que perder; en un logo es el caso normal, y el
+// resultado es un rectángulo negro alrededor de la marca sobre las cartas de
+// fondo oscuro. Los cuatro logos que hay hoy son .jpg justamente porque esta
+// función forzaba la extensión.
+//
+// Solo los logos lo piden. PNG pesa más, y en un logo de 500 px eso son unos
+// pocos KB; en una foto de plato serían varias veces el tamaño a cambio de
+// nada.
+//
+// ── POR QUÉ AHORA RECHAZA ─────────────────────────────────────
+// La promesa no tenía 'rej', ni img.onerror, ni r.onerror. Si el archivo no
+// decodificaba —uno corrupto, uno renombrado, un formato que el navegador no
+// abre— la promesa NO SE RESOLVÍA NUNCA: el estado se quedaba en
+// "Subiendo..." para siempre, el catch de quien llamaba no llegaba a correr y
+// no había más salida que recargar la página. accept="image/*" no protege de
+// eso; el selector mira el nombre, no el contenido.
+function compressImage(file, maxW, q, { conservarTransparencia = false } = {}) {
+  // PNG solo si además el origen lo es: convertir un JPEG a PNG no recupera
+  // una transparencia que nunca tuvo, y sí multiplica el peso.
+  const tipo = (conservarTransparencia && /^image\/(png|webp)$/.test(file?.type || ''))
+    ? 'image/png' : 'image/jpeg';
+
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onerror = () => rej(new Error('No se pudo leer el archivo'));
+    r.onload = e => {
+      const img = new Image();
+      img.onerror = () => rej(new Error('Ese archivo no es una imagen que el navegador pueda abrir'));
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          let w = img.width, h = img.height;
+          if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+          c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          // toBlob puede llamar al callback con null si no puede codificar.
+          c.toBlob(b => b ? res(b) : rej(new Error('No se pudo procesar la imagen')), tipo, q);
+        } catch (err) { rej(err); }
+      };
+      img.src = e.target.result;
+    };
+    r.readAsDataURL(file);
   });
 }
 
 async function uploadImg(blob,folder='productos') {
   const fd=new FormData();
-  fd.append('file',blob,`img_${Date.now()}.jpg`);
+  // La extensión sale del tipo del blob y no de una cadena fija: el servidor
+  // deriva de este nombre la extensión con la que guarda el archivo, así que
+  // un PNG llamado .jpg se guardaría con la extensión equivocada.
+  const ext = blob?.type === 'image/png' ? 'png' : 'jpg';
+  fd.append('file',blob,`img_${Date.now()}.${ext}`);
   const data=await apiFetch('POST',`/api/upload?folder=${folder}`,fd,true);
   if(!data?.url) throw new Error('Sin URL');
   return data.url;
@@ -4979,31 +5021,73 @@ function renderKpis(data) {
     tile('Tasa de interacción', data.tasaInteraccion + '%', 'var(--accent)');
 }
 
+// Cuántas barras caben antes de que la gráfica deje de decir nada. Con una
+// por día, el rango "Todo" —que arranca en 2020— pinta hoy 2.431 barras: unos
+// 41.000 px de desplazamiento horizontal que nadie va a recorrer.
+//
+// Pasado el tope se agrupan varios días por barra. Se prefiere agrupar a
+// recortar el rango: la forma de la curva es justamente lo que se mira, y
+// enseñar solo los últimos noventa días de un rango de tres años sería
+// contestar otra pregunta.
+const MAX_BARRAS_VISITAS = 92;
+
+// Función pura y aparte del pintado para poder comprobarla: aquí es donde
+// está la aritmética, y el resto es marcado.
+//
+// Devuelve las barras y cuántos días cubre cada una. El bucle avanza día a
+// día pero solo guarda una entrada por barra, así que un rango absurdo
+// —el selector de fecha acepta cualquier año— no llena la memoria ni revienta
+// el `Math.max(...)` de abajo, que antes recibía un argumento por día.
+function agruparVisitas(visitasPorDia, desde, hasta, maxBarras = MAX_BARRAS_VISITAS) {
+  const ini = diaFlotante(desde), fin = diaFlotante(hasta);
+  if (!(ini <= fin)) return { barras: [], porBarra: 0, invertido: true };
+
+  const totalDias = Math.round((fin - ini) / 86400000) + 1;
+  const porBarra = Math.max(1, Math.ceil(totalDias / maxBarras));
+
+  const barras = [];
+  const cur = new Date(ini);
+  while (cur <= fin) {
+    const desdeISO = fmtISO(cur);
+    let hastaISO = desdeISO, visitas = 0;
+    for (let i = 0; i < porBarra && cur <= fin; i++) {
+      hastaISO = fmtISO(cur);
+      visitas += visitasPorDia?.[hastaISO] || 0;
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    barras.push({ desde: desdeISO, hasta: hastaISO, visitas });
+  }
+  return { barras, porBarra, invertido: false };
+}
+
 function renderGraficaVisitas(visitasPorDia, desde, hasta) {
-  const dias = [];
-  let cur = diaFlotante(desde);
-  const fin = diaFlotante(hasta);
-  while (cur <= fin) { dias.push(fmtISO(cur)); cur.setUTCDate(cur.getUTCDate() + 1); }
-
   const cont = document.getElementById('estChartVisitas');
-  if (!dias.length) { cont.innerHTML = '<div class="empty-state">Sin datos</div>'; return; }
+  if (!cont) return;
 
-  const max = Math.max(1, ...dias.map(d => visitasPorDia[d] || 0));
+  const { barras, porBarra, invertido } = agruparVisitas(visitasPorDia, desde, hasta);
+  if (invertido) {
+    cont.innerHTML = '<div class="empty-state">La fecha de inicio es posterior a la de fin.</div>';
+    return;
+  }
+  if (!barras.length) { cont.innerHTML = '<div class="empty-state">Sin datos</div>'; return; }
+
+  const max = Math.max(1, ...barras.map(b => b.visitas));
   // Se formatea en UTC porque las fechas van ancladas al mediodía UTC: leerlas
   // en la zona del navegador podría mover la etiqueta un día.
   const corta = d => diaFlotante(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const rotulo = b => b.desde === b.hasta ? corta(b.desde) : `${corta(b.desde)} – ${corta(b.hasta)}`;
 
   cont.innerHTML = `
     <div style="display:flex;align-items:flex-end;gap:3px;height:120px;overflow-x:auto;padding-bottom:4px;">
-      ${dias.map(d => {
-        const v = visitasPorDia[d] || 0;
-        const alturaPct = Math.max(4, Math.round(v / max * 100));
-        return `<div title="${corta(d)}: ${v} visita${v === 1 ? '' : 's'}" style="flex-shrink:0;width:14px;height:${alturaPct}%;background:var(--accent);border-radius:3px 3px 0 0;min-height:3px;"></div>`;
+      ${barras.map(b => {
+        const alturaPct = Math.max(4, Math.round(b.visitas / max * 100));
+        return `<div title="${esc(rotulo(b))}: ${b.visitas} visita${b.visitas === 1 ? '' : 's'}" style="flex-shrink:0;width:14px;height:${alturaPct}%;background:var(--accent);border-radius:3px 3px 0 0;min-height:3px;"></div>`;
       }).join('')}
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:var(--text-dim);font-family:var(--mono);">
-      <span>${corta(dias[0])}</span>
-      <span>${corta(dias[dias.length - 1])}</span>
+      <span>${esc(corta(barras[0].desde))}</span>
+      ${porBarra > 1 ? `<span>cada barra: ${porBarra} días</span>` : ''}
+      <span>${esc(corta(barras[barras.length - 1].hasta))}</span>
     </div>`;
 }
 
