@@ -618,6 +618,37 @@ final), **qué lado** se recorta —"pierde el 25%" no dice dónde mirar— y **
 medidas recortar**, que sale de la foto de verdad y se puede teclear en el
 recortador del móvil.
 
+### El freno del servidor todavía tenía un hueco (27/08/2026)
+
+El arreglo de arriba no cerró el caso del todo, y el motivo estaba una capa más
+abajo: el freno comprobaba `estado = 'generando'`, y **una reserva no nace así**.
+Nace `'reservada'` —el valor por defecto de la columna— y solo pasa a
+`'generando'` cuando `anotarPrediccion()` escribe el identificador, o sea después
+de que Replicate acepte la petición: hasta 30 segundos (`LIMITE_CREAR_MS`).
+
+Durante ese tramo la segunda pulsación pasaba el freno, y el otro control —el de
+`trabajos_video` sin revisar— tampoco la veía, porque el trabajo todavía no
+existe. Es exactamente la ventana de los 21 segundos de este mismo incidente: se
+había arreglado el síntoma en dos capas y quedaba abierta la de en medio.
+
+Ahora se cierra por dos vías, y las dos hacen falta:
+
+1. La ruta mira los **dos** estados en curso.
+2. `sql/13_una_generacion_en_curso_por_plato.sql` añade un índice único parcial
+   sobre `producto_id` mientras el estado esté en curso. La comprobación de la
+   ruta lee y después escribe, y entre las dos cosas cabe otra petición: eso no
+   se arregla leyendo mejor, se arregla haciendo que la base no acepte la segunda
+   fila. `cupo.reservar()` traduce el `23505` a la misma respuesta que da el
+   freno, para que el usuario lea lo mismo llegue por donde llegue.
+
+El índice cubre **solo** los estados en curso. Un plato puede tener muchas
+generaciones `lista`, `error` o `liberada` a lo largo del tiempo y eso es normal:
+el historial es justamente lo que permite contar el cupo. Se verificó
+explícitamente que sigue permitiéndolo — un índice que lo hubiera bloqueado
+habría roto el conteo sin que nada lo dijera.
+
+Ver `revision-27-08-2026.md §5.1`.
+
 ---
 
 ## 9. La restricción que no es técnica
