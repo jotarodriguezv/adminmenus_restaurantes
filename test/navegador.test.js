@@ -320,7 +320,7 @@ describe('avisarSiSePasaElVideo · el trozo elegido tiene que caber', () => {
 		const mapa = {
 			videoEditPreview:  { duration: duracion },
 			videoDesde:        { value: String(desde) },
-			videoDesdeAviso:   { textContent: 'sucio' },
+			videoDesdeAviso:   { textContent: 'sucio', style: {} },
 			btnConfirmarVideo: { disabled: false, style: {} },
 		};
 		const ctx = cargar('index.html', 'const DURACION_MIN_VIDEO',
@@ -363,7 +363,7 @@ describe('avisarSiSePasaElVideo · lo demasiado corto no se sube', () => {
 		const mapa = {
 			videoEditPreview:  { duration: duracion },
 			videoDesde:        { value: String(desde) },
-			videoDesdeAviso:   { textContent: '' },
+			videoDesdeAviso:   { textContent: '', style: {} },
 			btnConfirmarVideo: { disabled: false, style: {} },
 		};
 		const ctx = cargar('index.html', 'const DURACION_MIN_VIDEO',
