@@ -26,12 +26,34 @@ const CUPO_POR_DEFECTO = Number(process.env.IA_CUPO_POR_DEFECTO || 24);
 // el proveedor cobrara. Un resultado feo sí consume: se pagó por él.
 const ESTADO_LIBERADA = 'liberada';
 
-// Cuántas puede generar este restaurante en total. Sin fila, el de por
-// defecto: dar de alta a alguien no debería exigir tocar dos tablas.
-async function cupoDe(supabase, restauranteId) {
+// Cuántas puede generar este restaurante, y si puede siquiera. Sin fila, los
+// valores por defecto: dar de alta a alguien no debería exigir tocar dos
+// tablas.
+//
+// 'activa' y 'cupo' contestan cosas distintas y por eso son dos columnas:
+//
+//   activa = false   · esta carta NO genera. Decisión de producto.
+//   cupo = 0         · podría, pero no se le ha dado ninguna.
+//   usadas >= cupo   · se le acabaron. Ahí sí hay conversación comercial.
+//
+// Con una sola columna los tres casos dirían "no puedes" sin decir por qué, y
+// el de en medio invitaría a ampliar un cupo que no es el problema.
+async function limitesDe(supabase, restauranteId) {
   const { data } = await supabase.from('restaurantes_ia')
-    .select('cupo').eq('restaurante_id', restauranteId).maybeSingle();
-  return data?.cupo ?? CUPO_POR_DEFECTO;
+    .select('cupo, activa').eq('restaurante_id', restauranteId).maybeSingle();
+  return {
+    cupo: data?.cupo ?? CUPO_POR_DEFECTO,
+    // Sin fila, activa. Es lo que hacía la plataforma antes de que esta
+    // columna existiera, y el fallo seguro aquí es no quitarle a nadie algo
+    // que ya tenía.
+    activa: data?.activa ?? true,
+  };
+}
+
+// Se mantiene por compatibilidad: había código y pruebas pidiendo solo el
+// número.
+async function cupoDe(supabase, restauranteId) {
+  return (await limitesDe(supabase, restauranteId)).cupo;
 }
 
 async function usadas(supabase, restauranteId) {
@@ -46,11 +68,18 @@ async function usadas(supabase, restauranteId) {
 // Lo que ve el panel: para pintar "te quedan N" sin tener que calcularlo por
 // su cuenta y arriesgarse a que las dos cuentas discrepen.
 async function estado(supabase, restauranteId) {
-  const [cupo, gastadas] = await Promise.all([
-    cupoDe(supabase, restauranteId),
+  const [limites, gastadas] = await Promise.all([
+    limitesDe(supabase, restauranteId),
     usadas(supabase, restauranteId),
   ]);
-  return { cupo, usadas: gastadas, disponibles: Math.max(0, cupo - gastadas) };
+  return {
+    cupo: limites.cupo,
+    activa: limites.activa,
+    usadas: gastadas,
+    // Apagada no deja ninguna disponible, mire el cupo lo que mire. Se calcula
+    // aquí y no en el panel para que no haya dos cuentas que puedan discrepar.
+    disponibles: limites.activa ? Math.max(0, limites.cupo - gastadas) : 0,
+  };
 }
 
 // Reserva una generación. Devuelve la fila si había sitio, o lanza si no.
@@ -64,7 +93,16 @@ async function estado(supabase, restauranteId) {
 // Lo que sí importa es el orden: primero se escribe la reserva, DESPUÉS se
 // llama al proveedor. Nunca al revés.
 async function reservar(supabase, { restaurante_id, producto_id }) {
-  const { cupo, disponibles } = await estado(supabase, restaurante_id);
+  const { cupo, disponibles, activa } = await estado(supabase, restaurante_id);
+
+  // Antes que el cupo: apagada no es "se te acabaron", y decirlo así llevaría
+  // a ampliarle un cupo que no es el problema.
+  if (!activa) {
+    const e = new Error('La generación con IA no está activa para esta carta.');
+    e.iaApagada = true;
+    throw e;
+  }
+
   if (disponibles <= 0) {
     const e = new Error(`Se agotaron las ${cupo} animaciones de este restaurante. Escríbenos para ampliar el cupo.`);
     e.sinCupo = true;
@@ -127,6 +165,6 @@ async function rescatarReservas(supabase) {
 
 module.exports = {
   CUPO_POR_DEFECTO, ESTADO_LIBERADA, RESCATE_MS,
-  cupoDe, usadas, estado, reservar,
+  cupoDe, limitesDe, usadas, estado, reservar,
   anotarPrediccion, marcarLista, marcarFallida, rescatarReservas,
 };
