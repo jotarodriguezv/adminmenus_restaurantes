@@ -524,11 +524,11 @@
 					<div class="login-brand-name">MENÚS DIGITALES</div>
 				</div>
 				<div class="login-card">
-					<label class="login-label">Identificador de acceso</label>
+					<label for="slugInput" class="login-label">Identificador de acceso</label>
 					<input type="text" class="login-input" id="slugInput" placeholder="ej: bonzas"
 					autocomplete="off" autocapitalize="none" spellcheck="false"
 					oninput="clearLoginError()" onkeydown="if(event.key==='Enter')document.getElementById('pinInput').focus()">
-					<label class="login-label">PIN</label>
+					<label for="pinInput" class="login-label">PIN</label>
 					<input type="password" class="login-input pin-input" id="pinInput"
 					maxlength="10" placeholder="····"
 					oninput="clearLoginError()" onkeydown="if(event.key==='Enter')doLogin()">
@@ -555,24 +555,24 @@
 					<div class="section-title" style="margin-bottom:16px;">+ Nuevo restaurante</div>
 					<div class="form-row" style="margin-bottom:12px;">
 						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Nombre</label>
+							<label for="newRestoNombre" class="form-label">Nombre</label>
 							<input type="text" class="form-input" id="newRestoNombre" placeholder="Pizzería Italiana">
 						</div>
 						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Slug <span style="color:var(--text-dim)">(sin espacios)</span></label>
+							<label for="newRestoSlug" class="form-label">Slug <span style="color:var(--text-dim)">(sin espacios)</span></label>
 							<input type="text" class="form-input" id="newRestoSlug" placeholder="pizzeria-italiana"
 							oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'-')">
 						</div>
 					</div>
 					<div class="form-group" style="margin-bottom:16px;">
-						<label class="form-label">Copiar apariencia de <span style="color:var(--text-dim)">(opcional — colores, fuentes, modelo de página, fondo. Nunca copia logo, pagos, redes ni contenido)</span></label>
+						<label for="newRestoClonar" class="form-label">Copiar apariencia de <span style="color:var(--text-dim)">(opcional — colores, fuentes, modelo de página, fondo. Nunca copia logo, pagos, redes ni contenido)</span></label>
 						<select class="form-select" id="newRestoClonar" onchange="aplicarClonPreview(this.value)">
 							<option value="">Ninguno — empezar en blanco</option>
 						</select>
 					</div>
 					<div class="color-row" style="margin-bottom:16px;">
 						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Color primario</label>
+							<label for="prevColor1" class="form-label">Color primario</label>
 							<div class="color-input-wrap">
 								<input type="color" class="color-preview" id="prevColor1" value="#3dd68c" title="Elegir color" oninput="colorDesdeSelector('prevColor1','newRestoColor1')">
 								<input type="text" class="form-input" id="newRestoColor1" value="#3dd68c" maxlength="7"
@@ -580,7 +580,7 @@
 							</div>
 						</div>
 						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Color secundario</label>
+							<label for="prevColor2" class="form-label">Color secundario</label>
 							<div class="color-input-wrap">
 								<input type="color" class="color-preview" id="prevColor2" value="#a374af" title="Elegir color" oninput="colorDesdeSelector('prevColor2','newRestoColor2')">
 								<input type="text" class="form-input" id="newRestoColor2" value="#a374af" maxlength="7"
@@ -589,7 +589,7 @@
 						</div>
 					</div>
 					<div class="form-group" style="margin-bottom:16px;">
-						<label class="form-label">PIN de acceso <span style="color:var(--text-dim)">(el que le compartes al cliente para entrar)</span></label>
+						<label for="newRestoPin" class="form-label">PIN de acceso <span style="color:var(--text-dim)">(el que le compartes al cliente para entrar)</span></label>
 						<input type="text" class="form-input" id="newRestoPin" placeholder="Mínimo 4 caracteres" maxlength="20">
 					</div>
 					<button class="btn-save" style="width:auto;padding:11px 24px;" onclick="crearRestaurante()">Crear restaurante</button>
@@ -695,16 +695,16 @@
 					<div class="section-card">
 						<div class="section-title">Datos del restaurante</div>
 						<div class="form-group">
-							<label class="form-label">Nombre</label>
+							<label for="apNombreResto" class="form-label">Nombre</label>
 							<input type="text" class="form-input" id="apNombreResto">
 						</div>
 						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Slug <span style="color:var(--text-dim)">(URL pública — cambiarlo rompe los enlaces ya compartidos)</span></label>
+							<label for="apSlugResto" class="form-label">Slug <span style="color:var(--text-dim)">(URL pública — cambiarlo rompe los enlaces ya compartidos)</span></label>
 							<input type="text" class="form-input" id="apSlugResto"
 							oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'-')">
 						</div>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
-							<label class="form-label">Día de cobro mensual <span style="color:var(--text-dim)">(1-31 — se calcula solo cada mes; edítalo solo si cambia el acuerdo con el cliente)</span></label>
+							<label for="apDiaPago" class="form-label">Día de cobro mensual <span style="color:var(--text-dim)">(1-31 — se calcula solo cada mes; edítalo solo si cambia el acuerdo con el cliente)</span></label>
 							<input type="number" class="form-input" id="apDiaPago" min="1" max="31" placeholder="1">
 						</div>
 						<div style="text-align:right;margin-top:14px;">
@@ -717,7 +717,7 @@
 						<div class="section-title">Colores</div>
 						<div class="color-row" style="margin-bottom:4px;">
 							<div class="form-group" style="margin-bottom:0">
-								<label class="form-label">Color primario</label>
+								<label for="apPrevColor1" class="form-label">Color primario</label>
 								<div class="color-input-wrap">
 									<input type="color" class="color-preview" id="apPrevColor1" value="#3dd68c" title="Elegir color" oninput="colorDesdeSelector('apPrevColor1','apColor1')">
 									<input type="text" class="form-input" id="apColor1" maxlength="7"
@@ -725,7 +725,7 @@
 								</div>
 							</div>
 							<div class="form-group" style="margin-bottom:0">
-								<label class="form-label">Color secundario</label>
+								<label for="apPrevColor2" class="form-label">Color secundario</label>
 								<div class="color-input-wrap">
 									<input type="color" class="color-preview" id="apPrevColor2" value="#a374af" title="Elegir color" oninput="colorDesdeSelector('apPrevColor2','apColor2')">
 									<input type="text" class="form-input" id="apColor2" maxlength="7"
@@ -739,7 +739,7 @@
 						<div class="section-title">Colores de superficie <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(para que combinen con el fondo)</span></div>
 						<div class="color-row" style="margin-bottom:4px;">
 							<div class="form-group" style="margin-bottom:0">
-								<label class="form-label">Menú / encabezado / carrito</label>
+								<label for="apPrevColorSurface" class="form-label">Menú / encabezado / carrito</label>
 								<div class="color-input-wrap">
 									<input type="color" class="color-preview" id="apPrevColorSurface" value="#12111a" title="Elegir color" oninput="colorDesdeSelector('apPrevColorSurface','apColorSurface')">
 									<input type="text" class="form-input" id="apColorSurface" maxlength="7" placeholder="#12111a"
@@ -747,7 +747,7 @@
 								</div>
 							</div>
 							<div class="form-group" style="margin-bottom:0">
-								<label class="form-label">Cajas de producto</label>
+								<label for="apPrevColorCard" class="form-label">Cajas de producto</label>
 								<div class="color-input-wrap">
 									<input type="color" class="color-preview" id="apPrevColorCard" value="#1a1825" title="Elegir color" oninput="colorDesdeSelector('apPrevColorCard','apColorCard')">
 									<input type="text" class="form-input" id="apColorCard" maxlength="7" placeholder="#1a1825"
@@ -790,7 +790,7 @@
 						<div id="apFondoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 							<button type="button" id="apFondoDelBtn" onclick="eliminarImagen('fondo')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar imagen de fondo</button>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
-							<label class="form-label">Estilo del fondo</label>
+							<label for="apFondoTipo" class="form-label">Estilo del fondo</label>
 							<select class="form-select" id="apFondoTipo">
 								<option value="cover-fixed">Cubrir pantalla, fijo</option>
 								<option value="repeat-scroll">Repetir, con scroll</option>
@@ -825,7 +825,7 @@
 					<div class="section-card">
 						<div class="section-title">Color de fondo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(se usa solo si no hay imagen de fondo arriba)</span></div>
 						<div class="form-group" style="margin-bottom:14px">
-							<label class="form-label">Color</label>
+							<label for="apPrevFondoColor" class="form-label">Color</label>
 							<div class="color-input-wrap">
 								<input type="color" class="color-preview" id="apPrevFondoColor" value="#0a0a0f" title="Elegir color" oninput="colorDesdeSelector('apPrevFondoColor','apFondoColor')">
 								<input type="text" class="form-input" id="apFondoColor" maxlength="7" placeholder="#0a0a0f"
@@ -833,7 +833,7 @@
 							</div>
 						</div>
 						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Intensidad</label>
+							<label for="apFondoIntensidad" class="form-label">Intensidad</label>
 							<select class="form-select" id="apFondoIntensidad">
 								<option value="solido">Sólido (color plano)</option>
 								<option value="sutil">Degradado sutil</option>
@@ -846,7 +846,7 @@
 						<div class="section-title">Tipografía</div>
 						<div class="form-row">
 							<div class="form-group">
-								<label class="form-label">Fuente títulos</label>
+								<label for="apFuenteTitulo" class="form-label">Fuente títulos</label>
 								<select class="form-select" id="apFuenteTitulo">
 									<option value="">Predeterminada (del sistema)</option>
 									<option value="Bebas Neue">Bebas Neue</option>
@@ -860,7 +860,7 @@
 								</select>
 							</div>
 							<div class="form-group">
-								<label class="form-label">Fuente cuerpo</label>
+								<label for="apFuenteCuerpo" class="form-label">Fuente cuerpo</label>
 								<select class="form-select" id="apFuenteCuerpo">
 									<option value="">Predeterminada (del sistema)</option>
 									<option value="Poppins">Poppins</option>
@@ -892,7 +892,7 @@
 					<div class="section-card">
 						<div class="section-title">Dirección del menú</div>
 						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Forma del enlace</label>
+							<label for="apUrlModo" class="form-label">Forma del enlace</label>
 							<select class="form-select" id="apUrlModo" onchange="renderUrlPublicaPreview()">
 								<option value="ruta">Ruta — menu.vmenus.co/nombre</option>
 								<option value="subdominio">Subdominio — nombre.vmenus.co</option>
@@ -914,7 +914,7 @@
 					<div class="section-card">
 						<div class="section-title">Zona horaria</div>
 						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Hora local del restaurante</label>
+							<label for="apZonaHoraria" class="form-label">Hora local del restaurante</label>
 							<select class="form-select" id="apZonaHoraria">
 								<option value="America/Bogota">Colombia (Bogotá)</option>
 								<option value="America/Mexico_City">México (Ciudad de México)</option>
@@ -956,7 +956,7 @@
 							     llamado "Estilo del fondo", y con dos etiquetas iguales
 							     hay que abrir las dos para saber cuál es cuál. El nombre
 							     dice a qué se aplica. -->
-							<label class="form-label">Estilo de la carta vertical <span style="color:var(--text-dim);font-weight:400">(solo cambia el aspecto, no el funcionamiento)</span></label>
+							<label for="apEstilo" class="form-label">Estilo de la carta vertical <span style="color:var(--text-dim);font-weight:400">(solo cambia el aspecto, no el funcionamiento)</span></label>
 							<select class="form-select" id="apEstilo">
 								<option value="clasico">Clásico — el que ya conoces</option>
 								<option value="intenso">Intenso — a sangre, texto grande y mucho contraste</option>
@@ -964,15 +964,15 @@
 							</select>
 						</div>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
-							<label class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(frase debajo del nombre)</span></label>
+							<label for="apSubtitulo" class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(frase debajo del nombre)</span></label>
 							<input type="text" class="form-input" id="apSubtitulo" placeholder="Carta Digital · 2026">
 						</div>
 						<div class="form-group" id="apCarritoFila" style="margin-top:14px;margin-bottom:0;display:none;align-items:center;justify-content:space-between;gap:10px;">
-							<label class="form-label" style="margin-bottom:0">Carrito de pedidos <span style="color:var(--text-dim)">(el cliente arma su pedido y lo envía por WhatsApp)</span></label>
+							<label for="apCarrito" class="form-label" style="margin-bottom:0">Carrito de pedidos <span style="color:var(--text-dim)">(el cliente arma su pedido y lo envía por WhatsApp)</span></label>
 							<label class="toggle"><input type="checkbox" id="apCarrito"><span class="toggle-slider"></span></label>
 						</div>
 						<div class="form-group" style="margin-top:14px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-							<label class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo + nombre + subtítulo, solo modelos sidebar/carrito — en topnav siempre se muestra)</span></label>
+							<label for="apMostrarHero" class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo + nombre + subtítulo, solo modelos sidebar/carrito — en topnav siempre se muestra)</span></label>
 							<label class="toggle"><input type="checkbox" id="apMostrarHero"><span class="toggle-slider"></span></label>
 						</div>
 					</div>
@@ -985,7 +985,7 @@
 						</p>
 						<div id="apFiltrosCatalogo"></div>
 						<div class="form-group" style="margin-top:16px;margin-bottom:0">
-							<label class="form-label">Filtro personalizado <span style="color:var(--text-dim)">(nombre + emoji)</span></label>
+							<label for="apFiltroCustomLabel" class="form-label">Filtro personalizado <span style="color:var(--text-dim)">(nombre + emoji)</span></label>
 							<div style="display:flex;gap:8px;align-items:center;">
 								<input type="text" class="form-input" id="apFiltroCustomLabel" placeholder="Ej: Sin cebolla" style="flex:1">
 								<input type="text" class="form-input" id="apFiltroCustomEmoji" placeholder="🧅" maxlength="4" style="width:70px;text-align:center">
@@ -1000,19 +1000,19 @@
 							<label class="toggle"><input type="checkbox" id="apSocialBar"><span class="toggle-slider"></span></label>
 						</div>
 						<div class="form-group">
-							<label class="form-label">Facebook <span style="color:var(--text-dim)">(URL completa)</span></label>
+							<label for="apSocialFacebook" class="form-label">Facebook <span style="color:var(--text-dim)">(URL completa)</span></label>
 							<input type="text" class="form-input" id="apSocialFacebook" placeholder="https://facebook.com/tu_restaurante">
 						</div>
 						<div class="form-group">
-							<label class="form-label">Instagram <span style="color:var(--text-dim)">(URL completa)</span></label>
+							<label for="apSocialInstagram" class="form-label">Instagram <span style="color:var(--text-dim)">(URL completa)</span></label>
 							<input type="text" class="form-input" id="apSocialInstagram" placeholder="https://instagram.com/tu_restaurante">
 						</div>
 						<div class="form-group">
-							<label class="form-label">TikTok <span style="color:var(--text-dim)">(URL completa)</span></label>
+							<label for="apSocialTiktok" class="form-label">TikTok <span style="color:var(--text-dim)">(URL completa)</span></label>
 							<input type="text" class="form-input" id="apSocialTiktok" placeholder="https://tiktok.com/@tu_restaurante">
 						</div>
 						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">WhatsApp <span style="color:var(--text-dim)">(solo número, con código de país)</span></label>
+							<label for="apSocialWhatsapp" class="form-label">WhatsApp <span style="color:var(--text-dim)">(solo número, con código de país)</span></label>
 							<input type="text" class="form-input" id="apSocialWhatsapp" placeholder="573001234567">
 						</div>
 					</div>
@@ -1091,7 +1091,7 @@
 					<div class="section-card">
 						<div class="section-title">WhatsApp para recibir pedidos</div>
 						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Número <span style="color:var(--text-dim)">(solo dígitos, con código de país, sin +)</span></label>
+							<label for="pedidosWhatsapp" class="form-label">Número <span style="color:var(--text-dim)">(solo dígitos, con código de país, sin +)</span></label>
 							<input type="text" class="form-input" id="pedidosWhatsapp" placeholder="573001234567">
 						</div>
 					</div>
@@ -1121,11 +1121,11 @@
 						<div id="mpNequiCampos" style="display:none;margin-bottom:16px;">
 							<div class="form-row">
 								<div class="form-group" style="margin-bottom:0">
-									<label class="form-label">Teléfono</label>
+									<label for="mpNequiTelefono" class="form-label">Teléfono</label>
 									<input type="text" class="form-input" id="mpNequiTelefono" placeholder="3001234567">
 								</div>
 								<div class="form-group" style="margin-bottom:0">
-									<label class="form-label">Nombre del titular</label>
+									<label for="mpNequiTitular" class="form-label">Nombre del titular</label>
 									<input type="text" class="form-input" id="mpNequiTitular" placeholder="Juan Pérez">
 								</div>
 							</div>
@@ -1138,11 +1138,11 @@
 						<div id="mpDaviplataCampos" style="display:none;margin-bottom:16px;">
 							<div class="form-row">
 								<div class="form-group" style="margin-bottom:0">
-									<label class="form-label">Teléfono</label>
+									<label for="mpDaviplataTelefono" class="form-label">Teléfono</label>
 									<input type="text" class="form-input" id="mpDaviplataTelefono" placeholder="3001234567">
 								</div>
 								<div class="form-group" style="margin-bottom:0">
-									<label class="form-label">Nombre del titular</label>
+									<label for="mpDaviplataTitular" class="form-label">Nombre del titular</label>
 									<input type="text" class="form-input" id="mpDaviplataTitular" placeholder="Juan Pérez">
 								</div>
 							</div>
@@ -1155,11 +1155,11 @@
 						<div id="mpBancolombiaCampos" style="display:none;margin-bottom:16px;">
 							<div class="form-row">
 								<div class="form-group">
-									<label class="form-label">Número de cuenta</label>
+									<label for="mpBancolombiaNumero" class="form-label">Número de cuenta</label>
 									<input type="text" class="form-input" id="mpBancolombiaNumero" placeholder="1234567890">
 								</div>
 								<div class="form-group">
-									<label class="form-label">Tipo de cuenta</label>
+									<label for="mpBancolombiaTipo" class="form-label">Tipo de cuenta</label>
 									<select class="form-select" id="mpBancolombiaTipo">
 										<option value="ahorros">Ahorros</option>
 										<option value="corriente">Corriente</option>
@@ -1167,7 +1167,7 @@
 								</div>
 							</div>
 							<div class="form-group" style="margin-bottom:0">
-								<label class="form-label">Nombre del titular</label>
+								<label for="mpBancolombiaTitular" class="form-label">Nombre del titular</label>
 								<input type="text" class="form-input" id="mpBancolombiaTitular" placeholder="Juan Pérez">
 							</div>
 						</div>
@@ -1178,7 +1178,7 @@
 						</div>
 						<div id="mpBrebCampos" style="display:none;margin-bottom:0;">
 							<div class="form-group" style="margin-bottom:0">
-								<label class="form-label">Llave Bre-B</label>
+								<label for="mpBrebLlave" class="form-label">Llave Bre-B</label>
 								<input type="text" class="form-input" id="mpBrebLlave" placeholder="Número, celular o llave alfanumérica">
 							</div>
 						</div>
@@ -1244,7 +1244,7 @@
 									<button class="cat-chip" data-valor="redondo" onclick="qrElegirEstilo('ojo','redondo',this)">Redondeado</button>
 									<button class="cat-chip" data-valor="circulo" onclick="qrElegirEstilo('ojo','circulo',this)">Círculo</button>
 								</div>
-								<label class="form-label">Margen blanco <span id="qrMargenVal" style="color:var(--accent)">4</span></label>
+								<label for="qrMargen" class="form-label">Margen blanco <span id="qrMargenVal" style="color:var(--accent)">4</span></label>
 								<input type="range" class="qr-range" id="qrMargen" min="0" max="8" step="1" oninput="qrActualizar()">
 								<div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Los lectores necesitan espacio libre alrededor. Por debajo de 3 puede fallar.</div>
 							</div>
@@ -1256,14 +1256,14 @@
 								</div>
 								<div class="form-row">
 									<div class="form-group">
-										<label class="form-label">Puntos</label>
+										<label for="qrPrevFg" class="form-label">Puntos</label>
 										<div class="color-input-wrap">
 											<input type="color" class="color-preview" id="qrPrevFg" title="Elegir color" oninput="qrSyncColor('qrPrevFg','qrColorFg')">
 											<input type="text" class="form-input" id="qrColorFg" maxlength="7" placeholder="#000000" oninput="qrActualizar()">
 										</div>
 									</div>
 									<div class="form-group">
-										<label class="form-label">Esquinas <span style="color:var(--text-dim)">(opcional)</span></label>
+										<label for="qrPrevOjos" class="form-label">Esquinas <span style="color:var(--text-dim)">(opcional)</span></label>
 										<div class="color-input-wrap">
 											<input type="color" class="color-preview" id="qrPrevOjos" title="Elegir color" oninput="qrSyncColor('qrPrevOjos','qrColorOjos')">
 											<input type="text" class="form-input" id="qrColorOjos" maxlength="7" placeholder="igual que puntos" oninput="qrActualizar()">
@@ -1271,7 +1271,7 @@
 									</div>
 								</div>
 								<div class="form-group" style="margin-bottom:0">
-									<label class="form-label">Fondo</label>
+									<label for="qrPrevBg" class="form-label">Fondo</label>
 									<div class="color-input-wrap">
 										<input type="color" class="color-preview" id="qrPrevBg" title="Elegir color" oninput="qrSyncColor('qrPrevBg','qrColorBg')">
 										<input type="text" class="form-input" id="qrColorBg" maxlength="7" placeholder="#ffffff" oninput="qrActualizar()">
@@ -1293,7 +1293,7 @@
 									Este restaurante no tiene logo. Súbelo en la pestaña Apariencia.
 								</div>
 								<div id="qrLogoTamWrap" style="display:none;margin-top:14px;">
-									<label class="form-label">Tamaño <span id="qrLogoTamVal" style="color:var(--accent)">22%</span></label>
+									<label for="qrLogoTam" class="form-label">Tamaño <span id="qrLogoTamVal" style="color:var(--accent)">22%</span></label>
 									<input type="range" class="qr-range" id="qrLogoTam" min="12" max="30" step="1" oninput="qrActualizar()">
 									<div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Más de 25% empieza a comerse los datos del código.</div>
 								</div>
@@ -1302,23 +1302,23 @@
 							<div class="section-card">
 								<div class="section-title">Cartel para imprimir</div>
 								<div class="form-group">
-									<label class="form-label">Texto de arriba</label>
+									<label for="qrCartelTitulo" class="form-label">Texto de arriba</label>
 									<input type="text" class="form-input" id="qrCartelTitulo" maxlength="60" oninput="qrActualizar()">
 								</div>
 								<div class="form-group">
-									<label class="form-label">Texto de abajo</label>
+									<label for="qrCartelPie" class="form-label">Texto de abajo</label>
 									<input type="text" class="form-input" id="qrCartelPie" maxlength="40" oninput="qrActualizar()">
 								</div>
 								<div class="form-row" style="margin-bottom:0">
 									<div class="form-group" style="margin-bottom:0">
-										<label class="form-label">Fondo del cartel</label>
+										<label for="qrPrevCartelBg" class="form-label">Fondo del cartel</label>
 										<div class="color-input-wrap">
 											<input type="color" class="color-preview" id="qrPrevCartelBg" title="Elegir color" oninput="qrSyncColor('qrPrevCartelBg','qrCartelBg')">
 											<input type="text" class="form-input" id="qrCartelBg" maxlength="7" placeholder="#111111" oninput="qrActualizar()">
 										</div>
 									</div>
 									<div class="form-group" style="margin-bottom:0">
-										<label class="form-label">Texto del cartel</label>
+										<label for="qrPrevCartelFg" class="form-label">Texto del cartel</label>
 										<div class="color-input-wrap">
 											<input type="color" class="color-preview" id="qrPrevCartelFg" title="Elegir color" oninput="qrSyncColor('qrPrevCartelFg','qrCartelFg')">
 											<input type="text" class="form-input" id="qrCartelFg" maxlength="7" placeholder="#ffffff" oninput="qrActualizar()">
@@ -1581,26 +1581,26 @@
 						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" onchange="prepararVideoElegido(this)">
 					</div>
 					<div class="form-group">
-						<label class="form-label">Nombre</label>
+						<label for="editNombre" class="form-label">Nombre</label>
 						<input type="text" class="form-input" id="editNombre">
 					</div>
 					<div class="form-group">
-						<label class="form-label">Categoría</label>
+						<label for="editCategoria" class="form-label">Categoría</label>
 						<select class="form-select" id="editCategoria"></select>
 					</div>
 					<div class="form-group">
-						<label class="form-label">Precio <span style="color:var(--text-dim);font-weight:400">(solo el número, ej: 22000)</span></label>
+						<label for="editPrecioNum" class="form-label">Precio <span style="color:var(--text-dim);font-weight:400">(solo el número, ej: 22000)</span></label>
 						<input type="number" class="form-input" id="editPrecioNum" placeholder="22000" min="0" step="100" oninput="document.getElementById('precioPreview').textContent=formatPrecio(this.value)">
 						<div style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-muted)">
 							Vista previa: <span id="precioPreview" style="color:var(--accent)">—</span>
 						</div>
 					</div>
 					<div class="form-group">
-						<label class="form-label">Descripción</label>
+						<label for="editDesc" class="form-label">Descripción</label>
 						<textarea class="form-textarea" id="editDesc"></textarea>
 					</div>
 					<div class="form-group">
-						<label class="form-label">Descripción avanzada <span style="color:var(--text-dim)">(opcional)</span></label>
+						<label for="editDescAvanzada" class="form-label">Descripción avanzada <span style="color:var(--text-dim)">(opcional)</span></label>
 						<input type="text" class="form-input" id="editDescAvanzada">
 					</div>
 					<!-- Qué puede añadirle el cliente a ESTE plato. El catálogo es del
@@ -1655,17 +1655,17 @@
       <input type="hidden" id="editCatId">
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Nombre</label>
+          <label for="editCatNombre" class="form-label">Nombre</label>
           <input type="text" class="form-input" id="editCatNombre" placeholder="Hamburguesas">
         </div>
         <div class="form-group">
-          <label class="form-label">Emoji</label>
+          <label for="editCatEmoji" class="form-label">Emoji</label>
           <input type="text" class="form-input" id="editCatEmoji" placeholder="🍔" maxlength="4">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Orden (número)</label>
+          <label for="editCatOrden" class="form-label">Orden (número)</label>
           <input type="number" class="form-input" id="editCatOrden" placeholder="1" min="0">
         </div>
         <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px;">
@@ -1685,11 +1685,11 @@
           <div id="editCatDias" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
           <div class="form-row" style="margin-bottom:0">
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">Desde</label>
+              <label for="editCatDesde" class="form-label">Desde</label>
               <input type="time" class="form-input" id="editCatDesde" onchange="renderCatHorarioNota()">
             </div>
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">Hasta</label>
+              <label for="editCatHasta" class="form-label">Hasta</label>
               <input type="time" class="form-input" id="editCatHasta" onchange="renderCatHorarioNota()">
             </div>
           </div>
@@ -1731,11 +1731,11 @@
     <div class="modal-body">
       <input type="hidden" id="toppingTipo">
       <div class="form-group">
-        <label class="form-label">Nombre</label>
+        <label for="toppingNombre" class="form-label">Nombre</label>
         <input type="text" class="form-input" id="toppingNombre" placeholder="Ej: Aguacate">
       </div>
       <div class="form-group" id="toppingPrecioGroup">
-        <label class="form-label">Precio adicional</label>
+        <label for="toppingPrecio" class="form-label">Precio adicional</label>
         <input type="number" class="form-input" id="toppingPrecio" placeholder="4000" min="0" step="500">
       </div>
     </div>
@@ -1757,7 +1757,7 @@
       <input type="hidden" id="pinRestoId">
       <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;" id="pinRestoNombre"></p>
       <div class="form-group" style="margin-bottom:0">
-        <label class="form-label">Nuevo PIN</label>
+        <label for="newPinValue" class="form-label">Nuevo PIN</label>
         <input type="text" class="form-input" id="newPinValue" placeholder="Mínimo 4 caracteres" maxlength="20">
       </div>
     </div>
