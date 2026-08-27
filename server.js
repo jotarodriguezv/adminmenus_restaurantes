@@ -683,6 +683,9 @@ app.post('/api/ia/generar', auth, async (req, res) => {
   } catch (e) {
     // Quedarse sin cupo no es un error del sistema: es la respuesta esperada
     // y el panel la enseña tal cual, con el texto que invita a escribir.
+    // Apagada no es lo mismo que agotada: una es decisión de producto y la
+    // otra es conversación comercial. El panel enseña cada una distinto.
+    if (e.iaApagada) return res.status(403).json({ error: e.message, iaApagada: true });
     if (e.sinCupo) return res.status(409).json({ error: e.message, sinCupo: true });
     console.error('[ia] no se pudo lanzar la generación:', e.message);
     res.status(502).json({ error: 'No se pudo pedir la generación. Inténtalo de nuevo.' });
@@ -734,26 +737,47 @@ app.get('/api/ia/cupo', auth, async (req, res) => {
 app.patch('/api/ia/cupo/:restauranteId', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
 
-  // Sin parseInt a propósito: parseInt('1.5') da 1, y guardar un número
-  // distinto del que se mandó no es aceptable en el dato que autoriza el
-  // gasto. Lo que no sea un entero exacto se rechaza en vez de redondearse.
-  //
-  // null tampoco pasa: no mandar cupo no es lo mismo que poner 0, y Number(null)
-  // vale 0.
-  const bruto = req.body.cupo;
-  const n = typeof bruto === 'number' ? bruto
-          : (typeof bruto === 'string' && bruto.trim() !== '' ? Number(bruto) : NaN);
+  // Se puede mandar el cupo, el interruptor, o los dos. Lo que no venga se
+  // deja como está: un upsert que escribiera las dos columnas siempre haría
+  // que cambiar el cupo reactivara sin querer una carta apagada.
+  const cambios = { restaurante_id: req.params.restauranteId, actualizado_at: new Date().toISOString() };
 
-  // El tope de arriba no es un límite técnico: es un freno para que una
-  // errata de teclado no autorice mil generaciones.
-  if (!Number.isInteger(n) || n < 0 || n > 500)
-    return res.status(400).json({ error: 'El cupo va de 0 a 500' });
+  if (req.body.cupo !== undefined) {
+    // Sin parseInt a propósito: parseInt('1.5') da 1, y guardar un número
+    // distinto del que se mandó no es aceptable en el dato que autoriza el
+    // gasto. Lo que no sea un entero exacto se rechaza en vez de redondearse.
+    //
+    // null tampoco pasa: no mandar cupo no es lo mismo que poner 0, y
+    // Number(null) vale 0.
+    const bruto = req.body.cupo;
+    const n = typeof bruto === 'number' ? bruto
+            : (typeof bruto === 'string' && bruto.trim() !== '' ? Number(bruto) : NaN);
+
+    // El tope de arriba no es un límite técnico: es un freno para que una
+    // errata de teclado no autorice mil generaciones.
+    if (!Number.isInteger(n) || n < 0 || n > 500)
+      return res.status(400).json({ error: 'El cupo va de 0 a 500' });
+    cambios.cupo = n;
+  }
+
+  if (req.body.activa !== undefined) {
+    // Solo booleano de verdad. Un 'false' de texto vale true en JavaScript, y
+    // eso encendería la generación de una carta que se acababa de apagar.
+    if (typeof req.body.activa !== 'boolean')
+      return res.status(400).json({ error: 'activa tiene que ser true o false' });
+    cambios.activa = req.body.activa;
+  }
+
+  if (cambios.cupo === undefined && cambios.activa === undefined)
+    return res.status(400).json({ error: 'No se mandó nada que cambiar' });
 
   const { error } = await supabase.from('restaurantes_ia')
-    .upsert({ restaurante_id: req.params.restauranteId, cupo: n, actualizado_at: new Date().toISOString() },
-            { onConflict: 'restaurante_id' });
+    .upsert(cambios, { onConflict: 'restaurante_id' });
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ ok: true, cupo: n });
+
+  // Se devuelve el estado entero y no lo que se mandó: quien llama pinta con
+  // esto, y un upsert parcial deja columnas que esta petición no tocó.
+  res.json({ ok: true, ...(await cupo.estado(supabase, req.params.restauranteId)) });
 });
 
 // ── APROBAR LO QUE GENERÓ EL MODELO ───────────────────────────
