@@ -287,8 +287,10 @@ un fallo reportado sino de leer el código entero. **Ninguno de los treinta y
 tres rompía una prueba**: las 427 que había estaban en verde antes y después de
 confirmar cada uno.
 
-El detalle completo, con el porqué de cada decisión, está en
-`docs/revision-27-08-2026.md`. Lo que conviene saber desde aquí:
+El detalle de cada uno vive donde le toca por tema: la deuda técnica general y
+todo lo del panel en `cartas-en-video.md §9.6–9.11`, el cupo de IA en
+`video-con-ia.md §5`, y la vista previa del plan en `planesymodelos.md §2`. Lo
+que conviene saber desde aquí:
 
 - **Un `throw` dentro de una ruta `async` mataba el proceso entero** — panel,
   las dos colas y el limpiador a la vez. Express 4 no reenvía el rechazo de una
