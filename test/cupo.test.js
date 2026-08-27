@@ -10,7 +10,7 @@ const PLATO = '33333333-3333-4333-8333-333333333333';
 
 // Un Supabase de mentira con lo justo: el tope configurado, cuántas filas
 // cuentan hoy, y un registro de lo que se le mandó escribir.
-function supabaseFalso({ cupoConfigurado = null, filasQueCuentan = 0, fallarConteo = false, activa = true } = {}) {
+function supabaseFalso({ cupoConfigurado = null, filasQueCuentan = 0, fallarConteo = false, activa = true, errorAlInsertar = null } = {}) {
 	const escrituras = [];
 	const inserciones = [];
 
@@ -29,6 +29,8 @@ function supabaseFalso({ cupoConfigurado = null, filasQueCuentan = 0, fallarCont
 			update(obj)   { st.op = 'update'; st.payload = obj;      return q; },
 			eq()   { return q; },
 			neq()  { return q; },
+			in()   { return q; },
+			is()   { return q; },
 			lt()   { return q; },
 			single()      { return q; },
 			maybeSingle() { return q; },
@@ -36,7 +38,12 @@ function supabaseFalso({ cupoConfigurado = null, filasQueCuentan = 0, fallarCont
 			then(res, rej) {
 				if (st.op === 'insert') {
 					inserciones.push(st.payload);
-					return Promise.resolve({ data: { id: 'gen-1', ...st.payload }, error: null }).then(res, rej);
+					// Con errorAlInsertar se simula el rechazo del índice único
+					// parcial de sql/13: la fila llegó a intentarse y la base
+					// dijo que no.
+					return Promise.resolve(errorAlInsertar
+						? { data: null, error: errorAlInsertar }
+						: { data: { id: 'gen-1', ...st.payload }, error: null }).then(res, rej);
 				}
 				if (st.op === 'update') {
 					escrituras.push({ tabla: nombre, ...st.payload });
@@ -164,6 +171,33 @@ describe('qué consume cupo y qué no', () => {
 		const sb = supabaseFalso();
 		await cupo.marcarFallida(sb, 'gen-1', 'x'.repeat(900));
 		assert.equal(sb.escrituras[0].error.length, 500);
+	});
+});
+
+describe('reservar · el choque del índice único no es un error del sistema', () => {
+	// El freno de la ruta lee y después escribe, y entre las dos cosas cabe
+	// otra petición. Lo que cierra esa carrera es el índice único parcial de
+	// sql/13, y lo que llega aquí cuando salta es un 23505.
+	//
+	// Importa cómo se traduce: si saliera como un fallo genérico, el panel
+	// enseñaría "no se pudo pedir la generación" y quien lo lee vuelve a
+	// pulsar. Tiene que decir lo mismo que dice el freno de arriba.
+	const CHOQUE = {
+		code: '23505',
+		message: 'duplicate key value violates unique constraint "generaciones_ia_una_en_curso_por_plato"',
+	};
+
+	test('se marca como "ya en curso" y no como fallo genérico', async () => {
+		const sb = supabaseFalso({ cupoConfigurado: 24, filasQueCuentan: 3, errorAlInsertar: CHOQUE });
+		await assert.rejects(
+			() => cupo.reservar(sb, { restaurante_id: RESTO, producto_id: PLATO }),
+			e => {
+				assert.equal(e.yaEnCurso, true, 'quien llama tiene que poder contestar un 409');
+				assert.match(e.message, /ya tiene una generación en camino/);
+				assert.doesNotMatch(e.message, /constraint|duplicate key/,
+					'el mensaje de Postgres no puede llegar al navegador');
+				return true;
+			});
 	});
 });
 
