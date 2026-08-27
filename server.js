@@ -29,6 +29,50 @@ const supabase = createClient(
 const TRUST_PROXY = process.env.TRUST_PROXY ?? '1';
 app.set('trust proxy', /^\d+$/.test(TRUST_PROXY) ? Number(TRUST_PROXY) : TRUST_PROXY);
 
+// ── UN THROW DENTRO DE UN async NO PUEDE TUMBAR EL SERVIDOR ────
+// Express 4 no mira lo que devuelve un manejador. Si es una promesa y se
+// rechaza, nadie la captura: Node 22 termina el proceso con código 1. No es
+// que se cuelgue la petición — se cae el panel, la cola de conversión, la de
+// IA y el limpiador, todos a la vez, porque son el mismo proceso.
+//
+// Y llegar ahí no pedía nada raro. Bastaba un POST a /api/categorias sin
+// 'nombre' (nombre.toLowerCase() sobre undefined) o un /api/estadisticas con
+// una fecha mal escrita (Intl revienta con una Invalid Date). Los dos son
+// alcanzables por cualquier restaurante con sesión iniciada.
+//
+// Se arregla aquí, en las cuatro líneas que registran las rutas, y no
+// envolviendo cada manejador a mano. El motivo es que a mano hay que
+// acordarse: la ruta que alguien escriba dentro de seis meses nace cubierta
+// si la red está puesta en el registro, y nace descubierta si hay que
+// recordar un envoltorio. Es la misma razón por la que el escapado de HTML
+// vive en una función compartida y no copiado en cada plantilla.
+//
+// Los manejadores de ERROR (los de cuatro argumentos) se dejan intactos:
+// Express los distingue por el número de parámetros, y envolverlos los
+// convertiría en middleware normal y dejaría de llamarlos.
+function conCaptura(fn) {
+  if (typeof fn !== 'function' || fn.length === 4) return fn;
+  return function (req, res, next) {
+    try {
+      const salida = fn.call(this, req, res, next);
+      // Solo se encadena si de verdad es una promesa: un manejador normal
+      // devuelve undefined y no hay nada que esperar.
+      if (salida && typeof salida.then === 'function') salida.catch(next);
+    } catch (e) { next(e); }
+  };
+}
+for (const metodo of ['get', 'post', 'put', 'patch', 'delete', 'all', 'use']) {
+  const original = app[metodo].bind(app);
+  app[metodo] = (...args) => original(...args.map(conCaptura));
+}
+
+// Última red, por si algo se escapa fuera de una ruta (una cola, un
+// temporizador). Registrar y seguir vivo es mejor que morir: lo que se pierde
+// es una operación, no el servidor entero de todos los restaurantes.
+process.on('unhandledRejection', e => {
+  console.error('⚠️  promesa sin capturar:', e?.stack || e?.message || e);
+});
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -363,7 +407,11 @@ app.get('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol === 'cliente') q = q.eq('id', req.user.restauranteId);
   const { data, error } = await q;
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data.map(({ pin_hash, ...r }) => r));
+  // Sin filtrar pin_hash: esa columna ya no está en 'restaurantes' desde la
+  // migración 02, el hash vive en restaurantes_privado. Quitar de aquí una
+  // columna que no existe hacía pensar lo contrario a quien lo leyera — que
+  // la tabla pública todavía guarda credenciales.
+  res.json(data);
 });
 
 // Al clonar apariencia de otro restaurante, solo se copian estas claves de
@@ -567,22 +615,42 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
 
   const { data, error } = await supabase.from('restaurantes').update(body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
-  const { pin_hash, ...safe } = data;
-  res.json(safe);
+  // Igual que en GET /api/restaurantes: 'pin_hash' ya no es una columna de
+  // esta tabla, así que no hay nada que quitar.
+  res.json(data);
 });
 
-// Solo superadmin. Borra en cascada categorías, productos y eventos de
-// estadísticas de ese restaurante antes de borrar el restaurante mismo
-// (no depende de que la base de datos tenga ON DELETE CASCADE configurado).
-// No borra archivos subidos (logo, fondos, fotos de producto) — quedan
-// huérfanos en disco, aceptado a propósito por ahora.
+// Solo superadmin. Borra todo lo que cuelga del restaurante antes de borrar
+// el restaurante mismo, para no depender de que la base tenga ON DELETE
+// CASCADE configurado.
+//
+// La lista se había quedado en las cuatro tablas que existían cuando se
+// escribió esto. Después nacieron trabajos_video, generaciones_ia,
+// restaurantes_ia y restaurantes_facturacion, y ninguna se apuntó aquí: hoy
+// caen por la cascada de la base —lo comprobé, las cuatro claves foráneas son
+// CASCADE— pero entonces el comentario prometía una independencia que ya no
+// era verdad, y ese es el tipo de cosa que se descubre el día que alguien
+// crea una tabla sin cascada.
+//
+// El orden va de las hojas hacia la raíz para que ninguna quede apuntando a
+// algo que ya no está.
+//
+// No borra archivos subidos (logo, fondos, fotos, videos) — quedan huérfanos
+// en disco y los recoge limpieza.js, aceptado a propósito.
 app.delete('/api/restaurantes/:id', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
   const id = req.params.id;
-  await supabase.from('eventos_analitica').delete().eq('restaurante_id', id);
-  await supabase.from('productos').delete().eq('restaurante_id', id);
-  await supabase.from('categorias').delete().eq('restaurante_id', id);
-  await supabase.from('restaurantes_privado').delete().eq('restaurante_id', id);
+  for (const tabla of [
+    'eventos_analitica', 'generaciones_ia', 'trabajos_video',
+    'productos', 'categorias',
+    'restaurantes_ia', 'restaurantes_facturacion', 'restaurantes_privado',
+  ]) {
+    const { error } = await supabase.from(tabla).delete().eq('restaurante_id', id);
+    // Se corta en vez de seguir: llegar al delete final con una tabla a
+    // medias deja filas apuntando a un restaurante que está a punto de
+    // desaparecer, y el error de clave foránea saldría sin decir de dónde.
+    if (error) return res.status(500).json({ error: `borrando ${tabla}: ${error.message}` });
+  }
   const { error } = await supabase.from('restaurantes').delete().eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
@@ -649,9 +717,24 @@ app.post('/api/ia/generar', auth, async (req, res) => {
   //
   // Aquello se arregló en el panel, pero el panel es la puerta bonita. Lo que
   // impide pagar dos veces por la misma decisión tiene que estar aquí.
-  const { data: yaGenerando } = await supabase.from('generaciones_ia')
-    .select('id').eq('producto_id', producto_id).eq('estado', 'generando').limit(1);
-  if (yaGenerando?.length)
+  // 'reservada' Y 'generando', no solo la segunda. Una reserva nace
+  // 'reservada' —es el valor por defecto de la columna— y solo pasa a
+  // 'generando' cuando anotarPrediccion() escribe el identificador, o sea
+  // DESPUÉS de que Replicate acepte la petición: hasta 30 segundos (ver
+  // LIMITE_CREAR_MS en ia.js).
+  //
+  // Mirando solo 'generando', ese tramo era un agujero por el que pasaba la
+  // segunda pulsación, y el otro control —el de trabajos_video sin revisar—
+  // tampoco la veía porque el trabajo todavía no existe. Justo los 21
+  // segundos entre las dos generaciones del 26/08/2026.
+  //
+  // Esto sigue siendo leer-y-luego-escribir: dos peticiones exactamente
+  // simultáneas pasan las dos. Lo que lo cierra de verdad es el índice único
+  // parcial de sql/13, y por eso reservar() traduce su choque a este mismo
+  // 409. Este de aquí es el que da el mensaje bueno en el caso normal.
+  const { data: yaEnCurso } = await supabase.from('generaciones_ia')
+    .select('id').eq('producto_id', producto_id).in('estado', ['reservada', 'generando']).limit(1);
+  if (yaEnCurso?.length)
     return res.status(409).json({ error: 'Ese plato ya tiene una generación en camino. Espera a que termine.' });
 
   // Y una ya generada que nadie ha mirado cuenta igual: pedir otra es pagar
@@ -687,6 +770,10 @@ app.post('/api/ia/generar', auth, async (req, res) => {
     // otra es conversación comercial. El panel enseña cada una distinto.
     if (e.iaApagada) return res.status(403).json({ error: e.message, iaApagada: true });
     if (e.sinCupo) return res.status(409).json({ error: e.message, sinCupo: true });
+    // El índice único de la base cazó una segunda petición simultánea. Es el
+    // mismo caso que el control de arriba, visto una capa más abajo, así que
+    // se contesta igual: no es un error, es la respuesta correcta.
+    if (e.yaEnCurso) return res.status(409).json({ error: e.message, yaEnCurso: true });
     console.error('[ia] no se pudo lanzar la generación:', e.message);
     res.status(502).json({ error: 'No se pudo pedir la generación. Inténtalo de nuevo.' });
   }
@@ -965,12 +1052,35 @@ app.patch('/api/categorias/:id', auth, async (req, res) => {
   res.json(data);
 });
 
+// Borrar una categoría BORRA SUS PLATOS. No es una decisión de esta ruta:
+// productos_categoria_id_fkey es ON DELETE CASCADE, así que la base se los
+// lleva sola. Aquí no se decía en ninguna parte, y el efecto era que se
+// perdían platos sin que nada lo anunciara y sus fotos quedaban tiradas en el
+// disco esperando siete días al limpiador.
+//
+// Se sigue permitiendo —es lo que espera quien borra una categoría entera—
+// pero ahora las fotos se recogen antes y la respuesta dice cuántos platos se
+// fueron, para que el panel lo pueda enseñar.
 app.delete('/api/categorias/:id', auth, async (req, res) => {
   const { data: cat } = await supabase.from('categorias').select('restaurante_id').eq('id', req.params.id).single();
   if (!cat || !canAccessRestaurante(req.user, cat.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+
+  // Antes del delete: después de la cascada ya no hay a quién preguntarle qué
+  // fotos eran suyas.
+  const { data: platos } = await supabase.from('productos')
+    .select('imagen_url').eq('categoria_id', req.params.id);
+
   const { error } = await supabase.from('categorias').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ ok: true });
+
+  // Solo después de que la base confirme el borrado: si fallara, estas fotos
+  // seguirían en uso.
+  for (const p of platos || []) {
+    const ruta = rutaLocalDeSubida(p.imagen_url);
+    if (ruta && fs.existsSync(ruta)) { try { fs.unlinkSync(ruta); } catch {} }
+  }
+
+  res.json({ ok: true, productos_borrados: platos?.length || 0 });
 });
 
 // ── PRECIO: UN SOLO DATO ESCRITO DOS VECES ────────────────────
@@ -1047,7 +1157,11 @@ function atributosProducto(entrantes, actuales) {
 //
 // Devuelve un mensaje de error, o null si la categoría vale.
 async function categoriaAjena(categoriaId, restauranteId) {
-  if (!categoriaId) return null;           // un plato sin categoría es válido
+  // La columna es NOT NULL en la base, así que un plato sin categoría no
+  // existe. Aquí ponía que sí era válido, y el resultado era que el insert
+  // moría con el mensaje crudo de Postgres —que habla de restricciones y no
+  // dice qué falta— en un 500 en vez de un 400 que se pueda leer.
+  if (!categoriaId) return 'Falta la categoría del plato';
   const { data } = await supabase.from('categorias')
     .select('restaurante_id').eq('id', categoriaId).maybeSingle();
   if (!data) return 'Esa categoría no existe';
@@ -1102,11 +1216,19 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
 app.delete('/api/productos/:id', auth, async (req, res) => {
   const { data: prod } = await supabase.from('productos').select('restaurante_id, imagen_url').eq('id', req.params.id).single();
   if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
-  // Borrar imagen del servidor si es local
-  if (prod.imagen_url && prod.imagen_url.includes('/uploads/')) {
-    const parts = prod.imagen_url.split('/uploads/')[1];
-    const filepath = path.join(__dirname, 'uploads', parts);
-    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+  // Borrar imagen del servidor si es local.
+  //
+  // Con rutaLocalDeSubida() y no partiendo la URL a mano. 'imagen_url' lo
+  // escribe el cliente —está en la lista de permitidos del PATCH—, así que un
+  // valor como 'https://x/uploads/../server.js' se convertía en un unlink
+  // sobre /app/server.js: el path.join de antes no comprobaba que el
+  // resultado siguiera dentro de uploads/.
+  //
+  // Es la misma función que usa el worker antes de darle un archivo a ffmpeg.
+  // Ya estaba escrita; esta ruta era la única que no la usaba.
+  const rutaImagen = rutaLocalDeSubida(prod.imagen_url);
+  if (rutaImagen && fs.existsSync(rutaImagen)) {
+    try { fs.unlinkSync(rutaImagen); } catch {}
   }
   const { error } = await supabase.from('productos').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
@@ -1123,11 +1245,65 @@ app.post('/api/upload', auth, upload.single('file'), (req, res) => {
   res.json({ url, filename: req.file.filename });
 });
 
+// ── ¿DE QUIÉN ES ESTE ARCHIVO? ────────────────────────────────
+// Un archivo del disco no lleva dueño escrito: lo que lo hace de alguien es
+// que una fila suya lo nombre. Así que la pregunta se contesta igual que la
+// contesta el limpiador —recorriendo las tablas y mirando qué rutas
+// mencionan— y con la misma función, para que no haya dos formas distintas
+// de leer un nombre de archivo que puedan discrepar.
+//
+// Devuelve el restaurante que lo referencia, o null si no lo referencia
+// nadie. Ese null es un caso legítimo y no un error: el panel sube la foto
+// en cuanto la eliges y la fila no se escribe hasta guardar, así que entre
+// esos dos momentos el archivo no es de nadie todavía.
+//
+// Recorre las tablas enteras. Con 9 restaurantes y 159 platos eso es
+// inmediato, y esta ruta se llama cuando alguien se arrepiente de una foto:
+// no es un camino caliente. El día que las tablas crezcan, esto se acota por
+// restaurante — no antes, que sería complicarlo por un problema que no hay.
+const TABLAS_CON_ARCHIVOS = [
+  { tabla: 'restaurantes',   dueno: 'id' },
+  { tabla: 'categorias',     dueno: 'restaurante_id' },
+  { tabla: 'productos',      dueno: 'restaurante_id' },
+  { tabla: 'trabajos_video', dueno: 'restaurante_id' },
+];
+
+async function restauranteDelArchivo(clave) {
+  for (const { tabla, dueno } of TABLAS_CON_ARCHIVOS) {
+    const { data, error } = await supabase.from(tabla).select('*');
+    // Si una tabla no contesta NO se puede concluir que el archivo no es de
+    // nadie: se corta y quien llama trata la duda como un no. Fallar abierto
+    // aquí sería dejar borrar por un problema de red.
+    if (error) throw new Error(`comprobando ${tabla}: ${error.message}`);
+    for (const fila of data || []) {
+      if (limpieza.recogerNombres(JSON.stringify(fila), new Set()).has(clave))
+        return fila[dueno] || null;
+    }
+  }
+  return null;
+}
+
 // Express aplica decodeURIComponent a los parámetros de ruta, así que un
 // '..%2F..%2Fserver.js' llega ya convertido en una ruta que se sale de
 // uploads/. Se resuelve la ruta y se comprueba que el resultado siga dentro
 // antes de borrar nada.
-app.delete('/api/upload/:folder/:filename', auth, (req, res) => {
+//
+// Y eso era TODO lo que se comprobaba, que es la mitad de la pregunta. La
+// otra mitad —de quién es el archivo— no se hacía, así que cualquier
+// restaurante con sesión podía borrar los archivos de otro. Los nombres ni
+// siquiera había que adivinarlos: 'restaurantes' y 'productos' tienen lectura
+// pública, así que con la llave publishable que viaja en el JS de la carta se
+// listan los imagen_url, logo_url y atributos.video.url de todos.
+//
+// Ahora hacen falta las tres cosas: carpeta de imágenes conocida, la ruta
+// dentro de uploads/, y que el archivo sea suyo o de nadie.
+app.delete('/api/upload/:folder/:filename', auth, async (req, res) => {
+  // Solo las carpetas de imágenes. videos/, masters/, originales/ y
+  // miniaturas/ las escribe y las borra el worker: nada que llegue por HTTP
+  // tiene por qué tocarlas, y un master borrado no se recupera.
+  if (!CARPETAS_VALIDAS.has(req.params.folder))
+    return res.status(400).json({ error: 'Carpeta inválida' });
+
   const base = path.resolve(__dirname, 'uploads');
   const fp = path.resolve(base, req.params.folder, req.params.filename);
   const rel = path.relative(base, fp);
@@ -1137,6 +1313,21 @@ app.delete('/api/upload/:folder/:filename', auth, (req, res) => {
   if (rel.startsWith('..') || path.isAbsolute(rel) || rel.split(path.sep).length !== 2)
     return res.status(400).json({ error: 'Ruta inválida' });
   if (!fs.existsSync(fp)) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+  if (req.user.rol !== 'admin') {
+    let dueno;
+    try {
+      dueno = await restauranteDelArchivo(`${req.params.folder}/${req.params.filename}`);
+    } catch (e) {
+      console.error('[upload] no se pudo comprobar el dueño del archivo:', e.message);
+      return res.status(503).json({ error: 'No se pudo comprobar el archivo. Inténtalo de nuevo.' });
+    }
+    // null = no lo referencia ninguna fila: una subida que nadie llegó a
+    // guardar. Borrarla es justo lo que hace el botón de cancelar del panel.
+    if (dueno && dueno !== req.user.restauranteId)
+      return res.status(403).json({ error: 'Ese archivo no es de este restaurante' });
+  }
+
   // El borrado puede fallar igual (permisos, carrera con otro borrado); que no
   // se lleve por delante el proceso entero.
   try { fs.unlinkSync(fp); } catch { return res.status(500).json({ error: 'No se pudo borrar' }); }
@@ -1244,11 +1435,24 @@ app.get('/api/video/trabajos', auth, async (req, res) => {
 // referenciado y limpieza.js lo recoge en su siguiente pasada.
 app.delete('/api/video/trabajos/:id', auth, async (req, res) => {
   const { data: t } = await supabase.from('trabajos_video')
-    .select('restaurante_id, estado').eq('id', req.params.id).maybeSingle();
+    .select('restaurante_id, estado, master').eq('id', req.params.id).maybeSingle();
   if (!t || !canAccessRestaurante(req.user, t.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   // Borrarlo a mitad de conversión dejaría a ffmpeg escribiendo en archivos
   // que ya no le importan a nadie.
   if (t.estado === 'procesando') return res.status(409).json({ error: 'Ese video se está convirtiendo ahora mismo' });
+  // Un trabajo TERMINADO no es basura: su fila es la única cosa en todo el
+  // sistema que nombra el master. El entregable y la portada los sigue
+  // nombrando productos.atributos.video, pero el master no sale de aquí a
+  // propósito, así que al borrar la fila queda huérfano y el limpiador se lo
+  // lleva a los siete días. El plato sigue enseñando su video y la
+  // posibilidad de reconvertirlo desaparece sola una semana después, sin que
+  // nadie relacione una cosa con la otra.
+  //
+  // Esta ruta es para descartar lo que falló, que es para lo que la usa el
+  // panel (descartarVideoFallido). Lo terminado se reemplaza subiendo otro
+  // video, y de eso ya se encarga purgarAnteriores().
+  if (t.estado === 'listo' && t.master)
+    return res.status(409).json({ error: 'Ese video ya está convertido: borrarlo perdería el master del que se puede volver a recortar. Sube otro video para reemplazarlo.' });
   const { error } = await supabase.from('trabajos_video').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
@@ -1534,6 +1738,32 @@ ${img ? `<meta name="twitter:image" content="${escHtml(img)}">` : ''}
 // tener tarjeta.
 const SUBDOMINIOS_RESERVADOS = ['menu', 'www', 'admin', 'app', 'api'];
 
+// ── QUÉ DOMINIOS SON NUESTROS ─────────────────────────────────
+// Esta ruta escribe el destino en un href y en un meta refresh, así que el
+// host decide a dónde manda una página servida desde nuestro dominio.
+//
+// Antes solo se comprobaba la FORMA del host —que pareciera un nombre de
+// dominio— y eso deja pasar cualquier dominio del mundo. Con
+// /api/og?host=atacante.example&path=/bonzas la página salía con el nombre,
+// el subtítulo y el logo REALES de Bonzas en las etiquetas Open Graph, y el
+// enlace llevaba a otro sitio: una tarjeta de WhatsApp convincente servida
+// desde nuestro dominio.
+//
+// Se deja en una variable de entorno porque los dominios de la plataforma
+// cambian sin que cambie este archivo. Se acepta el dominio y cualquier
+// subdominio suyo, que es exactamente lo que la carta usa: vmenus.co,
+// menu.vmenus.co y bonzas.vmenus.co.
+const DOMINIOS_PROPIOS = (process.env.OG_DOMINIOS || 'vmenus.co')
+  .split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+
+function hostDeLaPlataforma(host) {
+  const h = String(host || '').toLowerCase();
+  // La forma sigue haciendo falta: es lo que impide que un host raro se cuele
+  // en el atributo aunque el dominio acabe en uno de los nuestros.
+  if (!/^[a-z0-9][a-z0-9.-]{0,252}[a-z0-9]$/.test(h)) return false;
+  return DOMINIOS_PROPIOS.some(d => h === d || h.endsWith('.' + d));
+}
+
 function slugDesde(host, ruta) {
   // A minúsculas ANTES de comparar con los reservados. En el navegador esto
   // no hace falta porque location.hostname ya viene normalizado, pero aquí el
@@ -1562,7 +1792,7 @@ app.get('/api/og', async (req, res) => {
   // Y con la ruta que corresponda: en bonzas.vmenus.co el slug ya está en el
   // dominio, así que el destino es la raíz. Poner /bonzas ahí daría una URL
   // que no es la que el visitante compartió.
-  const hostBueno = /^[a-z0-9][a-z0-9.-]{0,252}[a-z0-9]$/i.test(host);
+  const hostBueno = hostDeLaPlataforma(host);
   const enSubdominio = slug && !String(req.query.path || '').includes(slug);
   const destino = !hostBueno
     ? `https://menu.vmenus.co/${encodeURIComponent(slug)}`
@@ -1613,7 +1843,14 @@ app.use((err, req, res, next) => {
       ? `El archivo pasa del límite de ${tope} MB` : err.message });
   }
   if (/^Solo /.test(err?.message || '')) return res.status(400).json({ error: err.message });
-  next(err);
+
+  // Todo lo demás llega por conCaptura(): un fallo que antes mataba el
+  // proceso. Se registra entero —con la ruta, que es lo que permite
+  // encontrarlo— y al otro lado va un mensaje sin nada dentro: el texto de
+  // una excepción de Node puede llevar rutas del disco o nombres de tablas.
+  console.error(`⚠️  fallo no controlado en ${req.method} ${req.originalUrl}:`, err?.stack || err?.message || err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Algo falló en el servidor. Inténtalo de nuevo.' });
 });
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
