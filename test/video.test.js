@@ -651,6 +651,48 @@ describe('purgarAnteriores · un reconvertido comparte master con su origen', ()
 			for (const rel of [master, videoViejo]) { try { fs.unlinkSync(path.join(RAIZ, rel)); } catch {} }
 		}
 	});
+
+	// La prueba de arriba pasaba, y aun así el master se borraba en
+	// producción: le entregaba un 'trabajo' con las rutas ya escritas, y esa
+	// es una forma que procesarTrabajo NUNCA produce. Allí el trabajo es la
+	// fila que leyó tomarSiguiente() ANTES de convertir, así que
+	// video/master/portada valen null y el conjunto de "en uso" quedaba
+	// vacío justo en el caso que la función existe para proteger.
+	//
+	// Esta prueba usa esa forma: la de verdad.
+	test('tampoco lo borra cuando el trabajo llega sin sus rutas escritas', async () => {
+		const base = 'prueba-sin-rutas-' + Date.now();
+		const master = `masters/${base}-master.mp4`;
+		const videoViejo = `videos/${base}-viejo.mp4`;
+		for (const rel of [master, videoViejo]) {
+			const abs = path.join(RAIZ, rel);
+			fs.mkdirSync(path.dirname(abs), { recursive: true });
+			fs.writeFileSync(abs, 'x');
+		}
+
+		const q = {
+			select: () => q, eq: () => q, neq: () => q,
+			in: () => Promise.resolve({ data: [{ id: 'viejo', video: videoViejo, master, portada: null }] }),
+			delete: () => ({ eq: () => Promise.resolve({}) }),
+		};
+
+		try {
+			await video.purgarAnteriores({ from: () => q }, {
+				id: 'nuevo', producto_id: 'p1',
+				// Lo único que dice que esto es una reconversión, y por tanto
+				// que ese master está en uso: la carpeta del origen.
+				origen: master,
+				video: null, master: null, portada: null,
+			});
+
+			assert.equal(fs.existsSync(path.join(RAIZ, master)), true,
+				'el master del que se acaba de partir tiene que sobrevivir');
+			assert.equal(fs.existsSync(path.join(RAIZ, videoViejo)), false,
+				'el entregable viejo sí sobra');
+		} finally {
+			for (const rel of [master, videoViejo]) { try { fs.unlinkSync(path.join(RAIZ, rel)); } catch {} }
+		}
+	});
 });
 
 // ═══════════════════════════════════════════════════════════════
