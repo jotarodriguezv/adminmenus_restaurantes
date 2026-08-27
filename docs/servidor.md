@@ -280,6 +280,44 @@ Recogidas por haberlas sufrido:
 
 ## Registro de cambios
 
+**27/08/2026 — Revisión completa del código: 33 fallos**
+
+Repaso de los dos repositorios contra el esquema real de Supabase. No salió de
+un fallo reportado sino de leer el código entero. **Ninguno de los treinta y
+tres rompía una prueba**: las 427 que había estaban en verde antes y después de
+confirmar cada uno.
+
+El detalle completo, con el porqué de cada decisión, está en
+`docs/revision-27-08-2026.md`. Lo que conviene saber desde aquí:
+
+- **Un `throw` dentro de una ruta `async` mataba el proceso entero** — panel,
+  las dos colas y el limpiador a la vez. Express 4 no reenvía el rechazo de una
+  promesa y Node 22 termina con código 1. Bastaba un POST sin un campo. La red
+  se puso en el registro de las rutas, así que la ruta que se escriba mañana
+  nace cubierta.
+- **Tres rutas destructivas sin las comprobaciones que el resto sí hacía:**
+  `DELETE /api/upload` no miraba de quién era el archivo, `DELETE
+  /api/productos` no comprobaba contención de rutas, y `POST /api/video` era la
+  única de las cuatro rutas que encolan trabajo sin freno contra dos
+  conversiones del mismo plato.
+- **Reconvertir borraba el master que acababa de heredar.** Había una prueba
+  que lo cubría y pasaba: le entregaba una forma que producción nunca produce.
+- **El freno anti-doble-generación tenía un hueco de 30 s** — miraba
+  `'generando'` y una reserva nace `'reservada'`. Se cerró por las dos capas:
+  la ruta mira los dos estados y `sql/13` añade un índice único parcial, que es
+  lo único que cierra la carrera de verdad.
+- **`atributos` se reemplazaba entero desde la copia que el panel cargó al
+  entrar**, así que un guardado del superadmin devolvía a su valor viejo lo que
+  el dueño hubiera cambiado mientras tanto. Ahora cada pantalla manda solo sus
+  claves y las funde el servidor.
+
+**Aplicado en la base:** `sql/13_una_generacion_en_curso_por_plato.sql`. Es
+aditivo —un índice sobre una tabla sin filas en los estados que cubre— y se
+verificó después: rechaza la segunda generación en curso del mismo plato y sigue
+permitiendo el historial, que es sobre lo que se cuenta el cupo.
+
+Quedan 361 pruebas, 34 nuevas. Sin revisar: el HTML y el CSS del panel.
+
 **23/08/2026 — Reinicio y actualizaciones**
 
 Kernel 6.8.0-134 → 6.8.0-138 y las 27 actualizaciones de seguridad que había
