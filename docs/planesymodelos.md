@@ -75,12 +75,32 @@ de píxeles (1280×720 y 720×1280 son lo mismo girado). Lo que cambia es el
 encuadre con el que se graba o se genera, y eso lo decide el restaurante. Por
 eso no son dos planes ni dos precios: **son dos modelos del plan Video.**
 
-⚠ **Pero el encuadre no es cosmético.** El formato de recorte se guarda en cada
-trabajo de conversión, así que cambiar el modelo **no re-recorta lo ya
-convertido**: los videos viejos siguen como estaban y se ven como una franja
-del centro. Para eso existe el botón *Reconvertir* de la ficha del plato, que
-vuelve a cortar desde el master sin volver a grabar ni pagar. Ver
-`docs/cartas-en-video.md`.
+⚠ **Pero el encuadre no es cosmético.**
+
+### Qué pasa con los videos ya cargados si se cambia de modelo
+
+El formato de recorte **se guarda en cada trabajo de conversión**, no se lee del
+restaurante al pintar. Así que cambiar el modelo no toca nada de lo ya
+convertido: los videos siguen recortados como estaban, y en la carta nueva se
+ven como una franja del centro. Es deliberado — que un cambio de ajuste
+reprocese la carta entera sin avisar sería peor.
+
+Lo que pasa entonces, paso a paso:
+
+1. Cambias el modelo en Apariencia (`video` ⇄ `vertical`).
+2. Los videos existentes **siguen funcionando**, mal encuadrados.
+3. En la ficha de cada plato aparece un aviso naranja: *"este video se recortó
+   apaisado y tu carta ahora es vertical"*, con el botón **Reconvertir**.
+4. Reconvertir vuelve a cortar **desde el master**, que se guarda sin recortar
+   justamente para esto. No hay que volver a grabar, no cuesta dinero, y en un
+   video generado con IA **no gasta otra animación**.
+
+El aviso solo sale cuando de verdad hace falta: video publicado, con master, y
+en un formato distinto al de la carta. Ver `docs/cartas-en-video.md`.
+
+⚠ **Lo único que no se recupera** es lo que el recorte original ya tiró — pero
+el master no está recortado, así que en la práctica se recupera todo. Los
+videos convertidos antes de que existiera el master son la excepción.
 
 ---
 
@@ -113,14 +133,18 @@ conserva: si se vuelve a encender, sigue donde iba.
 
 ## 5. Cómo leer la lista de restaurantes
 
-Cada tarjeta lleva ahora una línea que contesta las cuatro preguntas en el
-orden en que se hacen:
+Cada tarjeta lleva una fila de etiquetas que contesta las cuatro preguntas en
+el orden en que se hacen:
 
 ```
-📷 solo fotos · Topnav · 🛒 pedidos · Plan Completo
-🎬 video vertical 9:16 · Vertical · 🛒 pedidos · ✨ IA · Plan Video
-🎬 video apaisado 16:9 · Video · 🛒 pedidos · ✨ IA apagada · Plan Video
+[📷 solo fotos] [Topnav] [🛒 pedidos] [PLAN COMPLETO]
+[🎬 video vertical 9:16] [Vertical] [🛒 pedidos] [✨ IA] [PLAN VIDEO]
+[🎬 video apaisado 16:9] [Video] [🛒 pedidos] [✨ IA apagada] [PLAN VIDEO]
 ```
+
+Son etiquetas y no un texto con separadores porque cada dato tiene que poder
+envolver **entero**: con "·" el salto de línea caía en cualquier sitio y dejaba
+el punto colgando al principio de la línea siguiente.
 
 1. **Qué le enseña al comensal** — fotos o video, y en qué encuadre
 2. **El modelo** — la forma de la carta
@@ -133,7 +157,7 @@ orden en que se hacen:
 Debajo, cuando hay algo que contar, la segunda línea con el estado del video:
 
 ```
-🎬 12 videos · 👀 1 sin revisar · ⏳ 2 convirtiendo · ✨ 14/24 con IA
+[🎬 12 videos] [👀 1 sin revisar] [⏳ 2 convirtiendo] [✨ 14/24 con IA]
 ```
 
 **"sin revisar" no está en la carta.** Es un video generado, convertido y
