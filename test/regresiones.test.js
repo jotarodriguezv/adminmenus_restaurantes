@@ -231,11 +231,26 @@ describe('04 · dos conversiones del mismo plato', () => {
   });
 
   test('sin ninguna en curso, la subida sigue funcionando', async () => {
+    // Esta subida SÍ llega a escribir el archivo en uploads/originales, y esa
+    // carpeta la comparten los dos ficheros de prueba — que el ejecutor corre
+    // en procesos paralelos. api.test.js cuenta los archivos de ahí antes y
+    // después de una subida rechazada, así que un archivo nuestro apareciendo
+    // entre las dos cuentas le hacía fallar una de cada tres veces.
+    //
+    // Se limpia lo que se deja. Una prueba que ensucia un recurso compartido
+    // hace fallar a otra que no tiene nada que ver, y eso enseña a mirar el
+    // rojo sin leerlo.
+    const dir = path.join(__dirname, '..', 'uploads', 'originales');
+    const antes = new Set(fs.existsSync(dir) ? fs.readdirSync(dir) : []);
+
     S.reiniciar(); enCurso(false);
     const r = await S.pedirArchivo('/api/video',
       { restaurante_id: S.IDS.restaurante, producto_id: S.IDS.producto }, S.tokenCliente);
 
     assert.equal(r.status, 200);
     assert.equal(S.llamadas.some(l => l.tabla === 'trabajos_video' && l.op === 'insert'), true);
+
+    for (const f of (fs.existsSync(dir) ? fs.readdirSync(dir) : []))
+      if (!antes.has(f)) { try { fs.unlinkSync(path.join(dir, f)); } catch {} }
   });
 });
