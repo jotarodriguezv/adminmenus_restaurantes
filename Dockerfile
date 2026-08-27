@@ -34,7 +34,8 @@ COPY . .
 #   videos       → el entregable 1280x720 que ve el cliente
 #   masters      → el original sin recortar, de archivo, nunca se sirve
 #   miniaturas   → la portada JPEG de cada video
-RUN mkdir -p uploads/productos uploads/promos \
+RUN mkdir -p uploads/productos uploads/categorias uploads/promos \
+             uploads/logos uploads/fondos uploads/portadas \
              uploads/originales uploads/videos uploads/masters uploads/miniaturas
 
 EXPOSE 3000
