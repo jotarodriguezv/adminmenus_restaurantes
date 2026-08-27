@@ -1423,6 +1423,22 @@ app.post('/api/video', auth,
         descartar();
         return res.status(403).json({ error: 'Ese plato no es de este restaurante' });
       }
+
+      // Dos conversiones a la vez sobre el mismo plato compiten por el mismo
+      // campo: gana la que termine después, que no tiene por qué ser la que se
+      // pidió, y la otra se queda ocupando disco sin que nada la enseñe. Son
+      // además ~86 s de CPU y hasta 200 MB de original tirados.
+      //
+      // El panel ya lo impide apagando el botón mientras convierte, y lo
+      // explica con estas mismas palabras. Pero el panel es la puerta bonita:
+      // dos pestañas abiertas sobre el mismo plato, o una llamada directa,
+      // entran por aquí. Las otras tres rutas que encolan trabajo —las dos de
+      // reconversión y la de generar con IA— ya lo comprueban; esta, que es la
+      // más usada de las cuatro, era la única que no.
+      if (await hayConversionEnMarcha(producto_id)) {
+        descartar();
+        return res.status(409).json({ error: 'Ese plato ya tiene una conversión en marcha. Espera a que termine.' });
+      }
     }
 
     try {
