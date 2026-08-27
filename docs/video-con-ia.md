@@ -157,6 +157,18 @@ Contando al terminar, alguien puede lanzar veinte peticiones antes de que se
 cuente ninguna. Contando al empezar sin liberar nunca, un fallo de red le come
 una animación al cliente que no llegó a usar.
 
+### La reserva que se quedaba atascada (27/08/2026)
+
+`rescatarReservas()` es lo que devuelve al cupo una reserva que nunca llegó a
+salir, y miraba **solo el estado `'reservada'`**. Pero una fila puede quedarse en
+`'generando'` sin identificador de predicción, y la cola las salta —
+`if (!gen.prediction_id) continue`—, así que nadie volvía a mirarlas nunca y
+consumían cupo para siempre.
+
+Lo que define el caso no es el estado sino **la falta de identificador**: sin él
+no hay nada que consultar ni nada que cobrar. El rescate se apoya ahora en eso, y
+de paso cubre los dos estados.
+
 ---
 
 ## 6. Tres riesgos técnicos
@@ -647,7 +659,7 @@ el historial es justamente lo que permite contar el cupo. Se verificó
 explícitamente que sigue permitiéndolo — un índice que lo hubiera bloqueado
 habría roto el conteo sin que nada lo dijera.
 
-Ver `revision-27-08-2026.md §5.1`.
+La revisión completa del 27/08 que lo destapó está en `cartas-en-video.md §9`.
 
 ---
 
