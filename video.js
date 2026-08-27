@@ -456,7 +456,23 @@ async function purgarAnteriores(supabase, trabajo) {
   // Un reconvertido COMPARTE master con el trabajo del que salió. Purgar sin
   // mirar borraría el archivo al que el nuevo acaba de apuntar, y con él la
   // única copia sin recortar que queda del video.
-  const enUso = new Set([trabajo.video, trabajo.master, trabajo.portada].filter(Boolean));
+  //
+  // 'origen' está en la lista y no es una repetición de 'master'. Cuando esta
+  // función la llama procesarTrabajo, el 'trabajo' es la fila que leyó
+  // tomarSiguiente() ANTES de convertir, así que video/master/portada valen
+  // null y el conjunto quedaba vacío justo en el caso que existe para
+  // proteger: el master compartido se borraba, la reconversión siguiente
+  // fallaba con "el master ya no está" y /api/video/trabajos seguía diciendo
+  // tiene_master:true porque la columna no era nula.
+  //
+  // En una reconversión el origen ES ese master (por eso esReconversion() se
+  // define mirando la carpeta del origen), así que preguntarlo aquí contesta
+  // bien con las dos formas de llamar: la de procesarTrabajo, que trae la
+  // fila vieja, y la de publicarTrabajo, que la trae releída y completa.
+  const enUso = new Set([
+    trabajo.video, trabajo.master, trabajo.portada,
+    esReconversion(trabajo) ? trabajo.origen : null,
+  ].filter(Boolean));
 
   // Y lo que espera revisión NO es "un anterior": es una alternativa sobre la
   // que nadie ha decidido todavía, y está pagada. Pasó el 26/08/2026 — un
@@ -578,7 +594,13 @@ async function procesarTrabajo(supabase, trabajo) {
       // Después de que atributos apunte al nuevo, nunca antes: si esto se
       // hiciera primero y fallara la escritura, el plato se quedaría señalando
       // archivos recién borrados.
-      await purgarAnteriores(supabase, trabajo);
+      //
+      // Con las rutas nuevas fundidas encima. 'trabajo' es la fila de antes de
+      // convertir: sus columnas video/master/portada valen null y sin esto
+      // purgarAnteriores no sabría qué archivos acaba de estrenar este
+      // trabajo. La guarda de esReconversion() de allí dentro cubre el caso
+      // que destruía datos; esto lo hace además explícito en la llamada.
+      await purgarAnteriores(supabase, { ...trabajo, ...r });
     }
 
     // El último paso, y solo si todo lo anterior fue bien. Si se borrara
