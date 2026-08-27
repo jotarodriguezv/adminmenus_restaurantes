@@ -133,3 +133,66 @@ describe('09 · un plato sin categoría se rechaza con un mensaje legible', () =
     assert.match(r.body.error, /categoría/);
   });
 });
+
+describe('01b · atributos se funde, no se reemplaza', () => {
+	// El superadmin abre la carta a las 10:00, el dueño cambia su WhatsApp a
+	// las 10:05, el superadmin guarda Apariencia a las 10:10. Antes eso
+	// devolvía el WhatsApp al valor de las 10:00: el panel mandaba el JSON
+	// entero con la copia que había cargado al entrar.
+	const guardado = { whatsapp_pedidos: '573001112233', nav: 'topnav', plan: 'video' };
+
+	function responder(nuevo = {}) {
+		S.conTabla(st => st.op === 'update'
+			? { data: { id: S.IDS.restaurante, atributos: st.payload.atributos, ...nuevo }, error: null }
+			: { data: { atributos: guardado }, error: null });
+	}
+
+	test('lo que la petición no menciona sobrevive', async () => {
+		S.reiniciar(); responder();
+		const r = await S.pedir('PATCH', `/api/restaurantes/${S.IDS.restaurante}`,
+			{ atributos: { color_card: '#111111' } }, S.tokenAdmin);
+
+		assert.equal(r.status, 200);
+		const escrito = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(escrito.color_card, '#111111', 'lo que sí venía se escribe');
+		assert.equal(escrito.whatsapp_pedidos, '573001112233', 'y lo que no venía no se pierde');
+		assert.equal(escrito.nav, 'topnav');
+	});
+
+	test('poner una clave a null sigue funcionando', async () => {
+		// Es como el panel quita la portada. Si la fusión se comiera los nulos,
+		// no habría forma de borrar nada.
+		S.reiniciar(); responder();
+		await S.pedir('PATCH', `/api/restaurantes/${S.IDS.restaurante}`,
+			{ atributos: { portada_url: null, portada_activa: false } }, S.tokenAdmin);
+
+		const escrito = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(escrito.portada_url, null);
+		assert.equal(escrito.portada_activa, false);
+		assert.equal(escrito.whatsapp_pedidos, '573001112233', 'y no se lleva lo demás por delante');
+	});
+
+	test('la cobranza nunca acaba en la tabla de lectura pública', async () => {
+		S.reiniciar(); responder();
+		await S.pedir('PATCH', `/api/restaurantes/${S.IDS.restaurante}`,
+			{ atributos: { dia_pago: 5, ultimo_pago: '2026-08-01', nav: 'video' } }, S.tokenAdmin);
+
+		const escrito = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal('dia_pago' in escrito, false);
+		assert.equal('ultimo_pago' in escrito, false);
+		assert.equal(escrito.nav, 'video', 'lo demás de la misma petición sí pasa');
+	});
+
+	test('un cliente sigue sin poder tocar lo que no es suyo', async () => {
+		// La fusión no puede haber aflojado el filtro por rol.
+		S.reiniciar(); responder();
+		await S.pedir('PATCH', `/api/restaurantes/${S.IDS.restaurante}`,
+			{ atributos: { nav: 'vertical', plan: 'video', whatsapp_pedidos: '573009998877' } },
+			S.tokenCliente);
+
+		const escrito = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(escrito.nav, 'topnav', 'el modelo de carta no lo cambia el cliente');
+		assert.equal(escrito.plan, 'video', 'ni se asciende de plan');
+		assert.equal(escrito.whatsapp_pedidos, '573009998877', 'lo suyo sí lo cambia');
+	});
+});
