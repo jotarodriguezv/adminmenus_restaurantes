@@ -344,9 +344,9 @@
 			  padding:2px 7px;border-radius:4px;border:1px solid var(--border);
 			  color:var(--text-muted);white-space:nowrap;}
 			.resto-etiqueta.video{border-color:var(--accent);color:var(--accent);}
-			.resto-etiqueta.ia{border-color:var(--warning, #ffb020);color:var(--warning, #ffb020);}
+			.resto-etiqueta.ia{border-color:var(--warn);color:var(--warn);}
 			.resto-etiqueta.apagada{border-color:var(--border);color:var(--text-dim);}
-			.resto-etiqueta.revisar{border-color:var(--warning, #ffb020);color:var(--warning, #ffb020);}
+			.resto-etiqueta.revisar{border-color:var(--warn);color:var(--warn);}
 			.resto-etiqueta.mal{border-color:var(--danger);color:var(--danger);}
 			.resto-etiqueta.plan{text-transform:uppercase;color:var(--text-dim);}
 			.status-badge{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;
@@ -1529,8 +1529,8 @@
 						     convirtió en un formato y la carta usa el otro. El
 						     master se guarda sin recortar justamente para esto, así
 						     que arreglarlo no cuesta ni dinero ni volver a grabar. -->
-						<div id="videoDesfasado" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--warning, #ffb020);border-radius:8px;">
-							<div id="videoDesfasadoTexto" style="font-family:var(--mono);font-size:10px;color:var(--warning, #ffb020);line-height:1.6"></div>
+						<div id="videoDesfasado" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--warn);border-radius:8px;">
+							<div id="videoDesfasadoTexto" style="font-family:var(--mono);font-size:10px;color:var(--warn);line-height:1.6"></div>
 							<div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
 								<button type="button" id="btnReconvertir" onclick="reconvertirVideo()"
 									style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);
@@ -2003,7 +2003,13 @@ async function doLogin() {
 
 function logout() {
   token=null;
-  ['menuAdminToken','menuAdminRol','menuAdminSlug'].forEach(k=>sessionStorage.removeItem(k));
+  // Los dos temporizadores son globales y sobrevivían a esto. Sin pararlos, el
+  // intervalo seguía preguntando por el estado del video con token=null: 401,
+  // apiFetch llama a logout() otra vez, y vuelta cada cinco segundos hasta que
+  // alguien cierre la pestaña.
+  detenerVigilanciaVideo();
+  detenerVigilanciaIA();
+  ['menuAdminToken','menuAdminRol','menuAdminSlug','menuAdminEditingResto'].forEach(k=>sessionStorage.removeItem(k));
   state={rol:null,restauranteSlug:null,restaurante:null,categorias:[],productos:[],catFiltro:'all',pendingImgUrl:null,deleteAction:null};
   document.getElementById('slugInput').value='';
   document.getElementById('pinInput').value='';
@@ -2111,6 +2117,18 @@ const MODELOS_VIDEO = ['video', 'vertical'];
 // forma de carta y el comensal ve otra.
 const MODELO_POR_DEFECTO = 'topnav';
 function esModeloDeVideo(nav) { return MODELOS_VIDEO.includes(nav); }
+
+// En qué proporción se recorta el video de esta carta. Espejo de formatoDe()
+// en video.js, y por el mismo motivo por el que allí existe: la ternaria
+// estaba escrita en tres sitios de este archivo y las tres tenían que decir
+// lo mismo para siempre. Si una se queda atrás no da error — enseña una
+// proporción y convierte en la otra, que es de lo más difícil de ver.
+//
+// 'vertical' es el único modelo a pantalla completa; 'video' es apaisado, y
+// todo lo que no pinta video se queda en el valor por defecto.
+function formatoDeLaCarta(atributos = state.restaurante?.atributos) {
+	return atributos?.nav === 'vertical' ? 'vertical' : 'horizontal';
+}
 function idPlanActual() {
   return PLANES[state.restaurante?.atributos?.plan] ? state.restaurante.atributos.plan : PLAN_POR_DEFECTO;
 }
@@ -2291,7 +2309,6 @@ async function quickToggle(id,disponible) {
     // dejaba la fila igual. Se toca la clase en vez de repintar la lista
     // entera, que perdería el sitio del scroll.
     document.getElementById('row-'+id)?.classList.toggle('unavailable', !disponible);
-    document.getElementById('row-'+id)?.classList.toggle('unavailable',!disponible);
     showToast(disponible?'Producto activado':'Producto desactivado','success');
   } catch(e) { showToast('Error','error'); }
 }
@@ -2587,7 +2604,7 @@ function trabajoListoDe(productoId) {
 function videoDesfasadoDe(productoId) {
 	const t = trabajoListoDe(productoId);
 	if (!t || !t.tiene_master) return null;
-	const formato = state.restaurante?.atributos?.nav === 'vertical' ? 'vertical' : 'horizontal';
+	const formato = formatoDeLaCarta();
 	return t.formato && t.formato !== formato ? { trabajo: t, formato } : null;
 }
 
@@ -2995,9 +3012,22 @@ async function confirmarSubidaVideo() {
 	}
 }
 
+// Cuánto se espera antes de dejar de preguntar. Una conversión normal tarda
+// uno o dos minutos, pero el peor caso legítimo es mucho más largo: hasta tres
+// intentos con un tope de diez minutos de ffmpeg cada uno, más lo que el
+// trabajo pase esperando turno en la cola. Media hora deja sitio de sobra a
+// eso y sigue siendo un límite.
+//
+// Sin tope, esto era el único sondeo del panel que no paraba nunca: cada cinco
+// segundos, para siempre, incluso con la fila del trabajo ya borrada — el
+// `if (!t) return` de abajo no detiene nada. Su función hermana,
+// vigilarGeneracion, sí tenía su límite; esta se quedó sin él.
+const LIMITE_VIGILANCIA_VIDEO_MS = 30 * 60 * 1000;
+
 function vigilarVideo(trabajoId, productoId) {
 	detenerVigilanciaVideo();
 	state.vigilandoTrabajo = trabajoId;
+	const desde = Date.now();
 
 	// La vigilancia sobrevive a cerrar la ficha. Antes se paraba ahí, y como
 	// era la única que refrescaba state.productos, el panel se quedaba con el
@@ -3030,6 +3060,16 @@ function vigilarVideo(trabajoId, productoId) {
 	};
 
 	vigilanciaVideo = setInterval(async () => {
+		// Se rinde antes de mirar nada: si se llegó aquí es que el trabajo no
+		// terminó en media hora, y seguir preguntando no lo va a cambiar. Se
+		// deja el botón de subir disponible y se dice dónde mirar, en vez de un
+		// "Convirtiendo..." que se queda puesto para siempre.
+		if (Date.now() - desde > LIMITE_VIGILANCIA_VIDEO_MS) {
+			detenerVigilanciaVideo();
+			permitirSubir();
+			decir('La conversión está tardando más de lo normal. Vuelve a abrir el plato más tarde para ver cómo quedó.', 'var(--warn)');
+			return;
+		}
 		try {
 			const trabajos = await apiFetch('GET', `/api/video/trabajos?restaurante_id=${state.restaurante.id}`);
 			const t = (trabajos || []).find(x => x.id === trabajoId);
@@ -3174,7 +3214,7 @@ async function handleExtraImgUpload(input) {
 // 3:4 aguanta el recorte; en vertical ocupa la pantalla entera y una foto
 // apaisada pierde el plato por los lados.
 function encajeDeFoto(ancho, alto) {
-	const vertical = state.restaurante?.atributos?.nav === 'vertical';
+	const vertical = formatoDeLaCarta() === 'vertical';
 	const objetivo = vertical ? 720 / 1280 : 1280 / 720;
 	const foto = ancho / alto;
 	const conservado = Math.min(foto, objetivo) / Math.max(foto, objetivo);
@@ -3255,7 +3295,7 @@ async function refrescarCupoIA() {
 
 		if (c.disponibles > 0) {
 			el.textContent = `quedan ${c.disponibles} de ${c.cupo}`;
-			el.style.color = c.disponibles <= 3 ? 'var(--warning, #ffb020)' : 'var(--text-muted)';
+			el.style.color = c.disponibles <= 3 ? 'var(--warn)' : 'var(--text-muted)';
 
 			// La proporción se dice donde se decide, no después de pagar. Y en
 			// su propio elemento: escribirla en el del estado borraba el
@@ -3266,7 +3306,7 @@ async function refrescarCupoIA() {
 			const nota = document.getElementById('iaEncaje');
 			if (nota) {
 				nota.textContent = (enc && enc.veredicto !== 'bien') ? enc.mensaje : '';
-				nota.style.color = enc?.veredicto === 'rechaza' ? 'var(--danger)' : 'var(--warning, #ffb020)';
+				nota.style.color = enc?.veredicto === 'rechaza' ? 'var(--danger)' : 'var(--warn)';
 			}
 
 			// Tres motivos para dejar el botón apagado, y el orden importa
@@ -3297,7 +3337,7 @@ async function refrescarCupoIA() {
 				if (motivo === 'sin-revisar' && nota) {
 					nota.textContent = 'Este plato ya tiene un video generado esperando que lo revises. ' +
 					                   'Publícalo o descártalo antes de gastar otra animación.';
-					nota.style.color = 'var(--warning, #ffb020)';
+					nota.style.color = 'var(--warn)';
 				}
 			} else {
 				btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
@@ -3340,7 +3380,7 @@ async function generarConIA() {
 	if (videoPorAprobarDe(productoId)) {
 		est.textContent = 'Este plato ya tiene un video generado esperando revisión. ' +
 		                  'Publícalo o descártalo antes de generar otro.';
-		est.style.color = 'var(--warning, #ffb020)';
+		est.style.color = 'var(--warn)';
 		return;
 	}
 
@@ -3452,7 +3492,7 @@ function ajustarFichaAlModelo() {
 	// recorte que no se iba a hacer, y la previsualización metía un video 9:16
 	// en un hueco apaisado, así que enseñaba una franja del centro y parecía
 	// que la conversión había salido mal.
-	const vertical = state.restaurante?.atributos?.nav === 'vertical';
+	const vertical = formatoDeLaCarta() === 'vertical';
 	const proporcion = vertical ? '9:16' : '16:9';
 
 	const etiquetaVideo = document.getElementById('labelVideo');
@@ -3550,7 +3590,20 @@ async function saveProduct() {
 	const id=document.getElementById('editProductId').value;
 	const catId=document.getElementById('editCategoria').value;
 	if(!catId){showToast('Selecciona una categoría','error');btn.disabled=false;btn.textContent='Guardar';return;}
-	const precioNum=parseFloat(document.getElementById('editPrecioNum').value)||0;
+	// El precio no puede caer a 0 por descuido. El campo es type="number", así
+	// que lo que llega o es un número o es la cadena vacía — y la cadena vacía
+	// con `parseFloat(...) || 0` se guardaba como $ 0 sin decir nada: el plato
+	// quedaba publicado, visible en la carta y sumando cero en el carrito.
+	//
+	// El cero escrito a mano sí pasa: una cortesía o un acompañamiento sin
+	// coste es un precio legítimo. Lo que se rechaza es no haber escrito nada.
+	const precioBruto=document.getElementById('editPrecioNum').value.trim();
+	const precioNum=Number(precioBruto);
+	if(precioBruto===''||!Number.isFinite(precioNum)||precioNum<0){
+		showToast('Escribe el precio del plato','error');
+		document.getElementById('editPrecioNum').focus();
+		btn.disabled=false;btn.textContent='Guardar';return;
+	}
 	const precioTexto=formatPrecio(precioNum);
 	const filtroActual=state.catFiltro; // conservar filtro activo
 	const body={
@@ -3960,8 +4013,10 @@ async function guardarOrdenProductos() {
   const st = document.getElementById('ordenProductosStatus');
   try {
     if (modo === 'personalizado' && modoAnterior !== 'personalizado') await sembrarOrdenManual(modoAnterior);
-    const atributos = { ...(state.restaurante.atributos || {}), orden_productos: modo };
-    state.restaurante = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
+    // Solo su clave: el servidor funde. Ver el comentario de saveToppings.
+    const atributos = { orden_productos: modo };
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
+    if (data) state.restaurante = data;
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     setTimeout(() => { st.textContent = ''; }, 2500);
     renderOrdenProductos(); renderProducts();
@@ -4369,9 +4424,10 @@ async function handlePortadaUpload(input) {
   try {
     const blob = await compressImage(file, 1600, .85);
     const url = await uploadImg(blob, 'portadas');
-    const nuevos = { ...(state.restaurante.atributos || {}), portada_url: url, portada_activa: true };
-    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos: nuevos });
-    state.restaurante.atributos = nuevos;
+    // Solo sus claves: el servidor funde. Ver el comentario de saveToppings.
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`,
+      { atributos: { portada_url: url, portada_activa: true } });
+    if (data) state.restaurante = data;
     renderApariencia();
     st.textContent = '✓ Portada actualizada'; st.style.color = 'var(--success)';
     showToast('Portada guardada · activada', 'success');
@@ -4391,9 +4447,10 @@ async function eliminarImagen(tipo) {
       await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { fondo_url: null });
       state.restaurante.fondo_url = null;
     } else if (tipo === 'portada') {
-      const nuevos = { ...(state.restaurante.atributos || {}), portada_url: null, portada_activa: false };
-      await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos: nuevos });
-      state.restaurante.atributos = nuevos;
+      // Solo sus claves: el servidor funde. Ver el comentario de saveToppings.
+      const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`,
+        { atributos: { portada_url: null, portada_activa: false } });
+      if (data) state.restaurante = data;
     }
     renderApariencia();
     showToast('Imagen eliminada', 'success');
@@ -4406,8 +4463,12 @@ function recolectarApariencia() {
   return {
     color_primario: document.getElementById('apColor1').value.trim(),
     color_secundario: document.getElementById('apColor2').value.trim(),
+    // SIN volcar aquí el atributos que cargó el panel. Este formulario manda
+    // todas sus claves en cada guardado, así que no necesita el resto — y
+    // arrastrarlo significaba reescribir el JSON entero con una copia vieja,
+    // devolviendo a su valor anterior lo que otro hubiera cambiado mientras.
+    // Las funde el servidor. Ver el comentario de saveToppings.
     atributos: {
-      ...(state.restaurante.atributos || {}),
       color_surface: document.getElementById('apColorSurface').value.trim(),
       color_card: document.getElementById('apColorCard').value.trim(),
       fondo_tipo: document.getElementById('apFondoTipo').value,
@@ -5011,16 +5072,56 @@ function confirmAddTopping() {
   showToast('Añadido · recuerda guardar', 'info');
 }
 
+// Los platos guardan el NOMBRE del topping, no un identificador. Así que
+// renombrar uno en esta pestaña —o quitarlo— no toca los platos: se quedan
+// apuntando a un nombre que ya no existe, el chip aparece desmarcado en la
+// ficha y el carrito público no sabe cobrarlo. Nada falla y nadie se entera.
+//
+// Guardar identificadores sería lo correcto, pero eso es migrar los datos de
+// todos los platos. Mientras tanto, al menos que no ocurra en silencio: se
+// dice qué platos se van a quedar colgados y se pide confirmación.
+function toppingsHuerfanos() {
+  const quedan = new Set([
+    ...toppingState.platino,
+    ...toppingState.premium.map(t => t?.nombre).filter(Boolean),
+    ...toppingState.salsas,
+  ]);
+  const afectados = [];
+  for (const p of state.productos || []) {
+    const pers = p.atributos?.personalizacion;
+    if (!pers) continue;
+    const perdidos = [...(pers.platino || []), ...(pers.premium || []), ...(pers.salsas || [])]
+      .filter(n => !quedan.has(n));
+    if (perdidos.length) afectados.push(`${p.nombre}: ${[...new Set(perdidos)].join(', ')}`);
+  }
+  return afectados;
+}
+
 async function saveToppings() {
+  const huerfanos = toppingsHuerfanos();
+  if (huerfanos.length) {
+    const ok = confirm(
+      `Estos platos ofrecen toppings que van a dejar de existir con este cambio:\n\n` +
+      huerfanos.slice(0, 10).join('\n') +
+      (huerfanos.length > 10 ? `\n…y ${huerfanos.length - 10} plato(s) más` : '') +
+      `\n\nSi lo que hiciste fue RENOMBRAR un topping, los platos NO lo siguen solos: ` +
+      `hay que volver a marcarlo en cada ficha.\n\n¿Guardar de todas formas?`);
+    if (!ok) return;
+  }
+
+  // Solo sus tres claves. Antes se mandaba `{...atributos, ...}` con la copia
+  // que el panel cargó al entrar, así que guardar toppings reescribía TODO
+  // atributos y devolvía a su valor viejo cualquier cosa que se hubiera
+  // cambiado mientras tanto. Ahora las funde el servidor, que sí tiene la
+  // versión de ahora.
   const atributos = {
-    ...(state.restaurante.atributos || {}),
     toppings_platino: toppingState.platino,
     toppings_premium: toppingState.premium,
     salsas:           toppingState.salsas,
   };
   try {
-    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
-    state.restaurante.atributos = atributos;
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
+    if (data) state.restaurante = data;
     // Quedarse sin toppings puede dejar la pestaña sin motivo para existir.
     ajustarPestanasAlModelo();
     showToast('Toppings guardados', 'success');
@@ -5036,10 +5137,11 @@ async function savePedidos() {
   const whatsapp_pedidos = document.getElementById('pedidosWhatsapp').value.trim().replace(/[^0-9]/g, '');
   const st = document.getElementById('pedidosStatus');
   if (!whatsapp_pedidos) { st.textContent = 'Ingresa un número válido'; st.style.color = 'var(--danger)'; return; }
-  const atributos = { ...(state.restaurante.atributos || {}), whatsapp_pedidos };
+  // Solo su clave: el servidor funde. Ver el comentario de saveToppings.
+  const atributos = { whatsapp_pedidos };
   try {
-    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
-    state.restaurante.atributos = atributos;
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
+    if (data) state.restaurante = data;
     document.getElementById('pedidosWhatsapp').value = whatsapp_pedidos;
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     showToast('Número de pedidos guardado', 'success');
@@ -5119,7 +5221,8 @@ async function saveMetodosPago() {
     return;
   }
 
-  const atributos = { ...(state.restaurante.atributos || {}), metodos_pago };
+  // Solo su clave: el servidor funde. Ver el comentario de saveToppings.
+  const atributos = { metodos_pago };
   try {
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
     state.restaurante = data;
@@ -5294,7 +5397,8 @@ async function marcarComoPagado(id, nombre) {
 async function eliminarRestaurante(id, nombre) {
   const ok = confirm(
     `Vas a eliminar "${nombre}" de forma permanente.\n\n` +
-    `Esto borra su menú (categorías y productos) y sus estadísticas — no se puede deshacer.\n\n` +
+    `Esto borra su menú (categorías y productos), sus videos y animaciones, su cupo de IA, ` +
+    `su ficha de cobranza y sus estadísticas — no se puede deshacer.\n\n` +
     `¿Seguro que quieres continuar?`
   );
   if (!ok) return;
@@ -5388,7 +5492,7 @@ async function cargarListaRestos() {
         iaBtn.className = 'btn-sm';
         iaBtn.textContent = iaActiva ? '✨ IA activa' : '✨ IA apagada';
         iaBtn.style.cssText = iaActiva
-          ? 'border-color:var(--warning, #ffb020);color:var(--warning, #ffb020);'
+          ? 'border-color:var(--warn);color:var(--warn);'
           : 'border-color:var(--border);color:var(--text-dim);';
         iaBtn.title = iaActiva
           ? 'Apagar la generación con IA para esta carta'
@@ -5513,11 +5617,22 @@ async function confirmCambiarPin() {
 function entrarARestaurante(slug) {
   state.restauranteSlug=slug;
   sessionStorage.setItem('menuAdminSlug',slug);
+  // El arranque mira esta marca para saber si el superadmin estaba DENTRO de
+  // un restaurante o en la lista. Se leía y no la escribía nadie, así que
+  // siempre valía null: recargar la página estando dentro de un restaurante
+  // devolvía a la lista y había que volver a entrar.
+  sessionStorage.setItem('menuAdminEditingResto','1');
   document.getElementById('adminScreen').style.display='none';
   enterApp();
 }
 
 function volverAlAdmin() {
+  // Se sale de la ficha del restaurante: lo que se estuviera vigilando de él
+  // ya no le importa a esta pantalla, y el temporizador seguiría preguntando
+  // por sus videos desde la lista del superadmin.
+  detenerVigilanciaVideo();
+  detenerVigilanciaIA();
+  sessionStorage.removeItem('menuAdminEditingResto');
   document.getElementById('appScreen').style.display='none';
   enterAdmin();
 }
