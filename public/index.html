@@ -3910,8 +3910,17 @@ async function saveCat() {
   const btn=document.getElementById('btnSaveCat');
   btn.disabled=true; btn.textContent='Guardando...';
   const id=document.getElementById('editCatId').value;
+  // Sin nombre no hay categoría: el servidor deriva el slug de él, así que
+  // mandarlo vacío acaba en un 500 que no explica nada. Se dice aquí, que es
+  // donde se puede corregir sin perder lo demás del formulario.
+  const nombreCat=document.getElementById('editCatNombre').value.trim();
+  if(!nombreCat){
+    showToast('Escribe el nombre de la categoría','error');
+    document.getElementById('editCatNombre').focus();
+    btn.disabled=false;btn.textContent='Guardar';return;
+  }
   const body={
-    nombre:document.getElementById('editCatNombre').value.trim(),
+    nombre:nombreCat,
     emoji:document.getElementById('editCatEmoji').value.trim(),
     orden:parseInt(document.getElementById('editCatOrden').value)||0,
     sin_fotos:document.getElementById('editCatSinFotos').checked,
@@ -3957,6 +3966,22 @@ async function saveCat() {
 
 // ── MOVER CATEGORÍA ──────────────────────────────────────────
 // ── ORDEN DE LOS PRODUCTOS EN EL MENÚ ─────────────────────────
+
+// Reordenar reescribe el 'orden' de toda la categoría, y eso salía como un
+// Promise.all: una categoría de cuarenta platos son cuarenta peticiones a la
+// vez, cada una un SELECT y un UPDATE, contra la misma caja de un núcleo donde
+// además puede estar corriendo ffmpeg.
+//
+// De cuatro en cuatro se tarda prácticamente lo mismo desde el punto de vista
+// de quien pulsa la flecha, y el servidor no recibe una avalancha. Si una
+// tanda falla, se propaga: quien llama ya sabe recargar y volver a pintar.
+async function enTandas(items, hacer, tam = 4) {
+	const salida = [];
+	for (let i = 0; i < items.length; i += tam)
+		salida.push(...await Promise.all(items.slice(i, i + tam).map(hacer)));
+	return salida;
+}
+
 function ordenProductosModo() {
   return state.restaurante?.atributos?.orden_productos || 'precio_asc';
 }
@@ -4004,7 +4029,7 @@ async function sembrarOrdenManual(modoAnterior) {
     state.productos.filter(p => p.categoria_id === cat.id).sort(comparar)
       .forEach((p, i) => { if (p.orden !== i) { p.orden = i; cambios.push(p); } });
   });
-  await Promise.all(cambios.map(p => apiFetch('PATCH', `/api/productos/${p.id}`, { orden: p.orden })));
+  await enTandas(cambios, p => apiFetch('PATCH', `/api/productos/${p.id}`, { orden: p.orden }));
 }
 
 async function guardarOrdenProductos() {
@@ -4043,31 +4068,49 @@ async function moveProd(id, dir, idsEnOrden) {
   renderProducts();   // respuesta inmediata; se corrige abajo si algo falla
 
   try {
-    await Promise.all(cambios.map(c => apiFetch('PATCH', `/api/productos/${c.id}`, { orden: c.orden })));
+    await enTandas(cambios, c => apiFetch('PATCH', `/api/productos/${c.id}`, { orden: c.orden }));
     showToast('Orden actualizado', 'success');
   } catch (e) {
     showToast('No se pudo guardar el orden', 'error');
-    state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
+    // Sin el guardia, un 401 aquí deja state.productos en null —apiFetch
+    // devuelve null cuando la sesión caduca— y el render siguiente revienta
+    // encima del error que ya se estaba enseñando.
+    const frescos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
+    if (frescos) state.productos = frescos;
     renderProducts();
   }
 }
 
+// Reasigna 0,1,2… a toda la lista en vez de intercambiar dos valores, igual
+// que moveProd. Intercambiando, dos categorías que empataran en 'orden' se
+// pasaban el mismo número: no se movía nada y el panel decía "Orden
+// actualizado" igual. Y empatar es fácil — openNewCatModal siembra
+// `orden = state.categorias.length`, así que basta borrar una y crear otra.
+//
+// Renumerando, el empate se deshace solo la primera vez que alguien usa las
+// flechas, en vez de quedarse ahí para siempre.
 async function moveCat(id, dir) {
   const idx=state.categorias.findIndex(c=>c.id===id);
-  const other=state.categorias[idx+dir]; if(!other) return;
-  const cat=state.categorias[idx];
-  // Intercambiar orden
-  const newOrdenCat=other.orden, newOrdenOther=cat.orden;
+  if(idx<0 || idx+dir<0 || idx+dir>=state.categorias.length) return;
+
+  const nuevas=[...state.categorias];
+  [nuevas[idx],nuevas[idx+dir]]=[nuevas[idx+dir],nuevas[idx]];
+
+  const cambios=[];
+  nuevas.forEach((c,i)=>{ if(c.orden!==i){ c.orden=i; cambios.push({id:c.id,orden:i}); } });
+
   try {
-    await Promise.all([
-      apiFetch('PATCH',`/api/categorias/${cat.id}`,{orden:newOrdenCat}),
-      apiFetch('PATCH',`/api/categorias/${other.id}`,{orden:newOrdenOther}),
-    ]);
-    cat.orden=newOrdenCat; other.orden=newOrdenOther;
-    state.categorias.sort((a,b)=>a.orden-b.orden);
+    await enTandas(cambios, c => apiFetch('PATCH',`/api/categorias/${c.id}`,{orden:c.orden}));
+    state.categorias=nuevas;
     renderCatList(); renderCatFilter();
     showToast('Orden actualizado','success');
-  } catch(e) { showToast('Error al reordenar','error'); }
+  } catch(e) {
+    showToast('Error al reordenar','error');
+    // La lista de memoria ya lleva los 'orden' nuevos aunque no se guardaran:
+    // se recarga para no quedarse enseñando un orden que no existe.
+    const frescas=await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
+    if(frescas) { state.categorias=frescas; renderCatList(); renderCatFilter(); }
+  }
 }
 
 // ── ELIMINAR ──────────────────────────────────────────────────
@@ -4747,12 +4790,13 @@ let ultimaEstadistica = null;
 //
 // Los días se manejan como fechas "flotantes" ancladas al mediodía UTC: así
 // sumar o restar días nunca cruza de día por redondeo de zona.
-function zonaRestaurante() {
-  const z = state.restaurante?.atributos?.zona_horaria;
-  if (!z) return 'America/Bogota';
-  try { new Intl.DateTimeFormat('en-US', { timeZone: z }); return z; }
-  catch { return 'America/Bogota'; }
-}
+//
+// zonaRestaurante() vive con los horarios de categoría, arriba. Aquí había una
+// SEGUNDA declaración con el mismo nombre, y las declaraciones de función se
+// elevan: ganaba esta, así que era la que corría también en los horarios. Daban
+// lo mismo —una devolvía ZONA_POR_DEFECTO y la otra el literal—, pero eso hacía
+// que la constante pareciera la única fuente de verdad sin serlo: cambiarla no
+// habría cambiado nada y no habría forma de entender por qué.
 
 function fmtISO(d) {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
