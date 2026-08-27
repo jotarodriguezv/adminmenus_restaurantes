@@ -185,8 +185,14 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 	};
 
 	const pintar = (videos, plato, mapa, trabajos = [], porAprobar = [], nav = 'video') => {
-		const ctx = cargar('index.html', '// Los trabajos de conversión del restaurante.',
-			'// Elegir el archivo ya no lo sube', {
+		// Dos trozos, en este orden: videoDesfasadoDe() pregunta por
+		// formatoDeLaCarta(), que vive arriba con el resto de lo que sabe de
+		// modelos. Se carga el ayudante de verdad en vez de un doble para que
+		// esta prueba siga midiendo la regla que se despliega.
+		const ctx = cargar('index.html', [
+			['function formatoDeLaCarta', 'function idPlanActual'],
+			['// Los trabajos de conversión del restaurante.', '// Elegir el archivo ya no lo sube'],
+		], {
 				clearInterval() {},
 				planActual: () => ({ videos }),
 				state: { trabajosVideo: trabajos, videosPorAprobar: porAprobar,
@@ -1149,5 +1155,54 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		await correr(m, { cupo: { disponibles: 0, cupo: 24 }, encaje: { veredicto: 'bien', mensaje: '' } });
 		assert.equal(m.btnGenerarIA.disabled, true);
 		assert.match(m.iaCupo.textContent, /sin animaciones/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('toppingsHuerfanos · renombrar un topping desengancha los platos', () => {
+	// Los platos guardan el NOMBRE del topping, no un identificador. Renombrar
+	// uno en la pestaña Toppings no toca los platos: se quedan apuntando a un
+	// nombre que ya no existe, el chip sale desmarcado en la ficha y el carrito
+	// público no sabe cobrarlo. Nada falla y nadie se entera.
+	//
+	// Hasta que se guarden identificadores, esto es lo que impide que ocurra
+	// en silencio.
+	const buscar = (toppingState, productos) => cargar('index.html',
+		[['function toppingsHuerfanos', 'async function saveToppings']],
+		{ toppingState, state: { productos } }).toppingsHuerfanos();
+
+	const catalogo = {
+		platino: ['Queso'],
+		premium: [{ nombre: 'Tocineta', precio: 3000 }],
+		salsas: ['BBQ'],
+	};
+	const plato = nombre => ({
+		nombre, atributos: { personalizacion: { platino: ['Queso'], premium: ['Tocineta'], salsas: ['BBQ'] } },
+	});
+
+	test('con el catálogo intacto no avisa de nada', () => {
+		// .length y no deepEqual con []: lo que devuelve la función se
+		// construye dentro de la VM, así que su Array.prototype no es el de
+		// aquí y la comparación estricta falla por el prototipo, no por el
+		// contenido.
+		assert.equal(buscar(catalogo, [plato('Hamburguesa')]).length, 0);
+	});
+
+	test('renombrar uno delata los platos que lo ofrecían', () => {
+		const renombrado = { ...catalogo, premium: [{ nombre: 'Tocineta ahumada', precio: 3000 }] };
+		const avisos = buscar(renombrado, [plato('Hamburguesa'), plato('Perro')]);
+		assert.equal(avisos.length, 2, 'los dos platos lo ofrecían');
+		assert.match(avisos[0], /Hamburguesa/);
+		assert.match(avisos[0], /Tocineta/);
+	});
+
+	test('quitar uno cuenta igual que renombrarlo', () => {
+		const avisos = buscar({ ...catalogo, salsas: [] }, [plato('Hamburguesa')]);
+		assert.equal(avisos.length, 1);
+		assert.match(avisos[0], /BBQ/);
+	});
+
+	test('un plato sin personalización no estorba', () => {
+		assert.equal(buscar({ ...catalogo, salsas: [] }, [{ nombre: 'Gaseosa', atributos: {} }]).length, 0);
 	});
 });
