@@ -203,3 +203,39 @@ describe('01b · atributos se funde, no se reemplaza', () => {
 		assert.equal(escrito.whatsapp_pedidos, '573009998877', 'lo suyo sí lo cambia');
 	});
 });
+
+describe('04 · dos conversiones del mismo plato', () => {
+  // El panel lo impide apagando el botón mientras convierte, y su comentario
+  // explica por qué: dos conversiones compiten por el mismo campo del
+  // producto, gana la que termine después —que no tiene por qué ser la que se
+  // pidió— y la otra se queda ocupando disco sin que nada la enseñe.
+  //
+  // Pero el panel es la puerta bonita. Las otras tres rutas que encolan
+  // trabajo ya lo comprobaban; la subida manual, que es la más usada, no.
+  const enCurso = (hay) => S.conTabla(st => {
+    if (st.tabla === 'productos') return { data: { restaurante_id: S.IDS.restaurante }, error: null };
+    if (st.tabla === 'restaurantes') return { data: { atributos: { plan: 'video' } }, error: null };
+    if (st.tabla === 'trabajos_video' && st.op === 'select') return { data: hay ? [{ id: 'otro' }] : [], error: null };
+    return { data: { id: 'nuevo', estado: 'pendiente' }, error: null };
+  });
+
+  test('la segunda subida se rechaza con un 409 que se puede leer', async () => {
+    S.reiniciar(); enCurso(true);
+    const r = await S.pedirArchivo('/api/video',
+      { restaurante_id: S.IDS.restaurante, producto_id: S.IDS.producto }, S.tokenCliente);
+
+    assert.equal(r.status, 409);
+    assert.match(r.body.error, /ya tiene una conversión en marcha/);
+    // Y no se encola nada: la fila que se habría creado no existe.
+    assert.equal(S.llamadas.some(l => l.tabla === 'trabajos_video' && l.op === 'insert'), false);
+  });
+
+  test('sin ninguna en curso, la subida sigue funcionando', async () => {
+    S.reiniciar(); enCurso(false);
+    const r = await S.pedirArchivo('/api/video',
+      { restaurante_id: S.IDS.restaurante, producto_id: S.IDS.producto }, S.tokenCliente);
+
+    assert.equal(r.status, 200);
+    assert.equal(S.llamadas.some(l => l.tabla === 'trabajos_video' && l.op === 'insert'), true);
+  });
+});
