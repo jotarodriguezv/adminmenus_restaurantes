@@ -592,25 +592,45 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     if (choque) return res.status(409).json({ error: 'Ese slug ya está en uso por otro restaurante' });
   }
 
-  // Aunque el admin puede escribir 'atributos' entero, estas dos claves ya no
-  // viven ahí: tienen su propia tabla, fuera de la lectura pública. Se quitan
-  // aquí para que ninguna pantalla vieja ni ninguna llamada suelta las vuelva
-  // a colar en la tabla que ve todo el mundo.
-  if (body.atributos && typeof body.atributos === 'object') {
-    const { dia_pago, ultimo_pago, ...resto } = body.atributos;
-    body.atributos = resto;
-  }
+  // ── 'atributos' SE FUNDE, NO SE REEMPLAZA ───────────────────
+  // Es un solo JSON compartido por pantallas que no se conocen entre sí:
+  // Apariencia, Toppings, Pedidos, Métodos de pago, el orden del menú y la
+  // portada escriben todas en él.
+  //
+  // Para el cliente ya se fundía, y por un motivo de permisos: no fiarse del
+  // objeto que manda. Para el admin se escribía tal cual, y eso convertía cada
+  // guardado en un reemplazo total con la copia que el panel hubiera cargado
+  // al entrar. El superadmin abre la carta de un restaurante a las 10:00, el
+  // dueño cambia su WhatsApp de pedidos a las 10:05 desde su sesión, el
+  // superadmin guarda Apariencia a las 10:10 — y el WhatsApp vuelve al valor
+  // de las 10:00, sin aviso y sin nada en los registros.
+  //
+  // Fundiendo, cada pantalla manda solo sus claves y no puede pisar las de
+  // otra. Poner una clave a null SÍ funciona: null es un valor y sobrevive a
+  // la fusión (es como el panel quita la portada).
+  if (body.atributos && typeof body.atributos === 'object' && !Array.isArray(body.atributos)) {
+    const { data: actual } = await supabase.from('restaurantes')
+      .select('atributos').eq('id', req.params.id).single();
 
-  if (body.atributos && req.user.rol !== 'admin') {
-    // Nunca confiar en el objeto "atributos" completo que manda el cliente:
-    // se reconstruye a partir de lo que ya existe + solo las claves permitidas.
-    const { data: actual } = await supabase.from('restaurantes').select('atributos').eq('id', req.params.id).single();
-    const plan = planDe(actual?.atributos);
-    const entrantes = Object.fromEntries(Object.entries(body.atributos).filter(([k]) =>
-      ATRIBUTOS_CLIENTE_PERMITIDOS.includes(k) &&
-      (!ATRIBUTOS_SEGUN_PLAN[k] || plan[ATRIBUTOS_SEGUN_PLAN[k]])
-    ));
+    let entrantes = body.atributos;
+    if (req.user.rol !== 'admin') {
+      // Además del filtro por rol: solo las claves del cliente, y solo las que
+      // su plan incluye. 'plan' nunca está en la lista, así que nadie puede
+      // ascenderse solo.
+      const plan = planDe(actual?.atributos);
+      entrantes = Object.fromEntries(Object.entries(entrantes).filter(([k]) =>
+        ATRIBUTOS_CLIENTE_PERMITIDOS.includes(k) &&
+        (!ATRIBUTOS_SEGUN_PLAN[k] || plan[ATRIBUTOS_SEGUN_PLAN[k]])
+      ));
+    }
+
     body.atributos = { ...(actual?.atributos || {}), ...entrantes };
+
+    // La cobranza tiene su propia tabla, fuera de la lectura pública. Se quita
+    // DESPUÉS de fundir y no antes: así no vuelve a colarse ni por lo que
+    // mande una pantalla vieja ni por lo que arrastre la fila guardada.
+    delete body.atributos.dia_pago;
+    delete body.atributos.ultimo_pago;
   }
 
   const { data, error } = await supabase.from('restaurantes').update(body).eq('id', req.params.id).select().single();
