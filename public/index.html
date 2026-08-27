@@ -298,15 +298,57 @@
 			.admin-topbar{background:var(--topbar-bg);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
 			  display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;}
 			.admin-topbar-title{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);letter-spacing:2px;}
-			.admin-content{padding:24px 20px 80px;max-width:900px;margin:0 auto;}
+			/* 1200 y no 900: esto no es prosa que se lea en columna estrecha, es la
+			   lista operativa del superadmin. Con cinco botones cabía; al llegar
+			   a siete, la información de cada carta se quedaba sin sitio y bajaba
+			   a su propia fila. */
+			.admin-content{padding:24px 20px 80px;max-width:1200px;margin:0 auto;}
 
+			/* La tarjeta ENVUELVE. Sin esto los botones no caben y empujan: la
+			   columna de la izquierda se estrecha hasta partir "solo fotos ·
+			   Topnav" en tres líneas, y en el móvil los últimos botones se
+			   salen de la pantalla. Pasó al llegar al séptimo botón. */
+			/* nowrap a propósito. Con wrap, el navegador prefiere mandar el bloque
+			   de botones a una fila propia antes que encogerlo, y quedaba la
+			   información arriba y los botones sueltos debajo. Con nowrap los dos
+			   se encogen y los botones envuelven ENTRE ellos, que es lo que se
+			   quería: información a la izquierda, botones a la derecha.
+			   Por debajo de 900px se apilan a propósito (ver más abajo). */
 			.resto-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);
-			  padding:18px 20px;display:flex;align-items:center;gap:14px;transition:border-color .2s;margin-bottom:10px;}
+			  padding:18px 20px;display:flex;flex-wrap:nowrap;align-items:flex-start;
+			  gap:14px;transition:border-color .2s;margin-bottom:10px;}
 			.resto-card:hover{border-color:var(--border2);}
-			.resto-card-info{flex:1;display:flex;flex-direction:column;gap:4px;}
+			/* La base de 280px es lo que hace que baje entera en vez de
+			   estrecharse: por debajo de eso no cabe y se va a su propia fila.
+			   min-width:0 porque un hijo flex no baja de su contenido por
+			   defecto, y un nombre largo desbordaría la tarjeta. */
+			.resto-card-info{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:4px;}
 			.resto-card-name{font-size:15px;font-weight:500;color:var(--text);margin-bottom:3px;}
 			.resto-card-slug{font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1px;}
-			.resto-card-actions{display:flex;align-items:center;gap:8px;}
+			/* Sin margin-left:auto a propósito. Un margen automático en flex se
+			   come el espacio libre ANTES de que flex-grow lo reparta, así que
+			   con él la columna de la izquierda nunca crecía de su base de 280 y
+			   las etiquetas envolvían con media tarjeta vacía al lado.
+			   min-width:0 es lo que deja que los botones envuelvan ENTRE ellos
+			   cuando no caben, en vez de llevarse la fila entera hacia abajo. */
+			.resto-card-actions{display:flex;flex-wrap:wrap;align-items:center;
+			  justify-content:flex-end;gap:8px;flex:0 1 auto;min-width:0;}
+
+			/* ── LAS ETIQUETAS DE QUÉ TIENE CADA CARTA ──────────────
+			   Cada dato es una pastilla entera: así una línea puede envolver
+			   ENTRE ellas pero nunca por dentro. Con separadores de texto ("·")
+			   el salto caía en cualquier sitio y dejaba el punto colgando al
+			   principio de la línea siguiente. */
+			.resto-etiquetas{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:4px;}
+			.resto-etiqueta{font-family:var(--mono);font-size:9px;letter-spacing:.5px;
+			  padding:2px 7px;border-radius:4px;border:1px solid var(--border);
+			  color:var(--text-muted);white-space:nowrap;}
+			.resto-etiqueta.video{border-color:var(--accent);color:var(--accent);}
+			.resto-etiqueta.ia{border-color:var(--warning, #ffb020);color:var(--warning, #ffb020);}
+			.resto-etiqueta.apagada{border-color:var(--border);color:var(--text-dim);}
+			.resto-etiqueta.revisar{border-color:var(--warning, #ffb020);color:var(--warning, #ffb020);}
+			.resto-etiqueta.mal{border-color:var(--danger);color:var(--danger);}
+			.resto-etiqueta.plan{text-transform:uppercase;color:var(--text-dim);}
 			.status-badge{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;
 			  padding:3px 8px;border-radius:4px;}
 			.status-badge.activo{background:var(--success-dim);color:var(--success);border:1px solid var(--success);}
@@ -373,6 +415,20 @@
 			  border-color: var(--accent);
 			}
 
+			/* Por debajo de 900px la fila deja de caber sin apretar la información
+			   hasta que no se lee. Ahí se apila: datos arriba, botones abajo y
+			   alineados a la IZQUIERDA — pegados a la derecha, con siete botones
+			   envolviendo, la última fila queda descolgada y no se entiende que
+			   sean del mismo grupo. */
+			@media(max-width:900px){
+			  .resto-card{flex-direction:column;align-items:stretch;}
+			  /* Hay que deshacer la base de 260px. En una columna, flex-basis
+			     deja de ser el ANCHO y pasa a ser la ALTURA: sin esto cada
+			     tarjeta abría un hueco vacío de 260px entre los datos y los
+			     botones. Se ve al mirarlo en el móvil, no al leer el CSS. */
+			  .resto-card-info{flex:0 0 auto;}
+			  .resto-card-actions{width:100%;justify-content:flex-start;}
+			}
 			@media(max-width:680px){
 			  .table-header{display:none;}
 			  .product-row{
@@ -5135,61 +5191,66 @@ function fichaPlanHtml(r) {
   const plan = planDe(r);
   const modelo = r?.atributos?.nav || MODELO_POR_DEFECTO;
   const esVideo = esModeloDeVideo(modelo);
+  const info = state.resumenVideo?.[r.id];
 
-  const gris  = t => `<span style="color:var(--text-dim)">${esc(t)}</span>`;
-  const trozo = (t, color) => `<span style="color:${color}">${esc(t)}</span>`;
+  const et = (texto, clase = '') =>
+    `<span class="resto-etiqueta ${clase}">${esc(texto)}</span>`;
 
   const partes = [];
 
-  // 1. Qué ve el comensal.
+  // 1. Qué ve el comensal, y con qué encuadre. El encuadre va PEGADO al tipo
+  //    y no como dato aparte porque en video no es un detalle: decide el
+  //    recorte de cada archivo, y cambiarlo obliga a reconvertir la carta.
   partes.push(esVideo
-    ? trozo(`🎬 video ${modelo === 'vertical' ? 'vertical 9:16' : 'apaisado 16:9'}`, 'var(--accent)')
-    : gris('📷 solo fotos'));
+    ? et(`🎬 video ${modelo === 'vertical' ? 'vertical 9:16' : 'apaisado 16:9'}`, 'video')
+    : et('📷 solo fotos'));
 
-  // El modelo de página, que es lo que decide la forma de la carta.
-  partes.push(gris(etiquetaModelo(modelo)));
+  // 2. El modelo de página, que es lo que decide la forma de la carta.
+  partes.push(et(etiquetaModelo(modelo)));
 
-  // 2. Si el comensal puede pedir. Solo cuando lo tiene: enseñar "sin
+  // 3. Si el comensal puede pedir. Solo cuando lo tiene: enseñar "sin
   //    carrito" en las tres cuartas partes de la lista es ruido.
-  if (plan.carrito) partes.push(trozo('🛒 pedidos', 'var(--text-muted)'));
+  if (plan.carrito) partes.push(et('🛒 pedidos'));
 
-  // 3. La IA. Solo tiene sentido nombrarla donde podría existir — en un plan
+  // 4. La IA. Solo tiene sentido nombrarla donde podría existir —en un plan
   //    sin video no hay nada que encender— y ahí se dice SIEMPRE, encendida o
-  //    apagada: el silencio se leería como "no la tiene" y son cosas
-  //    distintas.
+  //    apagada: el silencio se leería como "no la tiene", y son cosas
+  //    distintas. Ver docs/planes-y-modelos.md §4.
   if (plan.videos) {
-    const info = state.resumenVideo?.[r.id];
     partes.push(info && info.ia_activa === false
-      ? trozo('✨ IA apagada', 'var(--text-dim)')
-      : trozo('✨ IA', 'var(--warning, #ffb020)'));
+      ? et('✨ IA apagada', 'apagada')
+      : et('✨ IA', 'ia'));
   }
 
-  return `<div style="font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-top:3px">
-    ${partes.join(gris(' · '))} ${gris('·')} <span class="resto-card-plan">Plan ${esc(plan.nombre)}</span>
-  </div>`;
+  // 5. El plan, al final: es lo que menos cambia y lo que menos se consulta.
+  partes.push(et(`Plan ${plan.nombre}`, 'plan'));
+
+  return `<div class="resto-etiquetas">${partes.join('')}</div>`;
 }
 
 // diferencia entre "va bien" y "hay algo atascado", y sin separarlos un
 // trabajo colgado se vería como un video más.
 function resumenVideoHtml(r) {
   if (!r) return '';
+  const et = (texto, clase = '') => `<span class="resto-etiqueta ${clase}">${esc(texto)}</span>`;
   const partes = [];
-  if (r.videos_listos)   partes.push(`🎬 ${r.videos_listos} video${r.videos_listos === 1 ? '' : 's'}`);
+
+  if (r.videos_listos)   partes.push(et(`🎬 ${r.videos_listos} video${r.videos_listos === 1 ? '' : 's'}`));
   // Convertido pero fuera de la carta hasta que alguien lo mire. Iba contado
   // como "video" y era mentira: la lista decía "2 videos" de un restaurante
-  // cuyos platos seguían enseñando la foto, y no había cómo saber por qué.
-  if (r.videos_por_aprobar) partes.push(`👀 ${r.videos_por_aprobar} sin revisar`);
-  if (r.videos_en_curso) partes.push(`⏳ ${r.videos_en_curso} convirtiendo`);
-  if (r.videos_error)    partes.push(`⚠ ${r.videos_error} con error`);
+  // cuyos platos seguían enseñando la foto.
+  if (r.videos_por_aprobar) partes.push(et(`👀 ${r.videos_por_aprobar} sin revisar`, 'revisar'));
+  if (r.videos_en_curso) partes.push(et(`⏳ ${r.videos_en_curso} convirtiendo`));
+  if (r.videos_error)    partes.push(et(`⚠ ${r.videos_error} con error`, 'mal'));
   // El cupo solo cuando ya se usó algo: antes de la primera generación es
   // ruido, y en cuanto se usa es lo que hay que vigilar.
-  if (r.ia_usadas)       partes.push(`✨ ${r.ia_usadas}/${r.ia_cupo} con IA`);
+  if (r.ia_usadas)       partes.push(et(`✨ ${r.ia_usadas}/${r.ia_cupo} con IA`,
+                                        r.ia_usadas >= r.ia_cupo ? 'mal' : ''));
   if (!partes.length) return '';
 
-  const apurado = r.ia_usadas && r.ia_usadas >= r.ia_cupo;
-  return `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;font-family:var(--mono)${
-    apurado ? ';color:var(--danger)' : ''}">${esc(partes.join(' · '))}</div>`;
+  return `<div class="resto-etiquetas">${partes.join('')}</div>`;
 }
+
 
 // La cobranza llega en su propia lista, no dentro de cada restaurante: son
 // dos tablas distintas y se piden por separado.
@@ -5378,7 +5439,7 @@ async function cambiarIA(id, nombre, activa) {
     showToast(`IA ${activa ? 'activada' : 'apagada'} para ${nombre}`, activa ? 'success' : 'error');
     // Se recarga la lista entera en vez de retocar el botón: la ficha del plan
     // también cambia, y repintar dos sitios a mano es cómo acaban discrepando.
-    await loadRestaurantes();
+    await cargarListaRestos();
   } catch (e) {
     showToast('No se pudo cambiar: ' + e.message, 'error');
   }
