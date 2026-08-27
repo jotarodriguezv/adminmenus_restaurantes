@@ -1206,3 +1206,49 @@ describe('toppingsHuerfanos · renombrar un topping desengancha los platos', () 
 		assert.equal(buscar({ ...catalogo, salsas: [] }, [{ nombre: 'Gaseosa', atributos: {} }]).length, 0);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('moveCat · reordenar cuando dos categorías empatan en "orden"', () => {
+	// Intercambiaba los dos valores de 'orden'. Con dos categorías empatadas
+	// eso es intercambiar un número consigo mismo: no se movía nada y el panel
+	// decía "Orden actualizado" igual. Y empatar es fácil — openNewCatModal
+	// siembra `orden = state.categorias.length`, así que basta borrar una
+	// categoría y crear otra.
+	const mover = async (categorias, id, dir) => {
+		const patches = [];
+		const ctx = cargar('index.html', [
+			['async function enTandas', 'function ordenProductosModo'],
+			['// Reasigna 0,1,2… a toda la lista', '// ── ELIMINAR'],
+		], {
+			state: { categorias, restaurante: { id: 'r1' } },
+			apiFetch: async (m, ruta, cuerpo) => { patches.push({ ruta, ...cuerpo }); return {}; },
+			renderCatList() {}, renderCatFilter() {}, showToast() {},
+		});
+		await ctx.moveCat(id, dir);
+		return { patches,
+			orden: ctx.state.categorias.map(c => c.nombre),
+			valores: ctx.state.categorias.map(c => c.orden) };
+	};
+
+	test('con órdenes ya distintos, mueve como siempre', async () => {
+		const { orden } = await mover(
+			[{ id: 'a', nombre: 'Entradas', orden: 0 }, { id: 'b', nombre: 'Fuertes', orden: 1 }], 'b', -1);
+		assert.deepEqual([...orden], ['Fuertes', 'Entradas']);
+	});
+
+	test('con dos empatadas en 0, el movimiento sí ocurre', async () => {
+		const { orden, valores } = await mover(
+			[{ id: 'a', nombre: 'Entradas', orden: 0 }, { id: 'b', nombre: 'Postres', orden: 0 }], 'b', -1);
+		assert.deepEqual([...orden], ['Postres', 'Entradas'], 'antes se quedaban como estaban');
+		// Y el empate se deshace: 0 y 1, no dos ceros. Se mira el resultado y no
+		// cuántos PATCH salieron — solo se manda lo que de verdad cambia, así
+		// que una de las dos puede quedarse con el número que ya tenía.
+		assert.deepEqual([...valores], [0, 1]);
+	});
+
+	test('no se sale por los extremos', async () => {
+		const cats = [{ id: 'a', nombre: 'Entradas', orden: 0 }, { id: 'b', nombre: 'Fuertes', orden: 1 }];
+		assert.equal((await mover(cats, 'a', -1)).patches.length, 0, 'la primera no sube');
+		assert.equal((await mover(cats, 'b', 1)).patches.length, 0, 'la última no baja');
+	});
+});
