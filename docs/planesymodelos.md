@@ -51,6 +51,24 @@ sin plan asignado no nota nada.
 parece: cada plato es un archivo que hay que almacenar, convertir y servir
 muchas veces.
 
+### El plan no se puede falsear desde la URL (27/08/2026)
+
+El panel abre la carta pública con `?preview=<json>` para enseñar la apariencia
+antes de guardarla, y `core/preview.js` deja pasar solo una lista de claves. La
+lista plantea bien el criterio —*si un desconocido pudiera fijarle ese valor a la
+carta de un cliente, ¿qué conseguiría?*— pero `'plan'` estaba dentro, y lo
+contestaba por el lado malo: **el plan no es apariencia, es lo que se paga**.
+
+Con `?preview={"atributos":{"plan":"completo"}}` desaparecía el crédito *Hecho
+con VMenus* de una carta que sí lo lleva. Con `"vitrina"` se apagaba
+`aplicarHorarios()` y salían categorías que estaban ocultas fuera de su franja.
+El alcance es la pestaña de quien abre el enlace, así que no es grave — pero es
+marca blanca regalada a quien sepa escribir una URL.
+
+Se quitó de la lista. Probar el **modelo** de carta sigue funcionando con
+`'nav'`, que sí es apariencia y no depende del plan para pintarse; un cambio de
+plan se ve guardándolo.
+
 ---
 
 ## 3. Los modelos
