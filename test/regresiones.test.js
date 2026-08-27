@@ -15,12 +15,19 @@ const fs = require('fs'), path = require('path');
 const S = require('./helpers/servidor.js');
 
 describe('01 · un throw en una ruta async ya no mata el proceso', () => {
-  test('POST /api/categorias sin nombre contesta 500 en vez de caerse', async () => {
+  test('POST /api/categorias sin nombre ya no derriba nada', async () => {
+    // Este fue el ejemplo del fallo: el slug se deriva del nombre, así que
+    // `nombre.toLowerCase()` sobre undefined mataba el proceso entero. Ahora
+    // la ruta lo comprueba antes y contesta un 400 que se puede leer, que es
+    // lo que toca cuando falta un dato obligatorio. El envoltorio sigue
+    // detrás por si algo se escapa: quien lo prueba es el caso de
+    // estadísticas, aquí abajo.
     S.reiniciar();
     S.conTabla(() => ({ data: { atributos: {} }, error: null }));
     const r = await S.pedir('POST', '/api/categorias',
       { restaurante_id: S.IDS.restaurante }, S.tokenCliente);
-    assert.equal(r.status, 500);
+    assert.equal(r.status, 400);
+    assert.match(r.body.error, /nombre/i, 'tiene que decir qué falta');
     assert.doesNotMatch(r.body.error, /toLowerCase|undefined/, 'sin filtrar la excepción');
     // Y lo que de verdad importa: el servidor sigue en pie.
     const sigue = await S.pedir('GET', '/api/productos?restaurante_id=' + S.IDS.restaurante, null, S.tokenCliente);
