@@ -1252,3 +1252,129 @@ describe('moveCat · reordenar cuando dos categorías empatan en "orden"', () =>
 		assert.equal((await mover(cats, 'b', 1)).patches.length, 0, 'la última no baja');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('agruparVisitas · la gráfica no puede pintar una barra por día', () => {
+	// Con una barra por día, el rango "Todo" —que arranca en 2020— pintaba
+	// 2.431 barras: unos 41.000 px de scroll horizontal que nadie recorre. Y
+	// el `Math.max(1, ...dias)` recibía un argumento por día, así que un rango
+	// bastante antiguo lo hacía reventar.
+	const ctx = () => cargar('index.html', [
+		['function fmtISO', 'function hoyEnZona'],
+		['const MAX_BARRAS_VISITAS', 'function renderGraficaVisitas'],
+	], {});
+
+	const agrupar = (visitas, desde, hasta) => ctx().agruparVisitas(visitas, desde, hasta);
+
+	test('un rango corto sigue siendo un día por barra', () => {
+		const { barras, porBarra } = agrupar({ '2026-08-01': 3, '2026-08-03': 5 }, '2026-08-01', '2026-08-05');
+		assert.equal(porBarra, 1);
+		assert.equal(barras.length, 5);
+		assert.equal(barras[0].visitas, 3);
+		assert.equal(barras[1].visitas, 0, 'los días sin visitas cuentan cero, no se saltan');
+		assert.equal(barras[2].visitas, 5);
+	});
+
+	test('el rango "Todo" se agrupa en vez de desbordarse', () => {
+		const { barras, porBarra } = agrupar({}, '2020-01-01', '2026-08-27');
+		assert.ok(barras.length <= 92, `92 como mucho, salieron ${barras.length}`);
+		assert.ok(porBarra > 1, 'tiene que haber agrupado');
+		assert.equal(barras[0].desde, '2020-01-01', 'empieza donde se pidió');
+		assert.equal(barras[barras.length - 1].hasta, '2026-08-27', 'y termina donde se pidió');
+	});
+
+	test('agrupando no se pierde ni se duplica ninguna visita', () => {
+		// Lo que más importa: la suma de las barras tiene que ser la suma de
+		// los días. Si el agrupado se saltara un día o lo contara dos veces,
+		// la gráfica mentiría y no habría forma de notarlo a ojo.
+		const visitas = {};
+		let total = 0;
+		const d = new Date(Date.UTC(2025, 0, 1, 12));
+		for (let i = 0; i < 400; i++) {
+			const iso = d.toISOString().slice(0, 10);
+			visitas[iso] = i % 7;
+			total += i % 7;
+			d.setUTCDate(d.getUTCDate() + 1);
+		}
+		const { barras } = agrupar(visitas, '2025-01-01', '2026-02-04');
+		assert.equal(barras.reduce((s, b) => s + b.visitas, 0), total);
+	});
+
+	test('un rango al revés se avisa, no se pinta vacío', () => {
+		const r = agrupar({}, '2026-08-27', '2026-08-01');
+		assert.equal(r.invertido, true);
+		assert.equal(r.barras.length, 0);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('compressImage · formato de salida y fallos que antes colgaban', () => {
+	// Dos fallos en la misma función. Salía siempre JPEG, y JPEG no tiene canal
+	// alfa: un logo PNG con fondo transparente acababa con un rectángulo negro.
+	// Y la promesa no tenía 'rej' ni manejadores de error, así que un archivo
+	// que no decodificaba dejaba la promesa sin resolver PARA SIEMPRE — el
+	// panel se quedaba en "Subiendo..." y no había más salida que recargar.
+	function entorno({ fallaLectura = false, fallaDecodificacion = false, blobNulo = false } = {}) {
+		const visto = {};
+		return {
+			visto,
+			FileReader: class {
+				readAsDataURL() {
+					setTimeout(() => fallaLectura ? this.onerror?.() : this.onload?.({ target: { result: 'data:,' } }), 0);
+				}
+			},
+			Image: class {
+				constructor() { this.width = 1000; this.height = 500; }
+				set src(_) { setTimeout(() => fallaDecodificacion ? this.onerror?.() : this.onload?.(), 0); }
+			},
+			document: {
+				createElement: () => ({
+					getContext: () => ({ drawImage() {} }),
+					toBlob(cb, tipo) { visto.tipo = tipo; cb(blobNulo ? null : { type: tipo }); },
+				}),
+			},
+		};
+	}
+
+	const comprimir = (archivo, opciones, fallos) => {
+		const ctx = entorno(fallos);
+		const cargado = cargar('index.html', [['function compressImage', 'async function uploadImg']], ctx);
+		return { promesa: cargado.compressImage(archivo, 500, .9, opciones), visto: ctx.visto };
+	};
+
+	test('un logo PNG se queda en PNG', async () => {
+		const { promesa, visto } = comprimir({ type: 'image/png' }, { conservarTransparencia: true });
+		const blob = await promesa;
+		assert.equal(visto.tipo, 'image/png');
+		assert.equal(blob.type, 'image/png');
+	});
+
+	test('una foto de plato sigue saliendo JPEG', async () => {
+		const { promesa, visto } = comprimir({ type: 'image/png' }, {});
+		await promesa;
+		assert.equal(visto.tipo, 'image/jpeg', 'sin pedirlo, no se conserva la transparencia');
+	});
+
+	test('un JPEG no se convierte a PNG aunque se pida transparencia', async () => {
+		// Convertirlo no recupera una transparencia que nunca tuvo, y sí
+		// multiplica el peso.
+		const { promesa, visto } = comprimir({ type: 'image/jpeg' }, { conservarTransparencia: true });
+		await promesa;
+		assert.equal(visto.tipo, 'image/jpeg');
+	});
+
+	test('un archivo que no decodifica RECHAZA en vez de colgarse', async () => {
+		const { promesa } = comprimir({ type: 'image/png' }, {}, { fallaDecodificacion: true });
+		await assert.rejects(() => promesa, /no es una imagen/);
+	});
+
+	test('un archivo ilegible también rechaza', async () => {
+		const { promesa } = comprimir({ type: 'image/png' }, {}, { fallaLectura: true });
+		await assert.rejects(() => promesa, /No se pudo leer/);
+	});
+
+	test('y un toBlob que devuelve null tampoco deja la promesa colgada', async () => {
+		const { promesa } = comprimir({ type: 'image/png' }, {}, { blobNulo: true });
+		await assert.rejects(() => promesa, /No se pudo procesar/);
+	});
+});
