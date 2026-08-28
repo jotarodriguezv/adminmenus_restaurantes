@@ -280,6 +280,34 @@ Recogidas por haberlas sufrido:
 
 ## Registro de cambios
 
+**28/08/2026 — Comprobación de salud del contenedor**
+
+Hasta ahora, para Docker el contenedor estaba sano mientras el proceso no
+muriera. Un ffmpeg atascado, un bucle que no suelta el turno o un OOM a medias
+lo dejan **vivo pero sin atender a nadie**, y eso no lo arreglaba nadie hasta
+que alguien se quejaba.
+
+Pesa un poco más desde el 27/08: antes, un fallo grave se llevaba el proceso por
+delante y Docker lo reiniciaba solo. Con el envoltorio que impide que una
+excepción mate el proceso, ahora puede quedarse vivo y tonto.
+
+- `GET /salud` — sin credenciales, contesta `{ ok, arriba_desde_s }` y nada más.
+- El `HEALTHCHECK` va **en el Dockerfile**, no en la interfaz de Dokploy: así
+  viaja con el código y se despliega con él. Lo que hay que recordar configurar
+  en otro sistema es justo lo que se pierde.
+- Cada 30 s, 5 s de espera, 20 s de gracia al arrancar, 3 fallos seguidos para
+  marcarlo enfermo.
+
+**Lo que NO hace, a propósito:** no consulta la base de datos. Un healthcheck
+corre cada pocos segundos y pegarle a Supabase en cada uno es carga constante
+por nada; peor aún, si la base se cayera, fallar aquí reiniciaría el contenedor
+en bucle — reiniciar no arregla una base caída, solo añade un servidor que
+tampoco arranca. Y no devuelve versiones ni conteos de la cola: no lleva
+autenticación, así que lo único que puede decir es que está vivo.
+
+Comprobado con la orden exacta del `HEALTHCHECK` contra el servidor real:
+código 0 con el proceso en pie, código 4 con el proceso caído.
+
 **28/08/2026 — Contraste y etiquetas del panel**
 
 Cierre de lo que quedó abierto de la revisión del día anterior. Detalle en
