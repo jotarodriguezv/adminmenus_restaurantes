@@ -915,16 +915,45 @@ Detectado al leer los 3.700 renglones de JavaScript de `public/index.html`.
   `restaurantes_facturacion`). Caían por la cascada, pero el comentario prometía
   una independencia que ya no era verdad.
 
-**Pendiente de este repaso**
+**Texto que no se podía leer, en los dos repositorios**
 
-- **`--text-dim` es ilegible en el tema oscuro**, que es el que viene por
-  defecto: `#2e4232` sobre `#172019` da **1,54:1**. Se usa **78 veces**, en
-  tamaños de 9 a 14 px. En el tema claro da 3,77:1, bajo pero legible.
-- **Las 93 etiquetas del panel no están enlazadas a su campo.** Son `<label>` de
-  verdad, solo les falta el `for`: un lector de pantalla anuncia «cuadro de
-  texto, en blanco» en los 107 campos, y pulsar sobre el texto no enfoca el
-  campo. 60 se enlazan añadiendo solo el atributo; los otros 47 hay que mirarlos
-  uno a uno.
+Resuelto el 28/08/2026. Salió de auditar el contraste de la paleta, que es la
+misma familia de la que salió `var(--warning)`.
+
+`--text-dim` estaba por debajo del umbral en **los dos** proyectos, y el de la
+carta pública es el que más pesa porque lo ve el comensal:
+
+| | Antes | Ahora | Mínimo |
+|---|---|---|---|
+| Panel, tema oscuro *(el de por defecto)* | `#2e4232` · **1,54:1** | `#7a9182` · 4,93:1 | 4,5:1 |
+| Panel, tema claro | `#6f7f72` · 3,77:1 | `#5d6b60` · 5,00:1 | 4,5:1 |
+| Carta pública | `#4a4560` · **1,92:1** | `#8d87a8` · 5,13:1 | 4,5:1 |
+
+En el panel hubo que mover **dos** tokens, no uno: `--text-muted` estaba en
+3,49:1, o sea por debajo del umbral él mismo, así que subir solo el `dim` lo
+habría dejado más claro que el `muted` e invertido la jerarquía. Subió a
+`#a8bfb0` (8,55:1). La jerarquía queda 13,8 › 8,6 › 4,9.
+
+En la carta pública, los ocho usos incluyen los dos que de verdad importan:
+**la descripción de lo que el comensal eligió dentro del carrito**
+(`.cart-item-desc`) y **el resumen del pedido justo antes de mandarlo por
+WhatsApp** (`core/carrito.js`). Es la persona leyendo qué está a punto de pedir,
+en su móvil, en la mesa.
+
+> Con una salvedad que conviene recordar: en la carta pública `--card` lo puede
+> sobrescribir cada restaurante desde Apariencia (`color_card`), así que el
+> contraste real depende de lo que cada uno configure. Arreglar el valor por
+> defecto es lo correcto, pero no garantiza los nueve casos.
+
+**Las etiquetas del panel, enlazadas** — resuelto el 28/08/2026
+
+Las 93 eran `<label>` de verdad pero ninguna llevaba `for`, así que un lector de
+pantalla anunciaba «cuadro de texto, en blanco» en los 107 campos y pulsar sobre
+el texto no enfocaba nada. Quedaron **62 con `for`** y **20 que envuelven su
+campo** —esas ya funcionaban al pulsarlas—. Las **11 restantes** son títulos de
+GRUPO (filas de chips, zonas de subida) y no hay un control único al que
+apuntar: lo que pide ese marcado es un `role="group"` con `aria-labelledby`, que
+es un cambio de otra forma y queda abierto.
 - El HTML y el CSS del panel salieron limpios en lo demás: **269 IDs sin un solo
   duplicado**, ningún `getElementById` apuntando a un elemento que no existe, las
   26 variables CSS definidas y usadas, `viewport` y `lang` presentes, ningún
