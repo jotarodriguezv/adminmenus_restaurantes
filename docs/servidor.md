@@ -280,6 +280,24 @@ Recogidas por haberlas sufrido:
 
 ## Registro de cambios
 
+**28/08/2026 — Contraste y etiquetas del panel**
+
+Cierre de lo que quedó abierto de la revisión del día anterior. Detalle en
+`cartas-en-video.md §9.11`.
+
+`--text-dim` estaba por debajo del umbral de legibilidad en **los dos**
+repositorios, y el de la carta pública era el que más pesaba: 1,92:1 en el texto
+que le dice al comensal qué eligió dentro del carrito y qué está a punto de
+mandar por WhatsApp. En el panel, 1,54:1 en el tema que viene por defecto, con
+78 usos en tamaños de 9 a 14 px.
+
+En el panel hubo que mover dos tokens y no uno: `--text-muted` estaba él mismo
+en 3,49:1, así que subir solo el `dim` habría invertido la jerarquía. Los nueve
+pares de texto sobre fondo de los tres temas quedan ahora por encima de 4,5:1.
+
+Y las 93 etiquetas del panel, que eran `<label>` sin `for`: 62 enlazadas, 20 que
+ya envolvían su campo, 11 que son títulos de grupo y piden otro marcado.
+
 **27/08/2026 — Revisión completa del código: 33 fallos**
 
 Repaso de los dos repositorios contra el esquema real de Supabase. No salió de
