@@ -73,6 +73,35 @@ process.on('unhandledRejection', e => {
   console.error('⚠️  promesa sin capturar:', e?.stack || e?.message || e);
 });
 
+// ── ¿SIGUE VIVO Y ATENDIENDO? ─────────────────────────────────
+// Dokploy no sabía distinguir un proceso colgado de uno sano: mientras el
+// contenedor no muriera, para él estaba bien. Un ffmpeg atascado, un bucle que
+// no suelta el turno o un OOM a medias dejan el servidor en pie sin atender a
+// nadie, y eso no lo arregla nadie hasta que alguien se queja.
+//
+// Esto pesa un poco MÁS desde que las excepciones dejaron de matar el proceso
+// (ver conCaptura, más abajo): antes un fallo grave se llevaba el proceso por
+// delante y Docker lo reiniciaba solo. Ahora puede quedarse vivo y tonto.
+//
+// Va lo primero de todo, antes de cors() y del cuerpo JSON, porque lo que se
+// quiere medir es si el bucle de eventos responde — no si el resto de la
+// tubería está bien montada.
+//
+// ── LO QUE NO HACE, A PROPÓSITO ──────────────────────────────
+// No consulta la base de datos. Un healthcheck se ejecuta cada pocos segundos:
+// pegarle a Supabase en cada uno es carga constante por nada. Y si la base se
+// cayera, fallar aquí haría que Docker reiniciara el contenedor en bucle —
+// reiniciar no arregla una base caída, solo añade un servidor que además no
+// arranca. El fallo de la base se ve en los registros, no aquí.
+//
+// Tampoco devuelve versiones, ni conteos de la cola, ni nada del negocio: no
+// lleva autenticación —Dokploy tiene que poder llamarlo— así que lo único que
+// dice es que está vivo y cuánto lleva.
+app.get('/salud', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ ok: true, arriba_desde_s: Math.round(process.uptime()) });
+});
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
