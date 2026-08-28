@@ -254,3 +254,39 @@ describe('04 · dos conversiones del mismo plato', () => {
       if (!antes.has(f)) { try { fs.unlinkSync(path.join(dir, f)); } catch {} }
   });
 });
+
+describe('10 · el endpoint de salud', () => {
+  // Dokploy no sabía distinguir un proceso colgado de uno sano. Esto es lo que
+  // le da la señal, así que tiene que cumplir tres cosas: contestar sin
+  // credenciales, no tocar la base de datos, y no contar nada del negocio.
+  test('contesta sin credenciales', async () => {
+    S.reiniciar();
+    const r = await S.pedir('GET', '/salud');
+    assert.equal(r.status, 200);
+    assert.equal(r.body.ok, true);
+    assert.equal(typeof r.body.arriba_desde_s, 'number');
+  });
+
+  test('no consulta la base de datos', async () => {
+    // Un healthcheck corre cada pocos segundos. Si preguntara a Supabase sería
+    // carga constante por nada, y además un fallo de la base reiniciaría el
+    // contenedor en bucle — reiniciar no arregla una base caída.
+    S.reiniciar();
+    await S.pedir('GET', '/salud');
+    assert.equal(S.llamadas.length, 0, 'no debe tocar ninguna tabla ni rpc');
+  });
+
+  test('no cuenta nada del negocio', async () => {
+    // No lleva autenticación: lo único que puede decir es que está vivo.
+    S.reiniciar();
+    const r = await S.pedir('GET', '/salud');
+    assert.deepEqual(Object.keys(r.body).sort(), ['arriba_desde_s', 'ok']);
+  });
+
+  test('sigue contestando aunque la base falle', async () => {
+    S.reiniciar();
+    S.conTabla(() => { throw new Error('la base no responde'); });
+    const r = await S.pedir('GET', '/salud');
+    assert.equal(r.status, 200, 'una base caída no puede marcar el proceso como enfermo');
+  });
+});
