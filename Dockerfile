@@ -39,4 +39,23 @@ RUN mkdir -p uploads/productos uploads/categorias uploads/promos \
              uploads/originales uploads/videos uploads/masters uploads/miniaturas
 
 EXPOSE 3000
+
+# Sin esto, para Docker el contenedor está sano mientras el proceso no muera —
+# y un proceso puede quedarse vivo sin atender a nadie: un ffmpeg atascado, un
+# bucle que no suelta el turno, un OOM a medias. Con la comprobación puesta,
+# tres fallos seguidos lo marcan enfermo y Dokploy puede reiniciarlo.
+#
+# Va en el Dockerfile y no en la interfaz de Dokploy a propósito: aquí viaja con
+# el código y se despliega con él. En la interfaz hay que acordarse, y lo que
+# hay que recordar en otro sistema es justo lo que se pierde.
+#
+# wget viene con busybox en Alpine, así que no hace falta instalar curl.
+# Se usa la forma de shell —sin corchetes— para que ${PORT} se expanda: si algún
+# día el puerto cambia por variable de entorno, la comprobación lo sigue.
+#
+# 20 s de gracia al arrancar: el servidor levanta rápido, pero además pone en
+# marcha las dos colas y no tiene sentido preguntarle mientras tanto.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/salud" > /dev/null || exit 1
+
 CMD ["node", "server.js"]
