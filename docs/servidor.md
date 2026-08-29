@@ -312,6 +312,23 @@ De paso: el botón «✏ Editar» de una línea del carrito preguntaba por la co
 del catálogo dentro del plato, que ya no existe en ningún plato de ninguna
 carta. Llevaba desde entonces sin salir nunca.
 
+**Aplicado en producción el 29/08/2026**, en el orden correcto: primero los dos
+despliegues, después el SQL. Comprobado contra la base después de correrlo:
+
+| | |
+|---|---|
+| Elementos de catálogo sin identificador | **0** |
+| Elementos de catálogo con identificador | **23** |
+| Referencias de plato todavía por nombre | **0** |
+| Referencias de plato ya por identificador | **79** |
+| Huérfanos (plato apuntando a algo inexistente) | **0** |
+| Platos con la copia vieja del catálogo dentro | **0** |
+
+Y lo que importa no es que haya identificadores, sino que signifiquen lo mismo
+que antes: resueltos de vuelta a nombres, los cuatro platos de `perroscriollos`
+ofrecen exactamente lo que ofrecían, en el mismo orden, y los cuatro premium
+siguen a $4.000.
+
 **28/08/2026 — Comprobación de salud del contenedor**
 
 Hasta ahora, para Docker el contenedor estaba sano mientras el proceso no
@@ -339,6 +356,38 @@ autenticación, así que lo único que puede decir es que está vivo.
 
 Comprobado con la orden exacta del `HEALTHCHECK` contra el servidor real:
 código 0 con el proceso en pie, código 4 con el proceso caído.
+
+**Las cartas también la llevan** (`Dockerfile` de vmenus-app). Ahí el proceso es
+nginx, que no se cuelga como se cuelga un Node con ffmpeg detrás, pero hay un
+fallo que sí atrapa: nginx vivo con la raíz web vacía —un `COPY` que salió mal,
+un volumen que tapa la carpeta— acepta conexiones y responde 404 a todo el
+mundo. Desde fuera eso se ve como una carta en blanco y nadie se entera hasta
+que llama un restaurante. Por eso pide el `index.html` de verdad y no solo el
+puerto.
+
+No pasa por el panel a propósito: el bloque `location /` manda los robots a
+`/api/og`, pero esta petición no lleva ese User-Agent y se resuelve con el
+archivo local. Si preguntara por algo que cruza al panel, un panel caído
+marcaría enfermas unas cartas que se sirven perfectamente sin él.
+
+Comprobados los tres casos con la orden exacta: **404 → código 8, archivo
+presente → código 0, proceso caído → código 4.**
+
+**Estado en producción el 29/08/2026:**
+
+| Contenedor | Estado |
+|---|---|
+| `adminvmenus` (panel) | `Up 11 minutes (healthy)` |
+| `vmenusapp` (cartas) | `Up 14 minutes (healthy)` |
+| `menubonza` | `Up 5 hours`, sin estado |
+| `menumalparados` | `Up 5 hours`, sin estado |
+
+Los dos últimos **no se redesplegaron**, así que siguen con la imagen anterior y
+no tienen `HEALTHCHECK` que informar. No es un fallo —«sin estado» no es
+«enfermo»— y la ganan en su próximo despliegue. Tampoco corren riesgo con lo de
+los toppings: ni `bonzas` ni `malparados` tienen catálogo, así que el código
+anterior y el nuevo hacen exactamente lo mismo en sus cartas. Aun así, conviene
+redesplegarlos para que las cuatro cartas corran el mismo código.
 
 **28/08/2026 — Contraste y etiquetas del panel**
 
