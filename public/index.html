@@ -289,6 +289,9 @@
 			.empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);font-family:var(--mono);font-size:11px;letter-spacing:1px;}
 			.topping-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;
 			  border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;}
+			.topping-chip .chip-nombre{background:none;border:none;color:inherit;font:inherit;padding:0;
+			  cursor:pointer;text-align:left;border-bottom:1px dashed transparent;transition:border-color .18s;}
+			.topping-chip .chip-nombre:hover,.topping-chip .chip-nombre:focus-visible{border-bottom-color:var(--accent);}
 			.topping-chip .chip-del{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;
 			  padding:0;line-height:1;transition:color .18s;}
 			.topping-chip .chip-del:hover{color:var(--danger);}
@@ -1730,6 +1733,10 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="toppingTipo">
+      <!-- Vacío = alta. Con un índice = se está renombrando ese elemento, y
+           entonces el identificador se conserva: los platos que lo ofrecen
+           siguen enganchados. -->
+      <input type="hidden" id="toppingIndice">
       <div class="form-group">
         <label for="toppingNombre" class="form-label">Nombre</label>
         <input type="text" class="form-input" id="toppingNombre" placeholder="Ej: Aguacate">
@@ -1741,7 +1748,7 @@
     </div>
     <div class="modal-foot">
       <button class="btn-cancel" onclick="closeModal('toppingModal')">Cancelar</button>
-      <button class="btn-save" onclick="confirmAddTopping()">Añadir</button>
+      <button class="btn-save" id="btnGuardarTopping" onclick="confirmAddTopping()">Añadir</button>
     </div>
   </div>
 </div>
@@ -2406,7 +2413,51 @@ function renderProdFiltrosBadges() {
 	});
 }
 
-// Chip genérico activable para el modal de producto.
+// ── EL CATÁLOGO DE TOPPINGS, EN UNA SOLA FORMA ────────────────
+// Espejo de catalogoDe() en core/carrito.js del menú público: dos
+// aplicaciones separadas, una sola definición. Si cambias una, cambia la otra
+// — igual que con planActual() y core/planes.js.
+//
+// El catálogo se ha guardado de tres maneras a lo largo del tiempo: platino y
+// salsas como cadenas sueltas, premium como objeto con precio, y ahora los
+// tres como objeto con identificador. Aquí se traducen todas a la misma.
+//
+// La clave está en 'obj.id || nombre': un elemento sin identificador usa su
+// nombre como tal. Eso es lo que permite migrar sin apagar nada — el panel, la
+// carta pública, la base de datos y el carrito que alguien tenga abierto en el
+// móvil no se pueden actualizar en el mismo instante.
+function catalogoDe(attr) {
+	const norm = (lista, conPrecio) => (Array.isArray(lista) ? lista : []).map(it => {
+		const obj = (it && typeof it === 'object') ? it : { nombre: it };
+		const nombre = String(obj.nombre ?? '').trim();
+		if (!nombre) return null;
+		const base = { id: String(obj.id || nombre), nombre };
+		return conPrecio ? { ...base, precio: Number(obj.precio) || 0 } : base;
+	}).filter(Boolean);
+
+	return {
+		platino: norm(attr?.toppings_platino, false),
+		premium: norm(attr?.toppings_premium, true),
+		salsas:  norm(attr?.salsas, false),
+	};
+}
+
+// ¿Está este elemento del catálogo entre los marcados? Acepta identificador o
+// nombre a propósito: los platos guardados antes de la migración solo tienen
+// el nombre, y no reconocerlos les quitaría los toppings sin decir nada.
+function marcadoPorId(seleccion) {
+	const s = new Set((Array.isArray(seleccion) ? seleccion : []).map(String));
+	return t => s.has(t.id) || s.has(t.nombre);
+}
+
+// Identificador de un topping nuevo. Corto para que 'atributos' se siga
+// pudiendo leer de un vistazo en la base, y con prefijo para que se vea de
+// dónde salió. Quien lo llama comprueba que no choque con los que ya hay.
+function nuevoIdTopping() {
+	const azar = (globalThis.crypto?.randomUUID?.() || String(Math.random())).replace(/[^a-z0-9]/gi, '');
+	return 'top_' + azar.slice(0, 8).toLowerCase();
+}
+
 // ── PERSONALIZACIÓN DEL PLATO ─────────────────────────────────
 // El catálogo de toppings es del negocio y vive en la pestaña Toppings.
 // Aquí se marca cuáles ofrece cada plato.
@@ -2416,59 +2467,72 @@ function renderProdFiltrosBadges() {
 // puesta a mano y todo producto creado después nacía sin toppings, en
 // silencio y sin forma de arreglarlo desde el panel.
 
-// Los platos viejos llevan una copia del catálogo dentro. Se traduce a la
-// forma nueva al abrirlos: el restaurante los ve ya marcados y quedan
-// migrados en cuanto guarde.
-function personalizacionDe(p) {
+// Qué ofrece este plato, siempre como IDENTIFICADORES del catálogo de hoy.
+// Es el único sitio del panel que traduce, y por eso recibe el catálogo: un
+// plato guardado antes de la migración trae nombres, uno de hoy trae
+// identificadores, y el resto del panel no debería tener que distinguirlos.
+//
+// Traducir aquí es además lo que migra los datos solos: en cuanto el
+// restaurante guarde la ficha, lo que se escribe ya son identificadores.
+function personalizacionDe(p, cat) {
 	const a = p?.atributos || {};
-	if (a.personalizacion) return {
-		platino: [...(a.personalizacion.platino || [])],
-		premium: [...(a.personalizacion.premium || [])],
-		salsas:  [...(a.personalizacion.salsas || [])],
-	};
+	// Los platos anteriores a que el catálogo subiera al restaurante llevan
+	// una copia dentro. Se lee para no dejarlos sin nada; como sus elementos
+	// no tienen identificador, caen en su propio nombre y casan con el
+	// catálogo del negocio si coinciden.
+	const sel = a.personalizacion || (() => {
+		const propio = catalogoDe(a);
+		return {
+			platino: propio.platino.map(t => t.nombre),
+			premium: propio.premium.map(t => t.nombre),
+			salsas:  propio.salsas.map(t => t.nombre),
+		};
+	})();
+
+	const ids = (guardado, disponibles) => disponibles.filter(marcadoPorId(guardado)).map(t => t.id);
 	return {
-		platino: [...(a.toppings_platino || [])],
-		premium: (a.toppings_premium || []).map(t => t?.nombre).filter(Boolean),
-		salsas:  [...(a.salsas || [])],
+		platino: ids(sel.platino, cat.platino),
+		premium: ids(sel.premium, cat.premium),
+		salsas:  ids(sel.salsas,  cat.salsas),
 	};
 }
 
 function renderPersonalizacion() {
 	const grupo = document.getElementById('personalizacionGroup');
-	const cat = state.restaurante?.atributos || {};
-	const hayCatalogo = !!(cat.toppings_platino?.length || cat.toppings_premium?.length || cat.salsas?.length);
+	const cat = catalogoDe(state.restaurante?.atributos);
+	const hayCatalogo = !!(cat.platino.length || cat.premium.length || cat.salsas.length);
 
 	// Se enseña donde tiene sentido: negocios con carrito, o que ya arrastren
 	// catálogo de antes. Al resto no le dice nada.
-	const conCarrito = cat.nav === 'carrito' || !!(planActual().carrito && cat.carrito);
+	const attr = state.restaurante?.atributos || {};
+	const conCarrito = attr.nav === 'carrito' || !!(planActual().carrito && attr.carrito);
 	if (!conCarrito && !hayCatalogo) { grupo.style.display = 'none'; return; }
 	grupo.style.display = 'block';
 	document.getElementById('persVacio').style.display = hayCatalogo ? 'none' : 'block';
 
-	const pintar = (wrapId, chipsId, items, nombreDe, etiquetaDe, marcados) => {
+	const pintar = (wrapId, chipsId, items, etiquetaDe, marcados) => {
 		const wrap = document.getElementById(wrapId);
 		const chips = document.getElementById(chipsId);
 		if (!items.length) { wrap.style.display = 'none'; return; }
 		wrap.style.display = 'block';
 		chips.innerHTML = '';
 		items.forEach(item => {
-			const nombre = nombreDe(item);
-			chips.appendChild(chipToggle('', etiquetaDe(item), marcados.includes(nombre), () => {
-				const i = marcados.indexOf(nombre);
-				if (i === -1) marcados.push(nombre); else marcados.splice(i, 1);
+			chips.appendChild(chipToggle('', etiquetaDe(item), marcados.includes(item.id), () => {
+				const i = marcados.indexOf(item.id);
+				if (i === -1) marcados.push(item.id); else marcados.splice(i, 1);
 				renderPersonalizacion();
 			}));
 		});
 	};
 
 	const P = state.prodPers;
-	pintar('persPlatinoWrap', 'persPlatinoChips', cat.toppings_platino || [],
-		t => t, t => t, P.platino);
-	pintar('persPremiumWrap', 'persPremiumChips', cat.toppings_premium || [],
-		t => t.nombre, t => `${t.nombre} · $${Number(t.precio || 0).toLocaleString('es-CO')}`, P.premium);
-	pintar('persSalsasWrap', 'persSalsasChips', cat.salsas || [],
-		s => s, s => s, P.salsas);
+	pintar('persPlatinoWrap', 'persPlatinoChips', cat.platino, t => t.nombre, P.platino);
+	pintar('persPremiumWrap', 'persPremiumChips', cat.premium,
+		t => `${t.nombre} · $${Number(t.precio || 0).toLocaleString('es-CO')}`, P.premium);
+	pintar('persSalsasWrap', 'persSalsasChips', cat.salsas, s => s.nombre, P.salsas);
 }
+
+// Chip genérico activable para el modal de producto.
 
 function chipToggle(emoji, label, activo, onClick) {
 	const chip = document.createElement('button');
@@ -2524,7 +2588,7 @@ function openEditProductModal(id) {
 	state.prodFiltros = Array.isArray(at.filtros) ? [...at.filtros] : [];
 	state.prodBadges = { popular: !!at.popular, chef: !!at.chef, nuevo: !!at.nuevo };
 	renderProdFiltrosBadges();
-	state.prodPers = personalizacionDe(p);
+	state.prodPers = personalizacionDe(p, catalogoDe(state.restaurante?.atributos));
 	renderPersonalizacion();
 	pintarVideoPlato(p);
 	ajustarFichaAlModelo();
@@ -5164,48 +5228,85 @@ function cambiarVistaRanking(v) {
 }
 
 // ── TOPPINGS ─────────────────────────────────────────────────
+// El catálogo del negocio. Cada elemento lleva un identificador propio y los
+// platos guardan ESE identificador, no el nombre — que era lo que hacía que
+// renombrar un topping desenganchara en silencio a los platos que lo ofrecen.
+//
+// Se guarda ya normalizado por catalogoDe: aunque lo que hubiera en la base
+// fueran cadenas sueltas, al pulsar Guardar sale con la forma de hoy.
 let toppingState = { platino: [], premium: [], salsas: [] };
 
 function renderToppings() {
   if (!state.restaurante?.atributos) return;
-  const attr = state.restaurante.atributos || {};
-  toppingState.platino = [...(attr.toppings_platino || [])];
-  toppingState.premium = [...(attr.toppings_premium || [])];
-  toppingState.salsas  = [...(attr.salsas || [])];
-  renderToppingList('listToppingsPlatino', toppingState.platino, 'platino');
-  renderToppingList('listToppingsPremium', toppingState.premium, 'premium');
-  renderToppingList('listToppingsSalsas',  toppingState.salsas,  'salsas');
+  const cat = catalogoDe(state.restaurante.atributos);
+  toppingState.platino = cat.platino;
+  toppingState.premium = cat.premium;
+  toppingState.salsas  = cat.salsas;
+  renderToppingList('listToppingsPlatino', 'platino');
+  renderToppingList('listToppingsPremium', 'premium');
+  renderToppingList('listToppingsSalsas',  'salsas');
 }
 
-function renderToppingList(containerId, items, tipo) {
+function renderToppingList(containerId, tipo) {
   const wrap = document.getElementById(containerId);
   if (!wrap) return;
+  const items = toppingState[tipo];
   wrap.innerHTML = '';
   if (!items.length) { wrap.innerHTML = '<span style="font-size:12px;color:var(--text-dim);">Sin elementos</span>'; return; }
   items.forEach((item, idx) => {
     const chip = document.createElement('div');
     chip.className = 'topping-chip';
     const label = tipo === 'premium'
-      ? `${item.nombre} · $${item.precio.toLocaleString('es-CO')}`
-      : item;
-    chip.innerHTML = `<span>${esc(label)}</span><button class="chip-del" title="Eliminar">✕</button>`;
+      ? `${item.nombre} · $${Number(item.precio || 0).toLocaleString('es-CO')}`
+      : item.nombre;
+    // El nombre es un botón: renombrar es lo que este cambio vuelve seguro,
+    // y una función que no se ve desde ningún sitio es una función que no
+    // existe. El aspecto es el mismo de antes; solo se puede pulsar.
+    chip.innerHTML =
+      `<button class="chip-nombre" title="Renombrar">${esc(label)}</button>` +
+      `<button class="chip-del" title="Eliminar">✕</button>`;
+    chip.querySelector('.chip-nombre').onclick = () => editarTopping(tipo, idx);
     chip.querySelector('.chip-del').onclick = () => {
-      if (tipo === 'premium') toppingState.premium.splice(idx, 1);
-      else if (tipo === 'platino') toppingState.platino.splice(idx, 1);
-      else toppingState.salsas.splice(idx, 1);
-      renderToppingList(containerId, tipo==='premium'?toppingState.premium:tipo==='platino'?toppingState.platino:toppingState.salsas, tipo);
+      items.splice(idx, 1);
+      renderToppingList(containerId, tipo);
     };
     wrap.appendChild(chip);
   });
 }
 
+const CONTENEDOR_TOPPING = {
+  platino: 'listToppingsPlatino',
+  premium: 'listToppingsPremium',
+  salsas:  'listToppingsSalsas',
+};
+
 function addTopping(tipo) {
   document.getElementById('toppingTipo').value = tipo;
+  document.getElementById('toppingIndice').value = '';
   document.getElementById('toppingNombre').value = '';
   document.getElementById('toppingPrecio').value = tipo === 'premium' ? '4000' : '';
   document.getElementById('toppingPrecioGroup').style.display = tipo === 'premium' ? 'block' : 'none';
   const titles = { platino: 'Nuevo Topping Platino', premium: 'Nuevo Topping Premium', salsas: 'Nueva Salsa' };
   document.getElementById('toppingModalTitle').textContent = titles[tipo];
+  document.getElementById('btnGuardarTopping').textContent = 'Añadir';
+  openModal('toppingModal');
+  setTimeout(() => document.getElementById('toppingNombre').focus(), 100);
+}
+
+// Renombrar (y, en premium, cambiar el precio) sin tocar el identificador:
+// los platos que lo ofrecen siguen enganchados y el cliente ve el nombre
+// nuevo. Antes esto no se podía hacer desde el panel — solo añadir y borrar—,
+// justamente porque renombrar rompía los platos en silencio.
+function editarTopping(tipo, idx) {
+  const item = toppingState[tipo][idx];
+  if (!item) return;
+  document.getElementById('toppingTipo').value = tipo;
+  document.getElementById('toppingIndice').value = String(idx);
+  document.getElementById('toppingNombre').value = item.nombre;
+  document.getElementById('toppingPrecio').value = tipo === 'premium' ? String(item.precio ?? '') : '';
+  document.getElementById('toppingPrecioGroup').style.display = tipo === 'premium' ? 'block' : 'none';
+  document.getElementById('toppingModalTitle').textContent = tipo === 'salsas' ? 'Editar salsa' : 'Editar topping';
+  document.getElementById('btnGuardarTopping').textContent = 'Guardar';
   openModal('toppingModal');
   setTimeout(() => document.getElementById('toppingNombre').focus(), 100);
 }
@@ -5213,46 +5314,56 @@ function addTopping(tipo) {
 function confirmAddTopping() {
   const tipo   = document.getElementById('toppingTipo').value;
   const nombre = document.getElementById('toppingNombre').value.trim();
+  const crudo  = document.getElementById('toppingIndice').value;
+  const idx    = crudo === '' ? -1 : Number(crudo);
   if (!nombre) { showToast('Escribe un nombre', 'error'); return; }
 
-  // Un nombre repetido no es solo desorden. El menú calcula el recargo
-  // filtrando el catálogo por nombre, así que dos entradas iguales suman dos
-  // veces: el cliente marca un topping una vez y paga el doble.
-  const igual = v => v.trim().toLowerCase() === nombre.toLowerCase();
-  const yaExiste = tipo === 'premium'
-    ? toppingState.premium.some(t => igual(t.nombre))
-    : (tipo === 'platino' ? toppingState.platino : toppingState.salsas).some(igual);
-  if (yaExiste) { showToast('Ya hay uno con ese nombre', 'error'); return; }
+  const lista = toppingState[tipo];
+  if (!lista) return;
 
-  if (tipo === 'premium') {
-    const precio = parseFloat(document.getElementById('toppingPrecio').value) || 0;
-    toppingState.premium.push({ nombre, precio });
-    renderToppingList('listToppingsPremium', toppingState.premium, 'premium');
-  } else if (tipo === 'platino') {
-    toppingState.platino.push(nombre);
-    renderToppingList('listToppingsPlatino', toppingState.platino, 'platino');
-  } else {
-    toppingState.salsas.push(nombre);
-    renderToppingList('listToppingsSalsas', toppingState.salsas, 'salsas');
+  // Un nombre repetido no es solo desorden. Aunque el cobro ya va por
+  // identificador, el cliente vería dos chips iguales en el modal y no
+  // sabría cuál marcar. Al renombrar no cuenta el propio elemento.
+  const igual = v => String(v || '').trim().toLowerCase() === nombre.toLowerCase();
+  if (lista.some((t, i) => i !== idx && igual(t.nombre))) {
+    showToast('Ya hay uno con ese nombre', 'error');
+    return;
   }
+
+  const precio = tipo === 'premium' ? (parseFloat(document.getElementById('toppingPrecio').value) || 0) : null;
+
+  if (idx >= 0) {
+    // Renombrar conserva el identificador: es todo el objetivo del cambio.
+    lista[idx] = { ...lista[idx], nombre };
+    if (tipo === 'premium') lista[idx].precio = precio;
+  } else {
+    // Un identificador nuevo que no choque con ninguno de los tres grupos:
+    // los platos guardan una sola lista por grupo, pero un choque entre
+    // grupos confundiría a cualquiera que lea 'atributos' a mano.
+    const usados = new Set([...toppingState.platino, ...toppingState.premium, ...toppingState.salsas].map(t => t.id));
+    let id = nuevoIdTopping();
+    while (usados.has(id)) id = nuevoIdTopping();
+    lista.push(tipo === 'premium' ? { id, nombre, precio } : { id, nombre });
+  }
+
+  renderToppingList(CONTENEDOR_TOPPING[tipo], tipo);
   closeModal('toppingModal');
-  showToast('Añadido · recuerda guardar', 'info');
+  showToast(idx >= 0 ? 'Actualizado · recuerda guardar' : 'Añadido · recuerda guardar', 'info');
 }
 
-// Los platos guardan el NOMBRE del topping, no un identificador. Así que
-// renombrar uno en esta pestaña —o quitarlo— no toca los platos: se quedan
-// apuntando a un nombre que ya no existe, el chip aparece desmarcado en la
-// ficha y el carrito público no sabe cobrarlo. Nada falla y nadie se entera.
+// Qué platos se quedan apuntando a algo que ya no existe. Desde que los
+// platos guardan el identificador, esto solo puede pasar al BORRAR un
+// elemento del catálogo: renombrarlo ya no los desengancha.
 //
-// Guardar identificadores sería lo correcto, pero eso es migrar los datos de
-// todos los platos. Mientras tanto, al menos que no ocurra en silencio: se
-// dice qué platos se van a quedar colgados y se pide confirmación.
+// Sigue comparando también por nombre porque un plato que nadie haya vuelto a
+// guardar desde la migración todavía puede tener nombres dentro, y avisar de
+// más es mejor que callarse de menos.
 function toppingsHuerfanos() {
-  const quedan = new Set([
-    ...toppingState.platino,
-    ...toppingState.premium.map(t => t?.nombre).filter(Boolean),
-    ...toppingState.salsas,
-  ]);
+  const quedan = new Set();
+  for (const t of [...toppingState.platino, ...toppingState.premium, ...toppingState.salsas]) {
+    quedan.add(t.id);
+    quedan.add(t.nombre);
+  }
   const afectados = [];
   for (const p of state.productos || []) {
     const pers = p.atributos?.personalizacion;
@@ -5271,8 +5382,8 @@ async function saveToppings() {
       `Estos platos ofrecen toppings que van a dejar de existir con este cambio:\n\n` +
       huerfanos.slice(0, 10).join('\n') +
       (huerfanos.length > 10 ? `\n…y ${huerfanos.length - 10} plato(s) más` : '') +
-      `\n\nSi lo que hiciste fue RENOMBRAR un topping, los platos NO lo siguen solos: ` +
-      `hay que volver a marcarlo en cada ficha.\n\n¿Guardar de todas formas?`);
+      `\n\nSi lo que quieres es cambiarle el nombre a uno, no hace falta borrarlo: ` +
+      `pulsa sobre él y edítalo, y los platos lo siguen solos.\n\n¿Guardar de todas formas?`);
     if (!ok) return;
   }
 
