@@ -88,10 +88,17 @@ echo "── Contenido, no solo nombres"
 # importa. Sin decir nada: la tabla de arriba ya salió en verde, así que parece
 # que todo fue bien.
 #
-# Solo pasa cuando la salida de 'sort' no cabe en el buffer de la tubería, así
-# que hoy no pasaba —158 archivos— y habría empezado a pasar sin avisar al
-# crecer las cartas. Medido: con 1000 archivos sobrevive, con 2000 muere.
-# 'awk' lee hasta el final y no cierra nada.
+# Es una CARRERA, no un umbral, y por eso costó verlo: gana quien llegue antes,
+# 'sort' terminando de escribir o 'head' marchándose. Con varios núcleos 'sort'
+# gana casi siempre; con uno solo —que es este servidor— pierde de vez en
+# cuando. Medido con los archivos de verdad: 0 de 60 con varios núcleos, 4 de
+# 60 con uno. Por encima de unos 2000 archivos deja de ser carrera y muere
+# siempre, porque la salida ya no cabe en el buffer de la tubería.
+#
+# Se vio en el servidor el 29/08/2026: una corrida terminó bien y la siguiente
+# se murió aquí, minutos después y sin tocar nada.
+#
+# 'awk' lee hasta el final y no cierra nada: 0 de 60 en las dos condiciones.
 MUESTRA=$(find "$CARPETA" -type f -printf '%s\t%p\n' 2>/dev/null | sort -rn | awk -F'\t' 'NR<=5 {print $2}')
 [ -n "$MUESTRA" ] || { echo "no hay archivos que comparar"; exit 1; }
 while IFS= read -r f; do
