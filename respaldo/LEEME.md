@@ -70,15 +70,19 @@ ruta no existe.
 ```bash
 mkdir -p /opt/menus/respaldo
 docker cp $(docker ps -q --filter "name=adminvmenus"):/app/respaldo/. /opt/menus/respaldo/
-chmod +x /opt/menus/respaldo/*.sh
+chmod +x /opt/menus/respaldo/*.sh   # red de seguridad; ver abajo
 ```
 
 > **Cada despliegue actualiza el contenedor, no `/opt/menus/respaldo/`.** Si
-> algún día se cambian estos scripts, hay que repetir el `docker cp` **y el
-> `chmod +x` de arriba** — los archivos llegan con los permisos del
-> repositorio, que son 644, así que sin el chmod el cron no puede ejecutarlos.
-> Si no se repite la copia, el anfitrión sigue corriendo la versión vieja sin
-> que nada lo diga.
+> algún día se cambian estos scripts hay que **repetir el `docker cp`**. Si no,
+> el anfitrión sigue corriendo la versión vieja sin que nada lo diga — y eso es
+> peor que no actualizarlos, porque uno cree que sí.
+>
+> Desde el 29/08/2026 los tres scripts están marcados como ejecutables **en el
+> repositorio** (modo 100755), así que `docker cp` ya trae el permiso puesto y
+> el `chmod` de arriba no debería hacer falta. Se deja porque no estorba y
+> porque antes sí hacía falta: llegaban en 644 y sin él el cron no podía
+> ejecutarlos, con el trabajo fallando en silencio.
 
 ### 4. Iniciar el repositorio y hacer la primera copia
 
@@ -130,7 +134,21 @@ MAILTO=verificameco@gmail.com
 30 4 * * * /opt/menus/respaldo/respaldo.sh >> /var/log/respaldo-uploads.log 2>&1
 # Los lunes, avisar si lleva más de 30 h sin correr.
 0 9 * * 1 /opt/menus/respaldo/verificar.sh
+# El día 1 de cada mes, restaurar de verdad y comparar bytes.
+0 10 1 * * /opt/menus/respaldo/probar-restauracion.sh >> /var/log/respaldo-prueba.log 2>&1
 ```
+
+La tercera línea es del 29/08/2026. El paso 5 dice que probar la restauración no
+se salta, pero sin cron eso solo pasaba el día de montarlo: el script llevaba
+desde entonces diciendo que había que correrlo "de vez en cuando" y no lo corría
+nadie. Es el mismo modo de fallo del que avisa `verificar.sh`, aplicado a la
+comprobación que más cuesta echar de menos.
+
+Mensual y no semanal porque restaura la copia **entera**, y con los masters de
+video eso son gigas. Por eso el script mide antes lo que ocupa y se planta si no
+cabe: llenar el disco del anfitrión no rompe solo la prueba, rompe la cola de
+conversión y las subidas del panel. Si `/tmp` se queda corto,
+`RESPALDO_DESTINO_TMP=/ruta/con/sitio` lo manda a otro disco.
 
 `verificar.sh` solo escribe si algo va mal o si se le pide, y sale con código
 distinto de cero cuando la última copia es vieja. Cron manda correo cuando un
