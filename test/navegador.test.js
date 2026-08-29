@@ -694,53 +694,127 @@ describe('trabajoEnCursoDe · una conversión en marcha se ve al reabrir', () =>
 });
 
 // ═══════════════════════════════════════════════════════════════
-describe('personalizacionDe · traducir los platos viejos', () => {
-	// Los tres productos originales llevaban una copia del catálogo dentro.
-	// Al abrir su ficha se traduce a la forma nueva —solo nombres— para que
-	// el restaurante los vea ya marcados y queden migrados al guardar.
-	const crudo = () => cargar('index.html', 'function personalizacionDe',
-		'function renderPersonalizacion', {}).personalizacionDe;
+describe('catalogoDe · el catálogo de toppings, en una sola forma', () => {
+	// Espejo de catalogoDe() en core/carrito.js del menú público. El catálogo
+	// se ha guardado de tres maneras: cadenas sueltas, objeto con precio y
+	// objeto con identificador. Las tres tienen que dar lo mismo, o el panel y
+	// la carta enseñarían cosas distintas.
+	const crudo = () => cargar('index.html', 'function catalogoDe',
+		'// ── PERSONALIZACIÓN DEL PLATO', {}).catalogoDe;
+	// El vm corre en otro realm: lo que crea allí no comparte prototipos con lo
+	// de aquí y deepEqual estricto lo rechaza aunque la forma coincida.
+	const normalizar = attr => JSON.parse(JSON.stringify(crudo()(attr)));
 
-	// El vm corre en otro realm: lo que crea allí no comparte prototipos con
-	// lo de aquí y deepEqual estricto lo rechaza aunque la forma coincida.
-	const traducir = p => JSON.parse(JSON.stringify(crudo()(p)));
+	test('una cadena suelta usa su nombre como identificador', () => {
+		// Es la pieza que sostiene la migración: sin ella, un plato guardado con
+		// nombres y un catálogo ya migrado no se encontrarían nunca.
+		const c = normalizar({ toppings_platino: ['Queso'], salsas: ['BBQ'] });
+		assert.deepEqual(c.platino, [{ id: 'Queso', nombre: 'Queso' }]);
+		assert.deepEqual(c.salsas,  [{ id: 'BBQ', nombre: 'BBQ' }]);
+	});
+
+	test('con identificador, manda el identificador', () => {
+		const c = normalizar({ toppings_premium: [{ id: 'top_1', nombre: 'Tocineta', precio: 4000 }] });
+		assert.deepEqual(c.premium, [{ id: 'top_1', nombre: 'Tocineta', precio: 4000 }]);
+	});
+
+	test('un premium sin precio vale cero, no NaN', () => {
+		assert.equal(normalizar({ toppings_premium: [{ nombre: 'X', precio: 'abc' }] }).premium[0].precio, 0);
+	});
+
+	test('la basura se cae en vez de pintarse', () => {
+		// atributos es JSON libre: lo que entre raro no puede acabar como un
+		// chip vacío en la pestaña.
+		const c = normalizar({ toppings_platino: ['', null, '  ', 'Queso'], salsas: 'no soy lista' });
+		assert.deepEqual(c.platino.map(t => t.nombre), ['Queso']);
+		assert.deepEqual(c.salsas, []);
+	});
+
+	test('sin catálogo devuelve las tres listas vacías', () => {
+		assert.deepEqual(normalizar({}),   { platino: [], premium: [], salsas: [] });
+		assert.deepEqual(normalizar(null), { platino: [], premium: [], salsas: [] });
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('personalizacionDe · qué toppings ofrece un plato', () => {
+	// Devuelve siempre IDENTIFICADORES del catálogo de hoy, venga el plato de
+	// la época que venga. Traducir aquí es lo que migra los datos solos: en
+	// cuanto el restaurante guarde la ficha, lo que se escribe ya son ids.
+	const ctx = () => cargar('index.html', [
+		['function catalogoDe', '// ── PERSONALIZACIÓN DEL PLATO'],
+		['function personalizacionDe', 'function renderPersonalizacion'],
+	], {});
+	const traducir = (p, attr) => {
+		const c = ctx();
+		return JSON.parse(JSON.stringify(c.personalizacionDe(p, c.catalogoDe(attr))));
+	};
+
+	const CATALOGO = {
+		toppings_platino: [{ id: 't_ceb', nombre: 'Cebolla' }, { id: 't_tom', nombre: 'Tomate' }],
+		toppings_premium: [{ id: 't_toc', nombre: 'Tocineta', precio: 4000 }],
+		salsas:           [{ id: 't_bbq', nombre: 'BBQ' }],
+	};
 
 	test('un plato ya migrado se lee tal cual', () => {
 		assert.deepEqual(traducir({ atributos: { personalizacion: {
-			platino: ['Cebolla'], premium: ['Tocineta'], salsas: ['BBQ'],
-		} } }), { platino: ['Cebolla'], premium: ['Tocineta'], salsas: ['BBQ'] });
+			platino: ['t_ceb'], premium: ['t_toc'], salsas: ['t_bbq'],
+		} } }, CATALOGO), { platino: ['t_ceb'], premium: ['t_toc'], salsas: ['t_bbq'] });
 	});
 
-	test('de la copia vieja se queda solo con los nombres', () => {
+	test('un plato guardado con NOMBRES se traduce a identificadores', () => {
+		// La ventana de la migración: el catálogo ya tiene ids y el plato
+		// todavía no. Se encuentran igual, y al guardar la ficha queda migrado.
+		assert.deepEqual(traducir({ atributos: { personalizacion: {
+			platino: ['Cebolla'], premium: ['Tocineta'], salsas: ['BBQ'],
+		} } }, CATALOGO), { platino: ['t_ceb'], premium: ['t_toc'], salsas: ['t_bbq'] });
+	});
+
+	test('RENOMBRAR un topping ya no desengancha el plato', () => {
+		// El motivo entero de que exista el identificador.
+		const renombrado = { ...CATALOGO, toppings_platino: [{ id: 't_ceb', nombre: 'Cebolla caramelizada' }] };
+		assert.deepEqual(traducir({ atributos: { personalizacion: { platino: ['t_ceb'] } } }, renombrado).platino,
+			['t_ceb'], 'sigue marcado');
+	});
+
+	test('lo que ya no está en el catálogo se cae', () => {
+		const r = traducir({ atributos: { personalizacion: { platino: ['t_ceb', 't_borrado'] } } }, CATALOGO);
+		assert.deepEqual(r.platino, ['t_ceb']);
+	});
+
+	test('de la copia vieja se sale por el nombre', () => {
+		// Los tres productos originales llevaban una copia del catálogo dentro.
 		// El precio deja de viajar con el plato: pasa a salir siempre del
 		// catálogo del negocio, que es lo que arregla el fallo.
 		const r = traducir({ atributos: {
 			toppings_platino: ['Cebolla', 'Tomate'],
-			toppings_premium: [{ nombre: 'Tocineta', precio: 4000 }],
+			toppings_premium: [{ nombre: 'Tocineta', precio: 9000 }],
 			salsas: ['BBQ'],
-		} });
-		assert.deepEqual(r.premium, ['Tocineta'], 'sin el precio dentro');
-		assert.deepEqual(r.platino, ['Cebolla', 'Tomate']);
+		} }, CATALOGO);
+		assert.deepEqual(r.platino, ['t_ceb', 't_tom']);
+		assert.deepEqual(r.premium, ['t_toc'], 'sin el precio dentro');
+		assert.deepEqual(r.salsas,  ['t_bbq']);
 	});
 
 	test('un plato nuevo empieza vacío', () => {
-		assert.deepEqual(traducir({ atributos: {} }),
+		assert.deepEqual(traducir({ atributos: {} }, CATALOGO),
 			{ platino: [], premium: [], salsas: [] });
 	});
 
 	test('no se queda con referencias a los arreglos del producto', () => {
 		// Si compartiera el arreglo, marcar un chip modificaría el producto en
 		// memoria y "cambios sin guardar" no vería nada que comparar.
-		const p = { atributos: { personalizacion: { platino: ['Cebolla'], premium: [], salsas: [] } } };
-		crudo()(p).platino.push('Tomate');
-		assert.deepEqual(p.atributos.personalizacion.platino, ['Cebolla'], 'el producto no se toca');
+		const c = ctx();
+		const p = { atributos: { personalizacion: { platino: ['t_ceb'], premium: [], salsas: [] } } };
+		c.personalizacionDe(p, c.catalogoDe(CATALOGO)).platino.push('t_tom');
+		assert.deepEqual(p.atributos.personalizacion.platino, ['t_ceb'], 'el producto no se toca');
 	});
 
 	test('una copia vieja con entradas rotas no las arrastra', () => {
 		const r = traducir({ atributos: {
 			toppings_premium: [{ nombre: 'Tocineta', precio: 4000 }, { precio: 1000 }, null],
-		} });
-		assert.deepEqual(r.premium, ['Tocineta']);
+		} }, CATALOGO);
+		assert.deepEqual(r.premium, ['t_toc']);
 	});
 });
 
@@ -1159,25 +1233,22 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 });
 
 // ═══════════════════════════════════════════════════════════════
-describe('toppingsHuerfanos · renombrar un topping desengancha los platos', () => {
-	// Los platos guardan el NOMBRE del topping, no un identificador. Renombrar
-	// uno en la pestaña Toppings no toca los platos: se quedan apuntando a un
-	// nombre que ya no existe, el chip sale desmarcado en la ficha y el carrito
-	// público no sabe cobrarlo. Nada falla y nadie se entera.
-	//
-	// Hasta que se guarden identificadores, esto es lo que impide que ocurra
-	// en silencio.
+describe('toppingsHuerfanos · qué platos se quedan colgados al borrar', () => {
+	// Desde que los platos guardan el identificador, esto solo puede pasar al
+	// BORRAR un elemento del catálogo: renombrarlo ya no los desengancha. Sigue
+	// comparando también por nombre porque un plato que nadie haya vuelto a
+	// guardar desde la migración todavía puede llevar nombres dentro.
 	const buscar = (toppingState, productos) => cargar('index.html',
 		[['function toppingsHuerfanos', 'async function saveToppings']],
 		{ toppingState, state: { productos } }).toppingsHuerfanos();
 
 	const catalogo = {
-		platino: ['Queso'],
-		premium: [{ nombre: 'Tocineta', precio: 3000 }],
-		salsas: ['BBQ'],
+		platino: [{ id: 't_que', nombre: 'Queso' }],
+		premium: [{ id: 't_toc', nombre: 'Tocineta', precio: 3000 }],
+		salsas:  [{ id: 't_bbq', nombre: 'BBQ' }],
 	};
 	const plato = nombre => ({
-		nombre, atributos: { personalizacion: { platino: ['Queso'], premium: ['Tocineta'], salsas: ['BBQ'] } },
+		nombre, atributos: { personalizacion: { platino: ['t_que'], premium: ['t_toc'], salsas: ['t_bbq'] } },
 	});
 
 	test('con el catálogo intacto no avisa de nada', () => {
@@ -1188,22 +1259,127 @@ describe('toppingsHuerfanos · renombrar un topping desengancha los platos', () 
 		assert.equal(buscar(catalogo, [plato('Hamburguesa')]).length, 0);
 	});
 
-	test('renombrar uno delata los platos que lo ofrecían', () => {
-		const renombrado = { ...catalogo, premium: [{ nombre: 'Tocineta ahumada', precio: 3000 }] };
-		const avisos = buscar(renombrado, [plato('Hamburguesa'), plato('Perro')]);
-		assert.equal(avisos.length, 2, 'los dos platos lo ofrecían');
-		assert.match(avisos[0], /Hamburguesa/);
-		assert.match(avisos[0], /Tocineta/);
+	test('RENOMBRAR ya no delata a nadie, que es el cambio', () => {
+		// Antes esto avisaba de los dos platos y había que volver a marcarlos a
+		// mano en cada ficha. El identificador no cambia, así que no se pierde
+		// nada y no hay nada que avisar.
+		const renombrado = { ...catalogo, premium: [{ id: 't_toc', nombre: 'Tocineta ahumada', precio: 3000 }] };
+		assert.equal(buscar(renombrado, [plato('Hamburguesa'), plato('Perro')]).length, 0);
 	});
 
-	test('quitar uno cuenta igual que renombrarlo', () => {
-		const avisos = buscar({ ...catalogo, salsas: [] }, [plato('Hamburguesa')]);
+	test('borrar uno sí delata los platos que lo ofrecían', () => {
+		const avisos = buscar({ ...catalogo, salsas: [] }, [plato('Hamburguesa'), plato('Perro')]);
+		assert.equal(avisos.length, 2, 'los dos platos lo ofrecían');
+		assert.match(avisos[0], /Hamburguesa/);
+		assert.match(avisos[0], /t_bbq/);
+	});
+
+	test('un plato sin migrar, guardado por nombre, también cuenta', () => {
+		// Avisar de más es mejor que callarse de menos: mientras quede un plato
+		// con nombres, borrar del catálogo tiene que seguir preguntando.
+		const porNombre = { nombre: 'Perro', atributos: { personalizacion: { salsas: ['BBQ'] } } };
+		assert.equal(buscar(catalogo, [porNombre]).length, 0, 'mientras exista, no estorba');
+		const avisos = buscar({ ...catalogo, salsas: [] }, [porNombre]);
 		assert.equal(avisos.length, 1);
 		assert.match(avisos[0], /BBQ/);
 	});
 
 	test('un plato sin personalización no estorba', () => {
 		assert.equal(buscar({ ...catalogo, salsas: [] }, [{ nombre: 'Gaseosa', atributos: {} }]).length, 0);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('confirmAddTopping · añadir y renombrar en la pestaña Toppings', () => {
+	// Renombrar no se podía hacer desde el panel: solo añadir y borrar,
+	// justamente porque renombrar dejaba a los platos apuntando a un nombre
+	// que ya no existía. Ahora conserva el identificador, así que es seguro.
+	const montar = (toppingState, campos) => {
+		const avisos = [];
+		const elementos = {};
+		const el = id => (elementos[id] ||= { value: '', textContent: '', style: {} });
+		for (const [id, v] of Object.entries(campos)) el(id).value = v;
+
+		const ctx = cargar('index.html', [
+			['function catalogoDe', '// ── PERSONALIZACIÓN DEL PLATO'],
+			['const CONTENEDOR_TOPPING', '// ── PEDIDOS'],
+		], {
+			toppingState,
+			document: { getElementById: el },
+			showToast: (m, t) => avisos.push([t, m]),
+			openModal: () => {}, closeModal: () => {},
+			renderToppingList: () => {},
+			state: { productos: [], restaurante: { id: 'r1' } },
+			apiFetch: async () => ({}),
+			ajustarPestanasAlModelo: () => {},
+			confirm: () => true,
+			crypto: globalThis.crypto,
+		});
+		ctx.confirmAddTopping();
+		return avisos;
+	};
+
+	const nuevoEstado = () => ({
+		platino: [{ id: 't_que', nombre: 'Queso' }],
+		premium: [{ id: 't_toc', nombre: 'Tocineta', precio: 3000 }],
+		salsas:  [],
+	});
+
+	test('renombrar CONSERVA el identificador', () => {
+		// La prueba que justifica el cambio entero. Si el id cambiara, todos los
+		// platos que ofrecen ese topping se quedarían colgados en silencio.
+		const st = nuevoEstado();
+		montar(st, { toppingTipo: 'platino', toppingIndice: '0', toppingNombre: 'Queso doble' });
+		assert.equal(st.platino[0].id, 't_que', 'el identificador no se toca');
+		assert.equal(st.platino[0].nombre, 'Queso doble');
+		assert.equal(st.platino.length, 1, 'no crea uno nuevo');
+	});
+
+	test('renombrar un premium puede cambiarle el precio', () => {
+		const st = nuevoEstado();
+		montar(st, { toppingTipo: 'premium', toppingIndice: '0', toppingNombre: 'Tocineta', toppingPrecio: '5000' });
+		assert.equal(st.premium[0].id, 't_toc');
+		assert.equal(st.premium[0].precio, 5000);
+	});
+
+	test('añadir uno nuevo le pone un identificador propio', () => {
+		const st = nuevoEstado();
+		montar(st, { toppingTipo: 'salsas', toppingIndice: '', toppingNombre: 'BBQ' });
+		assert.equal(st.salsas.length, 1);
+		assert.match(st.salsas[0].id, /^top_[a-z0-9]{1,8}$/);
+		assert.equal(st.salsas[0].nombre, 'BBQ');
+	});
+
+	test('el identificador nuevo no choca con los de los otros grupos', () => {
+		// Los platos guardan una lista por grupo, pero un choque entre grupos
+		// confundiría a cualquiera que lea 'atributos' a mano.
+		const st = nuevoEstado();
+		for (const nombre of ['BBQ', 'Rosada', 'Ajo'])
+			montar(st, { toppingTipo: 'salsas', toppingIndice: '', toppingNombre: nombre });
+		const todos = [...st.platino, ...st.premium, ...st.salsas].map(t => t.id);
+		assert.equal(new Set(todos).size, todos.length, 'todos distintos');
+	});
+
+	test('un nombre repetido se rechaza', () => {
+		const st = nuevoEstado();
+		const avisos = montar(st, { toppingTipo: 'platino', toppingIndice: '', toppingNombre: '  queso ' });
+		assert.equal(st.platino.length, 1, 'no se añade');
+		assert.equal(avisos[0][0], 'error');
+	});
+
+	test('renombrar sin cambiar el nombre no se rechaza a sí mismo', () => {
+		// Entrar a editar solo para tocar el precio no puede dar "ya existe".
+		const st = nuevoEstado();
+		const avisos = montar(st, { toppingTipo: 'premium', toppingIndice: '0', toppingNombre: 'Tocineta', toppingPrecio: '7000' });
+		assert.equal(st.premium[0].precio, 7000);
+		assert.ok(!avisos.some(a => a[0] === 'error'), 'no debe quejarse');
+	});
+
+	test('un nombre vacío no crea nada', () => {
+		const st = nuevoEstado();
+		const avisos = montar(st, { toppingTipo: 'salsas', toppingIndice: '', toppingNombre: '   ' });
+		assert.equal(st.salsas.length, 0);
+		assert.equal(avisos[0][0], 'error');
 	});
 });
 
