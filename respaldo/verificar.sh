@@ -17,8 +17,13 @@ CONFIG="${RESPALDO_ENV:-/root/.respaldo.env}"
 # shellcheck disable=SC1090
 . "$CONFIG"
 
+# El recorte con awk y no con 'head -1': head se va en cuanto tiene su línea y
+# le cierra la tubería a grep, que muere de SIGPIPE (141). Con 'pipefail' ese
+# es el resultado de toda la tubería, así que el script diría "no se pudo
+# consultar el repositorio" con el repositorio perfectamente sano — y siendo
+# una alarma, mentir es lo peor que puede hacer. awk lee hasta el final.
 ULTIMA=$(restic snapshots --tag uploads --latest 1 --json 2>/dev/null \
-  | grep -o '"time":"[^"]*"' | head -1 | cut -d'"' -f4) \
+  | grep -o '"time":"[^"]*"' | awk -F'"' 'NR==1 {print $4}') \
   || { echo "❌ no se pudo consultar el repositorio"; exit 1; }
 
 [ -n "$ULTIMA" ] || { echo "❌ no hay ninguna instantánea"; exit 1; }
