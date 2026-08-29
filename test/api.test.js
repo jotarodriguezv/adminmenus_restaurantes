@@ -329,18 +329,36 @@ describe('POST /api/video · la carta en video depende del plan', () => {
 		assert.equal(r.status, 200);
 	});
 
+	// uploads/originales lo comparten los dos ficheros de prueba, y el ejecutor
+	// los corre en PROCESOS PARALELOS: mientras esta prueba mira la carpeta,
+	// otra puede tener un archivo suyo a medio ciclo de vida. Contar archivos
+	// convertía eso en un rojo que no era de nadie.
+	//
+	// Lo que hay que comprobar no es "no aparece ningún archivo" —eso no está
+	// en nuestra mano— sino "no se QUEDA ninguno de los nuestros". Así que se
+	// espera a que la carpeta vuelva a como estaba: un archivo ajeno se limpia
+	// solo en unos milisegundos, y una fuga de verdad no se limpia nunca y
+	// agota el plazo.
+	const esperarCarpetaLimpia = async (dir, antes, plazoMs = 4000) => {
+		const nuevos = () => (fs.existsSync(dir) ? fs.readdirSync(dir) : []).filter(f => !antes.has(f));
+		const hasta = Date.now() + plazoMs;
+		while (nuevos().length && Date.now() < hasta)
+			await new Promise(r => setTimeout(r, 50));
+		return nuevos();
+	};
+
 	test('el archivo no se queda en el disco cuando se rechaza', async () => {
 		// multer ya lo escribió cuando la comprobación de plan corre, así que
 		// cada salida por la puerta de atrás tiene que borrarlo. Si no, un
 		// restaurante sin plan llena el disco a base de intentos rechazados.
 		const dir = path.join(__dirname, '..', 'uploads', 'originales');
-		const antes = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
+		const antes = new Set(fs.existsSync(dir) ? fs.readdirSync(dir) : []);
 
 		conPlan('completo');
 		await S.pedirArchivo('/api/video', { restaurante_id: IDS.restaurante }, tokenCliente);
 
-		const despues = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
-		assert.equal(despues, antes, 'el video rechazado no debe quedarse en uploads/originales');
+		assert.deepEqual(await esperarCarpetaLimpia(dir, antes), [],
+			'el video rechazado no debe quedarse en uploads/originales');
 	});
 
 	test('una subida que se corta a medias tampoco deja el trozo', async () => {
@@ -352,17 +370,16 @@ describe('POST /api/video · la carta en video depende del plan', () => {
 		// manejador no llega a correr: no hay req.file y no hay nadie que
 		// borre. Tiene que limpiar alguien de más afuera.
 		const dir = path.join(__dirname, '..', 'uploads', 'originales');
-		const antes = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
+		const antes = new Set(fs.existsSync(dir) ? fs.readdirSync(dir) : []);
 
 		conPlan('video');
 		await S.subirYCortar('/api/video', { restaurante_id: IDS.restaurante }, tokenCliente);
 
 		// El borrado va con medio segundo de respiro, para que multer suelte su
-		// escritura antes.
-		await new Promise(r => setTimeout(r, 1500));
-
-		const despues = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
-		assert.equal(despues, antes, 'el trozo a medio subir debe borrarse solo');
+		// escritura antes; se espera a que la carpeta vuelva a como estaba en
+		// vez de dormir un rato fijo y contar.
+		assert.deepEqual(await esperarCarpetaLimpia(dir, antes), [],
+			'el trozo a medio subir debe borrarse solo');
 	});
 
 	test('una subida cortada no encola ningún trabajo', async () => {
