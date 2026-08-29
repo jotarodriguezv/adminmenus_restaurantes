@@ -115,7 +115,20 @@ Lo que no existe es recuperar una perdida cuando ya no queda ninguna.
 MAILTO=verificameco@gmail.com
 30 4 * * * /opt/menus/respaldo/respaldo.sh >> /var/log/respaldo-uploads.log 2>&1
 0 9 * * 1 /opt/menus/respaldo/verificar.sh
+0 10 1 * * /opt/menus/respaldo/probar-restauracion.sh >> /var/log/respaldo-prueba.log 2>&1
 ```
+
+> **La tercera línea hay que añadirla a mano en el servidor** (29/08/2026). El
+> script existía desde el principio y decía que había que correrlo "de vez en
+> cuando", pero no lo corría nadie — que es el modo de fallo del que avisa su
+> propio repo hermano: no que reviente, sino que deje de pasar sin que nadie se
+> entere. Un respaldo que nunca se ha restaurado es la esperanza de tener uno.
+>
+> Mensual y no semanal porque restaura la copia entera y con los masters de
+> video eso son gigas. Por eso mismo el script comprueba antes que quepa y se
+> planta si no: llenar el disco no rompe solo la prueba, rompe la cola de
+> conversión y las subidas del panel. Si `/tmp` se queda corto,
+> `RESPALDO_DESTINO_TMP=/ruta/con/sitio` lo manda a otro disco.
 
 **En UTC.** El respaldo de las 4:30 UTC son las **23:30 en Colombia** del día
 anterior. Para moverlo a la madrugada de allá habría que poner `30 9`.
@@ -279,6 +292,29 @@ Recogidas por haberlas sufrido:
 ---
 
 ## Registro de cambios
+
+**29/08/2026 — Los tres menores de la revisión**
+
+Cierre de lo que quedó anotado esa misma mañana.
+
+- **`social_whatsapp` no filtraba los no-dígitos.** `wa.me` solo acepta
+  dígitos, así que un `+57 300 123 4567` —como lo teclea cualquiera— arma un
+  enlace que no abre ningún chat, y no se ve desde el panel: el botón existe y
+  se pulsa. El checkout ya lo limpiaba desde que costó un pedido; la barra
+  social montaba el enlace en crudo. Ahora comparten `soloDigitos()`, y el
+  panel guarda el número ya limpio para que no entren más. Los cuatro guardados
+  hoy estaban bien: era mina, no incendio.
+- **`explorar.js` usaba `esc()` donde el resto usa `escUrl()`** en los seis
+  `src` de imagen. No era explotable —un `javascript:` no corre en un
+  `<img src>`— pero es exactamente la forma que tiene esto de romperse: una
+  copia que se queda atrás, igual que cuando `esc()` vivía dentro de ese mismo
+  archivo y los demás temas se quedaban sin él. Hay una prueba que recorre
+  `core/` y `temas/` y falla nombrando el archivo si vuelve a aparecer.
+- **`probar-restauracion.sh` no lo corría nadie.** Se añade al cron, mensual, y
+  antes se le pone un freno: mide lo que ocupa la copia y no restaura si no
+  cabe. La primera versión del freno **fallaba abierto** —restauraba igual— y
+  lo cazó la prueba; ahora se comprueban los tres caminos (no cabe, cabe, no se
+  puede medir). La línea del cron hay que añadirla a mano en el servidor.
 
 **29/08/2026 — Lo que quedaba sin revisar: tres arreglos**
 
