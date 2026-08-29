@@ -348,14 +348,28 @@ resultado de **toda** la tubería, y con `set -e` el script se muere ahí mismo
 sentido a todo lo demás. Y en silencio: la tabla de archivos por carpeta ya
 salió en verde, así que parece que fue bien.
 
-Solo pasa cuando la salida de `sort` no cabe en el buffer de la tubería (64 KB).
-Medido: con 1000 archivos sobrevive, con 2000 muere. Hoy hay **158**, así que
-no estaba pasando — habría empezado a pasar solo, al ir creciendo las cartas, y
-sin nada que lo dijera.
+**Es una carrera, no un umbral**, y por eso costó verlo. Gana quien llegue
+antes: `sort` terminando de escribir, o `head` marchándose. Con varios núcleos
+`sort` gana casi siempre; **con uno solo —que es este servidor— pierde de vez
+en cuando.** Medido con los 158 archivos y los tamaños de verdad:
+
+| | varios núcleos | un solo núcleo |
+|---|---|---|
+| `head -5` | 0 de 60 | **4 de 60 muere** |
+| `awk` | 0 de 60 | 0 de 60 |
+
+Por encima de unos 2000 archivos deja de ser carrera y muere siempre, porque la
+salida ya no cabe en el buffer de la tubería (64 KB).
+
+Así se vio: la primera corrida en el servidor murió, la segunda terminó bien, y
+la tercera volvió a morir — minutos después y sin tocar nada. Un intermitente
+del 7 % en la comprobación que dice si el respaldo sirve, y callado.
 
 `verificar.sh` tenía la misma forma (`grep -o … | head -1 | cut`) y es peor
-ahí: al ser una alarma, habría dicho *«no se pudo consultar el repositorio»* con
-el repositorio perfectamente sano. Una alarma que miente es peor que no tenerla.
+ahí: al ser la alarma del respaldo, un lunes cualquiera diría *«no se pudo
+consultar el repositorio»* con el repositorio perfectamente sano. Una alarma que
+miente enseña a no hacerle caso, que es la única forma de que una alarma deje de
+servir para siempre.
 
 En los dos se cambia `head` por `awk`, que lee hasta el final y no cierra nada.
 Comprobado con 150, 2000 y 20 000 archivos, y que sigue eligiendo los cinco más
