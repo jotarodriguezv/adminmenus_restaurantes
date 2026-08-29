@@ -280,6 +280,42 @@ Recogidas por haberlas sufrido:
 
 ## Registro de cambios
 
+**29/08/2026 — Lo que quedaba sin revisar: tres arreglos**
+
+Barrido de lo que no entró en la revisión del 27/08: `public/qr.js` (540
+líneas), los seis temas de vmenus-app, `core/` entero y los scripts de respaldo.
+Detalle en `cartas-en-video.md` §9.13–9.15.
+
+- **La vista previa podía suplantar una carta entera.** `css_custom` estaba en
+  la lista blanca de `?preview=`, y una hoja de estilos arbitraria escribe texto
+  con `content:`: la carta real —dominio, logo, platos y precios— con un teléfono
+  de pedidos falso encima, sin credenciales de nadie. El aviso amarillo era la
+  única defensa y el mismo CSS lo tumbaba: el shadow root cerrado protege el
+  contenido, no el `<div>` que lo sostiene, y un `!important` de autor le gana a
+  un estilo en línea. Se cierra la puerta (fuera de la lista) y se atranca (las
+  propiedades del anfitrión con `!important` en línea, ahora en `core/aviso.js`
+  con pruebas). Verificado en Chromium contra nueve formas de esconder un
+  elemento.
+- **Guardar el diseño del QR pisaba el resto de `atributos`.** Es el fallo de
+  §9.10 en la sexta pantalla: se arreglaron las cinco de `index.html` el 27/08 y
+  `public/qr.js`, por vivir en otro archivo, siguió mandando el objeto entero
+  desde la copia de al entrar. Su propio comentario describía un servidor que
+  había dejado de comportarse así ese mismo día.
+- **El carrito no recalculaba el recargo de los toppings.** `revalidarCarrito`
+  refrescaba el precio base contra el menú de hoy y el recargo lo cogía de lo
+  guardado. Arreglable gracias a los identificadores del 28/08. Solo se
+  recalcula si la línea trae selección: sin ella no hay base para decir que el
+  recargo es cero, y ponerlo a cero cobraría de menos.
+
+Salieron limpios: `core/horarios.js` (probado con medianoche exacta y franjas
+que cruzan el día), el escapado de los seis temas —usan `textContent`—, `escUrl`
+frente a `javascript:` y la validación del formulario de checkout.
+
+Quedan anotados como menores: `social_whatsapp` no filtra no-dígitos al montar
+el enlace de `wa.me` (el checkout sí lo hace; los cuatro números guardados hoy
+están limpios), `explorar.js` usa `esc()` donde el resto usa `escUrl()` para los
+`src` de imagen, y `respaldo/probar-restauracion.sh` no lo corre ningún cron.
+
 **28/08/2026 — Toppings por identificador**
 
 Los platos guardaban el **nombre** del topping, así que renombrar uno en el
