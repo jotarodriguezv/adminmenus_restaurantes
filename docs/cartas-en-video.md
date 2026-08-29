@@ -1106,6 +1106,41 @@ dónde** (`sel`, o el texto en los carritos anteriores a que existiera). Sin
 ninguna de las dos no hay base para decir que el recargo es cero —no saber no es
 saber que no— y ponerlo a cero le cobraría de menos al restaurante.
 
+### 9.16 Los tres menores de la misma revisión
+
+**Resueltos el 29/08/2026.** Ninguno rompía una prueba; los tres son de la
+familia "una copia que se queda atrás".
+
+- **`social_whatsapp` no filtraba los no-dígitos.** `wa.me` solo acepta
+  dígitos, y un `+57 300 123 4567` arma un enlace que no abre ningún chat.
+  Desde el panel no se ve: el botón existe y se pulsa. El checkout ya lo
+  limpiaba —le costó un pedido y lo dejó documentado— y la barra social montaba
+  el enlace en crudo, a tres archivos de distancia. Ahora comparten
+  `soloDigitos()` y el panel guarda el número ya limpio. Comprobado en la base:
+  los cuatro números guardados estaban bien, así que era mina y no incendio.
+- **`explorar.js` escapaba las URLs con `esc()` en vez de `escUrl()`**, en los
+  seis `src` de imagen. `esc()` evita salirse del atributo; `escUrl()` además
+  exige que el destino sea una URL de verdad. No era explotable —un
+  `javascript:` no corre en un `<img src>`— pero es la misma historia de
+  siempre en este repositorio: `esc()` vivía dentro de `explorar.js` y los otros
+  temas se quedaron sin él; ahora era `explorar.js` el que se había quedado
+  atrás. Se cierra con una prueba que recorre `core/` y `temas/` buscando la
+  forma exacta del fallo y falla nombrando el archivo.
+- **`probar-restauracion.sh` no lo corría ningún cron.** El script decía que
+  había que correrlo "de vez en cuando" y nadie lo hacía — que es literalmente
+  el modo de fallo del que avisa `verificar.sh`: no que reviente, sino que deje
+  de pasar sin que nadie se entere. Se añade al cron mensual (la línea hay que
+  ponerla a mano en el servidor) y antes se le pone un freno de espacio: mide lo
+  que ocupa la copia y se planta si no cabe, porque llenar el disco no rompe
+  solo la prueba, rompe la cola de conversión y las subidas.
+
+  La primera versión del freno **fallaba abierto** —un `df` con dos opciones
+  incompatibles, y el script seguía y restauraba igual—, justo lo contrario de
+  lo que pretendía. Lo cazó probarlo con un `restic` de mentira en vez de darlo
+  por bueno. Ahora se comprueban los tres caminos: no cabe (no restaura, sale
+  1), cabe (sigue), y no se puede medir (avisa y sigue, porque no medir no es
+  no caber).
+
 ## 10. Plan por fases
 
 **Paso 0 — Medición.** ✅ Cerrado. Es este documento.
@@ -1332,6 +1367,9 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       JavaScript de antes de los toppings por identificador. Sin riesgo —ninguno
       de los dos tiene catálogo de toppings— pero las cuatro cartas deberían
       correr lo mismo
+- [ ] **Añadir al crontab la prueba de restauración** (29/08/2026). El script
+      está listo y con freno de espacio; falta la línea en el servidor:
+      `0 10 1 * * /opt/menus/respaldo/probar-restauracion.sh >> /var/log/respaldo-prueba.log 2>&1`
 - [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
 - [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Comprobado el
       23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
