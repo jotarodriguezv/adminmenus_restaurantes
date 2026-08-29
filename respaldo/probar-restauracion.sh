@@ -11,12 +11,49 @@ set -euo pipefail
 
 CARPETA="${RESPALDO_ORIGEN:-/opt/menus/uploads}"
 CONFIG="${RESPALDO_ENV:-/root/.respaldo.env}"
-DESTINO=$(mktemp -d /tmp/prueba-respaldo-XXXXXX)
+DESTINO=$(mktemp -d "${RESPALDO_DESTINO_TMP:-/tmp}/prueba-respaldo-XXXXXX")
 trap 'rm -rf "$DESTINO"' EXIT
 
 [ -r "$CONFIG" ] || { echo "❌ no se puede leer $CONFIG"; exit 1; }
 # shellcheck disable=SC1090
 . "$CONFIG"
+
+# ── ¿Cabe? ────────────────────────────────────────────────────────────────
+# Esto restaura la copia ENTERA, y con los masters de video eso son gigas.
+# Antes de colgarlo de un cron hay que asegurarse de que no llene el disco una
+# madrugada: quedarse sin espacio no rompe solo esta prueba, rompe la cola de
+# conversión y las subidas del panel.
+#
+# Se pide el tamaño a restic y se compara con lo libre, dejando un 20 % de
+# margen. Si algo no se puede medir se avisa y se sigue —no medir no es no
+# caber—, pero si se mide y NO cabe, no se intenta: mejor no probar hoy que
+# tumbar el servidor probando.
+espacio_libre() {
+  # --output=avail da KiB y no admite -P (son excluyentes). La primera línea
+  # es la cabecera.
+  df --output=avail "$1" 2>/dev/null | tail -1 | tr -dc '0-9'
+}
+
+NECESARIO=$(restic stats latest --tag uploads --mode restore-size --json 2>/dev/null \
+  | grep -o '"total_size":[0-9]*' | head -1 | cut -d: -f2 | tr -dc '0-9') || NECESARIO=""
+LIBRE_KIB=$(espacio_libre "$(dirname "$DESTINO")")
+
+legible() { numfmt --to=iec "$1" 2>/dev/null || echo "$1 B"; }
+
+if [ -n "$NECESARIO" ] && [ -n "$LIBRE_KIB" ]; then
+  LIBRE=$(( LIBRE_KIB * 1024 ))
+  CON_MARGEN=$(( NECESARIO * 12 / 10 ))
+  if [ "$LIBRE" -lt "$CON_MARGEN" ]; then
+    echo "❌ No hay espacio para la prueba en $(dirname "$DESTINO")."
+    echo "   La copia ocupa $(legible "$NECESARIO"); hacen falta $(legible "$CON_MARGEN") y hay $(legible "$LIBRE")."
+    echo "   No se restaura nada: llenar el disco tumbaría la cola de video y las subidas."
+    echo "   Usa RESPALDO_DESTINO_TMP=/ruta/con/sitio para restaurar en otro disco."
+    exit 1
+  fi
+  echo "── La copia ocupa $(legible "$NECESARIO") y hay $(legible "$LIBRE") libres: cabe"
+else
+  echo "⚠ No se pudo medir $([ -z "$NECESARIO" ] && echo "el tamaño de la copia" || echo "el espacio libre"); se intenta igual"
+fi
 
 echo "── Restaurando la última copia en $DESTINO"
 restic restore latest --tag uploads --target "$DESTINO" >/dev/null
