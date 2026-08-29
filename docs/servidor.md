@@ -337,6 +337,34 @@ Recogidas por haberlas sufrido:
 
 ## Registro de cambios
 
+**29/08/2026 — `head` en mitad de una tubería con `pipefail` mata el script**
+
+Encontrado al correr por primera vez `probar-restauracion.sh` en el servidor.
+
+`head -5` se va en cuanto tiene sus cinco líneas y le cierra la tubería a
+`sort`, que muere de SIGPIPE con código **141**. Con `pipefail` ese es el
+resultado de **toda** la tubería, y con `set -e` el script se muere ahí mismo
+— justo antes de la comparación byte a byte, que es la comprobación que da
+sentido a todo lo demás. Y en silencio: la tabla de archivos por carpeta ya
+salió en verde, así que parece que fue bien.
+
+Solo pasa cuando la salida de `sort` no cabe en el buffer de la tubería (64 KB).
+Medido: con 1000 archivos sobrevive, con 2000 muere. Hoy hay **158**, así que
+no estaba pasando — habría empezado a pasar solo, al ir creciendo las cartas, y
+sin nada que lo dijera.
+
+`verificar.sh` tenía la misma forma (`grep -o … | head -1 | cut`) y es peor
+ahí: al ser una alarma, habría dicho *«no se pudo consultar el repositorio»* con
+el repositorio perfectamente sano. Una alarma que miente es peor que no tenerla.
+
+En los dos se cambia `head` por `awk`, que lee hasta el final y no cierra nada.
+Comprobado con 150, 2000 y 20 000 archivos, y que sigue eligiendo los cinco más
+grandes.
+
+**La regla, para no repetirla:** bajo `set -o pipefail`, nada que se salga
+antes de tiempo —`head`, `grep -m`, `sed q`— puede ir **en medio** de una
+tubería. Al final sí; en medio, mata a quien tiene detrás.
+
 **29/08/2026 — Dónde se ejecuta cada cosa**
 
 Sección 2 nueva, escrita después de perder un rato con un `Permission denied`
