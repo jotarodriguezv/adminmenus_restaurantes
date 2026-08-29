@@ -4637,7 +4637,12 @@ function recolectarApariencia() {
       social_facebook: document.getElementById('apSocialFacebook').value.trim(),
       social_instagram: document.getElementById('apSocialInstagram').value.trim(),
       social_tiktok: document.getElementById('apSocialTiktok').value.trim(),
-      social_whatsapp: document.getElementById('apSocialWhatsapp').value.trim(),
+      // Solo dígitos, igual que el WhatsApp de pedidos: wa.me no acepta otra
+      // cosa, y un '+57 300 123 4567' —que es como lo teclea cualquiera— arma
+      // un enlace que no abre ningún chat. La carta también lo limpia al
+      // pintarlo, para los que ya estén guardados; esto es para que no entren
+      // más.
+      social_whatsapp: document.getElementById('apSocialWhatsapp').value.replace(/[^0-9]/g, ''),
       css_custom: document.getElementById('apCssCustom').value,
     }
   };
