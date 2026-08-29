@@ -280,6 +280,38 @@ Recogidas por haberlas sufrido:
 
 ## Registro de cambios
 
+**28/08/2026 — Toppings por identificador**
+
+Los platos guardaban el **nombre** del topping, así que renombrar uno en el
+panel dejaba a todos los platos que lo ofrecían apuntando a algo que ya no
+existe — sin error, sin aviso y sin cobro. Por eso la pestaña Toppings solo
+dejaba añadir y borrar.
+
+Ahora cada elemento del catálogo lleva un identificador propio y los platos
+guardan ese identificador. **Renombrar es seguro y el panel ya lo permite**:
+se pulsa sobre el chip y se edita, precio incluido.
+
+- No toca `server.js`: el catálogo y la selección viven en `atributos`, que el
+  servidor guarda como llega. Lo que cambia es el panel (`public/index.html`) y
+  el menú público (`core/carrito.js` de vmenus-app).
+- `catalogoDe()` está en los dos, como `planActual()`: dos aplicaciones
+  separadas, una sola definición. Si cambias una, cambia la otra.
+- Un elemento **sin** identificador usa su nombre como tal. Eso es lo que
+  permite desplegar sin apagar nada: las dos formas se encuentran en las dos
+  direcciones.
+- **El orden importa y es al revés que en `sql/13`**: primero el código,
+  después `sql/14_toppings_por_identificador.sql`. Al revés, una carta con el
+  JavaScript anterior abriría el modal de personalización vacío.
+- La migración es idempotente —solo toca lo que le falta el identificador—,
+  va en una transacción y aborta sola si dos toppings de un mismo restaurante
+  acabaran con el mismo. Probada contra una copia completa de producción:
+  23 elementos, 23 identificadores distintos, los 4 platos con contenido
+  traducidos en el mismo orden, y una segunda pasada que cambia 0 filas.
+
+De paso: el botón «✏ Editar» de una línea del carrito preguntaba por la copia
+del catálogo dentro del plato, que ya no existe en ningún plato de ninguna
+carta. Llevaba desde entonces sin salir nunca.
+
 **28/08/2026 — Comprobación de salud del contenedor**
 
 Hasta ahora, para Docker el contenedor estaba sano mientras el proceso no
