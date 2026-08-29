@@ -115,14 +115,23 @@ Lo que no existe es recuperar una perdida cuando ya no queda ninguna.
 MAILTO=verificameco@gmail.com
 30 4 * * * /opt/menus/respaldo/respaldo.sh >> /var/log/respaldo-uploads.log 2>&1
 0 9 * * 1 /opt/menus/respaldo/verificar.sh
+```
+
+**Pendiente de añadir** (29/08/2026) — esto todavía NO está en el crontab:
+
+```cron
 0 10 1 * * /opt/menus/respaldo/probar-restauracion.sh >> /var/log/respaldo-prueba.log 2>&1
 ```
 
-> **La tercera línea hay que añadirla a mano en el servidor** (29/08/2026). El
-> script existía desde el principio y decía que había que correrlo "de vez en
+> El script existía desde el principio y decía que había que correrlo "de vez en
 > cuando", pero no lo corría nadie — que es el modo de fallo del que avisa su
 > propio repo hermano: no que reviente, sino que deje de pasar sin que nadie se
 > entere. Un respaldo que nunca se ha restaurado es la esperanza de tener uno.
+>
+> **Antes de la línea del cron hay que copiar el script al anfitrión**, con el
+> `docker cp` del paso 3.bis de `respaldo/LEEME.md`. `/opt/menus/respaldo/` no
+> lo actualiza el despliegue: sin esa copia, el cron correría la versión vieja
+> —la que no tiene el freno de espacio— y encima nada lo diría.
 >
 > Mensual y no semanal porque restaura la copia entera y con los masters de
 > video eso son gigas. Por eso mismo el script comprueba antes que quepa y se
