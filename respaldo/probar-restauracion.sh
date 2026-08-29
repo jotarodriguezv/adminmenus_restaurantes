@@ -80,7 +80,19 @@ echo
 echo "── Contenido, no solo nombres"
 # Se comparan de verdad unos cuantos archivos: que el nombre esté no prueba que
 # los bytes estén. Se cogen los más grandes, que son los videos.
-MUESTRA=$(find "$CARPETA" -type f -printf '%s\t%p\n' 2>/dev/null | sort -rn | head -5 | cut -f2)
+#
+# El recorte lo hace awk y no 'head -5' a propósito. 'head' se va en cuanto
+# tiene sus cinco líneas y le cierra la tubería a 'sort', que muere de SIGPIPE
+# con código 141; con 'pipefail' eso es el resultado de TODA la tubería, y con
+# 'set -e' el script se muere aquí mismo, justo antes de la comprobación que más
+# importa. Sin decir nada: la tabla de arriba ya salió en verde, así que parece
+# que todo fue bien.
+#
+# Solo pasa cuando la salida de 'sort' no cabe en el buffer de la tubería, así
+# que hoy no pasaba —158 archivos— y habría empezado a pasar sin avisar al
+# crecer las cartas. Medido: con 1000 archivos sobrevive, con 2000 muere.
+# 'awk' lee hasta el final y no cierra nada.
+MUESTRA=$(find "$CARPETA" -type f -printf '%s\t%p\n' 2>/dev/null | sort -rn | awk -F'\t' 'NR<=5 {print $2}')
 [ -n "$MUESTRA" ] || { echo "no hay archivos que comparar"; exit 1; }
 while IFS= read -r f; do
   copia="$RAIZ${f#"$CARPETA"}"
