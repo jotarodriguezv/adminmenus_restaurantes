@@ -523,10 +523,18 @@ async function qrGuardarDiseno() {
 	qrLeerControles();
 	const st = document.getElementById('qrStatus');
 	try {
-		// El backend reconstruye "atributos" desde lo que ya existe para el
-		// rol cliente, pero el admin lo reemplaza entero: por eso se manda
-		// el objeto completo con qr encima.
-		const atributos = { ...(state.restaurante.atributos || {}), qr: qrCfg };
+		// Solo su clave. Aquí se mandaba el objeto ENTERO fundido sobre la copia
+		// que el panel cargó al entrar, con el razonamiento de que el servidor
+		// solo fundía para el rol cliente. Dejó de ser cierto el 27/08/2026:
+		// funde para los dos, y las cinco pantallas de index.html se cambiaron
+		// ese día para mandar solo lo suyo. Esta se quedó fuera por estar en
+		// otro archivo.
+		//
+		// Mientras tanto, guardar el diseño del QR devolvía TODO 'atributos' a
+		// la copia de al entrar: si alguien había cambiado el WhatsApp de
+		// pedidos, los toppings o los métodos de pago desde otra sesión, se
+		// perdían sin aviso y sin nada en los registros.
+		const atributos = { qr: qrCfg };
 		const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
 		state.restaurante = data;
 		st.textContent = '✓ Guardado';
