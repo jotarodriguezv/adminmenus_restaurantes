@@ -1026,6 +1026,86 @@ catálogo de toppings, así que el código viejo y el nuevo hacen lo mismo allí
 pero conviene igualarlos para que las cuatro cartas corran lo mismo y para que
 ganen la comprobación de salud.
 
+### 9.13 La vista previa podía suplantar una carta entera
+
+Detectado el 29/08/2026 al revisar lo que quedaba sin mirar (`qr.js`, los seis
+temas, `core/` y los scripts de respaldo). **Resuelto el 29/08/2026.**
+
+`core/preview.js` fija la regla que hace segura la vista previa: puede cambiar
+**cómo se ve** la carta, nunca **a dónde apunta**. Por eso `whatsapp_pedidos` no
+está en la lista, y por eso se sacó `plan` el 27/08. Pero `css_custom` sí estaba,
+y una hoja de estilos arbitraria no es «que se vea distinto»: con `content:`
+**escribe texto en la carta**.
+
+> Se reparte `menu.vmenus.co/<carta>?preview={"atributos":{"css_custom":"…"}}`.
+> Abre la carta de verdad —dominio real, logo real, platos y precios reales— con
+> un teléfono de pedidos falso encima. No hace falta entrar al panel ni tener
+> credenciales.
+
+La defensa existía y estaba bien pensada: el aviso amarillo en un **shadow root
+cerrado**, que el CSS de la página no alcanza. Lo que no cubría es que el shadow
+root protege el **contenido**, no el `<div>` que lo sostiene — y ese está en el
+DOM normal con sus estilos en línea. **Un `!important` de una hoja de autor le
+gana a un estilo en línea sin prioridad.** Comprobado en Chromium:
+
+```
+❌ div { display: none !important }
+❌ body > div:last-child { display: none !important }
+❌ * { opacity: 0 !important }
+```
+
+Se arregla en dos capas, porque hicieron falta las dos:
+
+- **Se cierra la puerta.** `css_custom` sale de `CLAVES_APARIENCIA`. Se pierde
+  previsualizar el CSS sin guardar: es un precio real y pequeño —lo usa un
+  restaurante— y el CSS se sigue viendo guardándolo.
+- **Se atranca.** El anfitrión del aviso lleva sus propiedades con `!important`
+  **en línea**, que en la cascada gana al `!important` de autor. Vive ahora en
+  `core/aviso.js` con pruebas propias, porque una regla que no se puede
+  comprobar se pierde en la siguiente edición.
+
+Verificado contra el código que se despliega, en Chromium, con **nueve** formas
+de esconder un elemento (`display`, `opacity`, `visibility`, `transform`,
+`height`/`overflow`, `filter`, `clip-path`, `position`/`z-index` y un selector
+directo al anfitrión): las nueve rebotan.
+
+### 9.14 Guardar el diseño del QR pisaba el resto de `atributos`
+
+**Resuelto el 29/08/2026.** Es 9.10 otra vez, en la pantalla que se quedó fuera.
+
+Aquel día se cambiaron las **cinco** pantallas de `public/index.html` para que
+cada una mandara solo sus claves. `public/qr.js` es otro archivo y no entró en el
+barrido, así que siguió mandando `{ ...atributos, qr }` desde la copia que el
+panel cargó al entrar. Su comentario incluso razonaba por qué hacía falta — con
+una descripción del servidor que **dejó de ser cierta ese mismo día**.
+
+Mismo escenario que 9.10: el superadmin abre el diseñador a las 10:00, el dueño
+cambia su WhatsApp de pedidos a las 10:05, el superadmin guarda el QR a las
+10:10, y el WhatsApp vuelve al de las 10:00. Comprobado que ya no queda ningún
+otro sitio mandando el objeto entero.
+
+### 9.15 El carrito no recalculaba el recargo de los toppings
+
+**Resuelto el 29/08/2026.**
+
+`revalidarCarrito` cruza el carrito dormido con el menú de hoy —para eso
+existe— pero el recargo lo cogía de lo guardado: `Number(item.extras) || 0`. El
+precio base se refrescaba y el de los toppings no, que es **exactamente** el
+fallo que motivó subir el catálogo al restaurante, en la única ruta que se quedó
+sin arreglar. Tocineta pasa de $4.000 a $6.000 y un carrito de ayer sigue
+cobrando $4.000: al restaurante le llega el pedido con el total viejo.
+
+Se puede arreglar **gracias a los identificadores del 28/08**: `sel` dice qué
+toppings lleva la línea, así que el recargo sale del catálogo de hoy. De paso, la
+línea se reescribe con los nombres de hoy — renombrar es una operación admitida
+desde ayer, y un carrito dormido no puede mandarle al restaurante por WhatsApp
+un nombre que ya nadie usa.
+
+Con un matiz que costó una prueba: **solo se recalcula si la línea trae de
+dónde** (`sel`, o el texto en los carritos anteriores a que existiera). Sin
+ninguna de las dos no hay base para decir que el recargo es cero —no saber no es
+saber que no— y ponerlo a cero le cobraría de menos al restaurante.
+
 ## 10. Plan por fases
 
 **Paso 0 — Medición.** ✅ Cerrado. Es este documento.
