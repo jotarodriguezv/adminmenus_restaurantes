@@ -963,7 +963,7 @@ es un cambio de otra forma y queda abierto.
 ### 9.12 Los platos guardaban el NOMBRE del topping, no un identificador
 
 Detectado el 27/08/2026 al revisar el panel; era la última esquina abierta de
-9.11. **Resuelto el 28/08/2026.**
+9.11. **Resuelto el 28/08/2026 y aplicado en producción el 29/08/2026.**
 
 El catálogo de toppings es del negocio (`restaurantes.atributos`) y cada plato
 dice cuáles ofrece (`productos.atributos.personalizacion`). Esa referencia era
@@ -1008,10 +1008,23 @@ no salía nunca y la maquinaria de reabrir una línea —la que arregló lo del
 topping con coma el 24/08— estaba entera y sin forma de llegar a ella. Ahora
 pregunta por lo que el plato ofrece de verdad.
 
+**Cómo quedó.** Comprobado contra la base después de correr la migración: **0**
+elementos de catálogo sin identificador y **23** con él; **0** referencias de
+plato todavía por nombre y **79** ya por identificador; **0** huérfanos y **0**
+platos con la copia vieja dentro. Resueltos los identificadores de vuelta a
+nombres, los cuatro platos de `perroscriollos` ofrecen exactamente lo que
+ofrecían, en el mismo orden, y los cuatro premium siguen a $4.000.
+
 **Lo que sigue abierto.** El código acepta todavía nombres además de
 identificadores, para los carritos guardados en el navegador de algún cliente.
 Ese camino se puede quitar cuando ya no quede ninguno; el plazo del carrito son
 24 horas.
+
+También quedan `menubonza` y `menumalparados` sin redesplegar, así que sus
+cartas corren la imagen anterior. No hay riesgo —ninguno de los dos tiene
+catálogo de toppings, así que el código viejo y el nuevo hacen lo mismo allí—
+pero conviene igualarlos para que las cuatro cartas corran lo mismo y para que
+ganen la comprobación de salud.
 
 ## 10. Plan por fases
 
@@ -1228,6 +1241,17 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       select jobid, jobname, schedule, command, active from cron.job;
       select * from cron.job_run_details order by start_time desc limit 5;
       ```
+- [x] **Comprobación de salud en los contenedores** (29/08/2026). Antes, para
+      Docker un contenedor estaba sano mientras el proceso no muriera — y un
+      proceso puede quedarse vivo sin atender a nadie. El panel pregunta por
+      `/salud`; las cartas, por su propio `index.html`, que es lo que atrapa un
+      nginx en pie sirviendo una raíz web vacía. En producción: `adminvmenus` y
+      `vmenusapp` en `(healthy)`
+- [ ] **Redesplegar `menubonza` y `menumalparados`.** Se quedaron con la imagen
+      anterior el 29/08/2026, así que no informan estado de salud y corren el
+      JavaScript de antes de los toppings por identificador. Sin riesgo —ninguno
+      de los dos tiene catálogo de toppings— pero las cuatro cartas deberían
+      correr lo mismo
 - [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
 - [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Comprobado el
       23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
