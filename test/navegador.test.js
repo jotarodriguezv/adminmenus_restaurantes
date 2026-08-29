@@ -88,6 +88,58 @@ describe('esc · escapado en el panel', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('qrGuardarDiseno · guardar el QR no puede pisar el resto', () => {
+	// 'atributos' es un solo JSON compartido por siete pantallas que no se
+	// conocen entre sí. El 27/08/2026 se cambiaron las cinco de index.html
+	// para que cada una mandara SOLO sus claves y las fundiera el servidor,
+	// que sí tiene la versión de ahora. Esta se quedó fuera por vivir en otro
+	// archivo, y siguió mandando el objeto entero desde la copia que el panel
+	// cargó al entrar.
+	//
+	// El caso concreto: el superadmin abre el diseñador de QR a las 10:00, el
+	// dueño cambia su WhatsApp de pedidos a las 10:05, el superadmin guarda el
+	// QR a las 10:10 — y el WhatsApp vuelve al de las 10:00.
+	const guardar = async () => {
+		const enviado = [];
+		const ctx = cargar('qr.js', 'async function qrGuardarDiseno', null, {
+			qrCfg: { fg: '#000000', punto: 'redondo' },
+			qrLeerControles: () => {},
+			document: { getElementById: () => ({ textContent: '', style: {} }) },
+			showToast: () => {},
+			state: {
+				restaurante: {
+					id: 'r1',
+					// Lo que el panel cargó al entrar y ya está viejo.
+					atributos: { whatsapp_pedidos: '573001112233', nav: 'carrito', qr: { fg: '#ffffff' } },
+				},
+			},
+			apiFetch: async (metodo, ruta, cuerpo) => { enviado.push({ metodo, ruta, cuerpo }); return { id: 'r1' }; },
+		});
+		await ctx.qrGuardarDiseno();
+		return enviado[0];
+	};
+
+	test('manda SOLO la clave qr', async () => {
+		const { cuerpo } = await guardar();
+		assert.deepEqual(Object.keys(cuerpo.atributos), ['qr'],
+			'cualquier otra clave arrastra un valor viejo encima del de ahora');
+	});
+
+	test('no reenvía el WhatsApp de pedidos que cargó al entrar', async () => {
+		// La clave concreta que más duele: es a dónde llega el dinero.
+		const { cuerpo } = await guardar();
+		assert.equal(cuerpo.atributos.whatsapp_pedidos, undefined);
+		assert.equal(cuerpo.atributos.nav, undefined);
+	});
+
+	test('el diseño sí viaja entero', async () => {
+		const { cuerpo, metodo } = await guardar();
+		assert.equal(metodo, 'PATCH');
+		assert.equal(cuerpo.atributos.qr.punto, 'redondo', 'lo que se acaba de elegir');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('Diseñador de QR · avisos de escaneabilidad', () => {
 	// qrRevisarAvisos y qrLeerControles leen del DOM; se les da uno falso.
 	function preparar(cfgPrevia, entradas) {
