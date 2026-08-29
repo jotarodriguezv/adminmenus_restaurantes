@@ -960,6 +960,59 @@ es un cambio de otra forma y queda abierto.
   ancho fijo mayor de 360 px y **cero `<form>`**, así que no existe el clásico
   botón sin `type` que envía el formulario sin querer.
 
+### 9.12 Los platos guardaban el NOMBRE del topping, no un identificador
+
+Detectado el 27/08/2026 al revisar el panel; era la última esquina abierta de
+9.11. **Resuelto el 28/08/2026.**
+
+El catálogo de toppings es del negocio (`restaurantes.atributos`) y cada plato
+dice cuáles ofrece (`productos.atributos.personalizacion`). Esa referencia era
+el nombre, así que **renombrar un topping desenganchaba en silencio a todos los
+platos que lo ofrecían**: el chip salía desmarcado en la ficha, el carrito
+público no sabía cobrarlo, y nada avisaba.
+
+Por eso la pestaña Toppings solo dejaba **añadir y borrar**. Renombrar era una
+operación que rompía datos, y la forma de convivir con ella era no ofrecerla —
+con lo cual cambiarle el nombre a un topping obligaba a borrarlo, crearlo otra
+vez y volver a marcarlo plato por plato.
+
+Ahora cada elemento del catálogo lleva un identificador propio (`top_xxxxxxxx`)
+que no cambia aunque cambie el nombre, los platos guardan ese identificador, y
+**el panel permite renombrar**: se pulsa sobre el chip y se edita, precio
+incluido en los premium.
+
+**Lo que hace la migración posible sin apagar nada.** Un elemento del catálogo
+**sin** identificador usa su nombre como tal. Con eso, las dos formas se
+encuentran en las dos direcciones: un plato guardado con nombres contra un
+catálogo ya migrado, y un plato ya migrado contra un catálogo sin migrar. No
+hace falta que la base, el panel, las cartas y el carrito que alguien tenga
+abierto en el móvil cambien en el mismo instante — que es imposible.
+
+**Orden de despliegue, y es al revés que en el índice del 26/08.** Aquí no es
+aditivo: primero el código (panel y cartas), después la migración
+(`sql/14_toppings_por_identificador.sql`). Al revés, una carta con el
+JavaScript anterior leería el catálogo nuevo y le saldría el modal de
+personalización vacío. Entre los dos pasos no hay ventana rota: todo sigue
+funcionando con nombres.
+
+**Alcance.** Un solo restaurante tiene catálogo (`perroscriollos`, 23
+elementos); de los 159 platos, 17 tienen `personalizacion` y solo 4 con algo
+dentro. **Cero huérfanos.** Era el momento: cada restaurante nuevo que
+configure sus toppings lo vuelve más caro.
+
+**De paso, un botón que no existía.** El «✏ Editar» de una línea del carrito
+preguntaba por la copia del catálogo dentro del plato (`toppings_platino` y
+compañía), que desapareció cuando el catálogo subió al restaurante. Desde
+entonces era falso para **todos** los platos de **todas** las cartas: el botón
+no salía nunca y la maquinaria de reabrir una línea —la que arregló lo del
+topping con coma el 24/08— estaba entera y sin forma de llegar a ella. Ahora
+pregunta por lo que el plato ofrece de verdad.
+
+**Lo que sigue abierto.** El código acepta todavía nombres además de
+identificadores, para los carritos guardados en el navegador de algún cliente.
+Ese camino se puede quitar cuando ya no quede ninguno; el plazo del carrito son
+24 horas.
+
 ## 10. Plan por fases
 
 **Paso 0 — Medición.** ✅ Cerrado. Es este documento.
