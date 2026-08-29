@@ -155,8 +155,20 @@ MAILTO=verificameco@gmail.com
 **Pendiente de añadir** (29/08/2026) — esto todavía NO está en el crontab:
 
 ```cron
-0 10 1 * * /opt/menus/respaldo/probar-restauracion.sh >> /var/log/respaldo-prueba.log 2>&1
+0 10 1 * * /opt/menus/respaldo/probar-restauracion.sh >> /var/log/respaldo-prueba.log 2>&1 || tail -20 /var/log/respaldo-prueba.log
 ```
+
+> El `|| tail` del final no es adorno. Cron solo manda correo cuando un trabajo
+> **escribe algo**, y mandarlo todo al log significa que cron no ve nada — ni
+> cuando va bien ni cuando va mal. Sería una comprobación mensual que el día que
+> falle no se lo cuenta a nadie: exactamente el modo de fallo del que avisa
+> `verificar.sh`. Con el `||`, una corrida buena queda en el log y en silencio, y
+> una mala le enseña a cron las últimas veinte líneas.
+>
+> **Sigue sin ser una alarma de verdad**, porque el `MAILTO` de este servidor
+> probablemente no llega a ningún sitio. Lo correcto es engancharlo a
+> healthchecks.io con su propio check mensual, como ya hace `respaldo.sh`. Queda
+> anotado en "Lo que falta".
 
 > El script existía desde el principio y decía que había que correrlo "de vez en
 > cuando", pero no lo corría nadie — que es el modo de fallo del que avisa su
@@ -319,6 +331,14 @@ Recogidas por haberlas sufrido:
 - ~~Reinicio pendiente por kernel~~ — **hecho el 23/08/2026.** Corre
   6.8.0-138 y no quedan actualizaciones pendientes. Los 17 contenedores
   volvieron solos.
+- **Alarma para la prueba de restauración mensual** (29/08/2026). Está
+  programada con `|| tail`, así que un fallo le enseña algo a cron y dispara el
+  `MAILTO` — pero ese `MAILTO` de aquí probablemente no llega a ningún sitio.
+  Lo correcto es su propio check en healthchecks.io, mensual, igual que
+  `respaldo.sh`: unas diez líneas en el script y una variable nueva en
+  `/root/.respaldo.env` (no vale reutilizar `RESPALDO_PING`, que es del diario).
+  Mientras tanto, la prueba corre pero su fallo depende de que alguien mire el
+  log.
 - **`docker system df`**: 26 GB usados de 48. Las imágenes viejas suelen ser lo
   que más ocupa.
 - **La base de datos la respalda Supabase**, no esto. Conviene mirar qué
@@ -336,6 +356,22 @@ Recogidas por haberlas sufrido:
 ---
 
 ## Registro de cambios
+
+**29/08/2026 — La prueba de restauración queda programada**
+
+Cierre de lo que llevaba abierto desde que se montó el respaldo. El script se
+copió al anfitrión, se le puso el `+x` y se corrió **cinco veces seguidas en
+verde** — con el `head` de antes alguna habría salido vacía. Queda en el cron el
+día 1 de cada mes.
+
+La línea lleva `|| tail -20` al final: cron solo manda correo cuando un trabajo
+escribe algo, y mandarlo todo al log dejaría un fallo mensual sin contárselo a
+nadie. No es una alarma de verdad todavía —el `MAILTO` de este servidor no llega
+a ningún sitio— y eso queda anotado en "Lo que falta" con lo que costaría
+hacerlo bien.
+
+Con esto, el respaldo está **probado de punta a punta**: se restaura y los bytes
+coinciden, no solo los nombres.
 
 **29/08/2026 — `head` en mitad de una tubería con `pipefail` mata el script**
 
