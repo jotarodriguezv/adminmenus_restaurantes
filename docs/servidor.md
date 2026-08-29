@@ -37,7 +37,29 @@ docker ps -q --filter "name=adminvmenus"
 
 ---
 
-## 2. Dónde vive cada cosa
+## 2. Dónde se ejecuta cada cosa
+
+Hay **cinco** sitios distintos y las órdenes no son intercambiables. Un `docker`
+dentro del contenedor no existe; un `npm test` en el anfitrión tampoco. Esta
+tabla es para no tener que adivinarlo.
+
+| # | Sitio | Cómo se entra | Se reconoce por | Qué se hace ahí |
+|---|---|---|---|---|
+| 1 | **El anfitrión** (el servidor) | Consola de Hostinger, o SSH | `root@srv874049:~#` y `docker ps` funciona | cron, `docker`, todo lo de `/opt/menus/` |
+| 2 | **Dentro del contenedor** del panel | `docker exec -it $(docker ps -q --filter "name=adminvmenus") sh` | El prompt cambia y `/app` existe | mirar registros o archivos de la app; casi nunca hace falta |
+| 3 | **El repositorio** | En tu computador, o la web de GitHub | Ves las carpetas `public/`, `core/`, `docs/` | reemplazar archivos, `git` |
+| 4 | **Supabase** | `supabase.com` → SQL Editor | Es una web | las consultas de `sql/` |
+| 5 | **El panel de VMenus** | El navegador, con tu PIN | Es la carta y sus pestañas | comprobar que un cambio se ve |
+
+Regla que evita casi todos los líos: **si la orden empieza por `docker`, es el
+anfitrión (1).** Y el anfitrión es el único sitio donde existe `/opt/menus/`.
+
+> Un despliegue de Dokploy toca el **contenedor (2)** y nada más. No toca el
+> anfitrión, ni el repositorio, ni la base de datos. Por eso los scripts de
+> respaldo hay que copiarlos a mano — ver abajo — y por eso las consultas de
+> `sql/` hay que correrlas aparte.
+
+## 2.bis Dónde vive cada cosa
 
 | ruta | qué es | ¿en git? |
 |---|---|---|
@@ -45,6 +67,8 @@ docker ps -q --filter "name=adminvmenus"
 | `/opt/menus/respaldo/` | los scripts de respaldo, copiados del contenedor | sí, en `respaldo/` |
 | `/root/.respaldo.env` | credenciales de Backblaze y clave de cifrado | **NUNCA** |
 | `/var/log/respaldo-uploads.log` | registro de cada copia | no |
+
+Todas esas rutas son del **anfitrión (1)**.
 
 `/opt/menus/uploads` se monta dentro del contenedor del panel como
 `/app/uploads`. Es la misma carpeta vista desde dos sitios.
@@ -58,6 +82,8 @@ existe.
 
 Si algún día se cambian, hay que volver a copiarlos a mano:
 
+En el **anfitrión (1)**:
+
 ```bash
 docker cp $(docker ps -q --filter "name=adminvmenus"):/app/respaldo/. /opt/menus/respaldo/
 chmod +x /opt/menus/respaldo/*.sh
@@ -65,6 +91,15 @@ chmod +x /opt/menus/respaldo/*.sh
 
 **Un despliegue no hace esto.** El anfitrión seguirá corriendo la versión vieja
 sin que nada lo diga.
+
+El `chmod` va con `*` a propósito. El permiso de ejecución no viaja dentro del
+archivo: viaja en el modo que git guarda, y solo si el archivo llegó al
+repositorio por git. Reemplazándolos a mano —copiando o descargando— llegan en
+644 y el cron no puede ejecutarlos: `Permission denied`, el trabajo falla y en
+`crontab` no hay nada que lo cuente. Pasó el 29/08/2026 con
+`probar-restauracion.sh`, y explica por qué `respaldo.sh` y `verificar.sh`
+llevaban meses corriendo con un `+x` puesto a mano que el repositorio no sabía
+que existía.
 
 ---
 
@@ -301,6 +336,24 @@ Recogidas por haberlas sufrido:
 ---
 
 ## Registro de cambios
+
+**29/08/2026 — Dónde se ejecuta cada cosa**
+
+Sección 2 nueva, escrita después de perder un rato con un `Permission denied`
+que no era del script sino del sitio desde el que se miraba. Hay cinco sitios
+—anfitrión, contenedor, repositorio, Supabase y el panel— y las órdenes no son
+intercambiables; ahora está la tabla con cómo se entra a cada uno y en qué se
+reconoce.
+
+La regla corta: **si la orden empieza por `docker`, es el anfitrión**, y el
+anfitrión es el único sitio donde existe `/opt/menus/`.
+
+De paso queda explicado por qué el `chmod +x` sigue haciendo falta: el permiso
+de ejecución no viaja dentro del archivo, viaja en el modo que guarda git — y
+solo si el archivo llegó al repositorio por git. Reemplazándolos a mano llegan
+en 644 y el cron falla en silencio. Es lo que llevaba pasando desde siempre con
+`respaldo.sh` y `verificar.sh`, que corren con un `+x` puesto a mano que el
+repositorio no sabía que existía.
 
 **29/08/2026 — Los tres menores de la revisión**
 
