@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- UNA SOLA GENERACIÓN EN CURSO POR PLATO — PENDIENTE DE APLICAR
+-- UNA SOLA GENERACIÓN EN CURSO POR PLATO — YA APLICADO el 28/08/2026
 -- ═══════════════════════════════════════════════════════════════
 -- Es aditivo: un índice sobre una tabla que hoy no tiene ninguna fila en los
 -- estados que cubre, así que aplicarlo antes de desplegar el código no cambia

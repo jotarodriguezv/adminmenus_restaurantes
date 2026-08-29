@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- TOPPINGS POR IDENTIFICADOR — APLICAR DESPUÉS DE DESPLEGAR EL CÓDIGO
+-- TOPPINGS POR IDENTIFICADOR — YA APLICADO el 29/08/2026, tras desplegar
 -- ═══════════════════════════════════════════════════════════════
 -- ── QUÉ ARREGLA ───────────────────────────────────────────────
 -- El catálogo de toppings es del negocio (restaurantes.atributos) y cada plato
@@ -48,6 +48,18 @@
 --
 -- Es justo el momento de hacerlo. Cada restaurante nuevo que configure sus
 -- toppings lo vuelve más caro.
+--
+-- ── CÓMO QUEDÓ (29/08/2026) ───────────────────────────────────
+-- Corrida tras desplegar los dos repositorios. Comprobado después contra la
+-- base: 0 elementos de catálogo sin identificador y 23 con él; 0 referencias de
+-- plato todavía por nombre y 79 ya por identificador; 0 huérfanos; 0 platos con
+-- la copia vieja dentro. Resueltos los identificadores de vuelta a nombres, los
+-- cuatro platos ofrecen exactamente lo que ofrecían, en el mismo orden, y los
+-- cuatro premium siguen a $4.000.
+--
+-- Se deja el archivo tal cual: es idempotente, así que volver a correrlo no
+-- cambia nada, y sigue sirviendo para cualquier catálogo que se cree a mano
+-- fuera del panel.
 --
 -- ── COMPROBADO ANTES DE ENTREGARLO ────────────────────────────
 -- Corrido entero contra una copia temporal de las tablas de producción, con
