@@ -1249,7 +1249,8 @@
 								<!-- Filtro por categoría: con 59 platos, buscar uno a ojo en una
 								     rejilla que se desplaza es incómodo. Solo filtra lo que se ve;
 								     lo marcado en otras categorías no se pierde. -->
-								<div id="tvFiltroCat" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+								<div id="tvFiltroCat" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+								<div id="tvMarcarTodos" style="margin-bottom:10px"></div>
 								<div id="tvPlatos" style="display:flex;flex-wrap:wrap;gap:10px;max-height:340px;overflow-y:auto;padding:4px"></div>
 								<div id="tvSeleccionados" style="font-size:11px;color:var(--text-dim);margin-top:8px"></div>
 							</div>
@@ -1285,14 +1286,23 @@
 							<div class="form-row">
 								<div class="form-group" style="margin-bottom:0">
 									<label for="tvSegundos" class="form-label">Segundos por pantalla</label>
-									<input type="number" class="form-input" id="tvSegundos" min="4" max="60" step="1" placeholder="8">
+									<input type="number" class="form-input" id="tvSegundos" min="4" max="60" step="1" placeholder="8" oninput="tvPintarResumen()">
 								</div>
 								<div class="form-group" style="margin-bottom:0;display:flex;align-items:flex-end">
 									<div class="form-check" style="margin-bottom:10px">
-										<label class="toggle"><input type="checkbox" id="tvAleatorio"><span class="toggle-slider"></span></label>
+										<label class="toggle"><input type="checkbox" id="tvAleatorio" onchange="tvPintarResumen()"><span class="toggle-slider"></span></label>
 										<span style="font-size:13px;color:var(--text-muted)">Orden aleatorio</span>
 									</div>
 								</div>
+							</div>
+
+							<div class="form-check" style="margin-bottom:14px">
+								<label class="toggle"><input type="checkbox" id="tvMostrarCategoria"><span class="toggle-slider"></span></label>
+								<span style="font-size:13px;color:var(--text-muted)">Mostrar la categoría en cada plato</span>
+							</div>
+							<div style="font-size:11px;color:var(--text-dim);margin:-8px 0 16px">
+								Una etiqueta pequeña en la esquina de la foto. Útil cuando el nombre del
+								plato no dice qué es — «Pepito», «La Descarada».
 							</div>
 
 							<div class="form-check" style="margin-bottom:0">
@@ -5554,7 +5564,8 @@ async function saveToppings() {
 // así que esconder esta pestaña no es la protección — es solo cortesía.
 const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          segundos: 8, modo: 'todos', categoria_id: null,
-                         productos: [], aleatorio: false, animacion: 'suave' };
+                         productos: [], aleatorio: false, animacion: 'suave',
+                         mostrar_categoria: false };
 
 let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
 let tvFiltro = 'all';   // categoría que se está mirando en el selector
@@ -5577,6 +5588,7 @@ function renderTV() {
   document.getElementById('tvSegundos').value = Math.min(60, Math.max(4, parseInt(cfg.segundos, 10) || 8));
   document.getElementById('tvAleatorio').checked = !!cfg.aleatorio;
   document.getElementById('tvAnimacion').checked = cfg.animacion !== 'ninguna';
+  document.getElementById('tvMostrarCategoria').checked = !!cfg.mostrar_categoria;
   document.getElementById('tvEnlace').value = urlPublica(state.restaurante) + '/tv';
   document.getElementById('tvStatus').textContent = '';
 
@@ -5597,6 +5609,7 @@ function renderTV() {
   tvFiltro = 'all';
   tvPintarFiltroCat();
   tvPintarPlatos();
+  tvPintarMarcarTodos();
   tvAlternarActiva();
   tvCambiarModo();
   tvAvisoTamano();
@@ -5642,7 +5655,7 @@ function tvPintarFiltroCat() {
     // El contador de marcados es lo que evita tener que recorrer categoría por
     // categoría para saber qué se lleva elegido.
     b.textContent = etiqueta + ' ' + (marcados ? `(${marcados}/${n})` : `(${n})`);
-    b.onclick = () => { tvFiltro = id; tvPintarFiltroCat(); tvPintarPlatos(); };
+    b.onclick = () => { tvFiltro = id; tvPintarFiltroCat(); tvPintarPlatos(); tvPintarMarcarTodos(); };
     return b;
   };
 
@@ -5651,6 +5664,42 @@ function tvPintarFiltroCat() {
     const n = posibles.filter(p => p.categoria_id === c.id).length;
     cont.appendChild(chip(c.id, `${c.emoji || ''} ${c.nombre}`.trim(), n));
   });
+}
+
+// El botón de marcar o quitar toda la categoría que se está mirando. Con diez
+// hamburguesas, marcarlas una a una para enseñarlas todas es trabajo tonto.
+//
+// Es un solo botón que cambia de sentido: si ya están todas marcadas ofrece
+// quitarlas. Dos botones —marcar y quitar— obligan a mirar cuál toca; uno que
+// dice lo que va a hacer, no.
+function tvPintarMarcarTodos() {
+  const cont = document.getElementById('tvMarcarTodos');
+  if (!cont) return;
+  cont.innerHTML = '';
+  const todos = tvPlatosPosibles();
+  const visibles = tvFiltro === 'all' ? todos : todos.filter(p => p.categoria_id === tvFiltro);
+  if (!visibles.length) return;
+
+  const marcados = visibles.filter(p => tvSeleccion.includes(p.id)).length;
+  const todasPuestas = marcados === visibles.length;
+  const donde = tvFiltro === 'all' ? 'los platos' : 'esta categoría';
+
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn-sm';
+  b.textContent = todasPuestas ? `Quitar ${donde} (${visibles.length})` : `Marcar todos ${donde} (${visibles.length})`;
+  b.onclick = () => {
+    if (todasPuestas) {
+      tvSeleccion = tvSeleccion.filter(id => !visibles.some(p => p.id === id));
+    } else {
+      visibles.forEach(p => { if (!tvSeleccion.includes(p.id)) tvSeleccion.push(p.id); });
+    }
+    tvPintarPlatos();
+    tvPintarFiltroCat();
+    tvPintarMarcarTodos();
+    tvPintarResumen();
+  };
+  cont.appendChild(b);
 }
 
 function tvPintarPlatos() {
@@ -5682,6 +5731,7 @@ function tvPintarPlatos() {
       if (i === -1) tvSeleccion.push(p.id); else tvSeleccion.splice(i, 1);
       tvPintarPlatos();
       tvPintarFiltroCat();
+      tvPintarMarcarTodos();
       tvPintarResumen();
     };
     cont.appendChild(b);
@@ -5722,11 +5772,29 @@ function tvPintarResumen() {
   }
   const porSlide = parseInt(document.getElementById('tvPorSlide').value, 10) || 1;
   const seg = Math.min(60, Math.max(4, parseInt(document.getElementById('tvSegundos').value, 10) || 8));
-  const vueltas = Math.ceil(n / porSlide) * seg;
+  const pantallas = Math.ceil(n / porSlide);
+  const vueltas = pantallas * seg;
   const min = Math.floor(vueltas / 60), s = vueltas % 60;
-  el.textContent = `${n} plato${n === 1 ? '' : 's'} · la vuelta completa dura ` +
-    (min ? `${min} min ${s ? s + ' s' : ''}`.trim() : `${s} s`);
-  el.style.color = 'var(--text-muted)';
+
+  const partes = [`${n} plato${n === 1 ? '' : 's'} · ${pantallas} pantalla${pantallas === 1 ? '' : 's'} · ` +
+    'la vuelta dura ' + (min ? `${min} min ${s ? s + ' s' : ''}`.trim() : `${s} s`)];
+
+  // Menos platos que huecos. No es un fallo —salen más grandes y llenan igual—
+  // pero elegir "4 a la vez" y ver dos descoloca si nadie lo avisa.
+  if (n < porSlide) {
+    partes.push(`Solo hay ${n}, así que se verán ${n} a la vez aunque elijas ${porSlide}. ` +
+                'Salen más grandes y llenan la pantalla igual.');
+  }
+
+  // Un ciclo de una o dos pantallas se repite muy rápido y se nota. Barajar no
+  // añade platos, pero cambia las parejas en cada vuelta y disimula el bucle.
+  const aleatorio = document.getElementById('tvAleatorio');
+  if (pantallas <= 2 && n > porSlide && aleatorio && !aleatorio.checked) {
+    partes.push('Con tan pocas pantallas el ciclo se nota mucho: prueba a encender el orden aleatorio.');
+  }
+
+  el.textContent = partes.join(' · ');
+  el.style.color = partes.length > 1 ? 'var(--warning)' : 'var(--text-muted)';
 }
 
 // Las fotos se guardan a 800 px de ancho. Repartidas entre dos o más platos
@@ -5774,6 +5842,7 @@ async function saveTV() {
     productos: modo === 'manual' ? tvSeleccion : [],
     aleatorio: document.getElementById('tvAleatorio').checked,
     animacion: document.getElementById('tvAnimacion').checked ? 'suave' : 'ninguna',
+    mostrar_categoria: document.getElementById('tvMostrarCategoria').checked,
   };
 
   // Solo su clave: el servidor funde. Ver el comentario de saveToppings.
