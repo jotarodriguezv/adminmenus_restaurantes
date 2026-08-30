@@ -1029,6 +1029,8 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvOrientacion: { value: opciones.orientacion || 'horizontal' },
 			tvAleatorio:   { checked: !!opciones.aleatorio },
 			tvAnimacion:   { checked: opciones.animacion !== false },
+			tvMostrarCategoria: { checked: !!opciones.mostrarCategoria },
+			tvMarcarTodos: { innerHTML: '', appendChild() {} },
 			tvResumen:     { textContent: '', style: {} },
 			tvAvisoTamano: { textContent: '', style: {} },
 			tvStatus:      { textContent: '', style: {} },
@@ -1195,6 +1197,59 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const b = montar();
 		await b.ctx.saveTV();
 		assert.equal(b.enviado[0].atributos.tv.animacion, 'suave', 'encendida por defecto');
+	});
+
+	test('avisa cuando hay menos platos que huecos en la pantalla', () => {
+		// No es un fallo —salen más grandes y llenan igual, comprobado en el
+		// navegador— pero elegir "4 a la vez" y ver dos descoloca sin aviso.
+		const { ctx, campos } = montar({ modo: 'categoria', categoria: 'c1', porSlide: 4 });
+		ctx.tvPintarResumen();
+		assert.match(campos.tvResumen.textContent, /Solo hay 2/);
+		assert.match(campos.tvResumen.textContent, /más grandes/);
+	});
+
+	test('sugiere el orden aleatorio cuando el ciclo es muy corto', () => {
+		// Con una o dos pantallas el bucle se nota mucho. Barajar no añade
+		// platos, pero cambia las parejas en cada vuelta y lo disimula.
+		const { ctx, campos } = montar({ modo: 'todos', porSlide: 1 });
+		ctx.tvPintarResumen();
+		assert.match(campos.tvResumen.textContent, /orden aleatorio/);
+	});
+
+	test('no lo sugiere si ya está encendido', () => {
+		// Sugerir algo que ya está puesto hace dudar de si de verdad lo está.
+		const { ctx, campos } = montar({ modo: 'todos', porSlide: 1, aleatorio: true });
+		ctx.tvPintarResumen();
+		assert.ok(!campos.tvResumen.textContent.includes('aleatorio'));
+	});
+
+	test('el resumen dice cuántas pantallas son', () => {
+		const { ctx, campos } = montar({ modo: 'todos', porSlide: 1, segundos: 10 });
+		ctx.tvPintarResumen();
+		assert.match(campos.tvResumen.textContent, /2 pantallas/);
+	});
+
+	test('el nombre de la categoría llega apagado a quien nunca lo tocó', () => {
+		// Es opcional a propósito: para el restaurante cuyos platos ya se
+		// entienden solos, una etiqueta más es ruido sobre la foto.
+		//
+		// Se comprueba por renderTV y no leyendo la constante: se declara con
+		// const y eso no queda expuesto fuera del guion.
+		const { ctx, campos } = montar({ mostrarCategoria: true, guardado: {} });
+		ctx.renderTV();
+		assert.equal(campos.tvMostrarCategoria.checked, false, 'sin nada guardado, apagado');
+	});
+
+	test('y encendido si así se guardó', () => {
+		const { ctx, campos } = montar({ guardado: { mostrar_categoria: true } });
+		ctx.renderTV();
+		assert.equal(campos.tvMostrarCategoria.checked, true);
+	});
+
+	test('mostrar la categoría se guarda cuando se enciende', async () => {
+		const { ctx, enviado } = montar({ mostrarCategoria: true });
+		await ctx.saveTV();
+		assert.equal(enviado[0].atributos.tv.mostrar_categoria, true);
 	});
 
 	test('la categoría no se guarda si el modo no es por categoría', async () => {
