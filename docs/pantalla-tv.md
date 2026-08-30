@@ -258,9 +258,16 @@ elegir productos o categoría, orientación, cuántos por slide, segundos.
 
 **Fase 3 — Las cuatro columnas de la promoción.** El layout vertical y el slide
 de promo ya están; falta que el panel pida `nombre` y `precio` al guardar una
-promoción, las columnas en la tabla y añadirlas a `COLUMNAS_PUBLICAS`. Hasta
-entonces el slide de promo no se activa, porque `promo_en_tv` no existe todavía
-y la página lo lee como falso.
+promoción, las columnas en la tabla, añadirlas a `COLUMNAS_PUBLICAS` **y al
+`select` de `cargar()` en `tv.html`**.
+
+Ese último punto costó el primer despliegue. Aquí ponía que hasta la fase 3 el
+slide de promo no se activaría «porque `promo_en_tv` no existe y la página lo
+lee como falso». **Es falso**, y la pantalla lo demostró: las columnas se piden
+una por una —nunca con asterisco, igual que en `core/loader.js`—, y pedir una
+que no existe en la tabla no devuelve un hueco, devuelve un **400** y se cae la
+petición entera. Un campo ausente en la respuesta se lee como falso; uno
+ausente en la tabla tumba la consulta.
 
 **Fase 4 — Contra un televisor de verdad.** Es la única fase que importa de
 verdad y no se puede simular: llevar el enlace a la pantalla del cliente y
@@ -268,6 +275,24 @@ mirar. Ahí se decide si 800 px bastan, si el texto se lee desde las mesas y si
 el navegador aguanta un servicio entero.
 
 ---
+
+## 11.bis Lo que enseñó el primer despliegue (29/08/2026)
+
+La pantalla salió con el aviso de **«sin conexión»** y la red perfectamente.
+
+- **El fallo:** el `select` pedía cuatro columnas de la fase 3. PostgREST
+  contestó 400 y la página lo trató como caída de red.
+- **Lo que costó el rato no fue el fallo, fue el aviso.** Decir «sin conexión»
+  cuando el servidor contestó manda a buscar la avería al sitio equivocado.
+  Ahora se distingue: `status` 0 es no llegar —red, DNS, CORS—; cualquier otro
+  número es el servidor diciendo que no, y sale como «error 400» con el detalle
+  completo en la consola del navegador. En un televisor no se puede abrir una
+  consola, pero en el móvil desde el que se prueba el enlace la primera vez sí,
+  y es justo entonces cuando hace falta.
+- **Por qué no lo cazaron las pruebas:** el banco de pruebas aceptaba cualquier
+  columna. Ahora imita a PostgREST y devuelve 400 con código 42703 ante una
+  desconocida. La lección general es que un simulador más permisivo que el
+  sistema real no prueba nada — solo da confianza.
 
 ## 12. Preguntas abiertas
 
