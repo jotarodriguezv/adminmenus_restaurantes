@@ -1,6 +1,6 @@
 # Pantalla TV — cartelera digital
 
-Documento de diseño. Estado: **propuesta**, nada construido todavía.
+Documento de diseño. Estado: **fase 1 construida** el 29/08/2026, sin desplegar.
 
 Origen: un cliente con televisor en su local quiere usarlo como cartelera de su
 menú. La carta ya tiene las fotos, los nombres y los precios; falta la forma de
@@ -235,14 +235,32 @@ medir el uso de la cartelera, será un tipo de evento aparte.
 
 ## 11. Plan por fases
 
-**Fase 1 — Que se vea.** La página, el layout horizontal, el sondeo, el modo
-sin conexión. Configuración a mano en `atributos` mientras tanto.
+**Fase 1 — Que se vea.** ✅ **Hecha el 29/08/2026.** `vmenus-app/tv.html` y su
+bloque en `nginx.conf`. Salieron los dos layouts, no solo el horizontal.
+Configuración a mano en `atributos` mientras no exista la pestaña.
+
+Probado en Chromium con datos reales de bonzas: de 1 a 4 platos por slide, el
+giro de 90° del modo vertical, la promoción intercalada a pantalla completa, el
+corte de red —sigue rotando lo último y lo avisa— y que los slides viejos se
+retiran del DOM en vez de acumularse.
+
+30 pruebas en `test/tv.test.js`. La que más vale es el guardián de sintaxis, y
+tiene una historia: la primera versión despojaba comentarios y cadenas antes de
+mirar, una expresión regular con dos barras seguidas disparaba el borrador de
+comentarios de línea, y el 94 % del código desaparecía antes del escaneo — la
+prueba pasaba **por vacía**. Se descubrió inyectando encadenamiento opcional a
+propósito y viendo que seguía en verde. Ahora escanea el texto en crudo,
+comentarios incluidos; el precio es que los comentarios de `tv.html` tampoco
+pueden citar la sintaxis prohibida, y sale barato.
 
 **Fase 2 — Que el restaurante lo configure.** Pestaña en el panel: activar,
 elegir productos o categoría, orientación, cuántos por slide, segundos.
 
-**Fase 3 — Vertical y promoción.** El segundo layout y el slide de promo, con
-sus cuatro columnas.
+**Fase 3 — Las cuatro columnas de la promoción.** El layout vertical y el slide
+de promo ya están; falta que el panel pida `nombre` y `precio` al guardar una
+promoción, las columnas en la tabla y añadirlas a `COLUMNAS_PUBLICAS`. Hasta
+entonces el slide de promo no se activa, porque `promo_en_tv` no existe todavía
+y la página lo lee como falso.
 
 **Fase 4 — Contra un televisor de verdad.** Es la única fase que importa de
 verdad y no se puede simular: llevar el enlace a la pantalla del cliente y
