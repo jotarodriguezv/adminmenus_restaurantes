@@ -955,6 +955,7 @@ describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
 		const mapa = {
 			tabBtnToppings: { style: {} },
 			tabBtnPedidos:  { style: {} },
+			tabBtnTv:       { style: {} },
 		};
 		const ctx = cargar('index.html', 'function ajustarPestanasAlModelo',
 			'// Qué modelo se guarda', {
@@ -964,7 +965,11 @@ describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
 				renderPedidos() {}, renderMetodosPago() {},
 			});
 		ctx.ajustarPestanasAlModelo();
-		return { pedidos: mapa.tabBtnPedidos.style.display, toppings: mapa.tabBtnToppings.style.display };
+		return {
+			pedidos:  mapa.tabBtnPedidos.style.display,
+			toppings: mapa.tabBtnToppings.style.display,
+			tv:       mapa.tabBtnTv.style.display,
+		};
 	};
 
 	test('el modelo carrito siempre las tiene', () => {
@@ -987,11 +992,159 @@ describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
 		assert.equal(conAtributos({ nav: 'video', carrito: true }, { carrito: false }).pedidos, 'none');
 	});
 
+	test('la pestaña de TV solo sale con el plan que la incluye', () => {
+		// La cartelera es de pago. Esconder la pestaña no es la protección
+		// —el servidor filtra la clave 'tv' por plan— pero enseñarla a quien
+		// no la tiene contratada es ofrecerle algo que no va a poder guardar.
+		assert.equal(conAtributos({}, { carrito: true, tv: false }).tv, 'none');
+		assert.equal(conAtributos({}, { carrito: true, tv: true }).tv, 'block');
+	});
+
+	test('si ya está configurada, la pestaña sigue saliendo sin el plan', () => {
+		// Un cambio de plan no puede dejar una pantalla encendida en la pared
+		// de un local sin ninguna forma de apagarla desde el panel.
+		assert.equal(conAtributos({ tv: { activa: true } }, { carrito: true, tv: false }).tv, 'block');
+	});
+
 	test('un restaurante con toppings de antes conserva su pestaña', () => {
 		// Aunque ya no tenga carrito: son datos suyos y debe poder verlos.
 		const r = conAtributos({ nav: 'topnav', salsas: ['BBQ'] }, { carrito: false });
 		assert.equal(r.toppings, 'block');
 		assert.equal(r.pedidos, 'none');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Pantalla TV · qué se guarda y qué se avisa', () => {
+	// La cartelera vive en atributos.tv y la lee tv.html. Que esa clave exista
+	// es lo único que la enciende, así que lo que se guarde aquí es lo que va a
+	// estar puesto en la pared de un restaurante durante todo un servicio.
+	const montar = (opciones = {}) => {
+		const campos = {
+			tvActiva:      { checked: opciones.activa !== false },
+			tvModo:        { value: opciones.modo || 'todos' },
+			tvCategoria:   { value: opciones.categoria || 'c1' },
+			tvPorSlide:    { value: String(opciones.porSlide || 2) },
+			tvSegundos:    { value: String(opciones.segundos ?? 8) },
+			tvOrientacion: { value: opciones.orientacion || 'horizontal' },
+			tvAleatorio:   { checked: !!opciones.aleatorio },
+			tvResumen:     { textContent: '', style: {} },
+			tvAvisoTamano: { textContent: '', style: {} },
+			tvStatus:      { textContent: '', style: {} },
+			tvCategoriaWrap: { style: {} }, tvManualWrap: { style: {} },
+			tvCuerpo: { style: {} }, tvAjustes: { style: {} },
+			tvPlatos: { innerHTML: '', appendChild() {} },
+			tvEnlace: { value: '' },
+		};
+		const enviado = [];
+		const avisos = [];
+		const ctx = cargar('index.html', [
+			['const TV_POR_DEFECTO', '// ── PEDIDOS (WhatsApp'],
+		], {
+			state: {
+				restaurante: { id: 'r1', slug: 'bonzas', atributos: { tv: opciones.guardado || {} } },
+				categorias: [{ id: 'c1', nombre: 'Hamburguesas' }, { id: 'c2', nombre: 'Bebidas' }],
+				productos: opciones.productos || [
+					{ id: 'p1', nombre: 'Burger', disponible: true,  imagen_url: 'https://x/1.jpg', categoria_id: 'c1' },
+					{ id: 'p2', nombre: 'Perro',  disponible: true,  imagen_url: 'https://x/2.jpg', categoria_id: 'c1' },
+					{ id: 'p3', nombre: 'Agua',   disponible: true,  imagen_url: '',               categoria_id: 'c2' },
+					{ id: 'p4', nombre: 'Agotado',disponible: false, imagen_url: 'https://x/4.jpg', categoria_id: 'c1' },
+				],
+			},
+			document: { getElementById: id => campos[id], createElement: () => ({ style: {}, onclick: null }) },
+			urlPublica: () => 'https://menu.vmenus.co/bonzas',
+			apiFetch: async (m, r, cuerpo) => { enviado.push(cuerpo); return { id: 'r1', atributos: {} }; },
+			showToast: (m, t) => avisos.push([t, m]),
+			navigator: { clipboard: { writeText: async () => {} } },
+			Math, parseInt, Array, String, JSON,
+		});
+		return { ctx, campos, enviado, avisos, tvSeleccion: opciones.seleccion || [] };
+	};
+
+	test('solo cuenta platos disponibles Y con foto', () => {
+		// Sin foto no hay slide, así que ofrecerlos sería una trampa: el
+		// restaurante los marca y luego no salen en la pantalla.
+		const { ctx } = montar();
+		assert.equal(ctx.tvPlatosPosibles().length, 2, 'de cuatro, dos sirven');
+	});
+
+	test('avisa cuando la selección no mostraría ningún plato', () => {
+		// El caso "puse la tele y solo sale mi logo". Vale más decirlo al
+		// guardar que dejar que lo descubra con los clientes delante.
+		const { ctx, campos } = montar({ modo: 'categoria', categoria: 'c2' });
+		ctx.tvPintarResumen();
+		assert.match(campos.tvResumen.textContent, /no mostraría ningún plato/);
+	});
+
+	test('el resumen dice cuánto dura la vuelta completa', () => {
+		const { ctx, campos } = montar({ modo: 'todos', porSlide: 1, segundos: 30 });
+		ctx.tvPintarResumen();
+		// 2 platos, 1 por pantalla, 30 s => 1 minuto justo.
+		assert.match(campos.tvResumen.textContent, /2 platos/);
+		assert.match(campos.tvResumen.textContent, /1 min/);
+	});
+
+	test('un plato por pantalla avisa de la resolución de las fotos', () => {
+		// Se guardan a 800 px: repartidas entre dos sobran, ocupando un
+		// televisor entero se nota.
+		const { ctx, campos } = montar({ porSlide: 1 });
+		ctx.tvAvisoTamano();
+		assert.equal(campos.tvAvisoTamano.style.display, 'block');
+		assert.match(campos.tvAvisoTamano.textContent, /borrosa/);
+
+		const b = montar({ porSlide: 3 });
+		b.ctx.tvAvisoTamano();
+		assert.equal(b.campos.tvAvisoTamano.style.display, 'none');
+	});
+
+	test('guardar manda SOLO la clave tv', async () => {
+		// atributos lo comparten ocho pantallas. Mandar el objeto entero desde
+		// la copia que el panel cargó al entrar es el fallo de §9.10.
+		const { ctx, enviado } = montar();
+		await ctx.saveTV();
+		assert.deepEqual(Object.keys(enviado[0]), ['atributos']);
+		assert.deepEqual(Object.keys(enviado[0].atributos), ['tv']);
+	});
+
+	test('no deja encender una cartelera que no enseñaría nada', async () => {
+		const { ctx, enviado, avisos, campos } = montar({ modo: 'categoria', categoria: 'c2' });
+		await ctx.saveTV();
+		assert.equal(enviado.length, 0, 'no se guarda');
+		assert.equal(avisos[0][0], 'error');
+		assert.match(campos.tvStatus.textContent, /Revisa/);
+	});
+
+	test('apagada sí se puede guardar aunque no haya platos', async () => {
+		// Apagarla es justo lo que hace falta poder hacer cuando algo va mal.
+		const { ctx, enviado } = montar({ activa: false, modo: 'categoria', categoria: 'c2' });
+		await ctx.saveTV();
+		assert.equal(enviado.length, 1);
+		assert.equal(enviado[0].atributos.tv.activa, false);
+	});
+
+	test('los segundos se acotan antes de guardar, no en la pantalla', async () => {
+		// Con 1 segundo la pantalla parpadea. tv.html también lo acota, pero
+		// guardar un valor imposible deja al restaurante viendo un número que
+		// no es el que se aplica.
+		const { ctx, enviado } = montar({ segundos: 1 });
+		await ctx.saveTV();
+		assert.equal(enviado[0].atributos.tv.segundos, 4);
+
+		const b = montar({ segundos: 9999 });
+		await b.ctx.saveTV();
+		assert.equal(b.enviado[0].atributos.tv.segundos, 60);
+	});
+
+	test('la categoría no se guarda si el modo no es por categoría', async () => {
+		// Dejar el identificador puesto en modo 'todos' es la ambigüedad que
+		// tenía el requerimiento original: dos campos diciendo qué mostrar.
+		const { ctx, enviado } = montar({ modo: 'todos', categoria: 'c1' });
+		await ctx.saveTV();
+		assert.equal(enviado[0].atributos.tv.categoria_id, null);
+		// .length y no deepEqual con []: el arreglo se construye dentro de la
+		// VM, así que su prototipo no es el de aquí y la comparación estricta
+		// falla por el prototipo, no por el contenido.
+		assert.equal(enviado[0].atributos.tv.productos.length, 0);
 	});
 });
 
