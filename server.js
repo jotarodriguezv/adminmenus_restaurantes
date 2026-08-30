@@ -517,22 +517,26 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'atribut
 // Dentro de "atributos" (JSON libre), el cliente solo puede tocar estas claves
 // (toppings, WhatsApp de pedidos, métodos de pago y diseño del QR). nav,
 // fuentes, redes, css_custom, etc. quedan fuera.
-const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos'];
+const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv'];
 
 // Claves de "atributos" que además dependen del plan. El panel ya las
 // esconde, pero esconder un formulario no impide una llamada directa a la
 // API, así que la restricción se repite aquí. 'plan' nunca está en la
 // lista del cliente, así que nadie puede ascenderse solo.
-const ATRIBUTOS_SEGUN_PLAN = { qr: 'qr_disenador' };
+// La cartelera del televisor es de pago, y esto es lo ÚNICO que la cobra: sin
+// esta clave guardada, tv.html deja la pantalla en reposo. Esconder la pestaña
+// en el panel no impide una llamada directa a la API — la misma razón por la
+// que ya se repite el chequeo del QR y de los videos.
+const ATRIBUTOS_SEGUN_PLAN = { qr: 'qr_disenador', tv: 'tv' };
 
 const PLANES = {
-  vitrina:  { qr_disenador: false, estadisticas: false, horarios: false, videos: false, carrito: false },
-  pedidos:  { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true  },
-  completo: { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true  },
+  vitrina:  { qr_disenador: false, estadisticas: false, horarios: false, videos: false, carrito: false, tv: false },
+  pedidos:  { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true,  tv: false },
+  completo: { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true,  tv: true  },
   // Único plan que abre la subida de video. Como el resto de banderas de
   // plan, se comprueba también aquí y no solo en el panel: esconder un
   // formulario no impide una llamada directa a la API.
-  video:    { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: true,  carrito: true  },
+  video:    { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: true,  carrito: true,  tv: true  },
 };
 const PLAN_POR_DEFECTO = 'pedidos';
 const planDe = atributos => PLANES[atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
