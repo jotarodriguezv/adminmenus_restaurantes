@@ -1367,12 +1367,13 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       JavaScript de antes de los toppings por identificador. Sin riesgo —ninguno
       de los dos tiene catálogo de toppings— pero las cuatro cartas deberían
       correr lo mismo
-- [ ] **Programar la prueba de restauración** (29/08/2026). El script está listo
-      y con freno de espacio, pero faltan **dos** pasos en el anfitrión y en este
-      orden — la línea del cron sola correría la versión vieja, sin freno:
-      1. Copiarlo: el `docker cp` del paso 3.bis de `respaldo/LEEME.md`.
-         `/opt/menus/respaldo/` no lo actualiza el despliegue.
-      2. `0 10 1 * * /opt/menus/respaldo/probar-restauracion.sh >> /var/log/respaldo-prueba.log 2>&1`
+- [x] **Prueba de restauración programada** (29/08/2026). Copiada al anfitrión,
+      corrida cinco veces seguidas en verde y puesta en el cron el día 1 de cada
+      mes. El respaldo queda probado de punta a punta: se restaura y los bytes
+      coinciden, no solo los nombres
+- [ ] **Alarma para esa prueba.** Corre, pero su fallo solo se ve mirando el
+      log: el `MAILTO` de este servidor no llega a ningún sitio. Le falta su
+      propio check en healthchecks.io, como ya tiene `respaldo.sh`
 - [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
 - [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Comprobado el
       23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
