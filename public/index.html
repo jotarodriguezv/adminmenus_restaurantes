@@ -628,6 +628,7 @@
 				<button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
 				<button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
 				<button class="tab-btn" id="tabBtnPedidos" onclick="switchTab('pedidos',this)" style="display:none">Pedidos</button>
+				<button class="tab-btn" id="tabBtnTv" onclick="switchTab('tv',this)" style="display:none">Pantalla TV</button>
 				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
 				<button class="tab-btn" onclick="switchTab('estadisticas',this)">Estadísticas</button>
 			</div>
@@ -1193,6 +1194,110 @@
 				</div>
 
 				<!-- TAB QR -->
+				<!-- La cartelera para televisores. Va en pestaña propia y no dentro de
+				     Apariencia a propósito: es otro servicio, no una opción de la carta. -->
+				<div id="tabTv" class="hidden">
+					<div class="section-card">
+						<div class="section-title">Carta en el televisor</div>
+						<p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:16px">
+							Una página que va pasando tus platos sola, para dejarla abierta en un
+							televisor del local. Se configura aquí y el enlace no cambia nunca.
+						</p>
+
+						<div class="form-check" style="margin-bottom:18px">
+							<label class="toggle"><input type="checkbox" id="tvActiva" onchange="tvAlternarActiva()"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Encender la cartelera</span>
+						</div>
+
+						<div id="tvCuerpo" style="display:none">
+							<div class="form-group">
+								<label class="form-label">Enlace para el televisor</label>
+								<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+									<input type="text" class="form-input" id="tvEnlace" readonly style="flex:1;min-width:220px;font-family:var(--mono);font-size:12px">
+									<button class="btn-sm accent" onclick="tvCopiarEnlace()">Copiar</button>
+									<button class="btn-sm" onclick="tvAbrir()">Abrir</button>
+								</div>
+								<div style="font-size:11px;color:var(--text-dim);margin-top:6px">
+									Ábrelo una vez en el televisor y déjalo. Lo que cambies aquí aparece solo, sin volver a tocarlo.
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div id="tvAjustes" style="display:none">
+						<div class="section-card">
+							<div class="section-title">Qué se muestra</div>
+							<div class="form-group">
+								<label for="tvModo" class="form-label">Platos</label>
+								<select class="form-input" id="tvModo" onchange="tvCambiarModo()">
+									<option value="todos">Toda la carta</option>
+									<option value="categoria">Una categoría</option>
+									<option value="manual">Los que yo elija</option>
+								</select>
+							</div>
+
+							<div class="form-group" id="tvCategoriaWrap" style="display:none">
+								<label for="tvCategoria" class="form-label">Categoría</label>
+								<select class="form-input" id="tvCategoria" onchange="tvPintarResumen()"></select>
+								<div style="font-size:11px;color:var(--text-dim);margin-top:6px">
+									Los platos que añadas a esta categoría más adelante aparecen solos.
+								</div>
+							</div>
+
+							<div class="form-group" id="tvManualWrap" style="display:none">
+								<label class="form-label">Elige los platos <span style="color:var(--text-dim);font-weight:400">(pulsa para marcar)</span></label>
+								<div id="tvPlatos" style="display:flex;flex-wrap:wrap;gap:10px;max-height:340px;overflow-y:auto;padding:4px"></div>
+							</div>
+
+							<div id="tvResumen" style="font-size:12px;color:var(--text-muted);margin-top:4px"></div>
+						</div>
+
+						<div class="section-card">
+							<div class="section-title">Cómo se ve</div>
+							<div class="form-row">
+								<div class="form-group">
+									<label for="tvOrientacion" class="form-label">Orientación del televisor</label>
+									<select class="form-input" id="tvOrientacion">
+										<option value="horizontal">Horizontal (lo normal)</option>
+										<option value="vertical">Vertical (girado)</option>
+									</select>
+									<div style="font-size:11px;color:var(--text-dim);margin-top:6px">
+										Se elige a mano: el televisor no sabe que está girado.
+									</div>
+								</div>
+								<div class="form-group">
+									<label for="tvPorSlide" class="form-label">Platos a la vez</label>
+									<select class="form-input" id="tvPorSlide" onchange="tvAvisoTamano()">
+										<option value="1">1 — el más grande</option>
+										<option value="2">2</option>
+										<option value="3">3</option>
+										<option value="4">4 — caben más, se ven pequeños</option>
+									</select>
+								</div>
+							</div>
+							<div id="tvAvisoTamano" style="font-size:11px;color:var(--warning);margin:-6px 0 14px;display:none"></div>
+
+							<div class="form-row">
+								<div class="form-group" style="margin-bottom:0">
+									<label for="tvSegundos" class="form-label">Segundos por pantalla</label>
+									<input type="number" class="form-input" id="tvSegundos" min="4" max="60" step="1" placeholder="8">
+								</div>
+								<div class="form-group" style="margin-bottom:0;display:flex;align-items:flex-end">
+									<div class="form-check" style="margin-bottom:10px">
+										<label class="toggle"><input type="checkbox" id="tvAleatorio"><span class="toggle-slider"></span></label>
+										<span style="font-size:13px;color:var(--text-muted)">Orden aleatorio</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div style="text-align:right;">
+						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveTV()">Guardar</button>
+					</div>
+					<div id="tvStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+				</div>
+
 				<div id="tabQr" class="hidden">
 					<div class="qr-layout">
 
@@ -2077,18 +2182,21 @@ const PLANES = {
     modelos: ['topnav', 'sidebar', 'explorar'],
     marca: true, qr_disenador: false, estadisticas: false, horarios: false,
     videos: false, carrito: false,
+    tv: false,
   },
   pedidos: {
     nombre: 'Pedidos',
     modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
     marca: true, qr_disenador: true, estadisticas: true, horarios: true,
     videos: false, carrito: true,
+    tv: false,
   },
   completo: {
     nombre: 'Completo',
     modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
     marca: false, qr_disenador: true, estadisticas: true, horarios: true,
     videos: false, carrito: true,
+    tv: true,
   },
   // La carta en video va en su propio plan porque su coste no se parece al
   // de los demás: cada plato es un archivo que hay que almacenar, convertir
@@ -2100,6 +2208,7 @@ const PLANES = {
     modelos: ['topnav', 'sidebar', 'explorar', 'carrito', 'video', 'vertical'],
     marca: false, qr_disenador: true, estadisticas: true, horarios: true,
     videos: true, carrito: true,
+    tv: true,
   },
 };
 const PLAN_POR_DEFECTO = 'pedidos';
@@ -2145,10 +2254,11 @@ function switchTab(tab, btn) {
   if (tab === 'apariencia' && state.rol !== 'admin') return;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabQr','tabEstadisticas'].forEach(id=>{
+  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabTv','tabQr','tabEstadisticas'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
+  if (tab === 'tv') renderTV();
   if (tab === 'qr') renderQR();
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
 }
@@ -4737,6 +4847,12 @@ function ajustarPestanasAlModelo() {
 
   document.getElementById('tabBtnToppings').style.display = (hayCarrito || hasToppings) ? 'block' : 'none';
   document.getElementById('tabBtnPedidos').style.display = hayCarrito ? 'block' : 'none';
+  // La cartelera es de pago. Esconder la pestaña es cortesía, no protección:
+  // quien la quiera de verdad tiene que poder guardar 'tv', y eso lo filtra el
+  // servidor por plan. Se enseña también si ya está configurada, para que un
+  // cambio de plan no deje una pantalla encendida sin forma de apagarla.
+  const tieneTv = !!planActual().tv || !!attr.tv;
+  document.getElementById('tabBtnTv').style.display = tieneTv ? 'block' : 'none';
   if (hayCarrito) { renderPedidos(); renderMetodosPago(); }
 }
 
@@ -5409,6 +5525,195 @@ async function saveToppings() {
     ajustarPestanasAlModelo();
     showToast('Toppings guardados', 'success');
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
+}
+
+// ── PANTALLA TV (cartelera para televisores) ───────────────────
+// Pestaña propia y no dentro de Apariencia: es otro servicio, no una opción
+// de la carta. La configuración vive en atributos.tv y la lee tv.html del
+// repositorio público.
+//
+// Que la clave 'tv' exista es lo ÚNICO que enciende la cartelera: sin ella,
+// tv.html deja la pantalla en reposo. El servidor filtra esa clave por plan,
+// así que esconder esta pestaña no es la protección — es solo cortesía.
+const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
+                         segundos: 8, modo: 'todos', categoria_id: null,
+                         productos: [], aleatorio: false };
+
+let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
+
+// Solo los platos que la cartelera puede enseñar. Sin foto no hay slide: es un
+// medio visual y un hueco gris se ve peor que un plato de menos, así que aquí
+// tampoco se ofrecen — elegir uno que no va a salir es una trampa.
+function tvPlatosPosibles() {
+  return (state.productos || []).filter(p => p.disponible && p.imagen_url);
+}
+
+function renderTV() {
+  const cfg = { ...TV_POR_DEFECTO, ...(state.restaurante?.atributos?.tv || {}) };
+  tvSeleccion = Array.isArray(cfg.productos) ? [...cfg.productos] : [];
+
+  document.getElementById('tvActiva').checked = !!cfg.activa;
+  document.getElementById('tvModo').value = cfg.modo || 'todos';
+  document.getElementById('tvOrientacion').value = cfg.orientacion === 'vertical' ? 'vertical' : 'horizontal';
+  document.getElementById('tvPorSlide').value = String(Math.min(4, Math.max(1, parseInt(cfg.por_slide, 10) || 2)));
+  document.getElementById('tvSegundos').value = Math.min(60, Math.max(4, parseInt(cfg.segundos, 10) || 8));
+  document.getElementById('tvAleatorio').checked = !!cfg.aleatorio;
+  document.getElementById('tvEnlace').value = urlPublica(state.restaurante) + '/tv';
+  document.getElementById('tvStatus').textContent = '';
+
+  // Solo categorías con platos que la cartelera pueda enseñar.
+  const sel = document.getElementById('tvCategoria');
+  const posibles = tvPlatosPosibles();
+  sel.innerHTML = '';
+  (state.categorias || []).forEach(c => {
+    const n = posibles.filter(p => p.categoria_id === c.id).length;
+    if (!n) return;
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = `${c.emoji || ''} ${c.nombre}`.trim() + ` (${n})`;
+    sel.appendChild(o);
+  });
+  if (cfg.categoria_id) sel.value = cfg.categoria_id;
+
+  tvPintarPlatos();
+  tvAlternarActiva();
+  tvCambiarModo();
+  tvAvisoTamano();
+}
+
+function tvAlternarActiva() {
+  const on = document.getElementById('tvActiva').checked;
+  document.getElementById('tvCuerpo').style.display = on ? 'block' : 'none';
+  document.getElementById('tvAjustes').style.display = on ? 'block' : 'none';
+}
+
+function tvCambiarModo() {
+  const modo = document.getElementById('tvModo').value;
+  document.getElementById('tvCategoriaWrap').style.display = modo === 'categoria' ? 'block' : 'none';
+  document.getElementById('tvManualWrap').style.display = modo === 'manual' ? 'block' : 'none';
+  tvPintarResumen();
+}
+
+function tvPintarPlatos() {
+  const cont = document.getElementById('tvPlatos');
+  cont.innerHTML = '';
+  const posibles = tvPlatosPosibles();
+  if (!posibles.length) {
+    cont.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">Ningún plato tiene foto todavía. La cartelera solo puede mostrar platos con fotografía.</span>';
+    return;
+  }
+  posibles.forEach(p => {
+    const marcado = tvSeleccion.includes(p.id);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.cssText =
+      'width:112px;padding:0;border-radius:10px;cursor:pointer;overflow:hidden;text-align:left;' +
+      'font-family:inherit;background:var(--card);transition:all .15s;border:2px solid ' +
+      (marcado ? 'var(--accent)' : 'var(--border)') + ';' +
+      'opacity:' + (marcado ? '1' : '.62') + ';';
+    // Marcado con innerHTML pero sin datos dentro: el nombre se pone después
+    // con textContent, que es donde estaría el riesgo.
+    b.innerHTML = '<div style="height:74px;background:#16151f center/cover no-repeat"></div>' +
+                  '<div style="padding:6px 7px;font-size:10.5px;line-height:1.25;height:38px;overflow:hidden"></div>';
+    b.firstChild.style.backgroundImage = `url("${String(p.imagen_url).replace(/"/g, '%22')}")`;
+    b.lastChild.textContent = p.nombre || '';
+    b.onclick = () => {
+      const i = tvSeleccion.indexOf(p.id);
+      if (i === -1) tvSeleccion.push(p.id); else tvSeleccion.splice(i, 1);
+      tvPintarPlatos();
+      tvPintarResumen();
+    };
+    cont.appendChild(b);
+  });
+}
+
+// Cuántos platos va a enseñar de verdad. Es la cuenta que evita la llamada
+// de "puse la tele y no sale nada": si aquí dice 0, no va a salir nada.
+function tvCuantos() {
+  const modo = document.getElementById('tvModo').value;
+  const posibles = tvPlatosPosibles();
+  if (modo === 'categoria') {
+    const cat = document.getElementById('tvCategoria').value;
+    return posibles.filter(p => p.categoria_id === cat).length;
+  }
+  if (modo === 'manual') return posibles.filter(p => tvSeleccion.includes(p.id)).length;
+  return posibles.length;
+}
+
+function tvPintarResumen() {
+  const n = tvCuantos();
+  const el = document.getElementById('tvResumen');
+  if (!n) {
+    el.textContent = '⚠ Con esto la pantalla no mostraría ningún plato: saldría solo tu logo.';
+    el.style.color = 'var(--warning)';
+    return;
+  }
+  const porSlide = parseInt(document.getElementById('tvPorSlide').value, 10) || 1;
+  const seg = Math.min(60, Math.max(4, parseInt(document.getElementById('tvSegundos').value, 10) || 8));
+  const vueltas = Math.ceil(n / porSlide) * seg;
+  const min = Math.floor(vueltas / 60), s = vueltas % 60;
+  el.textContent = `${n} plato${n === 1 ? '' : 's'} · la vuelta completa dura ` +
+    (min ? `${min} min ${s ? s + ' s' : ''}`.trim() : `${s} s`);
+  el.style.color = 'var(--text-muted)';
+}
+
+// Las fotos se guardan a 800 px de ancho. Repartidas entre dos o más platos
+// eso sobra; ocupando un televisor entero, se nota. Vale más decirlo aquí que
+// dejar que lo descubra con la tele puesta delante de los clientes.
+function tvAvisoTamano() {
+  const el = document.getElementById('tvAvisoTamano');
+  const uno = document.getElementById('tvPorSlide').value === '1';
+  el.style.display = uno ? 'block' : 'none';
+  el.textContent = uno
+    ? '⚠ Con un plato por pantalla la foto se ve a tamaño completo y puede salir algo borrosa en televisores grandes. Míralo en tu televisor antes de dejarlo así.'
+    : '';
+  tvPintarResumen();
+}
+
+function tvCopiarEnlace() {
+  const enlace = document.getElementById('tvEnlace').value;
+  navigator.clipboard.writeText(enlace)
+    .then(() => showToast('Enlace copiado', 'success'))
+    .catch(() => showToast('No se pudo copiar', 'error'));
+}
+
+function tvAbrir() { window.open(document.getElementById('tvEnlace').value, '_blank'); }
+
+async function saveTV() {
+  const st = document.getElementById('tvStatus');
+  const activa = document.getElementById('tvActiva').checked;
+  const modo = document.getElementById('tvModo').value;
+
+  // Encender una cartelera que no va a mostrar nada deja al restaurante con un
+  // televisor enseñando su logo y sin saber por qué. Se avisa antes, no después.
+  if (activa && !tvCuantos()) {
+    showToast('Con esa selección no se mostraría ningún plato', 'error');
+    st.textContent = 'Revisa qué platos se muestran'; st.style.color = 'var(--danger)';
+    return;
+  }
+
+  const tv = {
+    activa,
+    orientacion: document.getElementById('tvOrientacion').value,
+    por_slide: parseInt(document.getElementById('tvPorSlide').value, 10) || 2,
+    segundos: Math.min(60, Math.max(4, parseInt(document.getElementById('tvSegundos').value, 10) || 8)),
+    modo,
+    categoria_id: modo === 'categoria' ? (document.getElementById('tvCategoria').value || null) : null,
+    productos: modo === 'manual' ? tvSeleccion : [],
+    aleatorio: document.getElementById('tvAleatorio').checked,
+  };
+
+  // Solo su clave: el servidor funde. Ver el comentario de saveToppings.
+  try {
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos: { tv } });
+    if (data) state.restaurante = data;
+    document.getElementById('tvSegundos').value = tv.segundos;
+    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    showToast('Pantalla TV guardada', 'success');
+  } catch (e) {
+    st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)';
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 // ── PEDIDOS (WhatsApp, modelo carrito) ─────────────────────────
