@@ -1023,17 +1023,20 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const campos = {
 			tvActiva:      { checked: opciones.activa !== false },
 			tvModo:        { value: opciones.modo || 'todos' },
-			tvCategoria:   { value: opciones.categoria || 'c1' },
+			tvCategoria:   { value: opciones.categoria || 'c1', innerHTML: '', appendChild() {} },
 			tvPorSlide:    { value: String(opciones.porSlide || 2) },
 			tvSegundos:    { value: String(opciones.segundos ?? 8) },
 			tvOrientacion: { value: opciones.orientacion || 'horizontal' },
 			tvAleatorio:   { checked: !!opciones.aleatorio },
+			tvAnimacion:   { checked: opciones.animacion !== false },
 			tvResumen:     { textContent: '', style: {} },
 			tvAvisoTamano: { textContent: '', style: {} },
 			tvStatus:      { textContent: '', style: {} },
 			tvCategoriaWrap: { style: {} }, tvManualWrap: { style: {} },
 			tvCuerpo: { style: {} }, tvAjustes: { style: {} },
 			tvPlatos: { innerHTML: '', appendChild() {} },
+			tvFiltroCat: { innerHTML: '', appendChild() {} },
+			tvSeleccionados: { textContent: '' },
 			tvEnlace: { value: '' },
 		};
 		const enviado = [];
@@ -1051,7 +1054,18 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 					{ id: 'p4', nombre: 'Agotado',disponible: false, imagen_url: 'https://x/4.jpg', categoria_id: 'c1' },
 				],
 			},
-			document: { getElementById: id => campos[id], createElement: () => ({ style: {}, onclick: null }) },
+			// El selector de platos escribe innerHTML y luego toca firstChild y
+			// lastChild para poner la foto y el nombre. Un elemento de mentira
+			// sin hijos revienta ahí, así que se los damos.
+			document: {
+				getElementById: id => campos[id],
+				createElement: () => ({
+					style: {}, onclick: null, textContent: '',
+					_html: '', firstChild: { style: {} }, lastChild: { style: {}, textContent: '' },
+					set innerHTML(v) { this._html = v; },
+					get innerHTML() { return this._html; },
+				}),
+			},
 			urlPublica: () => 'https://menu.vmenus.co/bonzas',
 			apiFetch: async (m, r, cuerpo) => { enviado.push(cuerpo); return { id: 'r1', atributos: {} }; },
 			showToast: (m, t) => avisos.push([t, m]),
@@ -1133,6 +1147,54 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const b = montar({ segundos: 9999 });
 		await b.ctx.saveTV();
 		assert.equal(b.enviado[0].atributos.tv.segundos, 60);
+	});
+
+	test('el filtro por categoría no pierde lo marcado en otras', async () => {
+		// El susto obvio al pulsar un chip: que al cambiar de categoría se
+		// borre lo que ya se eligió en la anterior. El filtro toca lo que se
+		// VE, no lo que está marcado.
+		//
+		// Se llega por el camino real —lo guardado— porque 'tvSeleccion' se
+		// declara con let y eso no queda expuesto fuera del guion.
+		const { ctx, enviado } = montar({ modo: 'manual', guardado: { modo: 'manual', productos: ['p1'] } });
+		ctx.renderTV();
+		ctx.tvPintarPlatos();      // con el filtro en 'Todas'
+		await ctx.saveTV();
+		assert.deepEqual([...enviado[0].atributos.tv.productos], ['p1'], 'sigue marcado');
+	});
+
+	test('el pie dice cuántos hay marcados en total', () => {
+		// Filtrando es fácil perder de vista los elegidos fuera de la vista.
+		const { ctx, campos } = montar({ modo: 'manual', guardado: { modo: 'manual', productos: ['p1', 'p2'] } });
+		ctx.renderTV();
+		ctx.tvPintarPlatos();
+		assert.match(campos.tvSeleccionados.textContent, /2 platos marcados/);
+	});
+
+	test('con una sola categoría no se pintan chips', () => {
+		// Un filtro que no filtra nada estorba más de lo que ayuda.
+		const { ctx, campos } = montar({
+			productos: [
+				{ id: 'p1', nombre: 'A', disponible: true, imagen_url: 'https://x/1.jpg', categoria_id: 'c1' },
+				{ id: 'p2', nombre: 'B', disponible: true, imagen_url: 'https://x/2.jpg', categoria_id: 'c1' },
+			],
+		});
+		ctx.renderTV();
+		campos.tvFiltroCat.innerHTML = 'algo';
+		ctx.tvPintarFiltroCat();
+		assert.equal(campos.tvFiltroCat.innerHTML, '', 'se vacía y no se pinta nada');
+	});
+
+	test('la animación se puede apagar y se guarda como tal', async () => {
+		// Los televisores viejos tienen poca capacidad de dibujo. Si va a
+		// tirones, el restaurante tiene que poder apagarla sin llamar a nadie.
+		const { ctx, enviado } = montar({ animacion: false });
+		await ctx.saveTV();
+		assert.equal(enviado[0].atributos.tv.animacion, 'ninguna');
+
+		const b = montar();
+		await b.ctx.saveTV();
+		assert.equal(b.enviado[0].atributos.tv.animacion, 'suave', 'encendida por defecto');
 	});
 
 	test('la categoría no se guarda si el modo no es por categoría', async () => {
