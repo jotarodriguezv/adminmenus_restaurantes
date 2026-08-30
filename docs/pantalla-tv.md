@@ -1,6 +1,6 @@
 # Pantalla TV — cartelera digital
 
-Documento de diseño. Estado: **fase 1 construida** el 29/08/2026, sin desplegar.
+Documento de diseño. Estado: **fases 1 y 2 construidas** el 29-30/08/2026.
 
 Origen: un cliente con televisor en su local quiere usarlo como cartelera de su
 menú. La carta ya tiene las fotos, los nombres y los precios; falta la forma de
@@ -253,8 +253,35 @@ propósito y viendo que seguía en verde. Ahora escanea el texto en crudo,
 comentarios incluidos; el precio es que los comentarios de `tv.html` tampoco
 pueden citar la sintaxis prohibida, y sale barato.
 
-**Fase 2 — Que el restaurante lo configure.** Pestaña en el panel: activar,
-elegir productos o categoría, orientación, cuántos por slide, segundos.
+**Fase 2 — Que el restaurante lo configure.** ✅ **Hecha el 30/08/2026.**
+Pestaña **propia** en el panel, no dentro de Apariencia: es otro servicio, no
+una opción de la carta. La usan el restaurante y el superadmin.
+
+- Interruptor de encendido, enlace listo para copiar o abrir.
+- Toda la carta / una categoría / platos sueltos, estos con su foto para
+  marcarlos. **Solo se ofrecen los disponibles y con foto**: sin foto no hay
+  slide, así que ofrecerlos sería una trampa.
+- Orientación, platos a la vez, segundos y orden aleatorio.
+- Un resumen que dice **cuántos platos se verán y cuánto dura la vuelta**, y
+  que avisa en rojo si la selección no mostraría ninguno. Guardar una
+  cartelera encendida que no enseña nada está bloqueado: es el caso de «puse
+  la tele y solo sale mi logo».
+- Con un plato por pantalla avisa de que las fotos son de 800 px y pueden
+  verse blandas en televisores grandes.
+
+**La cartelera pasa a ser opt-in.** Antes `/{slug}/tv` funcionaba para
+cualquier restaurante, porque la configuración por defecto estaba activa — es
+decir, la funcionalidad de pago era gratis para todos. Ahora, sin la clave
+`tv` en sus atributos la pantalla queda en reposo con el logo.
+
+**Lo que la cobra es el servidor, no el panel.** `tv` entra en
+`ATRIBUTOS_SEGUN_PLAN`, así que un restaurante sin el plan no puede guardar
+esa clave ni llamando a la API directamente. Esconder la pestaña es cortesía.
+Se enseña igualmente si ya está configurada, para que un cambio de plan no
+deje una pantalla encendida sin forma de apagarla.
+
+**En qué planes.** `completo` y `video`, que son los de los dos clientes
+reales. Moverlo es una línea en cada una de las tres tablas de planes.
 
 **Fase 3 — Las cuatro columnas de la promoción.** El layout vertical y el slide
 de promo ya están; falta que el panel pida `nombre` y `precio` al guardar una
@@ -296,9 +323,9 @@ La pantalla salió con el aviso de **«sin conexión»** y la red perfectamente.
 
 ## 12. Preguntas abiertas
 
-- **¿En qué planes entra?** Va como capacidad (`tv`), no como plan nuevo. Falta
-  decidir en cuáles se enciende. Pendiente también la revisión de los planes:
-  los nombres no dicen lo que incluyen y el de video se añadió después.
+- ~~¿En qué planes entra?~~ **Decidido:** capacidad `tv` en `completo` y
+  `video`. Sigue pendiente la revisión de los planes en general: los nombres no
+  dicen lo que incluyen y el de video se añadió después de constituirlos.
 - **Panel de capacidades por restaurante para el superadmin.** Hoy se editan a
   mano en `atributos`. Anotado, no urgente.
 - **¿800 px bastan?** No se sabe hasta la fase 4. Con 2 o más por slide casi
