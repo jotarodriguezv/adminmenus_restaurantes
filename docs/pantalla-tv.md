@@ -337,6 +337,33 @@ chip lleva su cuenta de marcados y hay un pie con el total, para no perder de
 vista los que quedan fuera de la vista. Con una sola categoría no se pinta:
 un filtro que no filtra estorba.
 
+## 10.ter Lo que salió de probarlo en un televisor (30/08/2026)
+
+Con la cartelera en una pantalla de verdad, cambiando de categoría y de vista.
+Las fotos aguantan bien con 3 y 4 platos; **con 2 se empieza a notar** el
+límite de los 800 px, y con 1 más. Queda pendiente decidir qué hacer con eso.
+
+**El nombre de la categoría, opcional.** Hay platos cuyo nombre no dice qué
+son —«Pepito», «La Descarada»— y en una pantalla, sin nadie a quien
+preguntar, eso se pierde. Ahora puede salir una etiqueta pequeña en la esquina
+de la foto, con su fondo para que se lea sobre cualquier imagen. Apagada por
+defecto: para el restaurante cuyos platos ya se entienden solos, es ruido.
+
+**Marcar toda una categoría de una vez.** Con diez hamburguesas, marcarlas una
+a una es trabajo tonto. Un solo botón que cambia de sentido —si ya están todas,
+ofrece quitarlas— en vez de dos que obligan a mirar cuál toca.
+
+**Menos platos que huecos: no es un fallo.** Una categoría de dos platos con la
+vista puesta en cuatro no se rompe; flexbox reparte y salen dos grandes que
+llenan la pantalla, que además se ve mejor que dos pequeños con huecos.
+Comprobado en el navegador. Pero elegir «4 a la vez» y ver dos descoloca, así
+que el panel lo dice antes de guardar.
+
+**Ciclos muy cortos.** Con una o dos pantallas el bucle se nota mucho. El panel
+sugiere encender el orden aleatorio: no añade platos, pero cambia las parejas
+en cada vuelta y disimula la repetición. Solo lo sugiere si está apagado —
+sugerir algo que ya está puesto hace dudar de si de verdad lo está.
+
 ## 11.bis Lo que enseñó el primer despliegue (29/08/2026)
 
 La pantalla salió con el aviso de **«sin conexión»** y la red perfectamente.
@@ -362,8 +389,9 @@ La pantalla salió con el aviso de **«sin conexión»** y la red perfectamente.
   dicen lo que incluyen y el de video se añadió después de constituirlos.
 - **Panel de capacidades por restaurante para el superadmin.** Hoy se editan a
   mano en `atributos`. Anotado, no urgente.
-- **¿800 px bastan?** No se sabe hasta la fase 4. Con 2 o más por slide casi
-  seguro que sí; con uno solo a pantalla completa, probablemente no.
+- **¿800 px bastan?** Probado en televisor el 30/08/2026: **con 3 y 4 se ven
+  bien; con 2 se nota y con 1 más.** Falta decidir qué hacer — subir el límite
+  para las fotos nuevas es fácil, volver a subir las 119 que ya hay no lo es.
 - **Tres restaurantes sin plan** (perroscriollos, sanjavier, aojocerrado) caen
   por defecto en `pedidos` y reciben QR, estadísticas y horarios sin que nadie
   lo haya decidido.
