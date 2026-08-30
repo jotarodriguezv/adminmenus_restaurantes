@@ -303,6 +303,40 @@ el navegador aguanta un servicio entero.
 
 ---
 
+## 10.bis Ajustes tras verlo funcionando (30/08/2026)
+
+Tres cosas que solo se ven con la cartelera puesta y datos de verdad.
+
+**La última pantalla se quedaba coja.** Con 16 hamburguesas de tres en tres, la
+sexta enseñaba **una sola y enorme** mientras las cinco anteriores iban llenas:
+parece que se rompió algo. Se resuelve corriendo la ventana hacia atrás — la
+última pasa a ser los tres últimos platos —, así que se repiten los dos que ya
+salieron en la anterior. Repetir dos se nota muchísimo menos que una pantalla a
+medias, y es lo que hace cualquier cartelera. Si no hay ni para llenar una sola
+pantalla se deja como esté: rellenar duplicando *dentro* del mismo slide sí se
+vería roto.
+
+**Animación.** Antes solo había el fundido entre pantallas. Ahora las fotos se
+acercan despacio mientras dura el slide y los textos entran desde abajo, con el
+precio un pelín después del nombre — que es lo que hace que se lean en ese
+orden en vez de todo de golpe. Cada plato arranca con un desfase pequeño: todos
+a la vez se lee como un zoom de la pantalla entera; escalonados, como fotos que
+respiran.
+
+Solo se animan `transform` y `opacity`, que son las dos propiedades que el
+navegador puede pasarle a la GPU. Cualquier otra obliga a repintar cada
+fotograma y en un televisor barato eso se ve a tirones. Aun así **hay
+interruptor para apagarla**, porque el único que puede juzgarlo es quien tenga
+la pantalla delante. De paso, el movimiento ayuda contra el quemado del panel.
+
+**Filtro por categoría al elegir platos a mano.** Con 59 platos, buscar uno a
+ojo en una rejilla que se desplaza es incómodo. Los chips filtran lo que se
+**ve**, nunca lo que está marcado — cambiar de categoría no puede perderle al
+restaurante lo que ya eligió en otra, que es el susto obvio al pulsarlos. Cada
+chip lleva su cuenta de marcados y hay un pie con el total, para no perder de
+vista los que quedan fuera de la vista. Con una sola categoría no se pinta:
+un filtro que no filtra estorba.
+
 ## 11.bis Lo que enseñó el primer despliegue (29/08/2026)
 
 La pantalla salió con el aviso de **«sin conexión»** y la red perfectamente.
