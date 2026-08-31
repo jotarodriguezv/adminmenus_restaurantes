@@ -182,6 +182,50 @@ Debajo, cuando hay algo que contar, la segunda línea con el estado del video:
 pagado que espera a que alguien lo mire; hasta entonces el plato sigue
 enseñando su foto. Se publica o se descarta desde la ficha del plato.
 
+### Producción o prueba (31/08/2026)
+
+De los nueve restaurantes, **dos son clientes de verdad** —bonzas con 97 platos
+y malparados con 37, los dos pagando— y los otros siete son demos y pruebas;
+uno de ellos con cero platos. Hasta ahora nada lo decía, así que en la lista se
+veían todos igual y cualquier promedio los mezclaba.
+
+Ahora los de prueba llevan un distintivo a rayas, el primero de la fila:
+
+```
+[Prueba] [Vencido desde 1 ago] [📷 solo fotos] [Topnav] [PLAN VIDEO]
+```
+
+**Producción no lleva etiqueta.** Son la mayoría de los que importan, y llenar
+la lista de distintivos «Producción» haría que el de «Prueba» dejara de saltar
+a la vista, que es lo único que tiene que hacer.
+
+Se cambia en **Apariencia → Datos del restaurante**, solo superadmin.
+
+**Es solo una etiqueta.** No cambia la carta pública, ni los respaldos, ni las
+estadísticas, ni los cupos de IA. Se decidió así a propósito: el problema que
+resuelve es de lectura —no confundir una demo con un cliente al mirar los
+números—, y encadenarlo a comportamientos habría que pensarlo caso por caso.
+Si algún día tiene que hacer más, la columna ya está puesta.
+
+**Dónde vive, y por qué no en `atributos`.** En `restaurantes_facturacion`
+(`sql/16_restaurantes_de_prueba.sql`). `restaurantes.atributos` se lee
+públicamente, y que un restaurante sea una demo es un dato **nuestro sobre él**,
+no suyo: la misma clase que el día de pago, que ya salió de ahí por este motivo
+en `sql/06`. Esa tabla ya tiene RLS sin políticas y una API solo-superadmin en
+las dos direcciones, así que no hacía falta nada nuevo.
+
+El nombre de la tabla se queda corto —«facturación» para «esto es una demo»—
+aunque encaja: una demo es un restaurante al que no se le factura. Si se
+acumula más metadato de plataforma que no sea cobranza, el movimiento es
+renombrarla a `restaurantes_plataforma`.
+
+El servidor la borra de `atributos` al guardar, junto a `dia_pago` y
+`ultimo_pago`, y por lo mismo: una copia ahí sería pública, no la leería nadie,
+y contradiría a la de verdad en cuanto una de las dos cambiara. Al cliente ya lo
+frena la lista de claves permitidas; el borrado cubre también al superadmin, que
+no pasa por ella. **Lo encontró una prueba** que daba por hecho que no se podía
+colar y descubrió que sí.
+
 ---
 
 ## 6. Dónde tocar cada cosa
@@ -192,6 +236,7 @@ enseñando su foto. Se publica o se descarta desde la ficha del plato.
 | Qué modelos permite un plan | `PLANES[x].modelos`, en los dos |
 | El modelo de un restaurante | Panel → Apariencia |
 | El plan de un restaurante | Panel → Apariencia (solo superadmin) |
+| Si es de producción o de prueba | Panel → Apariencia → Datos del restaurante (solo superadmin) |
 | Si un restaurante genera con IA | Botón **✨ IA** de la lista |
 | Cuántas animaciones tiene | Panel, cupo (solo superadmin) |
 | El prompt de generación | Variable `IA_PROMPT`, sin desplegar |
