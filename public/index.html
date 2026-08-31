@@ -359,6 +359,10 @@
 			.status-badge.vencido{background:var(--danger-dim);color:var(--danger);border:1px solid var(--danger);}
 			.status-badge.porvencer{background:var(--warn-dim);color:var(--warn);border:1px solid var(--warn);}
 			.status-badge.pagovigente{background:transparent;color:var(--text-dim);border:1px solid var(--border);}
+			/* Producción vs prueba. A rayas y en el color de aviso a propósito:
+			   tiene que saltar a la vista en una lista de nueve, no camuflarse
+			   entre los otros distintivos. */
+			.status-badge.esprueba{background:var(--warn-dim);color:var(--warn);border:1px dashed var(--warn);}
 
 			.new-resto-card{background:var(--panel);border:1px dashed var(--border2);border-radius:var(--r-lg);padding:24px;margin-bottom:24px;}
 			.color-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -710,6 +714,15 @@
 						<div class="form-group" style="margin-top:14px;margin-bottom:0">
 							<label for="apDiaPago" class="form-label">Día de cobro mensual <span style="color:var(--text-dim)">(1-31 — se calcula solo cada mes; edítalo solo si cambia el acuerdo con el cliente)</span></label>
 							<input type="number" class="form-input" id="apDiaPago" min="1" max="31" placeholder="1">
+						</div>
+						<div class="form-check" style="margin-top:16px;margin-bottom:4px">
+							<label class="toggle"><input type="checkbox" id="apEsPrueba"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Es un restaurante de prueba</span>
+						</div>
+						<div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">
+							Solo cambia cómo se ve en tu lista: la carta pública, los respaldos y
+							las estadísticas siguen exactamente igual. Es para no confundir una
+							demo con un cliente cuando mires los números.
 						</div>
 						<div style="text-align:right;margin-top:14px;">
 							<button class="btn-save" style="width:auto;padding:11px 24px;" onclick="guardarDatosResto()">Guardar</button>
@@ -4536,6 +4549,7 @@ async function renderDatosResto() {
   // pública y estos datos son de nuestra cobranza, no del restaurante.
   await asegurarFacturacion();
   document.getElementById('apDiaPago').value = facturacionDe(r.id)?.dia_pago ?? '';
+  document.getElementById('apEsPrueba').checked = !!facturacionDe(r.id)?.es_prueba;
 }
 
 async function guardarDatosResto() {
@@ -4570,9 +4584,10 @@ async function guardarDatosResto() {
     // pidiera.
     if (state.facturacionCargada) {
       const anterior = facturacionDe(state.restaurante.id);
-      await apiFetch('PATCH', `/api/facturacion/${state.restaurante.id}`, { dia_pago });
+      const es_prueba = document.getElementById('apEsPrueba').checked;
+      await apiFetch('PATCH', `/api/facturacion/${state.restaurante.id}`, { dia_pago, es_prueba });
       state.facturacion = (state.facturacion || []).filter(f => f.restaurante_id !== state.restaurante.id);
-      state.facturacion.push({ ...(anterior || {}), restaurante_id: state.restaurante.id, dia_pago });
+      state.facturacion.push({ ...(anterior || {}), restaurante_id: state.restaurante.id, dia_pago, es_prueba });
     }
 
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { nombre, slug });
@@ -6309,6 +6324,19 @@ function facturacionDe(restauranteId) {
   return (state.facturacion || []).find(f => f.restaurante_id === restauranteId) || null;
 }
 
+// Dos de nueve restaurantes son clientes de verdad; los otros son demos, y
+// hasta ahora nada lo decía. En una lista donde todos se ven igual, un promedio
+// o una revisión rápida acaban tratando una demo de cero platos como si fuera
+// un cliente.
+//
+// Es SOLO una etiqueta: no cambia la carta pública, ni los respaldos, ni las
+// estadísticas. Si algún día tiene que hacer más, esta es la columna que ya
+// está puesta.
+function fichaEntornoHtml(fact) {
+  if (!fact?.es_prueba) return '';   // producción es el silencio: son la mayoría
+  return '<span class="status-badge esprueba" style="margin-top:2px;width:fit-content;">Prueba</span>';
+}
+
 function estadoPagoHtml(fact) {
   const diaPago = fact?.dia_pago;
   if (!diaPago) return '';
@@ -6390,6 +6418,7 @@ async function cargarListaRestos() {
         <div class="resto-card-info">
           <div class="resto-card-name">${esc(r.nombre)}</div>
           <div class="resto-card-slug">${esc(r.slug)}</div>
+          ${fichaEntornoHtml(facturacionDe(r.id))}
           ${estadoPagoHtml(facturacionDe(r.id))}
           ${fichaPlanHtml(r)}
           ${resumenVideoHtml(resumen[r.id])}
