@@ -1497,6 +1497,34 @@ describe('Promoción · el nombre y el precio que pinta la cartelera', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('fichaEntornoHtml · la etiqueta de restaurante de prueba', () => {
+	// Dos de los nueve son clientes; el resto, demos. La etiqueta es solo eso:
+	// no cambia la carta pública, ni los respaldos, ni las estadísticas.
+	const { fichaEntornoHtml } = cargar('index.html',
+		'function fichaEntornoHtml', 'function estadoPagoHtml');
+
+	test('producción no lleva nada', () => {
+		// Son la mayoría de los que importan: llenar la lista de distintivos
+		// «Producción» haría que el de «Prueba» dejara de saltar a la vista.
+		assert.equal(fichaEntornoHtml({ es_prueba: false }), '');
+		assert.equal(fichaEntornoHtml({}), '');
+	});
+
+	test('sin fila de facturación tampoco', () => {
+		// Siete de los nueve no tienen fila todavía: solo se crea al anotarles
+		// un pago o al marcarlos. Sin esto, la lista reventaría al pintarse.
+		assert.equal(fichaEntornoHtml(null), '');
+		assert.equal(fichaEntornoHtml(undefined), '');
+	});
+
+	test('prueba lleva su distintivo', () => {
+		const html = fichaEntornoHtml({ es_prueba: true });
+		assert.match(html, /esprueba/);
+		assert.match(html, /Prueba/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('confirmDelete · borrar una categoría se lleva sus platos', () => {
 	// productos.categoria_id es ON DELETE CASCADE: la categoría se lleva por
 	// delante todos sus platos, con sus fotos y sus videos. El aviso decía
