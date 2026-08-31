@@ -105,13 +105,15 @@ es el VPS: es la memoria y la GPU del televisor.
     "aleatorio": false,
     "animacion": "suave",
     "mostrar_categoria": true,
-    "color_categoria": "marca"
+    "color_categoria": "marca",
+    "tema": "carta"
   }
 }
 ```
 
-`color_categoria` toma `oscuro` (por defecto), `claro` o `marca`. No es un
-color libre: ver 10.quater.
+`color_categoria` toma `oscuro` (por defecto), `claro` o `marca`, y `tema` toma
+`oscuro` (por defecto) o `carta`. Ninguno de los dos es un color libre: ver
+10.quater y 10.quinquies.
 
 **Por qué en `atributos` y no en una tabla nueva.** Una tabla nueva significa
 una política RLS más (superficie pública nueva), endpoints de alta/baja/edición
@@ -153,9 +155,20 @@ el popup quiera mostrarlos ya están.
 dos unidades; dos unidades en un campo es una fuente segura de errores, y
 contar slides es lo que el carrusel ya sabe hacer.
 
-**Ojo:** las cuatro columnas hay que añadirlas a `COLUMNAS_PUBLICAS` en
-`core/loader.js`. Esa lista es explícita a propósito —nunca `*`— así que una
-columna nueva no se publica sola.
+**Corregido el 31/08/2026, al hacer la fase 3.** Aquí decía que las cuatro
+columnas había que añadirlas a `COLUMNAS_PUBLICAS` en `core/loader.js`. **No se
+han añadido, y a propósito.**
+
+Esa lista alimenta las cartas de los nueve restaurantes, y pedir una columna que
+no existe no devuelve un hueco: devuelve un 400 y se cae la petición entera
+(11.bis). Subir el archivo antes de correr el `ALTER TABLE` dejaría a todos los
+restaurantes **sin carta**. En `tv.html` el mismo error apaga una pantalla; en
+`loader.js` apaga la plataforma.
+
+Y el beneficio de ponerlas hoy es cero: en el menú no las lee nadie. Se añaden
+el día que el popup de la carta quiera enseñarlas, cuando lleven meses en la
+tabla. La instrucción original trataba «añadirlas en los dos sitios» como una
+casilla de una lista, sin pesar lo que cuesta equivocarse en cada uno.
 
 ---
 
@@ -289,10 +302,11 @@ deje una pantalla encendida sin forma de apagarla.
 **En qué planes.** `completo` y `video`, que son los de los dos clientes
 reales. Moverlo es una línea en cada una de las tres tablas de planes.
 
-**Fase 3 — Las cuatro columnas de la promoción.** El layout vertical y el slide
-de promo ya están; falta que el panel pida `nombre` y `precio` al guardar una
-promoción, las columnas en la tabla, añadirlas a `COLUMNAS_PUBLICAS` **y al
-`select` de `cargar()` en `tv.html`**.
+**Fase 3 — Las cuatro columnas de la promoción.** ✅ **Hecha el 31/08/2026.**
+`sql/15_promocion_para_la_cartelera.sql`, el `select` de `tv.html`, el nombre y
+el precio en la pestaña de Promoción, y el interruptor de rotación con su
+frecuencia en la pestaña de TV. Lo único del plan que no se hizo es
+`COLUMNAS_PUBLICAS`; el porqué, en 5.2.
 
 Ese último punto costó el primer despliegue. Aquí ponía que hasta la fase 3 el
 slide de promo no se activaría «porque `promo_en_tv` no existe y la página lo
@@ -432,6 +446,107 @@ las dos: están en repositorios distintos y `tv.html` no puede importar nada
 que `PLANES`. Si se desincronizan, el restaurante ve un color en el panel y otro
 en la pantalla.
 
+## 10.quinquies La página con los colores del restaurante (31/08/2026)
+
+Lo de 10.quater se pidió como «que la etiqueta sea personalizable» y se entregó
+como la etiqueta. Lo que se quería era **la página**: que la cartelera se
+parezca al restaurante, no solo un recuadro.
+
+**Un interruptor, no una paleta.** `tv.tema` con dos valores:
+
+| valor | qué hace |
+|---|---|
+| `oscuro` *(por defecto)* | exactamente lo de siempre: fondo `#0a0a0f`, precios en amarillo, sin bordes |
+| `carta` | toma los colores que el restaurante ya guardó en Apariencia |
+
+Nadie que no lo pida ve su cartelera cambiar. Hay una prueba que compara la
+paleta neutra contra la constante del propio archivo, precisamente para eso.
+
+**Qué toma del restaurante.** Es un espejo de `applyStyles()` en
+`core/loader.js`, con los mismos campos y los mismos valores por defecto:
+
+| en la pantalla | de dónde sale | si está vacío |
+|---|---|---|
+| fondo de la página | `atributos.color_dark` | `#0a0a0f` |
+| marco de cada foto | `atributos.color_card` | `#1a1825` |
+| borde del marco | `atributos.color_border` | derivado del marco, como en la carta |
+| precio y etiqueta | `color_primario` | `#cdfefe` |
+| lavado del fondo | `color_primario` + `color_secundario` | los dos anteriores |
+| nombre del plato | calculado por contraste sobre el fondo | — |
+
+Una advertencia honesta: **ocho de los nueve restaurantes tienen la paleta de
+superficie vacía**, así que para ellos el fondo sigue siendo el mismo negro.
+Lo que sí cambia es el acento —precio, etiqueta y el lavado del fondo—, que es
+justo donde se reconoce una marca.
+
+**El lavado.** Un degradado diagonal con el color primario al 11 % y el
+secundario al 9 %. Lo justo para que el negro deje de ser el negro de fábrica
+sin competir con las fotos, que son lo que la gente mira. Va como imagen de
+fondo *aparte* del color liso: si un televisor no entendiera el degradado, se
+queda el color y no una pantalla en blanco.
+
+**El acento no puede ser el color en crudo.** Los nueve colores guardados van
+de `#ffd521` a `#0a4380`. Puesto tal cual sobre un fondo casi negro, el azul
+marino de juanmar no se ve desde ninguna mesa. Así que el color **se aclara
+hacia el blanco hasta alcanzar 4,5 de contraste** (la razón de la WCAG, con los
+canales linealizados). Aclarar en vez de sustituir conserva el tono: su azul
+sigue siendo su azul, solo que visible. `#0a4380` sale como `#5e83ab` tras cinco
+pasos; `#ffd521` y `#cdfefe` no se tocan porque ya pasan.
+
+El bucle lleva tope de 24 pasos. Sobre un fondo blanco no hay forma de alcanzar
+4,5 aclarando, y sin tope el televisor se queda colgado en una pantalla en
+blanco. Hay prueba de ese caso.
+
+**El acento es UNO, compartido.** Lo enseñó una captura: con juanmar, la
+etiqueta de categoría salía en `#0a4380` y el precio en `#5e83ab`, porque cada
+uno calculaba lo suyo. Dos azules en la misma pantalla se leen como un fallo,
+no como un sistema. Ahora los dos salen de `acento()`.
+
+**Lo que no se tocó: la tipografía.** `atributos.fuente_titulo` y
+`fuente_cuerpo` también son del restaurante —bonzas usa DM Sans, malparados
+Bebas Neue y Poppins— y la carta las carga de Google Fonts. Aquí no. Este
+archivo se rige por una regla, «nada que pueda fallar en un televisor viejo», y
+una fuente externa añade una petición de red bloqueante a una pantalla que tiene
+que encenderse sola cada mañana en un local con wifi de restaurante. Es una
+decisión, no un olvido, y se puede revisar.
+
+## 10.sexies La promoción, completa (fase 3, 31/08/2026)
+
+Cuatro columnas nuevas en `restaurantes`, en
+`sql/15_promocion_para_la_cartelera.sql`. **El SQL va antes que el despliegue**,
+al revés que el 14: `tv.html` pide las columnas por su nombre y sin ellas
+contesta 400. Está escrito en la cabecera del propio archivo.
+
+**Dónde se configura cada cosa, y por qué separadas.** El nombre y el precio van
+en la pestaña **Promoción**, con la imagen: son de la promoción, y el día que el
+popup de la carta quiera enseñarlos ya están guardados. El interruptor de
+rotación y la frecuencia van en la pestaña **Pantalla TV**: son decisiones sobre
+la pantalla, no sobre la promoción. Tener una promoción viva en la carta y no
+querer quemarla en el televisor del local es un caso real, y por eso
+`promo_en_tv` existe aparte de `promo_activa`.
+
+**El texto es opcional, y el panel insiste.** Casi todas las piezas ya llevan el
+nombre y el precio dibujados dentro. Repetirlos debajo se ve dos veces — se vio
+en la primera prueba con la imagen de bonzas. Si están en blanco, no se pinta ni
+la franja.
+
+**Lo que el panel avisa antes de que lo descubra con la tele puesta:**
+
+- Encender la rotación sin haber subido la imagen, o con la promoción apagada
+  en su pestaña. Se avisa en vez de bloquear el interruptor: la imagen se sube
+  en otra pestaña y puede llegar después.
+- El resumen del ciclo **cuenta las pantallas de promoción**. Sin eso decía que
+  la vuelta dura menos de lo que dura.
+- Una promoción **cada 4 con un ciclo de 2 pantallas no sale nunca**. Es el tipo
+  de cosa que solo se ve con la pantalla delante de los clientes.
+
+**Sin `GRANT` ni política nueva.** Comprobado antes de escribir el SQL: el
+permiso de lectura de `anon` sobre `restaurantes` es de tabla, no por columnas
+(`pg_class.relacl` dice `anon=rdDxtm` y ninguna columna tiene ACL propia), así
+que las columnas nuevas se leen solas. Las políticas RLS son por fila y tampoco
+estorban. Si el permiso hubiera sido por columnas, el `ALTER` habría dejado la
+pantalla igual de rota y buscando el fallo en otro sitio.
+
 ## 11.bis Lo que enseñó el primer despliegue (29/08/2026)
 
 La pantalla salió con el aviso de **«sin conexión»** y la red perfectamente.
@@ -463,3 +578,9 @@ La pantalla salió con el aviso de **«sin conexión»** y la red perfectamente.
 - **Tres restaurantes sin plan** (perroscriollos, sanjavier, aojocerrado) caen
   por defecto en `pedidos` y reciben QR, estadísticas y horarios sin que nadie
   lo haya decidido.
+- **¿La tipografía del restaurante en la cartelera?** Los colores ya se toman
+  (10.quinquies); las fuentes no, porque cargarlas de Google Fonts mete una
+  petición de red bloqueante en una pantalla que se enciende sola cada mañana.
+  Alternativa si se quiere: servirlas desde el propio VPS, como las imágenes.
+- **El lavado del fondo es muy sutil a propósito** (11 % y 9 %). Si se quiere
+  más marca, es un número; si se sube mucho, compite con las fotos.
