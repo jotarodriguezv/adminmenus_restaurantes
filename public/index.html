@@ -1297,12 +1297,25 @@
 							</div>
 
 							<div class="form-check" style="margin-bottom:14px">
-								<label class="toggle"><input type="checkbox" id="tvMostrarCategoria"><span class="toggle-slider"></span></label>
+								<label class="toggle"><input type="checkbox" id="tvMostrarCategoria" onchange="tvAlternarCategoria()"><span class="toggle-slider"></span></label>
 								<span style="font-size:13px;color:var(--text-muted)">Mostrar la categoría en cada plato</span>
 							</div>
-							<div style="font-size:11px;color:var(--text-dim);margin:-8px 0 16px">
+							<div style="font-size:11px;color:var(--text-dim);margin:-8px 0 12px">
 								Una etiqueta pequeña en la esquina de la foto. Útil cuando el nombre del
-								plato no dice qué es — «Pepito», «La Descarada».
+								plato no dice qué es — «Pepito», «La Descarada». Se coloca sola en la
+								esquina contraria a tu logo, para que no se tapen.
+							</div>
+							<div id="tvColorCategoriaFila" style="margin:0 0 16px;display:none">
+								<label for="tvColorCategoria" class="form-label">Color de la etiqueta</label>
+								<div style="display:flex;gap:10px;align-items:center">
+									<select class="form-input" id="tvColorCategoria" style="flex:1" onchange="tvPintarMuestraCategoria()">
+										<option value="oscuro">Oscuro — se lee sobre cualquier foto</option>
+										<option value="claro">Claro</option>
+										<option value="marca">El color de tu carta</option>
+									</select>
+									<span id="tvMuestraCategoria" style="flex:0 0 auto;padding:7px 13px;border-radius:7px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Hamburguesas</span>
+								</div>
+								<div id="tvAvisoColorCategoria" style="font-size:11px;color:var(--text-dim);margin-top:6px"></div>
 							</div>
 
 							<div class="form-check" style="margin-bottom:0">
@@ -5565,7 +5578,7 @@ async function saveToppings() {
 const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          segundos: 8, modo: 'todos', categoria_id: null,
                          productos: [], aleatorio: false, animacion: 'suave',
-                         mostrar_categoria: false };
+                         mostrar_categoria: false, color_categoria: 'oscuro' };
 
 let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
 let tvFiltro = 'all';   // categoría que se está mirando en el selector
@@ -5589,6 +5602,8 @@ function renderTV() {
   document.getElementById('tvAleatorio').checked = !!cfg.aleatorio;
   document.getElementById('tvAnimacion').checked = cfg.animacion !== 'ninguna';
   document.getElementById('tvMostrarCategoria').checked = !!cfg.mostrar_categoria;
+  document.getElementById('tvColorCategoria').value =
+    ['oscuro', 'claro', 'marca'].includes(cfg.color_categoria) ? cfg.color_categoria : 'oscuro';
   document.getElementById('tvEnlace').value = urlPublica(state.restaurante) + '/tv';
   document.getElementById('tvStatus').textContent = '';
 
@@ -5611,6 +5626,7 @@ function renderTV() {
   tvPintarPlatos();
   tvPintarMarcarTodos();
   tvAlternarActiva();
+  tvAlternarCategoria();
   tvCambiarModo();
   tvAvisoTamano();
 }
@@ -5619,6 +5635,63 @@ function tvAlternarActiva() {
   const on = document.getElementById('tvActiva').checked;
   document.getElementById('tvCuerpo').style.display = on ? 'block' : 'none';
   document.getElementById('tvAjustes').style.display = on ? 'block' : 'none';
+}
+
+// El color de la etiqueta de categoría. Tres presets y no un selector libre:
+// un selector libre deja elegir gris sobre gris, y esto acaba colgado en una
+// pared donde nadie lo va a volver a mirar.
+//
+// Los valores están copiados de vmenus-app/tv.html a propósito. Esa página no
+// puede importar nada de aquí —corre en televisores de 2018, sin módulos ES, y
+// además vive en el otro repositorio— así que la muestra de al lado es un
+// espejo escrito a mano, no la misma función. Ninguna prueba puede comparar los
+// dos: están en repositorios distintos. Al tocar uno hay que tocar el otro, y
+// si se desincronizan el restaurante ve un color en el panel y otro en la
+// pared. Es la misma clase de espejo que PLANES; está anotado en
+// docs/pantalla-tv.md.
+const TV_COLOR_CATEGORIA = {
+  oscuro: { fondo: 'rgba(10, 10, 15, 0.62)', texto: '#e8e8ee' },
+  claro:  { fondo: 'rgba(255, 255, 255, 0.88)', texto: '#14131c' },
+};
+
+// Espejo de paletaCategoria() en vmenus-app/tv.html.
+function tvPaletaCategoria(valor, colorPrimario) {
+  if (valor === 'claro') return TV_COLOR_CATEGORIA.claro;
+  if (valor !== 'marca') return TV_COLOR_CATEGORIA.oscuro;
+
+  const h = String(colorPrimario || '').replace('#', '');
+  const seis = h.length === 3 ? h[0] + h[0] + h[1] + h[1] + h[2] + h[2] : h;
+  if (!/^[0-9a-fA-F]{6}$/.test(seis)) return null;   // null = no hay color guardado
+
+  const r = parseInt(seis.slice(0, 2), 16);
+  const g = parseInt(seis.slice(2, 4), 16);
+  const b = parseInt(seis.slice(4, 6), 16);
+  // Brillo percibido: el ojo pesa el verde seis veces más que el azul. Decide
+  // si encima va texto negro o blanco. Hay cartas en amarillo y cartas en
+  // azul marino, y ninguna de las dos combinaciones sirve para las dos.
+  const brillo = (r * 299 + g * 587 + b * 114) / 1000;
+  return { fondo: `rgba(${r}, ${g}, ${b}, 0.9)`, texto: brillo > 145 ? '#14131c' : '#ffffff' };
+}
+
+function tvPintarMuestraCategoria() {
+  const valor = document.getElementById('tvColorCategoria').value;
+  const pal = tvPaletaCategoria(valor, state.restaurante?.color_primario);
+  const muestra = document.getElementById('tvMuestraCategoria');
+  const aviso = document.getElementById('tvAvisoColorCategoria');
+  // Sin color guardado no se inventa uno: la cartelera vuelve al oscuro, y
+  // aquí se dice, en vez de enseñar una muestra que no es lo que se va a ver.
+  const efectiva = pal || TV_COLOR_CATEGORIA.oscuro;
+  muestra.style.background = efectiva.fondo;
+  muestra.style.color = efectiva.texto;
+  aviso.textContent = pal ? '' :
+    'Tu carta todavía no tiene un color guardado, así que la etiqueta saldrá oscura. ' +
+    'Se configura en Apariencia.';
+}
+
+function tvAlternarCategoria() {
+  const on = document.getElementById('tvMostrarCategoria').checked;
+  document.getElementById('tvColorCategoriaFila').style.display = on ? 'block' : 'none';
+  tvPintarMuestraCategoria();
 }
 
 function tvCambiarModo() {
@@ -5843,6 +5916,7 @@ async function saveTV() {
     aleatorio: document.getElementById('tvAleatorio').checked,
     animacion: document.getElementById('tvAnimacion').checked ? 'suave' : 'ninguna',
     mostrar_categoria: document.getElementById('tvMostrarCategoria').checked,
+    color_categoria: document.getElementById('tvColorCategoria').value,
   };
 
   // Solo su clave: el servidor funde. Ver el comentario de saveToppings.
