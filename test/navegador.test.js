@@ -1034,6 +1034,12 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvColorCategoriaFila: { style: {} },
 			tvMuestraCategoria: { style: {} },
 			tvAvisoColorCategoria: { textContent: '' },
+			tvTema: { value: 'sin pintar' },
+			tvTemaAyuda: { textContent: '' },
+			tvPromoEnTv: { checked: !!opciones.promoEnTv },
+			tvPromoCada: { value: 'sin pintar' },
+			tvPromoCadaFila: { style: {} },
+			tvPromoAyuda: { textContent: '', style: {} },
 			tvMarcarTodos: { innerHTML: '', appendChild() {} },
 			tvResumen:     { textContent: '', style: {} },
 			tvAvisoTamano: { textContent: '', style: {} },
@@ -1051,8 +1057,10 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			['const TV_POR_DEFECTO', '// ── PEDIDOS (WhatsApp'],
 		], {
 			state: {
-				restaurante: { id: 'r1', slug: 'bonzas', color_primario: opciones.colorPrimario,
-			                atributos: { tv: opciones.guardado || {} } },
+				restaurante: Object.assign(
+				{ id: 'r1', slug: 'bonzas', color_primario: opciones.colorPrimario,
+				  atributos: { tv: opciones.guardado || {} } },
+				opciones.promo || {}),
 				categorias: [{ id: 'c1', nombre: 'Hamburguesas' }, { id: 'c2', nombre: 'Bebidas' }],
 				productos: opciones.productos || [
 					{ id: 'p1', nombre: 'Burger', disponible: true,  imagen_url: 'https://x/1.jpg', categoria_id: 'c1' },
@@ -1118,13 +1126,17 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		assert.equal(b.campos.tvAvisoTamano.style.display, 'none');
 	});
 
-	test('guardar manda SOLO la clave tv', async () => {
+	test('de atributos manda SOLO la clave tv', async () => {
 		// atributos lo comparten ocho pantallas. Mandar el objeto entero desde
 		// la copia que el panel cargó al entrar es el fallo de §9.10.
+		//
+		// Las columnas de la promoción sí viajan al lado, pero son columnas del
+		// restaurante y no comparten nada: no pueden pisar a nadie.
 		const { ctx, enviado } = montar();
 		await ctx.saveTV();
-		assert.deepEqual(Object.keys(enviado[0]), ['atributos']);
 		assert.deepEqual(Object.keys(enviado[0].atributos), ['tv']);
+		assert.deepEqual(Object.keys(enviado[0]).sort(),
+			['atributos', 'promo_cada', 'promo_en_tv']);
 	});
 
 	test('no deja encender una cartelera que no enseñaría nada', async () => {
@@ -1320,6 +1332,90 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		assert.match(campos.tvAvisoColorCategoria.textContent, /Apariencia/);
 	});
 
+	test('el tema de la página se guarda y se relee', async () => {
+		const { ctx, campos, enviado } = montar({ guardado: { tema: 'carta' } });
+		ctx.renderTV();
+		assert.equal(campos.tvTema.value, 'carta');
+		await ctx.saveTV();
+		assert.equal(enviado[0].atributos.tv.tema, 'carta');
+	});
+
+	test('sin tema guardado, neutro', () => {
+		// Nadie que no lo pida debe ver su cartelera cambiar de aspecto.
+		const { ctx, campos } = montar({});
+		ctx.renderTV();
+		assert.equal(campos.tvTema.value, 'oscuro');
+	});
+
+	test('la promoción viaja como columnas, no dentro de atributos', async () => {
+		// Son columnas del restaurante, las mismas que ya usa la pestaña de
+		// Promoción. Meterlas en atributos.tv las duplicaría.
+		const { ctx, campos, enviado } = montar({ promoEnTv: true });
+		campos.tvPromoCada.value = '3';
+		await ctx.saveTV();
+		assert.equal(enviado[0].promo_en_tv, true);
+		assert.equal(enviado[0].promo_cada, 3);
+		assert.equal(enviado[0].atributos.tv.promo_en_tv, undefined);
+	});
+
+	test('la frecuencia de la promoción se relee de la columna', () => {
+		const { ctx, campos } = montar({ promo: { promo_en_tv: true, promo_cada: 6 } });
+		ctx.renderTV();
+		assert.equal(campos.tvPromoEnTv.checked, true);
+		assert.equal(campos.tvPromoCada.value, '6');
+	});
+
+	test('una frecuencia rara no deja el selector en blanco', () => {
+		const { ctx, campos } = montar({ promo: { promo_cada: 97 } });
+		ctx.renderTV();
+		assert.equal(campos.tvPromoCada.value, '4');
+	});
+
+	test('avisa si se enciende la promoción sin imagen', () => {
+		// La imagen se sube en otra pestaña y puede llegar después, así que se
+		// avisa en vez de bloquear el interruptor.
+		const { ctx, campos } = montar({ promoEnTv: true });
+		ctx.tvAlternarPromo();
+		assert.match(campos.tvPromoAyuda.textContent, /no has subido la imagen/);
+	});
+
+	test('avisa si la promoción está apagada en su pestaña', () => {
+		const { ctx, campos } = montar({
+			promoEnTv: true,
+			promo: { promo_imagen_url: 'https://x/p.jpg', promo_activa: false },
+		});
+		ctx.tvAlternarPromo();
+		assert.match(campos.tvPromoAyuda.textContent, /apagada/);
+	});
+
+	test('el resumen cuenta las pantallas de promoción en la vuelta', () => {
+		// Si no se cuentan, el resumen dice que la vuelta dura menos de lo que
+		// dura, y el restaurante calcula mal cuánto tarda en repetirse.
+		// Por 'guardado' y no por los campos: renderTV los repinta desde lo
+		// guardado, así que ponerlos a mano en el DOM no probaría nada.
+		const { ctx, campos } = montar({
+			guardado: { por_slide: 1, segundos: 10 },
+			promo: { promo_en_tv: true, promo_activa: true,
+			         promo_imagen_url: 'https://x/p.jpg', promo_cada: 2 },
+		});
+		ctx.renderTV();
+		// 2 platos con foto, de uno en uno = 2 pantallas + 1 de promoción = 30 s
+		assert.match(campos.tvResumen.textContent, /\+ 1 de promoción/);
+		assert.match(campos.tvResumen.textContent, /30 s/);
+	});
+
+	test('avisa si la promoción no llegaría a salir nunca', () => {
+		// Ciclo de 2 pantallas con la promo cada 4: no sale jamás, y con la
+		// tele puesta parece que se rompió.
+		const { ctx, campos } = montar({
+			guardado: { por_slide: 1 },
+			promo: { promo_en_tv: true, promo_activa: true,
+			         promo_imagen_url: 'https://x/p.jpg', promo_cada: 4 },
+		});
+		ctx.renderTV();
+		assert.match(campos.tvResumen.textContent, /no llegaría a salir nunca/);
+	});
+
 	test('la categoría no se guarda si el modo no es por categoría', async () => {
 		// Dejar el identificador puesto en modo 'todos' es la ambigüedad que
 		// tenía el requerimiento original: dos campos diciendo qué mostrar.
@@ -1331,6 +1427,73 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		// falla por el prototipo, no por el contenido.
 		assert.equal(enviado[0].atributos.tv.productos.length, 0);
 	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Promoción · el nombre y el precio que pinta la cartelera', () => {
+	// Son columnas del restaurante, no de atributos. Hoy solo las enseña
+	// tv.html; se piden aquí porque son de la promoción, no de la pantalla.
+	const montar = (r = {}) => {
+		const campos = {
+			promoToggle: { checked: false }, promoDot: { className: '' },
+			promoStatusText: { textContent: '' },
+			promoImgPreview: { src: '', style: {} }, promoImgNone: { style: {} },
+			promoNombre: { value: '' }, promoPrecio: { value: '' },
+			promoTextoStatus: { textContent: '', style: {} },
+		};
+		const enviado = [];
+		const ctx = cargar('index.html', [
+			['// ── PROMO ─', '// ── DATOS DEL RESTAURANTE'],
+		], {
+			state: { restaurante: Object.assign({ id: 'r1' }, r) },
+			document: { getElementById: id => campos[id] },
+			apiFetch: async (m, ruta, cuerpo) => { enviado.push(cuerpo); return null; },
+			showToast: () => {},
+			uploadImg: async () => '', compressImage: async () => null,
+		});
+		return { ctx, campos, enviado };
+	};
+
+	test('se releen los dos campos', () => {
+		const { ctx, campos } = montar({ promo_nombre: '2x1', promo_precio: '$ 30.000' });
+		ctx.renderPromo();
+		assert.equal(campos.promoNombre.value, '2x1');
+		assert.equal(campos.promoPrecio.value, '$ 30.000');
+	});
+
+	test('sin nada guardado quedan vacíos, no en "null"', () => {
+		const { ctx, campos } = montar({});
+		ctx.renderPromo();
+		assert.equal(campos.promoNombre.value, '');
+		assert.equal(campos.promoPrecio.value, '');
+	});
+
+	test('se guardan solo esas dos columnas', () => {
+		// Mandar el restaurante entero desde la copia que el panel cargó al
+		// entrar es el fallo de §9.10, y aquí aplica igual.
+		const { ctx, campos, enviado } = montar({});
+		campos.promoNombre.value = '  2x1 en hamburguesas  ';
+		campos.promoPrecio.value = ' $ 30.000 ';
+		return ctx.savePromoTexto().then(() => {
+			assert.deepEqual(Object.keys(enviado[0]).sort(), ['promo_nombre', 'promo_precio']);
+			assert.equal(enviado[0].promo_nombre, '2x1 en hamburguesas', 'sin espacios sobrantes');
+			assert.equal(enviado[0].promo_precio, '$ 30.000');
+		});
+	});
+
+	test('se pueden dejar en blanco a propósito', () => {
+		// Muchas piezas ya llevan el texto dibujado dentro; repetirlo debajo se
+		// ve dos veces. Borrarlos tiene que guardar el borrado, no ignorarlo.
+		const { ctx, campos, enviado } = montar({ promo_nombre: '2x1' });
+		campos.promoNombre.value = '';
+		return ctx.savePromoTexto().then(() => {
+			assert.equal(enviado[0].promo_nombre, '');
+			assert.equal(state_del(ctx), '');
+		});
+	});
+
+	// El PATCH puede no devolver la fila; entonces el panel actualiza su copia.
+	const state_del = ctx => ctx.state.restaurante.promo_nombre;
 });
 
 // ═══════════════════════════════════════════════════════════════
