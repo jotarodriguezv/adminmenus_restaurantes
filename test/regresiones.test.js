@@ -234,6 +234,92 @@ describe('01b · atributos se funde, no se reemplaza', () => {
 	});
 });
 
+describe('01c · producción o prueba, fuera de la tabla pública', () => {
+	// Dos de los nueve restaurantes son clientes de verdad; el resto son demos.
+	// La marca vive en restaurantes_facturacion y no en 'atributos' porque
+	// 'atributos' se lee públicamente y esto es un dato NUESTRO sobre el
+	// restaurante, no suyo — lo mismo que el día de pago.
+
+	test('el superadmin la puede marcar', async () => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: null, error: null }));
+		const r = await S.pedir('PATCH', `/api/facturacion/${S.IDS.restaurante}`,
+			{ es_prueba: true }, S.tokenAdmin);
+
+		assert.equal(r.status, 200);
+		const escrito = S.ultimaEscritura('restaurantes_facturacion');
+		assert.equal(escrito.es_prueba, true);
+		assert.equal(escrito.restaurante_id, S.IDS.restaurante);
+	});
+
+	test('y la puede quitar', async () => {
+		// Sin esto, marcar una demo por error sería irreversible desde el panel.
+		S.reiniciar();
+		S.conTabla(() => ({ data: null, error: null }));
+		await S.pedir('PATCH', `/api/facturacion/${S.IDS.restaurante}`,
+			{ es_prueba: false }, S.tokenAdmin);
+		assert.equal(S.ultimaEscritura('restaurantes_facturacion').es_prueba, false);
+	});
+
+	test('lo que no sea booleano se rechaza', async () => {
+		// Una cadena vacía o un 'no' entrarían como verdaderos y marcarían de
+		// prueba a un cliente que paga.
+		for (const malo of ['no', '', 'false', 0, 1, null]) {
+			S.reiniciar();
+			S.conTabla(() => ({ data: null, error: null }));
+			const r = await S.pedir('PATCH', `/api/facturacion/${S.IDS.restaurante}`,
+				{ es_prueba: malo }, S.tokenAdmin);
+			assert.equal(r.status, 400, JSON.stringify(malo));
+			assert.equal(S.ultimaEscritura('restaurantes_facturacion'), null, 'ni se intenta escribir');
+		}
+	});
+
+	test('no mandarla deja el valor como estaba', async () => {
+		// Anotar un pago no puede reclasificar el restaurante de paso.
+		S.reiniciar();
+		S.conTabla(() => ({ data: null, error: null }));
+		await S.pedir('PATCH', `/api/facturacion/${S.IDS.restaurante}`,
+			{ ultimo_pago: '2026-08-31' }, S.tokenAdmin);
+		assert.equal('es_prueba' in S.ultimaEscritura('restaurantes_facturacion'), false);
+	});
+
+	test('el listado pide la columna, o el distintivo no se puede pintar', async () => {
+		// El panel dibuja la etiqueta con lo que devuelve esta ruta. Si el
+		// select deja de pedir la columna, no falla nada: simplemente ningún
+		// restaurante sale marcado nunca, y eso no se nota mirando.
+		S.reiniciar();
+		S.conTabla(() => ({ data: [], error: null }));
+		await S.pedir('GET', '/api/facturacion', null, S.tokenAdmin);
+
+		const lectura = S.llamadas.find(l => l.tabla === 'restaurantes_facturacion');
+		assert.ok(lectura, 'se consultó la tabla');
+		assert.match(lectura.cols, /es_prueba/);
+	});
+
+	test('un cliente no la puede tocar', async () => {
+		// Es una clasificación de la plataforma sobre él. Que un restaurante se
+		// declare de prueba, o deje de serlo, no tiene sentido.
+		S.reiniciar();
+		S.conTabla(() => ({ data: null, error: null }));
+		const r = await S.pedir('PATCH', `/api/facturacion/${S.IDS.restaurante}`,
+			{ es_prueba: true }, S.tokenCliente);
+		assert.equal(r.status, 403);
+		assert.equal(S.ultimaEscritura('restaurantes_facturacion'), null);
+	});
+
+	test('nunca acaba en atributos, que sí se lee en público', async () => {
+		// El camino equivocado y evidente: mandarla por el PATCH del
+		// restaurante. La lista de claves permitidas la deja fuera.
+		S.reiniciar();
+		S.conTabla(st => st.op === 'update'
+			? { data: { id: S.IDS.restaurante, atributos: st.payload.atributos }, error: null }
+			: { data: { atributos: {} }, error: null });
+		await S.pedir('PATCH', `/api/restaurantes/${S.IDS.restaurante}`,
+			{ atributos: { es_prueba: true } }, S.tokenAdmin);
+		assert.equal('es_prueba' in S.ultimaEscritura('restaurantes').atributos, false);
+	});
+});
+
 describe('04 · dos conversiones del mismo plato', () => {
   // El panel lo impide apagando el botón mientras convierte, y su comentario
   // explica por qué: dos conversiones compiten por el mismo campo del
