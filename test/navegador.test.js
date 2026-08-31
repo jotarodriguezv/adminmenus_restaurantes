@@ -1030,6 +1030,10 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvAleatorio:   { checked: !!opciones.aleatorio },
 			tvAnimacion:   { checked: opciones.animacion !== false },
 			tvMostrarCategoria: { checked: !!opciones.mostrarCategoria },
+			tvColorCategoria: { value: 'sin pintar' },
+			tvColorCategoriaFila: { style: {} },
+			tvMuestraCategoria: { style: {} },
+			tvAvisoColorCategoria: { textContent: '' },
 			tvMarcarTodos: { innerHTML: '', appendChild() {} },
 			tvResumen:     { textContent: '', style: {} },
 			tvAvisoTamano: { textContent: '', style: {} },
@@ -1047,7 +1051,8 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			['const TV_POR_DEFECTO', '// ── PEDIDOS (WhatsApp'],
 		], {
 			state: {
-				restaurante: { id: 'r1', slug: 'bonzas', atributos: { tv: opciones.guardado || {} } },
+				restaurante: { id: 'r1', slug: 'bonzas', color_primario: opciones.colorPrimario,
+			                atributos: { tv: opciones.guardado || {} } },
 				categorias: [{ id: 'c1', nombre: 'Hamburguesas' }, { id: 'c2', nombre: 'Bebidas' }],
 				productos: opciones.productos || [
 					{ id: 'p1', nombre: 'Burger', disponible: true,  imagen_url: 'https://x/1.jpg', categoria_id: 'c1' },
@@ -1250,6 +1255,69 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const { ctx, enviado } = montar({ mostrarCategoria: true });
 		await ctx.saveTV();
 		assert.equal(enviado[0].atributos.tv.mostrar_categoria, true);
+	});
+
+	test('el color de la etiqueta se guarda', async () => {
+		const { ctx, campos, enviado } = montar({ mostrarCategoria: true });
+		campos.tvColorCategoria.value = 'marca';
+		await ctx.saveTV();
+		assert.equal(enviado[0].atributos.tv.color_categoria, 'marca');
+	});
+
+	test('sin nada guardado, el color llega en oscuro', () => {
+		// El oscuro es el único que se lee encima de cualquier foto. Es el que
+		// tiene que salirle a quien nunca abra este selector.
+		const { ctx, campos } = montar({});
+		ctx.renderTV();
+		assert.equal(campos.tvColorCategoria.value, 'oscuro');
+	});
+
+	test('un color desconocido no deja el selector en blanco', () => {
+		// Puede llegar de una versión anterior o de un retoque a mano en la
+		// base. Un <select> con un valor que no existe se queda vacío, y al
+		// guardar mandaría cadena vacía.
+		const { ctx, campos } = montar({ guardado: { color_categoria: 'fucsia' } });
+		ctx.renderTV();
+		assert.equal(campos.tvColorCategoria.value, 'oscuro');
+	});
+
+	test('el selector de color solo aparece si la etiqueta está encendida', () => {
+		const apagada = montar({ guardado: { mostrar_categoria: false } });
+		apagada.ctx.renderTV();
+		assert.equal(apagada.campos.tvColorCategoriaFila.style.display, 'none');
+
+		const encendida = montar({ guardado: { mostrar_categoria: true } });
+		encendida.ctx.renderTV();
+		assert.equal(encendida.campos.tvColorCategoriaFila.style.display, 'block');
+	});
+
+	test('la muestra enseña el color de la carta, con su contraste', () => {
+		const { ctx, campos } = montar({ mostrarCategoria: true, colorPrimario: '#0a4380' });
+		campos.tvColorCategoria.value = 'marca';
+		ctx.tvPintarMuestraCategoria();
+		assert.equal(campos.tvMuestraCategoria.style.background, 'rgba(10, 67, 128, 0.9)');
+		// Azul marino: encima va texto blanco. Con amarillo iría negro, y por
+		// eso no se puede fijar ninguno de los dos.
+		assert.equal(campos.tvMuestraCategoria.style.color, '#ffffff');
+		assert.equal(campos.tvAvisoColorCategoria.textContent, '');
+	});
+
+	test('sobre amarillo el texto se pone negro', () => {
+		const { ctx, campos } = montar({ mostrarCategoria: true, colorPrimario: '#ffd521' });
+		campos.tvColorCategoria.value = 'marca';
+		ctx.tvPintarMuestraCategoria();
+		assert.equal(campos.tvMuestraCategoria.style.color, '#14131c');
+	});
+
+	test('sin color guardado se avisa en vez de enseñar un color falso', () => {
+		// Tres restaurantes tienen la columna vacía. La cartelera vuelve al
+		// oscuro; enseñar aquí una muestra bonita sería mentir sobre lo que va
+		// a salir en la pared.
+		const { ctx, campos } = montar({ mostrarCategoria: true, colorPrimario: null });
+		campos.tvColorCategoria.value = 'marca';
+		ctx.tvPintarMuestraCategoria();
+		assert.equal(campos.tvMuestraCategoria.style.background, 'rgba(10, 10, 15, 0.62)');
+		assert.match(campos.tvAvisoColorCategoria.textContent, /Apariencia/);
 	});
 
 	test('la categoría no se guarda si el modo no es por categoría', async () => {
