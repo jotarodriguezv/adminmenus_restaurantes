@@ -190,6 +190,36 @@ describe('01b · atributos se funde, no se reemplaza', () => {
 		assert.equal(escrito.nav, 'video', 'lo demás de la misma petición sí pasa');
 	});
 
+	test('las columnas de la promoción llegan a la tabla', async () => {
+		// Fase 3 de la cartelera. El filtro por campos es una lista explícita:
+		// una columna que no esté en ella se descarta en silencio, y el panel
+		// diría "guardado" sin haber guardado nada. Pasó ya con otras.
+		S.reiniciar(); responder();
+		await S.pedir('PATCH', `/api/restaurantes/${S.IDS.restaurante}`, {
+			promo_nombre: '2x1 en hamburguesas', promo_precio: '$ 30.000',
+			promo_en_tv: true, promo_cada: 3,
+		}, S.tokenCliente);
+
+		const escrito = S.ultimaEscritura('restaurantes');
+		assert.equal(escrito.promo_nombre, '2x1 en hamburguesas');
+		assert.equal(escrito.promo_precio, '$ 30.000');
+		assert.equal(escrito.promo_en_tv, true);
+		assert.equal(escrito.promo_cada, 3);
+	});
+
+	test('la promoción no abre la puerta a otras columnas', async () => {
+		// La lista es lo único que separa "el dueño edita su promoción" de "el
+		// dueño se cambia el slug".
+		S.reiniciar(); responder();
+		await S.pedir('PATCH', `/api/restaurantes/${S.IDS.restaurante}`,
+			{ promo_en_tv: true, slug: 'otro', activo: false }, S.tokenCliente);
+
+		const escrito = S.ultimaEscritura('restaurantes');
+		assert.equal(escrito.promo_en_tv, true);
+		assert.equal('slug' in escrito, false);
+		assert.equal('activo' in escrito, false);
+	});
+
 	test('un cliente sigue sin poder tocar lo que no es suyo', async () => {
 		// La fusión no puede haber aflojado el filtro por rol.
 		S.reiniciar(); responder();
