@@ -512,8 +512,12 @@ app.patch('/api/restaurantes/:id/pin', auth, async (req, res) => {
 // Campos de nivel superior que cada rol puede tocar en un restaurante.
 // El cliente NUNCA debe poder cambiar marca/estructura (eso es Apariencia,
 // oculta en la UI pero antes también alcanzable a mano por API).
-const CAMPOS_RESTAURANTE_ADMIN   = ['promo_activa', 'promo_imagen_url', 'color_primario', 'color_secundario', 'nombre', 'slug', 'logo_url', 'fondo_url', 'activo', 'atributos'];
-const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'atributos'];
+// 'promo_nombre', 'promo_precio', 'promo_en_tv' y 'promo_cada' son de la
+// promoción, que el cliente ya administra: entran en las dos listas. Ninguna
+// necesita chequeo de plan — sin la clave 'atributos.tv', que sí lo tiene,
+// tv.html ni siquiera construye pantallas, así que solas no encienden nada.
+const CAMPOS_RESTAURANTE_ADMIN   = ['promo_activa', 'promo_imagen_url', 'promo_nombre', 'promo_precio', 'promo_en_tv', 'promo_cada', 'color_primario', 'color_secundario', 'nombre', 'slug', 'logo_url', 'fondo_url', 'activo', 'atributos'];
+const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_nombre', 'promo_precio', 'promo_en_tv', 'promo_cada', 'atributos'];
 // Dentro de "atributos" (JSON libre), el cliente solo puede tocar estas claves
 // (toppings, WhatsApp de pedidos, métodos de pago y diseño del QR). nav,
 // fuentes, redes, css_custom, etc. quedan fuera.
