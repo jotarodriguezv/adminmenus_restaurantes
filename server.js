@@ -666,8 +666,15 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     // La cobranza tiene su propia tabla, fuera de la lectura pública. Se quita
     // DESPUÉS de fundir y no antes: así no vuelve a colarse ni por lo que
     // mande una pantalla vieja ni por lo que arrastre la fila guardada.
+    //
+    // 'es_prueba' va en la misma lista y por lo mismo: vive en
+    // restaurantes_facturacion, y una copia aquí sería pública, no la leería
+    // nadie, y contradiría a la de verdad en cuanto una de las dos cambiara.
+    // Al cliente ya lo frena la lista de claves permitidas; esto cubre también
+    // al superadmin, que no pasa por ella.
     delete body.atributos.dia_pago;
     delete body.atributos.ultimo_pago;
+    delete body.atributos.es_prueba;
   }
 
   const { data, error } = await supabase.from('restaurantes').update(body).eq('id', req.params.id).select().single();
@@ -1034,7 +1041,7 @@ app.post('/api/ia/por-aprobar/:id/descartar', auth, async (req, res) => {
 app.get('/api/facturacion', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
   const { data, error } = await supabase.from('restaurantes_facturacion')
-    .select('restaurante_id, dia_pago, ultimo_pago');
+    .select('restaurante_id, dia_pago, ultimo_pago, es_prueba');
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
@@ -1063,6 +1070,18 @@ app.patch('/api/facturacion/:restauranteId', auth, async (req, res) => {
     // un error de Postgres con nombres de tabla dentro.
     else if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.ultimo_pago))) fila.ultimo_pago = req.body.ultimo_pago;
     else return res.status(400).json({ error: 'La fecha de pago debe ser AAAA-MM-DD' });
+  }
+
+  // Producción o prueba. Vive aquí y no en 'atributos' porque es un dato
+  // NUESTRO sobre el restaurante, no suyo, y 'atributos' se lee públicamente:
+  // la misma razón por la que el día de pago salió de ahí.
+  //
+  // Solo booleano de verdad. Un 'false' de cadena vacía o un 'no' entrarían
+  // como true y marcarían de prueba a un cliente que paga.
+  if (req.body.es_prueba !== undefined) {
+    if (typeof req.body.es_prueba !== 'boolean')
+      return res.status(400).json({ error: 'es_prueba debe ser true o false' });
+    fila.es_prueba = req.body.es_prueba;
   }
 
   // upsert: un restaurante creado antes de que existiera esta tabla no tiene
