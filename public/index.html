@@ -1088,6 +1088,27 @@
 						</label>
 						<div id="promoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 					</div>
+					<div class="section-card">
+						<div class="section-title">Texto de la promoción</div>
+						<div class="form-row">
+							<div class="form-group">
+								<label for="promoNombre" class="form-label">Nombre</label>
+								<input type="text" class="form-input" id="promoNombre" maxlength="80" placeholder="2x1 en hamburguesas">
+							</div>
+							<div class="form-group">
+								<label for="promoPrecio" class="form-label">Precio</label>
+								<input type="text" class="form-input" id="promoPrecio" maxlength="30" placeholder="$ 30.000">
+							</div>
+						</div>
+						<div style="font-size:11px;color:var(--text-dim);margin:-4px 0 16px">
+							Salen debajo de la imagen en la pantalla del televisor. <b>Si tu imagen ya
+							lleva el texto dibujado dentro, déjalos en blanco</b> — si no, se ve dos veces.
+						</div>
+						<div style="text-align:right">
+							<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="savePromoTexto()">Guardar</button>
+						</div>
+						<div id="promoTextoStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+					</div>
 				</div>
 
 				<!-- TAB PEDIDOS (solo modelo carrito) -->
@@ -1296,6 +1317,15 @@
 								</div>
 							</div>
 
+							<div class="form-group" style="margin-bottom:16px">
+								<label for="tvTema" class="form-label">Colores de la pantalla</label>
+								<select class="form-input" id="tvTema" onchange="tvPintarTema()">
+									<option value="oscuro">Neutros — fondo negro, precios en amarillo</option>
+									<option value="carta">Los colores de mi carta</option>
+								</select>
+								<div id="tvTemaAyuda" style="font-size:11px;color:var(--text-dim);margin-top:6px"></div>
+							</div>
+
 							<div class="form-check" style="margin-bottom:14px">
 								<label class="toggle"><input type="checkbox" id="tvMostrarCategoria" onchange="tvAlternarCategoria()"><span class="toggle-slider"></span></label>
 								<span style="font-size:13px;color:var(--text-muted)">Mostrar la categoría en cada plato</span>
@@ -1327,7 +1357,22 @@
 								televisor se ve a tirones, apágala: los televisores viejos tienen poca
 								capacidad de dibujo.
 							</div>
-							<div style="display:none">
+							<div id="tvPromoBloque" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+								<div class="form-check" style="margin-bottom:14px">
+									<label class="toggle"><input type="checkbox" id="tvPromoEnTv" onchange="tvAlternarPromo()"><span class="toggle-slider"></span></label>
+									<span style="font-size:13px;color:var(--text-muted)">Intercalar mi promoción</span>
+								</div>
+								<div id="tvPromoAyuda" style="font-size:11px;color:var(--text-dim);margin:-8px 0 12px"></div>
+								<div id="tvPromoCadaFila" style="display:none;max-width:260px">
+									<label for="tvPromoCada" class="form-label">Cada cuántas pantallas</label>
+									<select class="form-input" id="tvPromoCada" onchange="tvPintarResumen()">
+										<option value="2">Cada 2</option>
+										<option value="3">Cada 3</option>
+										<option value="4">Cada 4</option>
+										<option value="6">Cada 6</option>
+										<option value="8">Cada 8</option>
+									</select>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -4419,6 +4464,30 @@ function renderPromo() {
   const none=document.getElementById('promoImgNone');
   if(r.promo_imagen_url){prev.src=r.promo_imagen_url;prev.style.display='block';none.style.display='none';}
   else{prev.style.display='none';none.style.display='block';}
+  document.getElementById('promoNombre').value = r.promo_nombre || '';
+  document.getElementById('promoPrecio').value = r.promo_precio || '';
+  document.getElementById('promoTextoStatus').textContent = '';
+}
+
+// El nombre y el precio de la promoción. Hoy solo los usa la cartelera del
+// televisor —el popup de la carta enseña la imagen sola—, pero se piden aquí
+// porque son de la promoción, no de la pantalla: el día que el popup quiera
+// mostrarlos ya están guardados.
+async function savePromoTexto() {
+  const st = document.getElementById('promoTextoStatus');
+  const promo_nombre = document.getElementById('promoNombre').value.trim();
+  const promo_precio = document.getElementById('promoPrecio').value.trim();
+  try {
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`,
+                                { promo_nombre, promo_precio });
+    if (data) state.restaurante = data;
+    else { state.restaurante.promo_nombre = promo_nombre; state.restaurante.promo_precio = promo_precio; }
+    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    showToast('Texto de la promoción guardado', 'success');
+  } catch (e) {
+    st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)';
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 async function togglePromo() {
@@ -5578,7 +5647,8 @@ async function saveToppings() {
 const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          segundos: 8, modo: 'todos', categoria_id: null,
                          productos: [], aleatorio: false, animacion: 'suave',
-                         mostrar_categoria: false, color_categoria: 'oscuro' };
+                         mostrar_categoria: false, color_categoria: 'oscuro',
+                         tema: 'oscuro' };
 
 let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
 let tvFiltro = 'all';   // categoría que se está mirando en el selector
@@ -5604,6 +5674,13 @@ function renderTV() {
   document.getElementById('tvMostrarCategoria').checked = !!cfg.mostrar_categoria;
   document.getElementById('tvColorCategoria').value =
     ['oscuro', 'claro', 'marca'].includes(cfg.color_categoria) ? cfg.color_categoria : 'oscuro';
+  document.getElementById('tvTema').value = cfg.tema === 'carta' ? 'carta' : 'oscuro';
+  // La promoción son columnas del restaurante, no de atributos.tv: las mismas
+  // que ya usa la pestaña de Promoción. Aquí solo se decide si entran en la
+  // rotación del televisor y cada cuánto, que es otra decisión.
+  document.getElementById('tvPromoEnTv').checked = !!state.restaurante?.promo_en_tv;
+  document.getElementById('tvPromoCada').value =
+    String([2, 3, 4, 6, 8].includes(state.restaurante?.promo_cada) ? state.restaurante.promo_cada : 4);
   document.getElementById('tvEnlace').value = urlPublica(state.restaurante) + '/tv';
   document.getElementById('tvStatus').textContent = '';
 
@@ -5627,6 +5704,8 @@ function renderTV() {
   tvPintarMarcarTodos();
   tvAlternarActiva();
   tvAlternarCategoria();
+  tvPintarTema();
+  tvAlternarPromo();
   tvCambiarModo();
   tvAvisoTamano();
 }
@@ -5692,6 +5771,46 @@ function tvAlternarCategoria() {
   const on = document.getElementById('tvMostrarCategoria').checked;
   document.getElementById('tvColorCategoriaFila').style.display = on ? 'block' : 'none';
   tvPintarMuestraCategoria();
+}
+
+// Los colores de la página entera. La cartelera no repite aquí el cálculo de
+// tv.html —aclarar un color oscuro hasta que se lea es cosa suya— porque
+// enseñar aquí una muestra que no coincida sería peor que no enseñar ninguna.
+// Lo que sí se hace es decir qué va a tomar y de dónde.
+function tvPintarTema() {
+  const carta = document.getElementById('tvTema').value === 'carta';
+  document.getElementById('tvTemaAyuda').textContent = carta
+    ? 'Toma el fondo y los colores que tienes en Apariencia: el precio de cada plato ' +
+      'sale en tu color, y el fondo negro se tiñe muy suavemente. Si tu color es oscuro, ' +
+      'la pantalla lo aclara lo justo para que el precio se lea desde el fondo del local.'
+    : 'Fondo negro y precios en amarillo, igual para todos los restaurantes.';
+}
+
+// La promoción del televisor. Reutiliza la que ya está en la pestaña de
+// Promoción: pedirle una segunda imagen sería pedirle el mismo trabajo dos
+// veces. Lo que se decide aquí es solo si entra en la rotación y cada cuánto.
+function tvAlternarPromo() {
+  const on = document.getElementById('tvPromoEnTv').checked;
+  const hayImagen = !!state.restaurante?.promo_imagen_url;
+  const activa = !!state.restaurante?.promo_activa;
+  document.getElementById('tvPromoCadaFila').style.display = on ? 'block' : 'none';
+
+  const ayuda = document.getElementById('tvPromoAyuda');
+  // Se avisa de lo que falta en vez de bloquear el interruptor: la promoción se
+  // configura en otra pestaña y puede llegar después.
+  if (!hayImagen) {
+    ayuda.textContent = 'Todavía no has subido la imagen de tu promoción. Se sube en la ' +
+                        'pestaña Promoción, y hasta entonces esto no muestra nada.';
+    ayuda.style.color = 'var(--warning)';
+  } else if (!activa) {
+    ayuda.textContent = 'Tu promoción está apagada en la pestaña Promoción, así que ' +
+                        'tampoco saldrá aquí.';
+    ayuda.style.color = 'var(--warning)';
+  } else {
+    ayuda.textContent = 'Tu promoción sale a pantalla completa cada tantas pantallas de platos.';
+    ayuda.style.color = 'var(--text-dim)';
+  }
+  tvPintarResumen();
 }
 
 function tvCambiarModo() {
@@ -5846,11 +5965,27 @@ function tvPintarResumen() {
   const porSlide = parseInt(document.getElementById('tvPorSlide').value, 10) || 1;
   const seg = Math.min(60, Math.max(4, parseInt(document.getElementById('tvSegundos').value, 10) || 8));
   const pantallas = Math.ceil(n / porSlide);
-  const vueltas = pantallas * seg;
+
+  // La promoción alarga la vuelta: si no se cuenta, el resumen miente.
+  const promoOn = document.getElementById('tvPromoEnTv')?.checked
+    && !!state.restaurante?.promo_activa && !!state.restaurante?.promo_imagen_url;
+  const cada = parseInt(document.getElementById('tvPromoCada')?.value, 10) || 4;
+  const dePromo = promoOn ? Math.floor(pantallas / cada) : 0;
+
+  const vueltas = (pantallas + dePromo) * seg;
   const min = Math.floor(vueltas / 60), s = vueltas % 60;
 
-  const partes = [`${n} plato${n === 1 ? '' : 's'} · ${pantallas} pantalla${pantallas === 1 ? '' : 's'} · ` +
+  const partes = [`${n} plato${n === 1 ? '' : 's'} · ${pantallas} pantalla${pantallas === 1 ? '' : 's'}` +
+    (dePromo ? ` + ${dePromo} de promoción` : '') + ' · ' +
     'la vuelta dura ' + (min ? `${min} min ${s ? s + ' s' : ''}`.trim() : `${s} s`)];
+
+  // Encender la promoción y que no salga nunca porque el ciclo es más corto
+  // que la frecuencia es exactamente el tipo de cosa que se descubre con la
+  // tele puesta.
+  if (promoOn && !dePromo) {
+    partes.push(`Con ${pantallas} pantalla${pantallas === 1 ? '' : 's'} y la promoción cada ${cada}, ` +
+                'no llegaría a salir nunca: bájala.');
+  }
 
   // Menos platos que huecos. No es un fallo —salen más grandes y llenan igual—
   // pero elegir "4 a la vez" y ver dos descoloca si nadie lo avisa.
@@ -5917,11 +6052,20 @@ async function saveTV() {
     animacion: document.getElementById('tvAnimacion').checked ? 'suave' : 'ninguna',
     mostrar_categoria: document.getElementById('tvMostrarCategoria').checked,
     color_categoria: document.getElementById('tvColorCategoria').value,
+    tema: document.getElementById('tvTema').value,
   };
 
-  // Solo su clave: el servidor funde. Ver el comentario de saveToppings.
+  // De 'atributos', solo su clave: el servidor funde. Ver saveToppings.
+  // promo_en_tv y promo_cada NO van en atributos: son columnas del restaurante,
+  // las mismas que lee tv.html. Viajan en el mismo PATCH para que guardar sea
+  // un solo botón y no dos.
+  const cuerpo = {
+    atributos: { tv },
+    promo_en_tv: document.getElementById('tvPromoEnTv').checked,
+    promo_cada: parseInt(document.getElementById('tvPromoCada').value, 10) || 4,
+  };
   try {
-    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos: { tv } });
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, cuerpo);
     if (data) state.restaurante = data;
     document.getElementById('tvSegundos').value = tv.segundos;
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
