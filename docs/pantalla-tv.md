@@ -102,10 +102,16 @@ es el VPS: es la memoria y la GPU del televisor.
     "modo": "categoria",
     "categoria_id": "uuid-de-la-categoria",
     "productos": [],
-    "aleatorio": false
+    "aleatorio": false,
+    "animacion": "suave",
+    "mostrar_categoria": true,
+    "color_categoria": "marca"
   }
 }
 ```
+
+`color_categoria` toma `oscuro` (por defecto), `claro` o `marca`. No es un
+color libre: ver 10.quater.
 
 **Por qué en `atributos` y no en una tabla nueva.** Una tabla nueva significa
 una política RLS más (superficie pública nueva), endpoints de alta/baja/edición
@@ -363,6 +369,68 @@ que el panel lo dice antes de guardar.
 sugiere encender el orden aleatorio: no añade platos, pero cambia las parejas
 en cada vuelta y disimula la repetición. Solo lo sugiere si está apagado —
 sugerir algo que ya está puesto hace dudar de si de verdad lo está.
+
+## 10.quater La etiqueta de categoría, legible y con color (30/08/2026)
+
+Tres retoques a la etiqueta que estrenó 10.ter, todos salidos de mirarla puesta.
+
+**Se leía pequeña.** Iba proporcional al nombre del plato (×0,42) y con cuatro
+platos bajaba a 1 vmin — unos 11 px en un televisor de 1080. Ahora va a ×0,58
+**con un suelo de 1,9 vmin**: por debajo de eso deja de leerse desde la mesa del
+fondo, y una etiqueta que no se lee es solo un borrón encima de la foto. El
+suelo es lo que importa; el multiplicador solo decide cuándo se supera. De paso
+el relleno pasó de `vmin` fijo a `em`, para que la caja crezca con la letra en
+vez de quedarse estrecha.
+
+**Se la comía el logo del negocio.** El logo se dibuja **encima** de la primera
+foto y la etiqueta vivía siempre en el mismo rincón de esa misma foto: con el
+logo a la izquierda, uno tapaba al otro. Como el logo cambia de esquina en cada
+pantalla —contra el quemado del panel—, esto no se podía arreglar fijando un
+lado. Ahora la etiqueta se va **a la esquina contraria del logo**, y se recalcula
+en cada slide.
+
+Van **todas** del mismo lado, no solo la del plato que estorba: mover una sola
+deja una etiqueta descolocada y se lee como un fallo; moverlas todas se lee como
+un espejo. Efecto secundario útil: las etiquetas también son cajas quietas de
+alto contraste, así que ahora ellas tampoco se quedan meses en el mismo píxel.
+
+El detalle que hay que cuidar al tocar `avanzar()`: **el lado se decide antes de
+pintar**. Si el volteo de `marcaDerecha` vuelve al final de la función, las
+etiquetas se pintan con el lado de la pantalla *anterior* y aterrizan justo
+encima del logo. Hay una prueba que lo comprueba sobre el propio código fuente.
+
+**Color.** Tres presets, no un selector libre: un selector libre deja elegir
+gris sobre gris, y esto acaba colgado en una pared donde nadie va a volver a
+mirarlo.
+
+| valor | qué es | cuándo |
+|---|---|---|
+| `oscuro` | negro translúcido, texto claro *(por defecto)* | se lee sobre cualquier foto |
+| `claro` | blanco translúcido, texto oscuro | fotos oscuras, carta luminosa |
+| `marca` | el `color_primario` del restaurante | que la cartelera y la carta se parezcan |
+
+`marca` **reutiliza el color que el restaurante ya guardó** para su menú
+(`restaurantes.color_primario`) en vez de pedirle que configure el color otra
+vez. Eso obligó a añadir esa columna al `select` de `tv.html` — con lo que costó
+la última vez que faltó una columna, ver 11.bis, esta vez se comprobó primero
+contra `information_schema` que existe de verdad.
+
+El texto encima **no puede ser fijo**. Los nueve restaurantes van de `#ffd521`
+(amarillo) a `#0a4380` (azul marino); con blanco fijo la mitad no se lee y con
+negro fijo la otra mitad tampoco. Se calcula por brillo percibido
+—`(r·299 + g·587 + b·114)/1000`, que pesa el verde seis veces más que el azul—
+y por encima de 145 va texto oscuro. Comprobado contra los nueve colores reales.
+
+Tres restaurantes tienen la columna vacía. Ahí no se inventa un color: se vuelve
+al oscuro, **y el panel lo dice** en vez de enseñar una muestra bonita que no es
+lo que va a salir en la pared.
+
+**El espejo que hay que vigilar.** La muestra del panel repite a mano la paleta
+y el cálculo de contraste de `tv.html`. No hay forma de que una prueba compare
+las dos: están en repositorios distintos y `tv.html` no puede importar nada
+—corre en televisores de 2018, sin módulos ES. Es la misma clase de duplicado
+que `PLANES`. Si se desincronizan, el restaurante ve un color en el panel y otro
+en la pantalla.
 
 ## 11.bis Lo que enseñó el primer despliegue (29/08/2026)
 
