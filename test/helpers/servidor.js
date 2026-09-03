@@ -146,6 +146,25 @@ async function pedirTexto(ruta) {
            cache: res.headers.get('cache-control'), html: await res.text() };
 }
 
+// Una petición SIN Content-Type, que es lo que manda un cliente mal escrito o
+// un curl al que se le olvidó la cabecera.
+//
+// pedir() siempre pone 'application/json', así que ninguna prueba pasaba por
+// aquí — y es justo el camino que cambió al pasar a Express 5: si ningún
+// parser reconoce el cuerpo, req.body se queda en undefined en vez del objeto
+// vacío que ponía Express 4.
+async function pedirSinTipo(metodo, ruta, cuerpo = '', token) {
+  const p = await puertoListo();
+  const res = await fetch(`http://127.0.0.1:${p}${ruta}`, {
+    method: metodo,
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: cuerpo || undefined,
+  });
+  let json = null;
+  try { json = await res.json(); } catch { /* puede no traer cuerpo */ }
+  return { status: res.status, body: json };
+}
+
 // Empieza a subir un archivo y corta el socket a media transferencia, que es
 // lo que hace una conexión mala con un video de 70 MB.
 //
@@ -193,7 +212,7 @@ function reiniciar() {
 }
 
 module.exports = {
-  pedir, pedirArchivo, pedirTexto, subirYCortar, llamadas, ultimaEscritura, reiniciar, IDS, tokenCliente, tokenAdmin,
+  pedir, pedirSinTipo, pedirArchivo, pedirTexto, subirYCortar, llamadas, ultimaEscritura, reiniciar, IDS, tokenCliente, tokenAdmin,
   conTabla: fn => { responderTabla = fn; },
   conRpc: fn => { responderRpc = fn; },
 };
