@@ -3805,16 +3805,24 @@ async function refrescarCupoIA() {
 			// Cada apagado dice qué falta y qué hacer. El motivo va en su
 			// propio elemento: 'iaEncaje' es solo para la proporción de la
 			// foto, y 'iaEstado' lo usa la generación en marcha.
+			// Cada uno dice PRIMERO qué hacer y después por qué, en ese orden:
+			// quien lee un botón apagado quiere salir de ahí, no entender el
+			// modelo de datos.
+			//
+			// Y sin metáforas técnicas. "El video se cuelga del plato" describe
+			// cómo está hecho por dentro y no significa nada para quien
+			// administra un restaurante — además de sonar raro en Colombia,
+			// que es donde están los clientes.
 			const MOTIVOS = {
-				'sin-guardar': 'Guarda el plato primero. El video se cuelga de él, así que todavía no hay dónde ponerlo.',
-				'sin-foto':    'Sube una foto del plato: es de donde sale el video. Sin ella no hay nada que animar.',
+				'sin-guardar': 'Primero guarda el plato. Después podrás generarle el video: cada video queda asociado a un plato.',
+				'sin-foto':    'Sube una foto del plato. La IA crea el video a partir de esa foto.',
 				// La proporción ya se explica en 'iaEncaje', con el detalle de
 				// a cuánto habría que recortarla. Repetirlo aquí sería decir
 				// dos veces lo mismo con menos precisión.
 				'foto':        '',
-				'en-curso':    'Ya hay una generación en camino para este plato. Espera a que termine.',
-				'sin-revisar': 'Este plato ya tiene un video generado esperando que lo revises. ' +
-				               'Publícalo o descártalo antes de gastar otra animación.',
+				'en-curso':    'Ya se está generando un video para este plato. Espera a que termine.',
+				'sin-revisar': 'Este plato tiene un video generado esperando tu revisión. ' +
+				               'Publícalo o descártalo antes de generar otro.',
 			};
 			const razon = document.getElementById('iaMotivo');
 
@@ -3833,7 +3841,7 @@ async function refrescarCupoIA() {
 				// el plan, delante de quien lo contrató.
 				if (razon) {
 					razon.textContent = tieneVideoPuesto(productoId)
-						? 'Generará una versión nueva. No reemplaza a la actual hasta que la revises y la publiques.'
+						? 'Crea una versión nueva. La actual sigue en la carta hasta que revises y publiques la nueva.'
 						: '';
 					razon.style.color = 'var(--text-muted)';
 				}
