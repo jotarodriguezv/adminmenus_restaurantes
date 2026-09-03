@@ -1885,7 +1885,7 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		await correr(m);
 
 		assert.equal(m.btnGenerarIA.disabled, true);
-		assert.match(m.iaMotivo.textContent, /Guarda el plato primero/);
+		assert.match(m.iaMotivo.textContent, /Primero guarda el plato/);
 	});
 
 	test('sin foto se apaga y lo explica, en vez de esconder el bloque', async () => {
@@ -1927,7 +1927,7 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		m.imgEditPreview.src = '';
 		await correr(m);
 
-		assert.match(m.iaMotivo.textContent, /Guarda el plato primero/);
+		assert.match(m.iaMotivo.textContent, /Primero guarda el plato/);
 	});
 
 	// ── CON VIDEO PUESTO, LA ACCIÓN NO ES LA MISMA ────────────
@@ -1946,7 +1946,7 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		const m = pantalla();
 		await correr(m, { productos: [{ id: 'p1', atributos: { video: { url: 'https://x/v.mp4' } } }] });
 
-		assert.match(m.iaMotivo.textContent, /No reemplaza a la actual/);
+		assert.match(m.iaMotivo.textContent, /sigue en la carta hasta que revises/);
 	});
 
 	test('sin video puesto dice "Generar", no "Regenerar"', async () => {
@@ -1970,7 +1970,7 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		// Abrir uno que sí puede generar después de uno que no podía dejaba en
 		// pantalla la razón del anterior, que es peor que no decir nada.
 		const m = pantalla();
-		m.iaMotivo.textContent = 'Guarda el plato primero.';
+		m.iaMotivo.textContent = 'Primero guarda el plato.';
 		await correr(m, { encaje: { veredicto: 'bien', mensaje: '' } });
 
 		assert.equal(m.iaMotivo.textContent, '');
