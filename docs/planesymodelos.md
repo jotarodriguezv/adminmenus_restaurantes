@@ -147,6 +147,105 @@ pedir más.
 disponible" invita a preguntar por algo que se quitó a propósito. El cupo se
 conserva: si se vuelve a encender, sigue donde iba.
 
+### El cupo es un freno, no un producto (03/09/2026)
+
+Los 24 por defecto **no salen de ningún análisis**: se pusieron para que nadie
+pudiera lanzar cien generaciones y dejar una factura. Es un tope de abuso.
+
+Importa porque cambia cómo se habla de él. Ampliar el cupo de alguien que se lo
+gastó generando su carta es un trámite, no una venta. **Lo que se vende es el
+plan Video; la IA es uno de sus argumentos, no una línea aparte de la factura.**
+
+Si algún día se vendieran packs de animaciones, esta decisión cambia y hay que
+volver aquí.
+
+---
+
+## 4.bis Qué se puede hacer en la ficha de un plato
+
+Cerrado el 03/09/2026, **antes** de tocar la interfaz. La ficha de producto
+enseñaba todas las opciones a la vez y esperaba que el usuario dedujera cuál
+tocaba; esto define qué se puede hacer en cada momento y por qué, para que el
+modal se construya contra estas reglas y no contra una conversación.
+
+### Las dos condiciones que se confunden
+
+| | Subir un video | Generar con IA |
+|---|---|---|
+| Plan Video | **sí** | **sí** |
+| IA encendida y con cupo | no | **sí** |
+| El plato ya guardado | **sí** | **sí** |
+| El plato con foto | **no** | **sí** |
+
+**Subir un video NO exige foto.** Exige que el plato exista, porque el trabajo
+de conversión se cuelga de su identificador. Son cosas distintas y se
+confundían: un restaurante que llega con video profesional puede tener platos
+solo con video, y la carta funciona — el video trae su propia portada, sacada
+por ffmpeg del propio video.
+
+Generar sí exige foto, y no es un requisito administrativo: **la foto es la
+entrada del modelo**. Sin ella no hay nada que animar.
+
+### La IA sigue exigiendo plan Video, a propósito
+
+Decidido el 03/09/2026. Lo que genera es un video, y servir video es justo lo
+que el plan Video paga. Vender IA a una carta de fotos obligaría a servirle
+algo que su plan no cubre.
+
+El efecto comercial es que **la IA no se vende suelta**: es un argumento del
+plan Video, y sirve para llegar al restaurante que no tiene material grabado.
+El que sí lo tiene entra al mismo plan por el otro argumento.
+
+### Generar y subir NO terminan igual
+
+Es la diferencia que más se nota al usarlo y la que hay que contar:
+
+| | Cuándo entra en la carta |
+|---|---|
+| **Video subido** | En cuanto termina de convertir. Directo |
+| **Video generado** | **No toca el plato.** Espera revisión, y solo entra al pulsar publicar |
+
+La revisión no es burocracia: el modelo no copia el plato, lo interpreta, y al
+girar la cámara tiene que rellenar el lado que la foto no enseña. Ahí puede
+aparecer una guarnición que el negocio no sirve. Ver `docs/video-con-ia.md`.
+
+Consecuencia práctica: **generar con IA teniendo ya un video no lo pisa**. El
+actual sigue en la carta hasta que alguien aprueba el nuevo.
+
+### Un plato tiene UN video
+
+No hay versiones. El historial vive en `trabajos_video`, y la vuelta atrás es
+el master: quitar un video lo deja guardado y "volver a poner" lo recupera
+reconvirtiendo. Soportar varias versiones por plato sería otro producto.
+
+### La regla que ordena la ficha
+
+> **La IA no desaparece nunca por el estado del plato. Solo desaparece cuando
+> el superadmin la apaga.**
+
+Lo que cambia con el estado es **cómo se llama y cuánto pesa**, no si existe.
+Esconderla porque el plato ya tiene video sería quitar de la vista una
+funcionalidad que se usa para vender el plan, y quien la contrató tiene que
+verla.
+
+El caso de "ya generé mis 20 videos y el botón me estorba" **no se resuelve en
+la ficha**: se resuelve apagando `activa` desde la lista, que es donde el
+superadmin decide. Está en la sección 4.
+
+| Estado del plato | Acción principal | La IA |
+|---|---|---|
+| Sin guardar | — | Apagada: *guarda el plato primero* |
+| Guardado, sin foto | **Elegir video** | Apagada: *sube una foto, es de donde sale el video* |
+| Con foto, sin video | **Elegir video** | Visible: *✨ Generar con IA* |
+| Archivo elegido, sin subir | **Subir y convertir** | Se repliega, no desaparece |
+| Subiendo o convirtiendo | Solo el progreso | Apagada |
+| Generado, sin revisar | Publicar / Descartar | El bloque de revisión |
+| **Con video puesto** | Cambiar video | *✨ **Regenerar** con IA*, avisando de que reemplaza tras aprobarlo |
+
+**"Regenerar" y no "Generar"** cuando ya hay video: cambia la intención sin
+esconder nada, y evita que la ficha ofrezca una acción que parece ignorar lo
+que el plato ya tiene.
+
 ---
 
 ## 5. Cómo leer la lista de restaurantes
