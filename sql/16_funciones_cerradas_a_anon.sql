@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- CERRAR A anon LAS FUNCIONES QUE SOLO USA EL PANEL — SIN APLICAR
+-- CERRAR A anon LAS FUNCIONES QUE SOLO USA EL PANEL — YA APLICADO el 03/09/2026
 -- ═══════════════════════════════════════════════════════════════
 -- Solo revoca permisos. No cambia ninguna función, ninguna tabla y ninguna
 -- fila. Aplicarlo no puede romper el panel: el servidor entra con la clave de
@@ -33,10 +33,19 @@
 --   "Hay que quitar el EXECUTE que PostgreSQL concede a PUBLIC por defecto:
 --    revocárselo a anon no basta, porque lo hereda de ahí."
 --
--- Es al revés. Supabase concede EXECUTE a anon y a authenticated de forma
--- EXPLÍCITA, mediante privilegios por defecto sobre el esquema public. Una
--- concesión directa no se quita revocándosela a PUBLIC: hay que nombrar al
--- rol. Por eso hacen falta los dos revoke y no uno.
+-- Lo que dice de PUBLIC es cierto, y su revoke funcionó: en el ACL de
+-- estadisticas_restaurante ya no estaba el grantee vacío. Lo que falla es el
+-- "no basta", que da por hecho que la de PUBLIC es la ÚNICA vía.
+--
+-- Hay dos, y son independientes:
+--
+--   · PostgreSQL concede EXECUTE a PUBLIC en cada función nueva.
+--   · Supabase, además, concede EXECUTE a anon y a authenticated de forma
+--     EXPLÍCITA, por privilegios por defecto sobre el esquema public.
+--
+-- Una concesión directa no se quita revocándosela a PUBLIC, ni al revés. Así
+-- que sql/03 cerró una puerta y dejó la otra abierta, y la función quedó
+-- accesible con la clave publicable pareciendo que no lo estaba.
 --
 -- sql/03 no se corrige: una migración ya aplicada no se edita. Queda aquí el
 -- porqué, que es donde lo va a buscar quien tropiece con lo mismo.
