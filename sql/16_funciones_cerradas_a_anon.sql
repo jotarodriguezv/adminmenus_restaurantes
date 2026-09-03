@@ -1,0 +1,65 @@
+-- ═══════════════════════════════════════════════════════════════
+-- CERRAR A anon LAS FUNCIONES QUE SOLO USA EL PANEL — SIN APLICAR
+-- ═══════════════════════════════════════════════════════════════
+-- Solo revoca permisos. No cambia ninguna función, ninguna tabla y ninguna
+-- fila. Aplicarlo no puede romper el panel: el servidor entra con la clave de
+-- servicio, que conserva su grant.
+--
+-- ── QUÉ ARREGLA, Y QUÉ NO ─────────────────────────────────────
+-- sql/03 quiso dejar estadisticas_restaurante solo para el servidor y no lo
+-- consiguió. El revoke está escrito, pero apuntaba al sitio equivocado, así
+-- que desde entonces cualquiera con la clave publicable puede invocarla por
+-- PostgREST. Se comprobó el 03/09/2026 llamándola como anon: responde.
+--
+-- Lo que devuelve NO es información reservada, y conviene decirlo para que
+-- nadie trate esto como una urgencia que no es. La función es SECURITY
+-- INVOKER, así que se ejecuta con los permisos de quien llama y la RLS sigue
+-- mandando: eventos_analitica tiene RLS sin políticas, de modo que anon ve
+-- cero visitas, cero clics y cero agregados. Lo único que sale es la lista de
+-- productos dentro de 'nuncaAbiertos' — que son los mismos nombres que
+-- cualquiera lee en la carta pública.
+--
+-- Se cierra igualmente por dos razones:
+--
+--   1. Es una capa de defensa que hoy no defiende. El día que alguien añada
+--      una política a eventos_analitica por cualquier otro motivo, esa
+--      función pasa a devolver analítica real sin que nada lo advierta.
+--   2. Porque lo que está escrito en el repositorio dice que ya está cerrada.
+--      Una protección que se cree puesta es peor que una que se sabe ausente.
+--
+-- ── POR QUÉ EL REVOKE DE sql/03 NO SURTIÓ EFECTO ──────────────
+-- Aquel archivo dejó esta nota:
+--
+--   "Hay que quitar el EXECUTE que PostgreSQL concede a PUBLIC por defecto:
+--    revocárselo a anon no basta, porque lo hereda de ahí."
+--
+-- Es al revés. Supabase concede EXECUTE a anon y a authenticated de forma
+-- EXPLÍCITA, mediante privilegios por defecto sobre el esquema public. Una
+-- concesión directa no se quita revocándosela a PUBLIC: hay que nombrar al
+-- rol. Por eso hacen falta los dos revoke y no uno.
+--
+-- sql/03 no se corrige: una migración ya aplicada no se edita. Queda aquí el
+-- porqué, que es donde lo va a buscar quien tropiece con lo mismo.
+--
+-- ── CÓMO COMPROBARLO, ANTES Y DESPUÉS ─────────────────────────
+--   select proname, has_function_privilege('anon', oid, 'EXECUTE')
+--     from pg_proc
+--    where proname in ('estadisticas_restaurante', 'resumen_video_restaurantes');
+--
+-- Antes de aplicar esto devuelve true en las dos. Después, false.
+
+revoke execute on function public.estadisticas_restaurante(uuid, timestamptz, timestamptz, text) from anon, authenticated;
+revoke execute on function public.resumen_video_restaurantes() from anon, authenticated;
+
+-- ── LO QUE SE DEJA COMO ESTÁ, A PROPÓSITO ─────────────────────
+-- tocar_actualizado_en() también tiene el EXECUTE de anon, y no se toca.
+-- Devuelve 'trigger', y una función así no se puede llamar como una función
+-- normal: PostgREST no la expone y PostgreSQL rechaza la llamada directa.
+-- Revocarla no quitaría ningún acceso real y sí añadiría el riesgo de tocar
+-- algo de lo que dependen los triggers de varias tablas.
+--
+-- resumen_video_restaurantes ya estaba fuera del alcance de anon por otra
+-- vía: lee restaurantes_ia, y sql/07 le revocó esa tabla, así que la llamada
+-- muere con "permission denied for table restaurantes_ia". El revoke de
+-- arriba la cierra en la puerta en vez de en el pasillo, que es donde debería
+-- haber estado desde el principio.
