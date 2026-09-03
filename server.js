@@ -2021,7 +2021,7 @@ app.use((err, req, res, next) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.listen(PORT, () => {
+const servidor = app.listen(PORT, () => {
   console.log(`✅ Panel corriendo en puerto ${PORT}`);
   // Se puede apagar con VIDEO_WORKER=0 si algún día conviene moverlo a un
   // proceso aparte.
@@ -2032,3 +2032,23 @@ app.listen(PORT, () => {
   else if (!process.env.REPLICATE_API_TOKEN) console.log('✨ cola de IA apagada: falta REPLICATE_API_TOKEN');
   limpieza.arrancar(supabase);
 });
+
+// ── CUÁNTO SE ESPERA A QUE LLEGUE UNA SUBIDA ──────────────────
+// Node corta por su cuenta cualquier petición que tarde más de requestTimeout
+// en llegar ENTERA, cuerpo incluido. Su valor por defecto son 300 s, y eso no
+// da para lo que esta aplicación dice aceptar: 200 MB (VIDEO_MAX_MB) a 500
+// KB/s son 400 segundos. El límite de tamaño y el de tiempo se contradecían.
+//
+// El 03/09/2026 se subió el de Traefik a 900 s, porque el suyo —60 s por
+// defecto— estaba cortando las subidas de video con un 502. Este es el mismo
+// número: la cadena vale lo que su eslabón más corto, y dejar aquí 300 s
+// habría movido el corte de un sitio a otro en vez de quitarlo.
+//
+// No se pone a 0 (sin límite) a propósito: eso deja abierta la puerta a
+// mantener conexiones vivas para siempre. 15 minutos cubren 200 MB en una
+// conexión mala y siguen cerrando lo que no avanza.
+//
+// Si algún día cambia el de Traefik, este tiene que cambiar con él. Está
+// escrito en docs/servidor.md, sección 7.
+const SUBIDA_MAX_MS = Number(process.env.SUBIDA_MAX_MS || 900_000);
+servidor.requestTimeout = SUBIDA_MAX_MS;

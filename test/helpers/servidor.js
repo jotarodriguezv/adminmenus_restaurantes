@@ -71,6 +71,17 @@ Object.assign(process.env, {
                         // contenedor pequeño por un motivo que no se prueba
 });
 
+// El servidor HTTP que crea server.js, para poder afirmar sobre lo que se le
+// ajusta después de app.listen() —los tiempos de espera, por ejemplo—, que no
+// se ve por HTTP de ninguna otra forma. Se intercepta antes del require porque
+// server.js llama a listen() al cargarse.
+let servidorHttp = null;
+const listenOriginal = http.Server.prototype.listen;
+http.Server.prototype.listen = function (...args) {
+  servidorHttp = this;
+  return listenOriginal.apply(this, args);
+};
+
 require(path.join(RAIZ, 'server.js'));
 const jwt = require(path.join(RAIZ, 'node_modules', 'jsonwebtoken'));
 
@@ -212,6 +223,7 @@ function reiniciar() {
 }
 
 module.exports = {
+  servidor: () => servidorHttp,
   pedir, pedirSinTipo, pedirArchivo, pedirTexto, subirYCortar, llamadas, ultimaEscritura, reiniciar, IDS, tokenCliente, tokenAdmin,
   conTabla: fn => { responderTabla = fn; },
   conRpc: fn => { responderRpc = fn; },
