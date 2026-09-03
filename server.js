@@ -1382,26 +1382,27 @@ app.post('/api/upload', auth, upload.single('file'), (req, res) => {
 // inmediato, y esta ruta se llama cuando alguien se arrepiente de una foto:
 // no es un camino caliente. El día que las tablas crezcan, esto se acota por
 // restaurante — no antes, que sería complicarlo por un problema que no hay.
-const TABLAS_CON_ARCHIVOS = [
-  { tabla: 'restaurantes',   dueno: 'id' },
-  { tabla: 'categorias',     dueno: 'restaurante_id' },
-  { tabla: 'productos',      dueno: 'restaurante_id' },
-  { tabla: 'trabajos_video', dueno: 'restaurante_id' },
-];
-
+// De qué restaurante es un archivo de uploads/, o null si no lo referencia
+// nadie.
+//
+// La pregunta la contesta la base (ver sql/17). Aquí se hacía un select('*')
+// SIN filtro sobre cuatro tablas, se traían todas las filas por la red y se
+// buscaba el nombre serializando cada una a JSON en Node — en cada borrado de
+// una imagen. La comprobación era correcta; el coste crecía con la base
+// entera en vez de con lo que se busca.
+//
+// Lo que NO cambia es qué se mira: la fila completa como texto, no unas
+// columnas elegidas. Un archivo se referencia desde imagen_url, logo_url,
+// fondo_url y también desde dentro de 'atributos'. Enumerar columnas haría
+// que una URL guardada mañana en una clave nueva quedara invisible, y un
+// archivo invisible es un archivo que se puede borrar siendo de otro.
 async function restauranteDelArchivo(clave) {
-  for (const { tabla, dueno } of TABLAS_CON_ARCHIVOS) {
-    const { data, error } = await supabase.from(tabla).select('*');
-    // Si una tabla no contesta NO se puede concluir que el archivo no es de
-    // nadie: se corta y quien llama trata la duda como un no. Fallar abierto
-    // aquí sería dejar borrar por un problema de red.
-    if (error) throw new Error(`comprobando ${tabla}: ${error.message}`);
-    for (const fila of data || []) {
-      if (limpieza.recogerNombres(JSON.stringify(fila), new Set()).has(clave))
-        return fila[dueno] || null;
-    }
-  }
-  return null;
+  const { data, error } = await supabase.rpc('restaurante_del_archivo', { p_clave: clave });
+  // Si la base no contesta NO se puede concluir que el archivo no es de
+  // nadie: se corta y quien llama trata la duda como un no. Fallar abierto
+  // aquí sería dejar borrar por un problema de red.
+  if (error) throw new Error(`comprobando de quién es el archivo: ${error.message}`);
+  return data || null;
 }
 
 // Express aplica decodeURIComponent a los parámetros de ruta, así que un
