@@ -682,6 +682,80 @@ describe('GET /api/og/:slug · la vista previa al compartir', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('la dirección de un restaurante · lo que no puede ser', () => {
+	// El slug es la URL pública y lo que va impreso en los QR. Un slug malo no
+	// se nota al crearlo: se nota cuando el restaurante ya repartió los códigos.
+	//
+	// El panel ya comprueba el formato antes de enviar, así que por la interfaz
+	// no entran. Se comprueba igualmente en el servidor porque el panel es UN
+	// cliente y no la única puerta, y porque la comprobación ya existía en el
+	// PATCH: tenerla en un sitio y no en el otro es lo que deja pasar justo el
+	// caso que importa, el de crear.
+
+	test('al CREAR se rechaza un formato inválido, igual que al editar', async () => {
+		const r = await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Mi Sitio', slug: 'Mi Restaurante', pin: '1234' }, tokenAdmin);
+
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /solo minúsculas/);
+		assert.equal(S.llamadas.some(l => l.tabla === 'restaurantes' && l.op === 'insert'), false,
+			'no puede llegar a escribirse');
+	});
+
+	test('"admin" se rechaza: ese restaurante nunca podría entrar a su panel', async () => {
+		// POST /api/login desvía todo lo que sea 'admin' al PIN de superadmin.
+		// Un restaurante con esa dirección compararía su PIN contra PIN_ADMIN y
+		// fallaría siempre, con un "Credenciales incorrectas" que no da ninguna
+		// pista de por qué. Se cierra al crearlo, que es cuando tiene arreglo.
+		const r = await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Panel', slug: 'admin', pin: '1234' }, tokenAdmin);
+
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /reservada/);
+		assert.equal(S.llamadas.some(l => l.tabla === 'restaurantes' && l.op === 'insert'), false);
+	});
+
+	test('los subdominios de la plataforma tampoco', async () => {
+		// slugDesde() los trata como "esto no es un restaurante" para poder
+		// distinguir menu.vmenus.co/bonzas de bonzas.vmenus.co. Registrar uno
+		// crearía una carta inalcanzable por subdominio.
+		for (const slug of ['menu', 'www', 'app', 'api']) {
+			const r = await S.pedir('POST', '/api/restaurantes',
+				{ nombre: 'X', slug, pin: '1234' }, tokenAdmin);
+			assert.equal(r.status, 400, `"${slug}" tendría que rechazarse`);
+			assert.match(r.body.error, /reservada/);
+		}
+	});
+
+	test('el mensaje propone una salida en vez de solo decir que no', async () => {
+		// Mismo criterio que el de la dirección repetida: quien lo lee tiene que
+		// saber qué escribir a continuación.
+		const r = await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'X', slug: 'admin', pin: '1234' }, tokenAdmin);
+		assert.match(r.body.error, /admin-restaurante/);
+	});
+
+	test('al EDITAR se aplica la misma regla', async () => {
+		// Si solo se cerrara al crear, bastaría renombrarse después para acabar
+		// en el mismo sitio.
+		const r = await S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`,
+			{ slug: 'admin' }, tokenAdmin);
+
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /reservada/);
+	});
+
+	test('una dirección normal sigue pasando', async () => {
+		// La comprobación no puede volverse tan estricta que estorbe: los guiones
+		// y los números son justo lo que se usa para desempatar dos sedes.
+		const r = await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Doña Rosa', slug: 'donarosa-bucaramanga2', pin: '1234' }, tokenAdmin);
+
+		assert.notEqual(r.status, 400);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('POST /api/restaurantes · la dirección repetida se explica', () => {
 	// Dos restaurantes SÍ pueden llamarse igual: hay una Doña Rosa en San Gil
 	// y otra en Bucaramanga. Lo que no puede repetirse es la dirección, y esa

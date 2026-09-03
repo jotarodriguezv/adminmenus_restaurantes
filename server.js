@@ -449,12 +449,49 @@ app.get('/api/restaurantes', auth, async (req, res) => {
 // clonar uno sin el otro deja al restaurante nuevo con el carrete puesto pero
 // con otra cara que la del que se copió — que es justo lo que no se esperaba
 // al pulsar "clonar apariencia".
+// ── LA DIRECCIÓN DE UN RESTAURANTE ────────────────────────────
+// El slug no es un nombre interno: es la URL pública, lo que va impreso en
+// los QR y lo que decide el subdominio. Un slug malo no se nota al crearlo,
+// se nota cuando el restaurante ya repartió los códigos.
+//
+// Hay cinco que NO puede usar nadie, y no es una preferencia estética:
+//
+//   admin · lo intercepta el login. POST /api/login desvía todo lo que sea
+//           'admin' al PIN de superadmin, así que un restaurante con esa
+//           dirección jamás podría entrar a su propio panel. Su PIN se
+//           compararía contra PIN_ADMIN y siempre fallaría, sin que el
+//           mensaje ("Credenciales incorrectas") dé ninguna pista.
+//
+//   menu, www, app, api · son los subdominios de la plataforma. slugDesde()
+//           los trata como "esto no es un restaurante" para poder distinguir
+//           menu.vmenus.co/bonzas de bonzas.vmenus.co, así que un
+//           restaurante llamado así queda fuera del alcance por subdominio.
+//
+// Se comprueba en el servidor y no solo en el panel porque el panel es UN
+// cliente, no la única puerta: la API responde a cualquiera con un token de
+// superadmin. Y porque la comprobación de formato ya vivía en el PATCH pero
+// no en el POST, que es justo donde nace el problema.
+const SLUGS_RESERVADOS = ['menu', 'www', 'admin', 'app', 'api'];
+
+// Devuelve el mensaje de error, o null si el slug vale. Se devuelve el texto
+// en vez de un booleano para que los dos sitios que la usan digan lo mismo:
+// dos mensajes distintos para la misma regla es como se acaban desincronizando.
+function errorDeSlug(slug) {
+  if (!/^[a-z0-9-]+$/.test(String(slug || '')))
+    return 'Slug inválido: solo minúsculas, números y guiones';
+  if (SLUGS_RESERVADOS.includes(slug))
+    return `La dirección "${slug}" está reservada por la plataforma. Elige otra, por ejemplo "${slug}-restaurante".`;
+  return null;
+}
+
 const ATRIBUTOS_CLONABLES = ['nav', 'estilo', 'fuente_titulo', 'fuente_cuerpo', 'color_surface', 'color_card', 'fondo_tipo', 'fondo_color', 'fondo_intensidad', 'css_custom'];
 
 app.post('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
   const { nombre, slug, color_primario, color_secundario, activo, pin, clonar_de } = req.body;
   if (!nombre || !slug) return res.status(400).json({ error: 'Nombre y slug requeridos' });
+  const malSlug = errorDeSlug(slug);
+  if (malSlug) return res.status(400).json({ error: malSlug });
   if (!pin || pin.length < 4) return res.status(400).json({ error: 'PIN requerido (mínimo 4 caracteres)' });
   const pin_hash = await bcrypt.hash(pin, 10);
 
@@ -623,8 +660,10 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
 
   if (body.slug) {
-    if (!/^[a-z0-9-]+$/.test(body.slug))
-      return res.status(400).json({ error: 'Slug inválido: solo minúsculas, números y guiones' });
+    // La misma regla que al crear, y por eso sale de la misma función: aquí
+    // vivía suelta la comprobación de formato, y el POST se quedó sin ella.
+    const malSlug = errorDeSlug(body.slug);
+    if (malSlug) return res.status(400).json({ error: malSlug });
     const { data: choque } = await supabase.from('restaurantes').select('id').eq('slug', body.slug).neq('id', req.params.id).maybeSingle();
     if (choque) return res.status(409).json({ error: 'Ese slug ya está en uso por otro restaurante' });
   }
@@ -1834,7 +1873,14 @@ ${img ? `<meta name="twitter:image" content="${escHtml(img)}">` : ''}
 // Que se desincronicen no rompe la carta: rompe la vista previa, que
 // anunciaría un restaurante distinto del que se abre al pulsar. Peor que no
 // tener tarjeta.
-const SUBDOMINIOS_RESERVADOS = ['menu', 'www', 'admin', 'app', 'api'];
+//
+// Dentro de ESTE archivo ya no se duplica: es la misma lista que impide
+// registrar un restaurante con esas direcciones (ver SLUGS_RESERVADOS,
+// arriba), y tiene que serlo. Una de más aquí sería una dirección que se
+// puede registrar y luego no se resuelve; una de menos, una que se registra
+// y este archivo trata como subdominio de la plataforma. Se referencia en
+// vez de copiarse para que no puedan separarse.
+const SUBDOMINIOS_RESERVADOS = SLUGS_RESERVADOS;
 
 // ── QUÉ DOMINIOS SON NUESTROS ─────────────────────────────────
 // Esta ruta escribe el destino en un href y en un meta refresh, así que el

@@ -49,6 +49,22 @@ corregir el documento en la misma tarea.
 - `sql/` — migraciones numeradas.
 - `respaldo/` — scripts de copia y restauración que se ejecutan en el servidor.
 
+## El slug de un restaurante
+
+No es un nombre interno: es la URL pública y lo que va impreso en los QR. Un
+slug malo no se nota al crearlo, se nota cuando el restaurante ya repartió los
+códigos.
+
+Cinco están reservados y el servidor los rechaza al crear y al editar
+(`SLUGS_RESERVADOS` en `server.js`): `admin`, `menu`, `www`, `app` y `api`.
+`admin` porque lo intercepta el login y ese restaurante nunca podría entrar a
+su panel; los otros cuatro porque son subdominios de la plataforma.
+
+**La misma lista vive en `vmenus-app/core/loader.js`**, y no se puede compartir
+el módulo porque son dos aplicaciones desplegadas por separado. Si cambia en un
+sitio, hay que cambiarla en el otro — y desincronizarlas rompe la vista previa
+al compartir, que anunciaría un restaurante distinto del que se abre al pulsar.
+
 ## Base de datos
 
 Las migraciones se versionan en `sql/`, numeradas correlativamente. Un cambio
