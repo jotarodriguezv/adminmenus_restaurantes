@@ -67,6 +67,7 @@ anfitrión (1).** Y el anfitrión es el único sitio donde existe `/opt/menus/`.
 | `/opt/menus/respaldo/` | los scripts de respaldo, copiados del contenedor | sí, en `respaldo/` |
 | `/root/.respaldo.env` | credenciales de Backblaze y clave de cifrado | **NUNCA** |
 | `/var/log/respaldo-uploads.log` | registro de cada copia | no |
+| `/etc/dokploy/traefik/traefik.yml` | configuración de Traefik, la puerta de entrada | no |
 
 Todas esas rutas son del **anfitrión (1)**.
 
@@ -310,6 +311,13 @@ Recogidas por haberlas sufrido:
 - **Migrar datos y desplegar código el mismo día** deja una ventana de "código
   viejo con datos nuevos". El orden correcto es: desplegar código tolerante,
   esperar, y luego migrar.
+- **El tiempo de subida está limitado en DOS sitios y tienen que ir juntos.**
+  Traefik corta a los `readTimeout` (900 s, puesto a mano en
+  `/etc/dokploy/traefik/traefik.yml`) y Node corta a los `requestTimeout` de
+  `server.js` (`SUBIDA_MAX_MS`, también 900 s). Los dos miden lo mismo: cuánto
+  se espera a que la petición llegue **entera**. Subir uno sin el otro no sirve
+  de nada — el corte se muda al que quedó corto. Detalle completo en el
+  registro de cambios del 03/09/2026.
 - **El aviso de "1 zombie process" al entrar es de Dokploy, no nuestro.** Es un
   `curl` que su proceso (`node -r dotenv/config dist/server.mjs`) lanza para sus
   comprobaciones y no recoge. Uno suelto no consume nada; lo que habría que
@@ -356,6 +364,74 @@ Recogidas por haberlas sufrido:
 ---
 
 ## Registro de cambios
+
+**03/09/2026 — Traefik cortaba las subidas de video a los 60 segundos**
+
+Subir un video de 66 MB desde el panel fallaba con **502** hacia el 20% de la
+barra. Tres intentos seguidos, siempre igual. Uno de 4,5 MB funcionaba a la
+primera.
+
+Se sospechó primero de la migración a Express 5 que se había desplegado esa
+madrugada. **No era.** Lo que lo descartó:
+
+- El `server.js` real despacha 66 MB en **0,2 s** en local.
+- El uptime de `/salud` nunca se reinició: el proceso no se caía.
+- La conexión del usuario sube a 40 Mbps; 66 MB son ~13 s.
+- Desde el **propio servidor**, esos 66 MB atravesaban Traefik en **2,6 s**.
+
+La pista que lo destapó fue lo que los registros **no** decían. Salía
+`Error: Request aborted`, pero no salía `⚠️ subida cortada a medias`, que solo
+se escribe si multer llegó a crear el archivo. Multer nunca empezó a escribir:
+alguien cortaba antes de pasarle el cuerpo.
+
+El culpable era el **`readTimeout` de Traefik**, que por defecto son **60 s** y
+que la documentación define como "la duración máxima para leer la petición
+entera, **incluido el cuerpo**". No estaba configurado en `traefik.yml`, así
+que regía el valor por defecto. Toda subida que tardara más de un minuto moría,
+por bien que fuera.
+
+Se demostró antes de tocar nada, forzando una subida lenta con `--limit-rate`:
+
+```bash
+curl --limit-rate 500k -w "HTTP %{http_code} · %{size_upload} bytes · %{time_total}s\n" \
+  -X POST https://adminvmenus.verificame.click/api/video \
+  -H "Authorization: Bearer $TOKEN" -F "file=@/tmp/prueba66.mp4;type=video/mp4"
+```
+
+- **Antes:** `HTTP 502 · 30867456 bytes · 60.28s` — cortado en seco al minuto.
+- **Después:** `HTTP 403 · 69206217 bytes · 135.19s` — entera, más del doble de
+  tiempo.
+
+(El 403 es el resultado bueno: se manda sin `restaurante_id` a propósito, así
+multer consume el archivo entero y la ruta lo rechaza sin crear ningún trabajo
+ni dejar residuos.)
+
+El arreglo son cuatro líneas en `/etc/dokploy/traefik/traefik.yml`, dentro del
+entrypoint `websecure`:
+
+```yaml
+    transport:
+      respondingTimeouts:
+        readTimeout: 900s
+        idleTimeout: 180s
+```
+
+Los `entryPoints` son configuración **estática**: Traefik no la recarga solo.
+Hay que reiniciarlo, y eso tumba unos segundos **todas** las cartas:
+
+```bash
+docker service update --force dokploy-traefik
+```
+
+**900 s y no `0`.** Sin límite quedaría abierta la puerta a mantener conexiones
+vivas indefinidamente; quince minutos cubren 200 MB en una conexión mala y
+siguen cerrando lo que no avanza.
+
+Y en el mismo cambio se subió el `requestTimeout` de Node en `server.js`, que
+son 300 s por defecto. No estaba mordiendo —Traefik cortaba antes— pero al
+subir el de Traefik habría pasado a ser él el límite, y 300 s no dan para los
+200 MB que la propia aplicación dice aceptar. La cadena vale lo que su eslabón
+más corto.
 
 **29/08/2026 — La prueba de restauración queda programada**
 

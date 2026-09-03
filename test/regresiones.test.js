@@ -45,6 +45,46 @@ describe('01 · un throw en una ruta async ya no mata el proceso', () => {
   });
 });
 
+describe('13 · el tiempo de espera de una subida no se queda en el de por defecto', () => {
+  // El 03/09/2026 subir un video de 66 MB daba 502 hacia el 20%. No era la
+  // aplicación: era el readTimeout de Traefik, 60 s por defecto, que corta la
+  // petición aunque siga llegando bien. Se subió a 900 s en el servidor.
+  //
+  // Node tiene su propio límite equivalente —requestTimeout, 300 s por
+  // defecto— y no estaba mordiendo porque Traefik cortaba antes. Al subir el
+  // de Traefik habría pasado a mandar él, y 300 s no dan para los 200 MB que
+  // esta misma aplicación dice aceptar: a 500 KB/s son 400 segundos.
+  //
+  // Lo que sujeta esta prueba es que el límite esté puesto A PROPÓSITO. Si
+  // alguien quita la línea, el servidor vuelve a 300 s en silencio y el fallo
+  // reaparece solo con archivos grandes o redes lentas — que es justo como
+  // costó tres días encontrarlo.
+  //
+  // No se comprueba el número exacto contra una constante importada: eso solo
+  // diría que dos copias del mismo literal coinciden. Se comprueba que NO es
+  // el de por defecto y que da para el caso peor que la aplicación acepta.
+
+  const POR_DEFECTO_DE_NODE = 300_000;
+
+  test('está puesto explícitamente, no heredado', () => {
+    const s = S.servidor();
+    assert.ok(s, 'el ayudante tiene que haber capturado el servidor HTTP');
+    assert.notEqual(s.requestTimeout, POR_DEFECTO_DE_NODE,
+      'si vuelve a 300 s es que alguien quitó la línea de server.js');
+    assert.ok(s.requestTimeout > POR_DEFECTO_DE_NODE,
+      'bajarlo dejaría cortando subidas que Traefik ya deja pasar');
+  });
+
+  test('da para el archivo más grande que la aplicación acepta, en una red mala', () => {
+    // VIDEO_MAX_MB son 200. A 500 KB/s —una subida mala pero no absurda— eso
+    // son 400 segundos. El límite tiene que cubrirlo o el tope de tamaño es
+    // una promesa que no se puede cumplir.
+    const segundosParaElPeorCaso = (200 * 1024) / 500;   // MB → KB / (KB/s)
+    assert.ok(S.servidor().requestTimeout >= segundosParaElPeorCaso * 1000,
+      `hacen falta al menos ${Math.round(segundosParaElPeorCaso)} s para 200 MB a 500 KB/s`);
+  });
+});
+
 describe('12 · las carpetas privadas no se sirven por HTTP', () => {
   // uploads/ se sirve como estático, pero 'masters' y 'originales' no son del
   // cliente: el master es el 1080p de archivo del que se vuelve a recortar, y
