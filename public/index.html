@@ -3370,6 +3370,8 @@ async function confirmarSubidaVideo() {
 	const megas = (videoElegido.size / 1048576).toFixed(0);
 	st.textContent = `Subiendo... 0% de ${megas} MB`; st.style.color = 'var(--text-muted)';
 	btn.disabled = true;
+	// Lo mira la puerta de salida para contar qué pasa si se cierra ahora.
+	state.subiendoVideo = true;
 
 	try {
 		const fd = new FormData();
@@ -3395,6 +3397,11 @@ async function confirmarSubidaVideo() {
 	} catch (e) {
 		st.textContent = e.message || 'Error al subir';
 		st.style.color = 'var(--danger)';
+		// El aviso flotante es lo único que se ve con la ficha cerrada, y
+		// cerrarla mientras sube es normal — se lo acabamos de ofrecer. Sin
+		// esto, una subida que falla estando fuera no se entera nadie: el
+		// plato se queda sin video y sin explicación.
+		showToast(e.message || 'No se pudo subir el video', 'error');
 
 		// Si el archivo llegó entero y lo que se perdió fue la respuesta, el
 		// trabajo puede estar ya en la cola. En vez de dejarlo a que el
@@ -3408,6 +3415,7 @@ async function confirmarSubidaVideo() {
 		}
 	} finally {
 		btn.disabled = false;
+		state.subiendoVideo = false;
 	}
 }
 
@@ -3445,6 +3453,21 @@ function vigilarVideo(trabajoId, productoId) {
 		const st = document.getElementById('videoUploadStatus');
 		st.textContent = texto;
 		st.style.color = color;
+	};
+
+	// ── EL FINAL SE CUENTA AUNQUE LA FICHA ESTÉ CERRADA ───────
+	// decir() calla si el plato no está en pantalla, y eso deja un agujero:
+	// cerrar la ficha mientras convierte es lo normal —la conversión tarda
+	// minutos y se puede seguir trabajando— pero entonces un fallo no lo ve
+	// nadie. El plato se queda sin video y sin explicación, y la única pista
+	// aparece si a alguien se le ocurre volver a abrirlo.
+	//
+	// El aviso flotante es lo único que se ve desde cualquier pantalla. Solo
+	// para los finales, y solo si NO está en pantalla: estando delante, el
+	// estado de la ficha ya lo dice y repetirlo sería ruido.
+	const avisarFuera = (texto, tipo) => {
+		if (enPantalla()) return;
+		showToast(texto, tipo);
 	};
 
 	// Mientras convierte, el botón de elegir video está apagado para que no
@@ -3494,6 +3517,7 @@ function vigilarVideo(trabajoId, productoId) {
 				// de revisión con el video y los dos botones.
 				if (t.origen_tipo === 'ia' && t.aprobado === null) {
 					decir('✓ Video generado — revísalo antes de publicarlo', 'var(--accent)');
+					avisarFuera('Video generado: revísalo antes de publicarlo', 'info');
 					if (enPantalla()) {
 						const p = state.productos.find(x => x.id === productoId);
 						if (p) pintarVideoPlato(p);
@@ -3502,6 +3526,7 @@ function vigilarVideo(trabajoId, productoId) {
 				}
 
 				decir('✓ Video listo', 'var(--success)');
+				avisarFuera('✓ Video listo', 'success');
 
 				const url = state.productos.find(x => x.id === productoId)?.atributos?.video?.url;
 				if (url && enPantalla()) {
@@ -3514,6 +3539,7 @@ function vigilarVideo(trabajoId, productoId) {
 				detenerVigilanciaVideo();
 				await cargarTrabajosVideo();
 				decir(t.error ? `Error: ${t.error}` : 'La conversión falló', 'var(--danger)');
+				avisarFuera(t.error ? `El video falló: ${t.error}` : 'La conversión del video falló', 'error');
 				permitirSubir();
 			} else if (t.estado === 'procesando') {
 				decir('Convirtiendo... (1-2 min)', 'var(--text-muted)');
@@ -4144,6 +4170,20 @@ function productoTieneCambios() {
 
 // Puerta única de salida: las cuatro formas de cerrar pasan por aquí.
 function intentarCerrarProducto() {
+	// ── UNA SUBIDA EN MARCHA NO SON "CAMBIOS SIN GUARDAR" ─────
+	// Salía ese aviso porque el archivo elegido cuenta en la firma, y el texto
+	// —"si sales ahora se pierden"— dice justo lo contrario de lo que pasa: la
+	// subida NO se corta al cerrar, sigue hasta el final.
+	//
+	// No se bloquea el cierre. Un video de 66 MB puede tardar minutos y dejar
+	// a alguien encerrado en una ficha mirando una barra es peor que dejarle
+	// seguir trabajando. Lo que hacía falta era contar qué va a pasar.
+	if (state.subiendoVideo) {
+		if (!confirm('Se está subiendo un video.\n\nSi cierras, la subida sigue en segundo plano y te avisamos al terminar. Puedes volver a abrir el plato para ver cómo va.')) return;
+		state.firmaProducto = undefined;
+		return closeModal('productModal');
+	}
+
 	if (!productoTieneCambios()) {
 		state.firmaProducto = undefined;
 		return closeModal('productModal');

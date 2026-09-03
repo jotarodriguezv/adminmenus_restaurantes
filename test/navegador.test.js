@@ -556,7 +556,7 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 	// una firma del formulario en vez de levantar una bandera al primer
 	// tecleo: escribir algo y borrarlo no debe contar como cambio, porque
 	// preguntar cuando no hay nada que perder enseña a decir que sí sin leer.
-	const montar = ({ videoElegido = null } = {}) => {
+	const montar = ({ videoElegido = null, subiendoVideo = false, responde = true } = {}) => {
 		const mapa = {
 			editNombre:       { value: 'Croquetas' },
 			editCategoria:    { value: 'cat-1' },
@@ -565,15 +565,16 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 			editDescAvanzada: { value: '' },
 			editDisponible:   { checked: true },
 		};
-		const abiertos = [], cerrados = [];
+		const abiertos = [], cerrados = [], preguntas = [];
 		const ctx = cargar('index.html', 'function firmaProducto', 'async function saveProduct', {
-			state: { pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {} },
+			state: { pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {}, subiendoVideo },
 			videoElegido,
 			document: { getElementById: id => mapa[id] },
 			openModal:  id => abiertos.push(id),
 			closeModal: id => cerrados.push(id),
+			confirm: texto => { preguntas.push(texto); return responde; },
 		});
-		return { ctx, mapa, abiertos, cerrados };
+		return { ctx, mapa, abiertos, cerrados, preguntas };
 	};
 
 	test('sin tocar nada, no hay cambios', () => {
@@ -634,6 +635,53 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 		ctx.intentarCerrarProducto();
 		assert.deepEqual(abiertos, ['cambiosModal']);
 		assert.deepEqual(cerrados, [], 'la ficha sigue abierta hasta que decida');
+	});
+
+	// ── UNA SUBIDA EN MARCHA NO SON CAMBIOS SIN GUARDAR ───────
+	// Salía ese aviso, porque el archivo elegido cuenta en la firma. Y su
+	// texto —"si sales ahora se pierden"— dice lo contrario de lo que pasa:
+	// la subida no se corta al cerrar, sigue hasta el final. Quien lo leía
+	// se quedaba esperando por miedo a perder algo que no se perdía.
+
+	test('subiendo, el aviso es otro y no el de cambios sin guardar', () => {
+		const { ctx, abiertos, preguntas } = montar({ subiendoVideo: true, videoElegido: { name: 'a.mp4' } });
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+
+		assert.deepEqual(abiertos, [], 'el de cambios sin guardar diría algo falso aquí');
+		assert.equal(preguntas.length, 1);
+		assert.match(preguntas[0], /sigue en segundo plano/);
+	});
+
+	test('y si dice que no, la ficha se queda abierta', () => {
+		const { ctx, cerrados } = montar({ subiendoVideo: true, responde: false });
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+
+		assert.deepEqual(cerrados, []);
+	});
+
+	test('si acepta, se cierra: no se bloquea la salida', () => {
+		// Un video de 66 MB tarda minutos. Encerrar a alguien en una ficha
+		// mirando una barra es peor que dejarle seguir trabajando, y la
+		// subida no necesita que esté delante.
+		const { ctx, cerrados } = montar({ subiendoVideo: true });
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+
+		assert.deepEqual(cerrados, ['productModal']);
+	});
+
+	test('la subida manda sobre los cambios del formulario', () => {
+		// Con las dos cosas a la vez solo se puede preguntar una, y la que
+		// importa es la que el usuario no se espera.
+		const { ctx, mapa, abiertos, preguntas } = montar({ subiendoVideo: true });
+		ctx.fijarFirmaProducto();
+		mapa.editNombre.value = 'Otra cosa';
+		ctx.intentarCerrarProducto();
+
+		assert.deepEqual(abiertos, []);
+		assert.match(preguntas[0], /segundo plano/);
 	});
 
 	test('salir sin guardar cierra las dos ventanas', () => {
