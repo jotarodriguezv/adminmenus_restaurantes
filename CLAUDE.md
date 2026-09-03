@@ -119,6 +119,39 @@ abierta. Al arreglarlo en `sql/16` volvió a pasar: el primer intento cerró una
 función y dejó la otra igual, porque cada una estaba abierta por una vía
 distinta. Se detectó solo por verificar. El detalle completo está en `sql/16`.
 
+## Pendiente
+
+### Quitar `conCaptura` de `server.js`
+
+**Anotado el 3 de septiembre de 2026, después de migrar a Express 5.**
+Deliberadamente aparcado: no se toca el manejo de errores hasta que Express 5
+lleve un tiempo en producción sin sorpresas.
+
+`conCaptura` existe porque en **Express 4** una promesa rechazada dentro de un
+manejador `async` no la capturaba nadie y Node terminaba el proceso — se caían
+el panel y las tres colas a la vez, y bastaba un `POST /api/categorias` sin
+`nombre`. Por eso se envuelven los manejadores al registrarlos, parcheando
+`app.get/post/put/patch/delete/all/use`.
+
+**Express 5 ya reenvía las promesas rechazadas al manejador de errores por sí
+solo.** Comprobado el 03/09/2026 con un servidor mínimo sin envoltorio: la
+petición contesta 500 por el manejador de errores y el proceso sigue vivo. Así
+que el parcheo sobra en su mayor parte y son ~40 líneas y un monkey-patch
+menos.
+
+Cuando se haga:
+
+- Rama propia. No mezclarlo con otra cosa: toca cómo falla *todo* el servidor.
+- La red de seguridad es la prueba **`01 · un throw en una ruta async ya no
+  mata el proceso`** en `test/regresiones.test.js`. Tiene que seguir pasando
+  sin tocarla; si hay que modificarla para que pase, la respuesta es no quitar
+  `conCaptura`.
+- Comprobar también los manejadores **síncronos** que lanzan, y los registrados
+  con `app.use`, que es donde el envoltorio hacía algo más que lo que hace
+  Express 5 solo.
+- Dejar el `process.on('unhandledRejection')`: cubre lo que ocurre fuera de una
+  ruta —una cola, un temporizador— y eso Express no lo ve.
+
 ## Comandos
 
 ```bash
