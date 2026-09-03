@@ -330,6 +330,84 @@ Recogidas por haberlas sufrido:
 
 ---
 
+## 7.bis Dónde salen los archivos pesados, y qué se puede descargar a un CDN
+
+Medido el **03/09/2026** contra producción. Está aquí, y no en "lo que falta",
+porque la conclusión es una **decisión tomada con números**, no una tarea
+pendiente de investigar.
+
+### El reparto actual
+
+| Dominio | Qué sirve | Quién lo sirve | ¿CDN? |
+|---|---|---|---|
+| `menu.vmenus.co` | HTML y JavaScript de la carta — **~30 KB** | nginx + Cloudflare | **sí** |
+| `adminvmenus.verificame.click` | **fotos y videos** — los megabytes | Express, en el VPS | **no** |
+
+Es herencia de cómo nació el sistema —el `.click` es el dominio original, en
+Hostinger; el `.co` llegó después, en Cloudflare— y el resultado es que el CDN
+acelera 30 KB mientras el VPS sirve todo lo pesado.
+
+**La separación de dominios en sí está bien** y conviene mantenerla: la carta
+pública y el panel son cosas distintas. Lo que está del lado equivocado son las
+fotos y los videos, que son experiencia del comensal y no administración.
+
+### Lo que descarga un comensal (medido, no estimado)
+
+| Carta | Qué se lleva |
+|---|---|
+| Solo fotos (`bonzas`, 97 productos) | ~2,7 MB en la primera vista; 18 imágenes de 79-209 KB |
+| Con video (`indigo`) | 688 ms de carga, **0 videos al entrar**; ~1 video por plato que se mira |
+| Un video suelto | 313 KB - 1,44 MB, 8 s, con `Range` y caché de un año |
+
+La carga diferida funciona: los videos no se piden hasta que el plato entra en
+pantalla. Un comensal que recorre seis platos se lleva unos 7 MB.
+
+### La asimetría que decide el plan
+
+**Las fotos se pueden descargar a Cloudflare. Los videos NO.**
+
+La política de Cloudflare prohíbe servir video por su CDN en los planes Free,
+Pro y Business; la vía admitida es Cloudflare Stream, de pago. Meter los `.mp4`
+detrás del proxy es arriesgarse a que los corten, y a enterarse el peor día.
+
+Así que el CDN ayuda con lo que menos pesa de los dos. **El video se queda en
+el VPS por diseño, no por descuido.**
+
+### Qué hacer, y en qué orden
+
+1. **Fotos por CDN, cuando compense.** Servir `/uploads/` a través de
+   `menu.vmenus.co` —que ya está tras Cloudflare— con nginx haciendo de
+   intermediario hacia el panel. Es un cambio en el `nginx.conf` de
+   `vmenus-app` más el `BASE_URL` del panel, revisable por pull request y sin
+   tocar DNS.
+
+   Ojo: las URLs se guardan **enteras** en la base, así que el cambio solo
+   afectaría a las fotos nuevas. Para que sirva de algo hay que migrar las
+   filas existentes con un `UPDATE`, y eso es tocar producción.
+
+2. **El video escala subiendo el VPS**, que es el plan previsto para cuando los
+   clientes lo justifiquen. Si algún día duele antes de tiempo, la alternativa
+   es un almacenamiento con CDN que sí admita video (Bunny, R2 + Stream), no
+   Cloudflare gratis.
+
+3. **NO proxificar el dominio del panel.** El plan gratuito de Cloudflare corta
+   el cuerpo de una petición en 100 MB con un 413, y esta aplicación acepta
+   videos de hasta 200 MB. Sería reintroducir el fallo de las subidas con otro
+   número. Las subidas van directas al `.click`, sin proxy, siempre.
+
+### Lo que hace que todo esto sea viable
+
+Que un video dure **8 segundos** (`DURACION_MAX`) y pese ~1,2 MB. Uno de
+treinta segundos pesaría cuatro o cinco veces más y esta conversación sería
+otra: ahí el CDN dejaría de ser una mejora para volverse imprescindible, y
+Cloudflare no lo puede dar.
+
+La normalización a 8 segundos no es solo una decisión de producto sobre lo que
+aguanta la atención de un comensal. **Es también lo que mantiene el coste de
+servir dentro del VPS más barato de Hostinger.**
+
+---
+
 ## 8. Lo que falta
 
 - ~~La vigilancia del respaldo~~ — **hecho el 23/08/2026.** Check en
