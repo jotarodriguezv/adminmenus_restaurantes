@@ -45,6 +45,79 @@ describe('01 · un throw en una ruta async ya no mata el proceso', () => {
   });
 });
 
+describe('12 · las carpetas privadas no se sirven por HTTP', () => {
+  // uploads/ se sirve como estático, pero 'masters' y 'originales' no son del
+  // cliente: el master es el 1080p de archivo del que se vuelve a recortar, y
+  // 'originales' guarda el crudo del móvil. Un middleware los tapa con un 404
+  // antes de que express.static llegue a mirar el disco.
+  //
+  // No había ninguna prueba que lo cubriera POR HTTP, y es lo que hay que
+  // sujetar al cambiar de versión de Express: ese middleware lee
+  // req.path dentro de un app.use montado, y qué vale req.path ahí es
+  // exactamente la clase de detalle que cambia entre versiones mayores sin
+  // que nadie lo anuncie.
+  //
+  // Se escriben archivos DE VERDAD en las dos carpetas a propósito. Pedir uno
+  // que no existe también daría 404, y entonces la prueba pasaría aunque el
+  // middleware hubiera desaparecido.
+  const raiz = path.join(__dirname, '..', 'uploads');
+  const privado = path.join(raiz, 'masters', 'verif-privado.mp4');
+  const publico = path.join(raiz, 'productos', 'verif-publico.jpg');
+
+  test('un master existente responde 404, y uno de productos no', async () => {
+    fs.mkdirSync(path.dirname(privado), { recursive: true });
+    fs.mkdirSync(path.dirname(publico), { recursive: true });
+    fs.writeFileSync(privado, 'contenido de archivo');
+    fs.writeFileSync(publico, 'contenido de archivo');
+
+    const oculto = await S.pedirTexto('/uploads/masters/verif-privado.mp4');
+    const servido = await S.pedirTexto('/uploads/productos/verif-publico.jpg');
+
+    assert.equal(oculto.status, 404, 'el master existe en disco y aun así no se sirve');
+    assert.equal(servido.status, 200, 'lo público sí se sirve: el 404 de arriba es el freno, no un archivo que falte');
+
+    fs.unlinkSync(privado);
+    fs.unlinkSync(publico);
+  });
+
+  test('originales tampoco', async () => {
+    const crudo = path.join(raiz, 'originales', 'verif-crudo.mp4');
+    fs.mkdirSync(path.dirname(crudo), { recursive: true });
+    fs.writeFileSync(crudo, 'contenido de archivo');
+
+    const r = await S.pedirTexto('/uploads/originales/verif-crudo.mp4');
+    assert.equal(r.status, 404);
+
+    fs.unlinkSync(crudo);
+  });
+});
+
+describe('11 · una petición sin Content-Type no revienta la ruta', () => {
+  // Express 4 dejaba req.body en {} cuando ningún parser reconocía el cuerpo.
+  // Express 5 lo deja en UNDEFINED, y las rutas que desestructuran —
+  // 'const { slug, pin } = req.body' — pasan de contestar 400 a lanzar un
+  // TypeError.
+  //
+  // No tumba el servidor, porque conCaptura lo recoge, pero convierte un
+  // mensaje útil en un 500 genérico y llena el registro de errores de algo
+  // que no es un fallo del servidor sino una petición mal escrita.
+  //
+  // Ninguna prueba lo veía porque pedir() siempre manda 'application/json'.
+
+  test('POST /api/login sin cabecera contesta 400, no 500', async () => {
+    S.reiniciar();
+    const r = await S.pedirSinTipo('POST', '/api/login');
+    assert.equal(r.status, 400, 'la petición está mal, pero el servidor no');
+    assert.match(r.body.error, /Faltan datos/);
+  });
+
+  test('una ruta con sesión tampoco', async () => {
+    S.reiniciar();
+    const r = await S.pedirSinTipo('PATCH', `/api/restaurantes/${S.IDS.restaurante}`, '', S.tokenCliente);
+    assert.notEqual(r.status, 500, 'un cuerpo ausente no es un fallo del servidor');
+  });
+});
+
 describe('02 · borrar un archivo comprueba de quién es', () => {
   const dir = path.join(__dirname, '..', 'uploads', 'productos');
   test('no se puede borrar un archivo de otro restaurante', async () => {

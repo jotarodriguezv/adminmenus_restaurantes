@@ -105,6 +105,27 @@ app.get('/salud', (req, res) => {
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ── req.body SIEMPRE ES UN OBJETO ─────────────────────────────
+// Express 4 dejaba req.body en {} cuando ningún parser reconocía el cuerpo.
+// Express 5 lo deja en undefined, y las rutas que desestructuran —
+// 'const { slug, pin } = req.body'— pasan de contestar un 400 explicando qué
+// falta a lanzar un TypeError.
+//
+// No tumba el servidor, porque conCaptura lo recoge, pero convierte un
+// mensaje útil en un 500 genérico y mete en el registro de errores algo que
+// no es un fallo del servidor sino una petición mal escrita. Buscar ahí un
+// problema que no existe cuesta una tarde.
+//
+// Se restaura aquí, en una línea, y no repartiendo '?? {}' por las veinte
+// rutas que leen el cuerpo: a mano hay que acordarse, y la ruta que alguien
+// escriba dentro de seis meses nacería descubierta. Es la misma razón por la
+// que conCaptura envuelve en el registro y no manejador a manejador.
+app.use((req, _res, next) => {
+  if (req.body === undefined) req.body = {};
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 // Lo subido nunca se modifica: cada archivo lleva un nombre irrepetible
 // (`${Date.now()}-${aleatorio}.jpg`) y cambiar la foto de un plato sube otro
