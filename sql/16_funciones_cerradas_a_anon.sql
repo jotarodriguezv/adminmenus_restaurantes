@@ -46,9 +46,31 @@
 --     from pg_proc
 --    where proname in ('estadisticas_restaurante', 'resumen_video_restaurantes');
 --
--- Antes de aplicar esto devuelve true en las dos. Después, false.
+-- Antes de aplicar esto devolvía true en las dos. Después, false en las dos.
 
+-- ── HACEN FALTA LOS DOS REVOKE, Y CADA FUNCIÓN LO DEMOSTRÓ ────
+-- Al aplicar esto se vio que estaban abiertas por vías DISTINTAS, y que un
+-- solo revoke habría cerrado una y dejado la otra:
+--
+--   estadisticas_restaurante   · sql/03 ya le había revocado PUBLIC, así que
+--                                lo que quedaba eran los grants explícitos de
+--                                Supabase. La cierra el revoke a anon.
+--
+--   resumen_video_restaurantes · sql/08 no revocó nada, así que conservaba el
+--                                EXECUTE que PostgreSQL concede a PUBLIC por
+--                                defecto — en el ACL, el grantee vacío de
+--                                '{=X/postgres,...}'. anon lo heredaba de ahí,
+--                                y revocárselo a anon no le quitó nada: el
+--                                primer intento la dejó igual de abierta.
+--                                La cierra el revoke a PUBLIC.
+--
+-- De ahí la regla para las que vengan: los dos, siempre, sin pararse a mirar
+-- cuál aplica. Sobra uno de los dos en cada caso y no cuesta nada.
+
+revoke execute on function public.estadisticas_restaurante(uuid, timestamptz, timestamptz, text) from public;
 revoke execute on function public.estadisticas_restaurante(uuid, timestamptz, timestamptz, text) from anon, authenticated;
+
+revoke execute on function public.resumen_video_restaurantes() from public;
 revoke execute on function public.resumen_video_restaurantes() from anon, authenticated;
 
 -- ── LO QUE SE DEJA COMO ESTÁ, A PROPÓSITO ─────────────────────
