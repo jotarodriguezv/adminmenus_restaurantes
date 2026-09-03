@@ -122,13 +122,28 @@ $$;
 comment on function public.reservar_generacion_ia(uuid, uuid, int) is
   'Reserva una generación de IA contando el cupo y escribiendo la fila sin que quepa nada en medio. Sustituye al leer-y-luego-insertar de cupo.reservar(), donde dos peticiones simultáneas de platos distintos se pasaban del cupo y pagaban de más. Ver sql/15.';
 
--- Esta función escribe en generaciones_ia y decide sobre dinero. Solo la
--- llama el servidor con la clave de servicio. Sin el revoke, PUBLIC hereda el
--- execute y cualquiera con la clave publicable podría invocarla por PostgREST
--- y quemar el cupo de un restaurante desde el navegador.
+-- Esta función escribe en generaciones_ia y decide sobre dinero. Solo la llama
+-- el servidor con la clave de servicio. Sin cerrarla, cualquiera con la clave
+-- publicable podría invocarla por PostgREST y quemarle el cupo a un
+-- restaurante desde el navegador — sin generar ningún video, solo llenando la
+-- tabla de reservas que sí cuentan.
 --
--- (El revoke va a 'public', el rol implícito que incluye a anon y a
--- authenticated. Quitárselo solo a esos dos no basta: seguirían heredándolo.
--- Es la misma nota que dejó sql/03.)
+-- ── HACEN FALTA LOS DOS REVOKE, Y ESTO SE COMPROBÓ ────────────
+-- sql/03 dejó escrito que revocar a anon "no basta porque lo hereda de
+-- PUBLIC". Es al revés, y por eso aquel revoke se quedó a medias: Supabase
+-- concede EXECUTE a anon y a authenticated de forma EXPLÍCITA, mediante
+-- privilegios por defecto sobre el esquema public. Una concesión directa no
+-- se quita revocándole a PUBLIC.
+--
+-- Se verificó sobre la base después de aplicar esto:
+--
+--   select has_function_privilege('anon', oid, 'EXECUTE')
+--     from pg_proc where proname = 'reservar_generacion_ia';
+--
+-- Con solo el revoke a PUBLIC devolvía true. Con los dos, false.
+--
+-- El de PUBLIC se mantiene igualmente: cubre el EXECUTE que PostgreSQL sí
+-- concede a PUBLIC por defecto, que es una vía distinta de la de Supabase.
 revoke execute on function public.reservar_generacion_ia(uuid, uuid, int) from public;
+revoke execute on function public.reservar_generacion_ia(uuid, uuid, int) from anon, authenticated;
 grant  execute on function public.reservar_generacion_ia(uuid, uuid, int) to service_role;
