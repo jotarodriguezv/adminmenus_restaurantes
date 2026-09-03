@@ -1,0 +1,52 @@
+# Avisos automáticos cuando una dependencia se queda atrás o sale un parche.
+#
+# Se añade por un caso concreto: 'npm audit' reporta tres vulnerabilidades
+# moderadas en 'qs', que entra por express → body-parser. Hoy NO se pueden
+# arreglar, porque body-parser pide '~6.15.1' y el qs parcheado es 6.16.0. El
+# arreglo llegará cuando body-parser amplíe su rango o cuando se pase a
+# Express 5, y sin esto la única forma de enterarse sería que a alguien se le
+# ocurra correr 'npm audit' un día.
+#
+# Dependabot no arregla nada solo: abre un pull request con el cambio y deja
+# que las pruebas de pruebas.yml se pronuncien. La decisión sigue siendo del
+# usuario, igual que con cualquier otra rama.
+version: 2
+
+updates:
+  # ── LAS DEPENDENCIAS DEL SERVIDOR ───────────────────────────
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    # Cinco a la vez como mucho. Sin tope, una semana con mucho movimiento
+    # llena la lista de pull requests y se acaban ignorando todos, que es
+    # peor que no tenerlos.
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "Bump"          # el historial va en inglés e imperativo
+    groups:
+      # Las actualizaciones de parche de todo el árbol van juntas en un solo
+      # pull request. Son las que casi nunca rompen nada y las que más ruido
+      # harían de una en una.
+      parches:
+        update-types:
+          - patch
+    ignore:
+      # Los saltos de versión MAYOR se deciden a mano, no por un aviso
+      # semanal: express 5 y multer 2 cambian la API y necesitan su propia
+      # tarea con las pruebas por delante. Que Dependabot los proponga cada
+      # lunes solo enseñaría a cerrar sus pull requests sin mirarlos.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
+  # ── LAS ACCIONES DEL WORKFLOW ───────────────────────────────
+  # actions/checkout y actions/setup-node también envejecen, y ahí el aviso
+  # no suele llegar por ningún otro lado.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Bump"
