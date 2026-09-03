@@ -226,7 +226,9 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 				'iaRevision', 'iaRevisionVideo', 'iaRevisionEstado',
 				'btnPublicarIA', 'btnDescartarIA',
 				// El aviso de "este video quedó en el formato anterior".
-				'videoDesfasado', 'videoDesfasadoTexto', 'videoDesfasadoEstado', 'btnReconvertir'];
+				'videoDesfasado', 'videoDesfasadoTexto', 'videoDesfasadoEstado', 'btnReconvertir',
+				// La vuelta de un video retirado.
+				'videoRetirado', 'videoRetiradoEstado', 'btnRecuperarVideo'];
 		const mapa = {};
 		for (const id of ids) mapa[id] = {
 			style: {}, textContent: '', value: '', disabled: false,
@@ -304,6 +306,50 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		// No tiene id, así que no hay a qué ruta llamar.
 		const m = pintar(true, null, pantalla());
 		assert.equal(m.btnQuitarVideo.style.display, 'none');
+	});
+
+	// ── UN VIDEO RETIRADO TIENE QUE PODER VOLVER ──────────────
+	// El aviso al quitar promete que el original se conserva y se puede volver
+	// a poner. Eso era cierto en el servidor —la fila y el master siguen ahí—
+	// y falso en el panel: el único botón que reconvierte colgaba del bloque
+	// "formato anterior", que solo se pinta CUANDO HAY VIDEO. Al quitarlo
+	// desaparecía, y la vuelta prometida no existía por ninguna parte.
+	//
+	// Se probó a mano y salió: por eso estas pruebas, que es lo que faltaba
+	// para que no vuelva a salir.
+
+	test('sin video pero con master, se ofrece volver a ponerlo', () => {
+		const m = pintar(true, { id: 'p1' }, pantalla(), listo('horizontal'));
+		assert.equal(m.videoRetirado.style.display, 'block');
+	});
+
+	test('con el video puesto NO se ofrece: no hay nada que recuperar', () => {
+		const m = pintar(true, conVideo, pantalla(), listo('horizontal'));
+		assert.equal(m.videoRetirado.style.display, 'none');
+	});
+
+	test('sin master no se ofrece, aunque el trabajo esté listo', () => {
+		// La vuelta se hace reconvirtiendo desde el master. Sin él, el botón
+		// fallaría al pulsarlo — y un botón que falla es peor que no tenerlo.
+		const m = pintar(true, { id: 'p1' }, pantalla(), listo('horizontal', false));
+		assert.equal(m.videoRetirado.style.display, 'none');
+	});
+
+	test('un plato que nunca tuvo video no lo ofrece', () => {
+		const m = pintar(true, { id: 'p1' }, pantalla(), []);
+		assert.equal(m.videoRetirado.style.display, 'none');
+	});
+
+	test('los dos avisos no se enseñan a la vez', () => {
+		// Son estados excluyentes: "recupéralo" pide que no haya video y
+		// "está desfasado" pide que sí. Verlos juntos sería incoherente.
+		const conM = pintar(true, conVideo, pantalla(), listo('vertical'));
+		assert.equal(conM.videoRetirado.style.display, 'none');
+		assert.equal(conM.videoDesfasado.style.display, 'block');
+
+		const sinM = pintar(true, { id: 'p1' }, pantalla(), listo('vertical'));
+		assert.equal(sinM.videoRetirado.style.display, 'block');
+		assert.equal(sinM.videoDesfasado.style.display, 'none');
 	});
 
 	// ── EL VIDEO QUE QUEDÓ EN EL FORMATO ANTERIOR ─────────────

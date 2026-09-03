@@ -1745,6 +1745,32 @@
 						     convirtió en un formato y la carta usa el otro. El
 						     master se guarda sin recortar justamente para esto, así
 						     que arreglarlo no cuesta ni dinero ni volver a grabar. -->
+						<!-- ── UN VIDEO RETIRADO SE PUEDE VOLVER A PONER ───────
+						     Quitar el video no borra el original: deja el master en
+						     el servidor. Sin este bloque esa vuelta existía en la
+						     API y no había forma de llegar a ella desde aquí, así
+						     que el aviso al quitar prometía algo que el panel no
+						     cumplía.
+
+						     Va ANTES del de "formato anterior" porque son estados
+						     excluyentes —uno pide que haya video y el otro que no—
+						     y leerlos juntos en el código evita que alguien los
+						     enseñe a la vez. -->
+						<div id="videoRetirado" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;">
+							<div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);line-height:1.6">
+								Este plato tuvo un video y se quitó. El original sigue guardado, así que
+								se puede volver a poner sin subirlo otra vez.
+							</div>
+							<div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
+								<button type="button" id="btnRecuperarVideo" onclick="recuperarVideo()"
+									style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);
+									background:transparent;color:var(--text);font-family:var(--mono);font-size:9px;
+									letter-spacing:1px;cursor:pointer;white-space:nowrap;">
+									↺ Volver a poner el video
+								</button>
+								<div id="videoRetiradoEstado" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);flex:1"></div>
+							</div>
+						</div>
 						<div id="videoDesfasado" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--warn);border-radius:8px;">
 							<div id="videoDesfasadoTexto" style="font-family:var(--mono);font-size:10px;color:var(--warn);line-height:1.6"></div>
 							<div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
@@ -3037,6 +3063,24 @@ function pintarVideoPlato(p) {
 	// se elige o se convierte, lo que hay que ofrecer es cancelar, no retirar.
 	document.getElementById('btnQuitarVideo').style.display = url ? 'block' : 'none';
 
+	// ── ¿HAY UN VIDEO RETIRADO QUE SE PUEDA RECUPERAR? ────────
+	// Sin video en el plato pero con un trabajo terminado que conserva master.
+	// Es exactamente lo que deja "Quitar video": la fila y los archivos siguen,
+	// solo se soltó la referencia.
+	//
+	// Se pregunta por el master y no solo por el trabajo porque la vuelta se
+	// hace reconvirtiendo desde él. Un trabajo listo al que ya no le queda
+	// master no puede volver, y ofrecerlo sería un botón que falla al pulsarlo.
+	const retirado = (p?.id && !url) ? trabajoListoDe(p.id) : null;
+	const recuperable = retirado?.tiene_master ? retirado : null;
+	state.videoRetiradoActual = recuperable;
+	document.getElementById('videoRetirado').style.display = recuperable ? 'block' : 'none';
+	document.getElementById('videoRetiradoEstado').textContent = '';
+	if (recuperable) {
+		const btnV = document.getElementById('btnRecuperarVideo');
+		btnV.disabled = false; btnV.style.opacity = '1'; btnV.style.cursor = 'pointer';
+	}
+
 	// ── ¿ESTE VIDEO QUEDÓ EN EL FORMATO ANTERIOR? ─────────────
 	// Solo con video ya publicado: mientras convierte no se sabe en qué queda,
 	// y sin video no hay nada desfasado.
@@ -3471,7 +3515,11 @@ async function handleProductImgUpload(input) {
 async function quitarVideo() {
 	const id = document.getElementById('editProductId').value;
 	if (!id) return;
-	if (!confirm('¿Quitar el video de este plato?\n\nEl plato volverá a mostrar su foto. El video original se conserva en el servidor, así que se puede volver a poner sin subirlo de nuevo.')) return;
+	// El texto dice las dos cosas que el usuario no puede deducir mirando el
+	// botón: que esto se aplica YA —no espera a guardar, como sí hace la
+	// foto— y que hay vuelta atrás. Sin la primera, alguien cierra la ficha
+	// creyendo que descarta el cambio; sin la segunda, no se atreve a pulsar.
+	if (!confirm('¿Quitar el video de este plato?\n\nSe aplica al momento, sin esperar a guardar.\n\nEl plato volverá a mostrar su foto, y el original se conserva: podrás volver a ponerlo desde aquí mismo sin subirlo otra vez.')) return;
 
 	const st = document.getElementById('videoUploadStatus');
 	st.textContent = 'Quitando…'; st.style.color = 'var(--text-muted)';
@@ -3479,13 +3527,44 @@ async function quitarVideo() {
 		await apiFetch('DELETE', `/api/productos/${id}/video`);
 		// Se recargan los productos y se repinta desde el dato fresco, en vez de
 		// tocar el DOM a mano: así lo que se ve es lo que hay guardado, no lo que
-		// esta función cree que debería haber.
+		// esta función cree que debería haber. Y de paso aparece el bloque de
+		// recuperación, que se decide con ese mismo dato.
 		state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
 		pintarVideoPlato(state.productos.find(p => p.id === id));
-		st.textContent = 'Video quitado'; st.style.color = 'var(--success)';
+		// "ya guardado" y no solo "quitado": es lo que evita que alguien busque
+		// el botón de guardar para confirmar algo que ya está hecho.
+		st.textContent = 'Video quitado y guardado'; st.style.color = 'var(--success)';
 		showToast('Video quitado del plato', 'success');
 	} catch (e) {
 		st.textContent = 'Error: ' + e.message; st.style.color = 'var(--danger)';
+	}
+}
+
+// Devuelve al plato un video retirado, reconvirtiéndolo desde el master.
+//
+// No hace falta ruta nueva: reconvertir ya produce un trabajo que al terminar
+// se guarda en el producto, que es justo lo que se quiere. Se pide el formato
+// actual de la carta y no el que tenía el trabajo, porque si la carta cambió
+// de modelo mientras el video estaba fuera, lo que hay que devolver es un
+// video que encaje hoy.
+async function recuperarVideo() {
+	const t = state.videoRetiradoActual;
+	if (!t) return;
+
+	const btn = document.getElementById('btnRecuperarVideo');
+	const est = document.getElementById('videoRetiradoEstado');
+	btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
+	est.textContent = 'Encolando...'; est.style.color = 'var(--text-muted)';
+
+	try {
+		const r = await apiFetch('POST', `/api/video/trabajos/${t.id}/reconvertir`, { formato: formatoDeLaCarta() });
+		est.textContent = 'Recuperando... (1-2 min)';
+		await cargarTrabajosVideo();
+		// A partir de aquí es una conversión como cualquier otra.
+		vigilarVideo(r.trabajo_id, t.producto_id);
+	} catch (e) {
+		est.textContent = e.message || 'No se pudo recuperar'; est.style.color = 'var(--danger)';
+		btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
 	}
 }
 
