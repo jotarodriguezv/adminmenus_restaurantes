@@ -1279,7 +1279,7 @@
 							</div>
 
 							<div class="form-group" id="tvManualWrap" style="display:none">
-								<label class="form-label">Elige los platos <span style="color:var(--text-dim);font-weight:400">(pulsa para marcar)</span></label>
+								<label class="form-label">Elige los platos <span style="color:var(--text-dim);font-weight:400">(toca para marcar)</span></label>
 								<!-- Filtro por categoría: con 59 platos, buscar uno a ojo en una
 								     rejilla que se desplaza es incómodo. Solo filtra lo que se ve;
 								     lo marcado en otras categorías no se pierde. -->
@@ -3049,9 +3049,18 @@ function pintarVideoPlato(p) {
 	document.getElementById('videoUploadStatus').textContent = '';
 	document.getElementById('videoFileInput').value = '';
 	document.getElementById('videoDesdeFila').style.display = 'none';
-	document.getElementById('btnConfirmarVideo').style.display = 'none';
 	document.getElementById('videoDesde').value = 0;
 	document.getElementById('videoDesdeAviso').textContent = '';
+
+	// Deshacer el aspecto de "hay un archivo a medias". Sin esto, abrir otro
+	// plato después de haber elegido un archivo dejaba el botón principal
+	// pintado y el de elegir diciendo "Cambiar archivo" sobre una ficha donde
+	// no hay nada que cambiar.
+	const conf = document.getElementById('btnConfirmarVideo');
+	conf.style.display = 'none';
+	conf.style.background = 'transparent';
+	conf.style.color = 'var(--success)';
+	btn.textContent = '🎬 Elegir video';
 
 	// Si su última conversión falló, decirlo aquí y ofrecer descartarla. El
 	// motivo viene de ffmpeg y suele ser legible ("el video dura 1,4 s y
@@ -3202,12 +3211,37 @@ function prepararVideoElegido(input) {
 	};
 	document.getElementById('videoEditVacio').style.display = 'none';
 	document.getElementById('videoDesdeFila').style.display = 'block';
-	document.getElementById('btnConfirmarVideo').style.display = 'inline-block';
 	document.getElementById('videoDesde').value = 0;
 	document.getElementById('videoDesdeAviso').textContent = '';
 	document.getElementById('videoDesdeAviso').style.color = '';
+
+	// ── ELEGIR NO ES SUBIR, Y TIENE QUE NOTARSE ───────────────
+	// Los tres botones se veían igual —borde fino sobre fondo transparente— y
+	// en un móvil eso es indistinguible. Quien elegía el archivo veía la
+	// previa aparecer y daba por hecho que ya estaba subido; cerraba la ficha
+	// y no se había subido nada.
+	//
+	// Con un archivo en la mano solo hay una acción que continúa el trabajo,
+	// así que solo una se pinta como principal.
+	const conf = document.getElementById('btnConfirmarVideo');
+	conf.style.display = 'inline-block';
+	conf.style.background = 'var(--success)';
+	conf.style.color = 'var(--on-accent)';
+
+	// El de elegir pasa a ser el de cambiar: ya se eligió, y llamarlo igual
+	// que antes invita a pulsarlo creyendo que es el que continúa.
+	document.getElementById('btnSubirVideo').textContent = '🎬 Cambiar archivo';
+
+	// Y se dice con todas las letras, porque el nombre del archivo en pantalla
+	// es justo lo que hace creer que ya subió.
 	const st = document.getElementById('videoUploadStatus');
-	st.textContent = ''; st.style.color = 'var(--text-muted)';
+	st.textContent = `Elegiste ${file.name}. Todavía no se ha subido: toca «Subir y convertir».`;
+	st.style.color = 'var(--warn)';
+
+	// La IA se repliega mientras haya un archivo a medias. No desaparece —eso
+	// solo lo hace el interruptor del superadmin— pero deja de competir con
+	// la acción que el usuario ya empezó.
+	refrescarCupoIA();
 }
 
 function usarPuntoActualDelVideo() {
@@ -3778,6 +3812,11 @@ async function refrescarCupoIA() {
 				//    que el botón pareciera disponible en "Nuevo producto" y
 				//    solo fallara al pulsarlo.
 				!productoId ? 'sin-guardar' :
+				// 0.bis Hay un archivo elegido y sin subir. Va antes que lo de
+				//    la foto porque quien tiene un video en la mano no necesita
+				//    que le manden a subir una foto: su tarea es otra, y son
+				//    dos caminos que compiten por el mismo resultado.
+				hayArchivoElegido() ? 'archivo-elegido' :
 				// 1. Sin foto no hay nada que animar. Antes esto escondía el
 				//    bloque entero; ahora se dice, que es lo que enseña el
 				//    orden correcto — primero la foto, después el video.
@@ -3814,7 +3853,8 @@ async function refrescarCupoIA() {
 			// administra un restaurante — además de sonar raro en Colombia,
 			// que es donde están los clientes.
 			const MOTIVOS = {
-				'sin-guardar': 'Primero guarda el plato. Después podrás generarle el video: cada video queda asociado a un plato.',
+				'sin-guardar':     'Primero guarda el plato. Después podrás generarle el video: cada video queda asociado a un plato.',
+				'archivo-elegido': 'Termina primero con el video que elegiste: súbelo y conviértelo.',
 				'sin-foto':    'Sube una foto del plato. La IA crea el video a partir de esa foto.',
 				// La proporción ya se explica en 'iaEncaje', con el detalle de
 				// a cuánto habría que recortarla. Repetirlo aquí sería decir
@@ -3875,6 +3915,14 @@ function hayFotoEnLaFicha() {
 	if (state.pendingImgUrl === '__remove__') return false;
 	if (state.pendingImgUrl) return true;
 	return !!document.getElementById('imgEditPreview')?.src?.includes('/uploads/');
+}
+
+// ¿Hay un archivo elegido esperando a que lo suban? La variable vive en este
+// mismo archivo, pero se consulta con typeof porque las pruebas cargan trozos
+// sueltos y ahí no existe: sin la guarda, comprobarla sería un ReferenceError
+// que se lleva por delante toda la función.
+function hayArchivoElegido() {
+	return typeof videoElegido !== 'undefined' && !!videoElegido;
 }
 
 // ¿Este plato ya tiene un video publicado? Se mira el dato, no la pantalla:

@@ -308,6 +308,29 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		assert.equal(m.btnQuitarVideo.style.display, 'none');
 	});
 
+	// ── ABRIR OTRO PLATO DESHACE "HAY UN ARCHIVO A MEDIAS" ────
+	// prepararVideoElegido pinta el botón de subir como principal y renombra
+	// el de elegir a "Cambiar archivo". Sin deshacerlo, abrir otro plato
+	// dejaba esa pinta sobre una ficha donde no hay nada que cambiar ni que
+	// subir — y el botón principal, que es el que más llama, apuntando a nada.
+
+	test('el botón de subir vuelve a su aspecto de reposo', () => {
+		const m = pantalla();
+		m.btnConfirmarVideo.style.background = 'var(--success)';
+		pintar(true, { id: 'p1' }, m);
+
+		assert.equal(m.btnConfirmarVideo.style.display, 'none');
+		assert.equal(m.btnConfirmarVideo.style.background, 'transparent');
+	});
+
+	test('y el de elegir recupera su nombre', () => {
+		const m = pantalla();
+		m.btnSubirVideo.textContent = '🎬 Cambiar archivo';
+		pintar(true, { id: 'p1' }, m);
+
+		assert.match(m.btnSubirVideo.textContent, /Elegir video/);
+	});
+
 	// ── UN VIDEO RETIRADO TIENE QUE PODER VOLVER ──────────────
 	// El aviso al quitar promete que el original se conserva y se puede volver
 	// a poner. Eso era cierto en el servidor —la fila y el master siguen ahí—
@@ -1964,6 +1987,36 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		await correr(m, { productos: [{ id: 'p1', atributos: {} }] });
 
 		assert.doesNotMatch(m.btnGenerarIA.textContent, /Regenerar/);
+	});
+
+	test('con un archivo elegido la IA se aparta, sin desaparecer', async () => {
+		// Son dos caminos que compiten por el mismo resultado. Quien ya eligió
+		// un archivo tiene una tarea empezada, y ofrecerle generar al lado
+		// invita a dejarla a medias — pagando, además.
+		const m = pantalla();
+		const ctx = cargar('index.html', 'async function refrescarCupoIA()', 'async function generarConIA()', {
+			apiFetch: async () => ({ disponibles: 20, cupo: 24 }),
+			state: { restaurante: { id: 'r1' }, productos: [] },
+			document: { getElementById: id => m[id] },
+			encajeDeLaFotoActual: () => ({ veredicto: 'bien', mensaje: '' }),
+			reintentarEncajeAlCargarLaFoto: () => {},
+			videoPorAprobarDe: () => null,
+			trabajoEnCursoDe: () => null,
+			videoElegido: { name: 'plato.mp4' },
+		});
+		await ctx.refrescarCupoIA();
+
+		assert.equal(m.btnGenerarIA.disabled, true);
+		assert.match(m.iaMotivo.textContent, /Termina primero con el video que elegiste/);
+	});
+
+	test('sin archivo elegido, la IA sigue disponible', async () => {
+		// La guarda de typeof no puede acabar apagando el botón siempre: sin
+		// archivo, 'videoElegido' ni existe en este trozo del archivo.
+		const m = pantalla();
+		await correr(m, { encaje: { veredicto: 'bien', mensaje: '' } });
+
+		assert.equal(m.btnGenerarIA.disabled, false);
 	});
 
 	test('el motivo del plato anterior no se queda pegado', async () => {
