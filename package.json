@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Panel de administración para menús digitales",
   "main": "server.js",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
