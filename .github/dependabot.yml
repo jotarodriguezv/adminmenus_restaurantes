@@ -23,8 +23,11 @@ updates:
     # llena la lista de pull requests y se acaban ignorando todos, que es
     # peor que no tenerlos.
     open-pull-requests-limit: 5
-    commit-message:
-      prefix: "Bump"          # el historial va en inglés e imperativo
+    # Sin 'commit-message.prefix' a propósito. Se puso "Bump" para que el
+    # historial siguiera en inglés e imperativo, y salieron títulos como
+    # "Bump: Bump actions/checkout from 4 to 7": Dependabot ya empieza sus
+    # mensajes por "Bump", así que el prefijo los duplicaba. Su texto por
+    # defecto ya cumple la convención sin ayuda.
     groups:
       # Las actualizaciones de parche de todo el árbol van juntas en un solo
       # pull request. Son las que casi nunca rompen nada y las que más ruido
@@ -44,9 +47,13 @@ updates:
   # ── LAS ACCIONES DEL WORKFLOW ───────────────────────────────
   # actions/checkout y actions/setup-node también envejecen, y ahí el aviso
   # no suele llegar por ningún otro lado.
+  #
+  # Aquí NO se ignoran los saltos de versión mayor, al revés que arriba, y es
+  # una decisión y no un olvido: en una acción un salto mayor suele ser un
+  # cambio del runtime que la ejecuta, no de cómo se usa, y el workflow
+  # completo corre en cada pull request — si rompiera algo, se ve antes de
+  # mergear. Quedarse en una versión vieja aquí sale más caro que actualizar.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: monthly
-    commit-message:
-      prefix: "Bump"
