@@ -1796,17 +1796,25 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 
 	const pantalla = () => {
 		const mapa = {};
-		for (const id of ['iaCupo', 'btnGenerarIA', 'iaEncaje', 'iaEstado', 'editProductId'])
+		for (const id of ['iaCupo', 'btnGenerarIA', 'iaEncaje', 'iaEstado', 'editProductId',
+			// El motivo por el que el botón está apagado, y la previa de la foto:
+			// desde que el bloque se ve también sin foto, "hay foto" es una de las
+			// condiciones y hay que poder simular las dos.
+			'iaMotivo', 'imgEditPreview'])
 			mapa[id] = { style: {}, textContent: '', value: '', disabled: false };
 		mapa.editProductId.value = 'p1';
+		// Con foto por defecto: es el estado en el que estas pruebas ya se
+		// escribieron, cuando el bloque solo aparecía habiéndola.
+		mapa.imgEditPreview.src = 'https://panel/uploads/productos/a.jpg';
 		return mapa;
 	};
 
 	const correr = (mapa, { cupo = { disponibles: 20, cupo: 24 }, encaje = null,
-	                        generandoIA = null, porAprobar = null, enCurso = null } = {}) => {
+	                        generandoIA = null, porAprobar = null, enCurso = null,
+	                        productos = [] } = {}) => {
 		const ctx = cargar('index.html', 'async function refrescarCupoIA()', 'async function generarConIA()', {
 			apiFetch: async () => cupo,
-			state: { restaurante: { id: 'r1' }, generandoIA },
+			state: { restaurante: { id: 'r1' }, generandoIA, productos },
 			document: { getElementById: id => mapa[id] },
 			encajeDeLaFotoActual: () => encaje,
 			// Vive en otro trozo del archivo; aquí solo importa que no estorbe.
@@ -1857,7 +1865,115 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		const m = pantalla();
 		await correr(m, { porAprobar: { id: 't1' } });
 		assert.equal(m.btnGenerarIA.disabled, true);
-		assert.match(m.iaEncaje.textContent, /Publícalo o descártalo/);
+		// El motivo vive en 'iaMotivo' desde que todos los apagados explican
+		// por qué: 'iaEncaje' se queda solo para la proporción de la foto, que
+		// es lo único que sabe medir.
+		assert.match(m.iaMotivo.textContent, /Publícalo o descártalo/);
+	});
+
+	// ── UN BOTÓN APAGADO SIN MOTIVO ES UNA FICHA ROTA ─────────
+	// El caso que lo destapó: en "Nuevo producto" se sube la foto, aparece el
+	// bloque de IA con el botón vivo y hasta el aviso de la proporción — todo
+	// invita a pulsar — y al hacerlo contesta que hay que guardar el plato
+	// primero. La interfaz ofrecía algo que no se podía hacer.
+	//
+	// Ahora cada apagado dice qué falta. Ver docs/planesymodelos.md §4.bis.
+
+	test('sin guardar el plato se apaga y lo explica', async () => {
+		const m = pantalla();
+		m.editProductId.value = '';
+		await correr(m);
+
+		assert.equal(m.btnGenerarIA.disabled, true);
+		assert.match(m.iaMotivo.textContent, /Guarda el plato primero/);
+	});
+
+	test('sin foto se apaga y lo explica, en vez de esconder el bloque', async () => {
+		// Antes esto ocultaba la IA entera. Esconderla deja al usuario sin
+		// saber que existe, y quien pagó el plan tiene que verla.
+		const m = pantalla();
+		m.imgEditPreview.src = '';
+		await correr(m);
+
+		assert.equal(m.btnGenerarIA.disabled, true);
+		assert.match(m.iaMotivo.textContent, /Sube una foto/);
+	});
+
+	test('la foto marcada para borrar cuenta como que no hay', async () => {
+		// La previa sigue en pantalla hasta guardar, pero quien acaba de
+		// quitarla no tiene foto: generar la rechazaría el servidor.
+		const m = pantalla();
+		const ctx = cargar('index.html', 'async function refrescarCupoIA()', 'async function generarConIA()', {
+			apiFetch: async () => ({ disponibles: 20, cupo: 24 }),
+			state: { restaurante: { id: 'r1' }, pendingImgUrl: '__remove__', productos: [] },
+			document: { getElementById: id => m[id] },
+			encajeDeLaFotoActual: () => null,
+			reintentarEncajeAlCargarLaFoto: () => {},
+			videoPorAprobarDe: () => null,
+			trabajoEnCursoDe: () => null,
+		});
+		await ctx.refrescarCupoIA();
+
+		assert.equal(m.btnGenerarIA.disabled, true);
+		assert.match(m.iaMotivo.textContent, /Sube una foto/);
+	});
+
+	test('sin guardar manda sobre sin foto: es lo primero que falta', async () => {
+		// El orden de los motivos importa porque solo se enseña el primero, y
+		// decirle "sube una foto" a quien además no ha guardado le manda a
+		// hacer algo que tampoco le va a servir todavía.
+		const m = pantalla();
+		m.editProductId.value = '';
+		m.imgEditPreview.src = '';
+		await correr(m);
+
+		assert.match(m.iaMotivo.textContent, /Guarda el plato primero/);
+	});
+
+	// ── CON VIDEO PUESTO, LA ACCIÓN NO ES LA MISMA ────────────
+
+	test('con un video ya puesto el botón dice "Regenerar"', async () => {
+		const m = pantalla();
+		await correr(m, { productos: [{ id: 'p1', atributos: { video: { url: 'https://x/v.mp4' } } }] });
+
+		assert.match(m.btnGenerarIA.textContent, /Regenerar/);
+		assert.equal(m.btnGenerarIA.disabled, false, 'sigue disponible: no se esconde una función del plan');
+	});
+
+	test('y avisa de que no pisa el actual hasta publicarlo', async () => {
+		// Es la ventaja del flujo de IA sobre subir un video, y hasta ahora no
+		// se contaba en ningún sitio.
+		const m = pantalla();
+		await correr(m, { productos: [{ id: 'p1', atributos: { video: { url: 'https://x/v.mp4' } } }] });
+
+		assert.match(m.iaMotivo.textContent, /No reemplaza a la actual/);
+	});
+
+	test('sin video puesto dice "Generar", no "Regenerar"', async () => {
+		const m = pantalla();
+		await correr(m, { productos: [{ id: 'p1', atributos: {} }] });
+
+		assert.match(m.btnGenerarIA.textContent, /Generar video con IA/);
+		assert.doesNotMatch(m.btnGenerarIA.textContent, /Regenerar/);
+	});
+
+	test('un archivo elegido y sin subir NO es un video puesto', async () => {
+		// Se mira el dato guardado, no la pantalla. Llamarlo "Regenerar" antes
+		// de que exista nada sería mentir sobre el estado del plato.
+		const m = pantalla();
+		await correr(m, { productos: [{ id: 'p1', atributos: {} }] });
+
+		assert.doesNotMatch(m.btnGenerarIA.textContent, /Regenerar/);
+	});
+
+	test('el motivo del plato anterior no se queda pegado', async () => {
+		// Abrir uno que sí puede generar después de uno que no podía dejaba en
+		// pantalla la razón del anterior, que es peor que no decir nada.
+		const m = pantalla();
+		m.iaMotivo.textContent = 'Guarda el plato primero.';
+		await correr(m, { encaje: { veredicto: 'bien', mensaje: '' } });
+
+		assert.equal(m.iaMotivo.textContent, '');
 	});
 
 	test('una foto que no sirve apaga el botón', async () => {

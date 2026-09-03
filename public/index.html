@@ -1723,6 +1723,14 @@
 								     lee como un rechazo. Quien lo ve da por hecho que no salió y
 								     vuelve a pulsar — y esa segunda pulsación se paga. Pasó. -->
 								<div id="iaEncaje" style="font-family:var(--mono);font-size:10px;margin-top:8px;line-height:1.5"></div>
+								<!-- POR QUÉ el botón está como está. Su propio elemento, y no
+								     compartido con el aviso de proporción ni con el estado de la
+								     generación: pisar el "✨ Generando..." es lo que el 26/08 hizo
+								     que alguien volviera a pulsar y se pagara dos veces.
+
+								     Un botón apagado sin explicación es lo que hacía que la ficha
+								     pareciera rota. Apagado + motivo es una instrucción. -->
+								<div id="iaMotivo" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:8px;line-height:1.5"></div>
 								<div id="iaEstado" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:8px;line-height:1.5"></div>
 							</div>
 						</div>
@@ -3717,6 +3725,19 @@ async function refrescarCupoIA() {
 	const btn = document.getElementById('btnGenerarIA');
 	if (!el || !btn) return;
 
+	// El motivo se limpia SIEMPRE al empezar. Sin esto, abrir un plato que sí
+	// puede generar después de uno que no podía dejaría en pantalla la razón
+	// del anterior, que es peor que no decir nada.
+	const razonAlEmpezar = document.getElementById('iaMotivo');
+	if (razonAlEmpezar) razonAlEmpezar.textContent = '';
+
+	// La etiqueta depende solo de si el plato tiene video, así que se decide
+	// una vez y fuera de las ramas de cupo: un botón agotado o sin cupo tiene
+	// que llamarse igual que uno disponible.
+	btn.textContent = tieneVideoPuesto(document.getElementById('editProductId')?.value)
+		? '✨ Regenerar con IA'
+		: '✨ Generar video con IA';
+
 	try {
 		const c = await apiFetch('GET', `/api/ia/cupo?restaurante_id=${state.restaurante.id}`);
 		state.cupoIA = c;
@@ -3734,20 +3755,34 @@ async function refrescarCupoIA() {
 			// La proporción se dice donde se decide, no después de pagar. Y en
 			// su propio elemento: escribirla en el del estado borraba el
 			// "✨ Generando..." con un aviso que parece un rechazo.
-			const enc = encajeDeLaFotoActual();
+			// Solo con foto. Sin ella no hay proporción que medir, y el
+			// reintento se quedaría esperando una imagen que no va a llegar.
+			const hayFoto = hayFotoEnLaFicha();
+			const enc = hayFoto ? encajeDeLaFotoActual() : null;
 			// Todavía no se pudo medir: se vuelve a intentar cuando cargue.
-			if (!enc) reintentarEncajeAlCargarLaFoto();
+			if (hayFoto && !enc) reintentarEncajeAlCargarLaFoto();
 			const nota = document.getElementById('iaEncaje');
 			if (nota) {
 				nota.textContent = (enc && enc.veredicto !== 'bien') ? enc.mensaje : '';
 				nota.style.color = enc?.veredicto === 'rechaza' ? 'var(--danger)' : 'var(--warn)';
 			}
 
-			// Tres motivos para dejar el botón apagado, y el orden importa
-			// porque el mensaje que se enseña es el del primero que aplique.
+			// Motivos para dejar el botón apagado, y el orden importa porque el
+			// mensaje que se enseña es el del primero que aplique. Van de "no
+			// se puede todavía" a "no se debe ahora".
 			const productoId = document.getElementById('editProductId')?.value;
 			const motivo =
-				// 1. La foto no sirve para este formato. El servidor lo rechaza
+				// 0. El plato no existe aún. Va primero porque ninguna de las
+				//    demás comprobaciones significa nada sin él: la generación
+				//    se cuelga de su identificador. Este era el caso que hacía
+				//    que el botón pareciera disponible en "Nuevo producto" y
+				//    solo fallara al pulsarlo.
+				!productoId ? 'sin-guardar' :
+				// 1. Sin foto no hay nada que animar. Antes esto escondía el
+				//    bloque entero; ahora se dice, que es lo que enseña el
+				//    orden correcto — primero la foto, después el video.
+				!hayFoto ? 'sin-foto' :
+				// 2. La foto no sirve para este formato. El servidor lo rechaza
 				//    igual; el botón encendido solo lleva al mismo sitio.
 				enc?.veredicto === 'rechaza' ? 'foto' :
 				// 2. Ya hay una en camino para este plato. refrescarCupoIA() se
@@ -3766,15 +3801,42 @@ async function refrescarCupoIA() {
 				//    después de recargar la página.
 				(productoId && videoPorAprobarDe(productoId)) ? 'sin-revisar' : null;
 
+			// ── APAGADO SIN MOTIVO ES UNA FICHA ROTA ──────────
+			// Cada apagado dice qué falta y qué hacer. El motivo va en su
+			// propio elemento: 'iaEncaje' es solo para la proporción de la
+			// foto, y 'iaEstado' lo usa la generación en marcha.
+			const MOTIVOS = {
+				'sin-guardar': 'Guarda el plato primero. El video se cuelga de él, así que todavía no hay dónde ponerlo.',
+				'sin-foto':    'Sube una foto del plato: es de donde sale el video. Sin ella no hay nada que animar.',
+				// La proporción ya se explica en 'iaEncaje', con el detalle de
+				// a cuánto habría que recortarla. Repetirlo aquí sería decir
+				// dos veces lo mismo con menos precisión.
+				'foto':        '',
+				'en-curso':    'Ya hay una generación en camino para este plato. Espera a que termine.',
+				'sin-revisar': 'Este plato ya tiene un video generado esperando que lo revises. ' +
+				               'Publícalo o descártalo antes de gastar otra animación.',
+			};
+			const razon = document.getElementById('iaMotivo');
+
 			if (motivo) {
 				btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
-				if (motivo === 'sin-revisar' && nota) {
-					nota.textContent = 'Este plato ya tiene un video generado esperando que lo revises. ' +
-					                   'Publícalo o descártalo antes de gastar otra animación.';
-					nota.style.color = 'var(--warn)';
+				if (razon) {
+					razon.textContent = MOTIVOS[motivo] || '';
+					razon.style.color = motivo === 'sin-revisar' ? 'var(--warn)' : 'var(--text-muted)';
 				}
 			} else {
 				btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
+				// Con un video ya puesto la acción no es la misma, y llamarla
+				// igual haría que la ficha pareciera ignorar lo que el plato ya
+				// tiene. Lo que cambia es el nombre y el aviso, no que exista:
+				// esconderla quitaría de la vista algo que se usa para vender
+				// el plan, delante de quien lo contrató.
+				if (razon) {
+					razon.textContent = tieneVideoPuesto(productoId)
+						? 'Generará una versión nueva. No reemplaza a la actual hasta que la revises y la publiques.'
+						: '';
+					razon.style.color = 'var(--text-muted)';
+				}
 			}
 		} else {
 			// Agotado no es un error: es la conversación comercial. El texto
@@ -3790,6 +3852,29 @@ async function refrescarCupoIA() {
 		el.style.color = 'var(--danger)';
 		btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
 	}
+}
+
+// ¿Hay foto en la ficha ahora mismo? Cuenta la recién subida —que todavía no
+// se guardó, vive en state.pendingImgUrl— y la que ya tenía el plato. Y no
+// cuenta la que se marcó para borrar: quien acaba de quitarla no tiene foto,
+// aunque la previa siga en pantalla hasta que guarde.
+//
+// Va aquí abajo, y no antes de refrescarCupoIA, porque las pruebas cargan ese
+// trozo del archivo por sus extremos y un ayudante de fuera no existiría para
+// ellas. Las declaraciones de función se elevan, así que el orden no importa
+// para el navegador.
+function hayFotoEnLaFicha() {
+	if (state.pendingImgUrl === '__remove__') return false;
+	if (state.pendingImgUrl) return true;
+	return !!document.getElementById('imgEditPreview')?.src?.includes('/uploads/');
+}
+
+// ¿Este plato ya tiene un video publicado? Se mira el dato, no la pantalla:
+// un archivo elegido y sin subir no es un video puesto, y confundirlos haría
+// que el botón dijera "Regenerar" antes de que exista nada que regenerar.
+function tieneVideoPuesto(productoId) {
+	if (!productoId) return false;
+	return !!(state.productos || []).find(p => p.id === productoId)?.atributos?.video?.url;
 }
 
 async function generarConIA() {
@@ -3933,21 +4018,23 @@ function ajustarFichaAlModelo() {
 	if (etiquetaVideo) etiquetaVideo.innerHTML =
 		`Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a ${proporcion} y se guardan 8 segundos)</span>`;
 
-	// El bloque de IA solo si el plato tiene foto: la foto ES la entrada del
-	// modelo. Enseñar el botón sin ella sería ofrecer algo que el servidor va
-	// a rechazar, y el usuario no tendría forma de saber por qué.
+	// ── EL BLOQUE DE IA SE VE SIEMPRE QUE LA CARTA LA TENGA ───
+	// Antes se escondía sin foto. El razonamiento era bueno —la foto ES la
+	// entrada del modelo— pero la conclusión no: esconderlo deja al usuario
+	// sin saber que existe, y quien pagó el plan tiene que verlo.
+	//
+	// Lo que hace falta no es ocultar, es explicar. El botón se apaga y
+	// refrescarCupoIA escribe POR QUÉ. Ver docs/planesymodelos.md §4.bis:
+	// la IA no desaparece por el estado del plato, solo cuando se apaga.
 	const bloqueIA = document.getElementById('iaBloque');
 	if (bloqueIA) {
-		const hayFoto = !!(state.pendingImgUrl && state.pendingImgUrl !== '__remove__')
-			|| !!document.getElementById('imgEditPreview')?.src?.includes('/uploads/');
-
-		// Apagada: el bloque no aparece, no aparece apagado. Un botón muerto
-		// con un "no disponible" invita a preguntar por algo que se quitó a
-		// propósito. El estado real lo da el servidor y se relee cada vez:
-		// state.cupoIA puede ser de otro restaurante o de antes del cambio.
+		// Apagada: el bloque no aparece, no aparece apagado. Ahí sí, porque un
+		// botón muerto con un "no disponible" invita a preguntar por algo que
+		// se quitó a propósito. El estado real lo da el servidor y se relee
+		// cada vez: state.cupoIA puede ser de otro restaurante o de antes.
 		const apagada = state.cupoIA?.activa === false;
-		bloqueIA.style.display = esVideo && hayFoto && !apagada ? 'block' : 'none';
-		if (esVideo && hayFoto) refrescarCupoIA();
+		bloqueIA.style.display = esVideo && !apagada ? 'block' : 'none';
+		if (esVideo) refrescarCupoIA();
 	}
 
 	// Un 9:16 a todo el ancho de la ficha mide vez y media la pantalla de alto
