@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # La misma versión que usa la imagen de producción (node:22-alpine).
       # Si aquí se probara con otra, las pruebas podrían pasar sobre un Node
