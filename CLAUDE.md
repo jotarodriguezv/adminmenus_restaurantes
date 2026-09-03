@@ -71,11 +71,53 @@ Las migraciones se versionan en `sql/`, numeradas correlativamente. Un cambio
 de esquema **añade un archivo nuevo**; no se edita uno ya aplicado ni se toca
 el esquema solo desde la consola de Supabase.
 
+**Avisar antes de escribir en producción.** Consultar y leer es libre; aplicar
+una migración, no.
+
+**Orden de despliegue: primero la base, después el código.** Una migración
+aditiva —una función o un índice que todavía no usa nadie— no cambia nada al
+aplicarse, así que ponerla antes es gratis. Al revés no: el código desplegado
+llamaría a algo que aún no existe. Está escrito en `sql/13` y volvió a hacer
+falta en `sql/15`.
+
 La separación entre tablas públicas y privadas es deliberada y no es
 negociable: `restaurantes` viaja entera al navegador de cualquier comensal.
 Credenciales, cobranza y cualquier secreto van en `restaurantes_privado` y
 `restaurantes_facturacion`. **Nunca meter un dato sensible en
 `restaurantes.atributos`.**
+
+### Al crear una función SQL: los dos `revoke`, y verificar después
+
+Una función nueva en el esquema `public` nace accesible con la clave
+publicable. Para cerrarla hacen falta **dos** `revoke`, porque hay **dos vías
+de acceso independientes** y ninguna se quita revocando la otra:
+
+```sql
+revoke execute on function public.mi_funcion(...) from public;
+revoke execute on function public.mi_funcion(...) from anon, authenticated;
+grant  execute on function public.mi_funcion(...) to service_role;
+```
+
+- PostgreSQL concede `EXECUTE` a `PUBLIC` en cada función nueva (aparece en el
+  ACL como el grantee vacío: `{=X/postgres,...}`).
+- Supabase, **además**, se lo concede a `anon` y `authenticated` de forma
+  explícita, por privilegios por defecto sobre el esquema.
+
+Emitir los dos siempre, sin pararse a averiguar cuál aplica: sobra uno en cada
+caso y no cuesta nada.
+
+**Y comprobarlo después de aplicar, no dar por hecho que funcionó:**
+
+```sql
+select proname, has_function_privilege('anon', oid, 'EXECUTE')
+  from pg_proc where proname = 'mi_funcion';
+```
+
+Esto no es teoría. `sql/03` cerró una vía y dejó la otra abierta, y la función
+pasó meses accesible **pareciendo que no lo estaba**, que es peor que saberla
+abierta. Al arreglarlo en `sql/16` volvió a pasar: el primer intento cerró una
+función y dejó la otra igual, porque cada una estaba abierta por una vía
+distinta. Se detectó solo por verificar. El detalle completo está en `sql/16`.
 
 ## Comandos
 
