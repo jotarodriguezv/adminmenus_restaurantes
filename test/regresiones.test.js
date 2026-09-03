@@ -52,13 +52,53 @@ describe('02 · borrar un archivo comprueba de quién es', () => {
     fs.mkdirSync(dir, { recursive: true });
     const nombre = 'verif-ajeno.jpg';
     fs.writeFileSync(path.join(dir, nombre), 'x');
-    // La foto la referencia OTRO restaurante.
-    S.conTabla(st => st.tabla === 'productos'
-      ? { data: [{ restaurante_id: 'otro-resto', imagen_url: `http://localhost/uploads/productos/${nombre}` }], error: null }
-      : { data: [], error: null });
+    // La foto la referencia OTRO restaurante. Desde sql/17 quien lo determina
+    // es la base, así que lo que se simula es su respuesta.
+    S.conRpc(() => ({ data: 'otro-resto', error: null }));
     const r = await S.pedir('DELETE', `/api/upload/productos/${nombre}`, null, S.tokenCliente);
     assert.equal(r.status, 403);
     assert.equal(fs.existsSync(path.join(dir, nombre)), true, 'el archivo ajeno sigue ahí');
+    fs.unlinkSync(path.join(dir, nombre));
+  });
+
+  test('la pregunta se le hace a la base, no trayéndose las tablas', async () => {
+    // La comprobación de antes hacía un select('*') sin filtro sobre cuatro
+    // tablas en CADA borrado. Era correcta, pero su coste crecía con la base
+    // entera. Esto sujeta que no se vuelva ahí: una sola llamada, con la clave
+    // del archivo, y ninguna tabla recorrida a mano.
+    S.reiniciar();
+    fs.mkdirSync(dir, { recursive: true });
+    const nombre = 'verif-una-llamada.jpg';
+    fs.writeFileSync(path.join(dir, nombre), 'x');
+    S.conRpc(() => ({ data: null, error: null }));
+
+    await S.pedir('DELETE', `/api/upload/productos/${nombre}`, null, S.tokenCliente);
+
+    const rpc = S.llamadas.filter(l => l.tipo === 'rpc');
+    assert.equal(rpc.length, 1, 'una sola consulta decide de quién es');
+    assert.equal(rpc[0].nombre, 'restaurante_del_archivo');
+    assert.equal(rpc[0].params.p_clave, `productos/${nombre}`);
+    assert.equal(S.llamadas.some(l => l.tipo === 'tabla'), false,
+      'ninguna tabla se recorre desde el servidor');
+
+    if (fs.existsSync(path.join(dir, nombre))) fs.unlinkSync(path.join(dir, nombre));
+  });
+
+  test('si la base no contesta, no se borra nada', async () => {
+    // Ante la duda no se toca el disco: un fallo de red no puede convertirse
+    // en el borrado del archivo de otro restaurante.
+    S.reiniciar();
+    fs.mkdirSync(dir, { recursive: true });
+    const nombre = 'verif-sin-respuesta.jpg';
+    fs.writeFileSync(path.join(dir, nombre), 'x');
+    S.conRpc(() => ({ data: null, error: { message: 'la base no responde' } }));
+
+    const r = await S.pedir('DELETE', `/api/upload/productos/${nombre}`, null, S.tokenCliente);
+
+    assert.equal(r.status, 503);
+    assert.equal(fs.existsSync(path.join(dir, nombre)), true, 'el archivo sigue ahí');
+    assert.doesNotMatch(r.body.error, /la base no responde/,
+      'el mensaje de la base no llega al navegador');
     fs.unlinkSync(path.join(dir, nombre));
   });
 
@@ -67,7 +107,7 @@ describe('02 · borrar un archivo comprueba de quién es', () => {
     fs.mkdirSync(dir, { recursive: true });
     const nombre = 'verif-huerfano.jpg';
     fs.writeFileSync(path.join(dir, nombre), 'x');
-    S.conTabla(() => ({ data: [], error: null }));   // nadie lo referencia
+    S.conRpc(() => ({ data: null, error: null }));   // nadie lo referencia
     const r = await S.pedir('DELETE', `/api/upload/productos/${nombre}`, null, S.tokenCliente);
     assert.equal(r.status, 200);
     assert.equal(fs.existsSync(path.join(dir, nombre)), false);
