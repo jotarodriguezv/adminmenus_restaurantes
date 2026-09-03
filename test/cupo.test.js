@@ -13,6 +13,7 @@ const PLATO = '33333333-3333-4333-8333-333333333333';
 function supabaseFalso({ cupoConfigurado = null, filasQueCuentan = 0, fallarConteo = false, activa = true, errorAlInsertar = null } = {}) {
 	const escrituras = [];
 	const inserciones = [];
+	const llamadasRpc = [];
 
 	function tabla(nombre) {
 		const st = { tabla: nombre };
@@ -66,7 +67,58 @@ function supabaseFalso({ cupoConfigurado = null, filasQueCuentan = 0, fallarCont
 		return q;
 	}
 
-	return { escrituras, inserciones, from: tabla };
+	// Desde sql/15 la reserva no es un select seguido de un insert: es una sola
+	// llamada que decide y escribe dentro de la base. Esto imita lo que hace
+	// aquella función con los mismos mandos de arriba, para que las pruebas
+	// sigan hablando de comportamiento y no de por dónde pasa la consulta.
+	//
+	// El orden de las comprobaciones es el de sql/15 a propósito: si aquí se
+	// mirara el cupo antes que 'activa', una carta apagada y agotada daría el
+	// motivo equivocado y la prueba que los distingue no se enteraría.
+	function rpc(nombre, args) {
+		llamadasRpc.push({ nombre, args });
+
+		if (nombre !== 'reservar_generacion_ia') {
+			return Promise.resolve({ data: null, error: { message: `rpc inesperada: ${nombre}` } });
+		}
+
+		if (fallarConteo) {
+			return Promise.resolve({ data: null, error: { message: 'la base no responde' } });
+		}
+
+		// Sin fila en restaurantes_ia manda el que llega por parámetro, que es
+		// el del servidor. La función SQL no lleva ningún número escrito.
+		const cupoEfectivo = cupoConfigurado === null ? args.p_cupo_por_defecto : cupoConfigurado;
+
+		if (!activa) {
+			return Promise.resolve({ data: { ok: false, motivo: 'apagada' }, error: null });
+		}
+
+		if (filasQueCuentan >= cupoEfectivo) {
+			return Promise.resolve({
+				data: { ok: false, motivo: 'sin_cupo', cupo: cupoEfectivo, usadas: filasQueCuentan },
+				error: null,
+			});
+		}
+
+		// errorAlInsertar representa el choque del índice de sql/13. La función
+		// lo captura dentro y sale por 'ya_en_curso': el 23505 no cruza la
+		// frontera, así que el mensaje de Postgres no puede llegar al navegador.
+		if (errorAlInsertar) {
+			return Promise.resolve({ data: { ok: false, motivo: 'ya_en_curso' }, error: null });
+		}
+
+		const fila = {
+			id: 'gen-1',
+			restaurante_id: args.p_restaurante_id,
+			producto_id: args.p_producto_id,
+			estado: 'reservada',
+		};
+		inserciones.push({ restaurante_id: fila.restaurante_id, producto_id: fila.producto_id });
+		return Promise.resolve({ data: { ok: true, fila }, error: null });
+	}
+
+	return { escrituras, inserciones, llamadasRpc, from: tabla, rpc };
 }
 
 describe('cuántas le quedan', () => {
@@ -198,6 +250,55 @@ describe('reservar · el choque del índice único no es un error del sistema', 
 					'el mensaje de Postgres no puede llegar al navegador');
 				return true;
 			});
+	});
+});
+
+describe('reservar · la decisión y la escritura van juntas', () => {
+	// sql/13 cerró que un mismo plato se generara dos veces. Lo que cierra
+	// sql/15 es el otro lado: dos platos DISTINTOS del mismo restaurante
+	// pedidos a la vez contaban los dos 23 de 24 y reservaban los dos. El
+	// índice de sql/13 no los ve porque los platos no chocan entre sí.
+	//
+	// Lo que estas pruebas NO hacen, para no engañar a quien las lea: no
+	// demuestran que la carrera esté cerrada. Eso lo hace el cerrojo de
+	// pg_advisory_xact_lock dentro de la base, y un Supabase de mentira no
+	// tiene transacciones que serializar.
+	//
+	// Lo que sí sujetan es que este archivo no vuelva a contar por su cuenta.
+	// Mientras la decisión la tome la base en una sola llamada, el cerrojo
+	// sirve de algo; el día que alguien reintroduzca un conteo aquí arriba
+	// para "ahorrarse una consulta", el cerrojo pasa a proteger una decisión
+	// que ya se tomó fuera y vuelve el agujero sin que nada se queje.
+
+	test('se resuelve en una sola llamada, sin contar antes por aquí', async () => {
+		const sb = supabaseFalso({ cupoConfigurado: 24, filasQueCuentan: 3 });
+		await cupo.reservar(sb, { restaurante_id: RESTO, producto_id: PLATO });
+
+		assert.equal(sb.llamadasRpc.length, 1, 'una sola operación decide y escribe');
+		assert.equal(sb.llamadasRpc[0].nombre, 'reservar_generacion_ia');
+		assert.equal(sb.inserciones.length, 1);
+	});
+
+	test('el cupo por defecto lo pone el servidor, no la base', async () => {
+		// Si la función SQL lo llevara escrito, cambiar IA_CUPO_POR_DEFECTO
+		// dejaría a la base contando con el número viejo y solo se notaría en
+		// la factura.
+		const sb = supabaseFalso({ cupoConfigurado: null, filasQueCuentan: 0 });
+		await cupo.reservar(sb, { restaurante_id: RESTO, producto_id: PLATO });
+
+		assert.equal(sb.llamadasRpc[0].args.p_cupo_por_defecto, cupo.CUPO_POR_DEFECTO);
+	});
+
+	test('un motivo desconocido no se interpreta como permiso', async () => {
+		// Pasa si la función de la base es más nueva que este archivo. Ante algo
+		// que no se entiende, no gastar: lo contrario sería generar sin saber si
+		// había cupo.
+		const sb = supabaseFalso();
+		sb.rpc = () => Promise.resolve({ data: { ok: false, motivo: 'algo_nuevo' }, error: null });
+
+		await assert.rejects(
+			() => cupo.reservar(sb, { restaurante_id: RESTO, producto_id: PLATO }),
+			e => e.sinCupo === undefined && e.iaApagada === undefined && e.yaEnCurso === undefined);
 	});
 });
 

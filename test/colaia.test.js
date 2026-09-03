@@ -46,7 +46,34 @@ function supabaseFalso({ usadas = 0, cupoConfigurado = 24, enCurso = [], atribut
 		};
 		return q;
 	}
-	return { from: tabla };
+	// La reserva ya no es un insert suelto: desde sql/15 la decide y la escribe
+	// una sola función dentro de la base, para que dos peticiones simultáneas
+	// no puedan pasarse del cupo. Lo que importa aquí sigue siendo lo mismo —
+	// que la fila quede escrita ANTES de llamar a Replicate— así que apunta su
+	// paso igual que antes lo apuntaba el insert.
+	function rpc(_nombre, args) {
+		pasos.push('reservar:generaciones_ia');
+		if (usadas >= cupoConfigurado) {
+			return Promise.resolve({
+				data: { ok: false, motivo: 'sin_cupo', cupo: cupoConfigurado, usadas },
+				error: null,
+			});
+		}
+		return Promise.resolve({
+			data: {
+				ok: true,
+				fila: {
+					id: 'gen-1',
+					restaurante_id: args.p_restaurante_id,
+					producto_id: args.p_producto_id,
+					estado: 'reservada',
+				},
+			},
+			error: null,
+		});
+	}
+
+	return { from: tabla, rpc };
 }
 
 beforeEach(() => { pasos = []; });
@@ -64,7 +91,7 @@ describe('lanzar · el orden es lo que impide pagar de más', () => {
 		const r = await colaia.lanzar(supabaseFalso(), { restaurante_id: RESTO, producto_id: PLATO, foto_url: FOTO });
 
 		assert.deepEqual(pasos, [
-			'insert:generaciones_ia',                 // 1. reservar
+			'reservar:generaciones_ia',               // 1. reservar
 			'replicate:crear',                        // 2. la llamada que cuesta
 			'update:generaciones_ia:generando',       // 3. anotar el identificador
 		]);
