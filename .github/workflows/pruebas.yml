@@ -21,7 +21,7 @@ jobs:
       # La misma versión que usa la imagen de producción (node:22-alpine).
       # Si aquí se probara con otra, las pruebas podrían pasar sobre un Node
       # que no es el que acaba corriendo.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
 
