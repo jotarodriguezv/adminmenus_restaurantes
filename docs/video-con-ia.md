@@ -659,6 +659,29 @@ el historial es justamente lo que permite contar el cupo. Se verificó
 explícitamente que sigue permitiéndolo — un índice que lo hubiera bloqueado
 habría roto el conteo sin que nada lo dijera.
 
+### El otro lado de la misma puerta: el cupo total
+
+`sql/13` cierra que **un mismo plato** se genere dos veces. No cierra que un
+restaurante se pase de su cupo, y era el mismo fallo con otra ropa: dos
+peticiones simultáneas de **platos distintos** contaban las dos 23 de 24 y
+reservaban las dos. El índice no las ve, y con razón — los platos no chocan
+entre sí, así que no hay clave duplicada que rechazar.
+
+En `cupo.js` estuvo escrito que no compensaba arreglarlo, porque el exceso sería
+de una generación. El argumento no se sostiene: el exceso es de tantas como
+peticiones entren a la vez, y cada una es un cobro.
+
+"Como mucho N filas por restaurante" no se puede escribir como un índice: no
+habla de una fila, habla de contar las demás. Así que `sql/15` mueve la decisión
+entera dentro de la base —contar y escribir en la misma llamada— y serializa por
+restaurante con `pg_advisory_xact_lock`. Dos peticiones del mismo restaurante se
+ponen en fila; las de restaurantes distintos no se estorban.
+
+Un detalle que se decidió a conciencia: el cupo por defecto viaja como parámetro
+desde `cupo.js` en vez de estar escrito en la función. Copiarlo habría creado dos
+fuentes, y el día que alguien cambiara `IA_CUPO_POR_DEFECTO` la base seguiría
+contando con el número viejo sin que nada avisara.
+
 La revisión completa del 27/08 que lo destapó está en `cartas-en-video.md §9`.
 
 ---

@@ -84,51 +84,66 @@ async function estado(supabase, restauranteId) {
 
 // Reserva una generación. Devuelve la fila si había sitio, o lanza si no.
 //
-// La comprobación y la reserva no son atómicas: entre contar y escribir cabe
-// otra petición. Con un solo restaurante pulsando un botón eso no pasa, y la
-// consecuencia de que pasara sería UNA generación de más, no un desbordamiento
-// — el siguiente intento ya ve las dos. Resolverlo de verdad pediría un
-// bloqueo en la base, y no compensa por una unidad.
+// Contar y escribir ocurren dentro de la base, en una sola llamada, porque
+// separarlas deja un hueco por el que se cuela una factura: dos peticiones
+// simultáneas de PLATOS DISTINTOS contaban las dos 23 de 24 y reservaban las
+// dos. Aquí se leía el conteo y luego se insertaba; el índice de sql/13 no
+// las veía, porque solo mira que no haya dos en curso para el mismo plato.
 //
-// Lo que sí importa es el orden: primero se escribe la reserva, DESPUÉS se
+// Aquí estuvo escrito que no compensaba arreglarlo, con el argumento de que
+// el exceso era de una generación. El argumento tenía un agujero: el exceso
+// no es de una, es de tantas como peticiones entren a la vez, y el cupo
+// existe justamente porque cada una se paga.
+//
+// El porqué del cerrojo en vez de una restricción está en
+// sql/15_reserva_de_cupo_atomica.sql.
+//
+// Lo que no cambia es el orden: primero se escribe la reserva, DESPUÉS se
 // llama al proveedor. Nunca al revés.
 async function reservar(supabase, { restaurante_id, producto_id }) {
-  const { cupo, disponibles, activa } = await estado(supabase, restaurante_id);
+  // El cupo por defecto viaja como parámetro para que la variable de entorno
+  // siga siendo la única fuente: si la función lo llevara escrito, cambiar
+  // IA_CUPO_POR_DEFECTO dejaría a la base contando con el número viejo.
+  const { data, error } = await supabase.rpc('reservar_generacion_ia', {
+    p_restaurante_id: restaurante_id,
+    p_producto_id: producto_id || null,
+    p_cupo_por_defecto: CUPO_POR_DEFECTO,
+  });
 
-  // Antes que el cupo: apagada no es "se te acabaron", y decirlo así llevaría
-  // a ampliarle un cupo que no es el problema.
-  if (!activa) {
+  // Ante la duda, no gastar: si no se sabe si había sitio, no se genera.
+  if (error) throw new Error(`leyendo el cupo: ${error.message}`);
+  if (!data) throw new Error('leyendo el cupo: la base no contestó nada');
+
+  if (data.ok) return data.fila;
+
+  // Cada "no" lleva su marca porque cada uno lleva a una conversación
+  // distinta, y quien llama las traduce a códigos HTTP distintos. Apagada
+  // antes que sin cupo: decirle "se te acabaron" a quien tiene la IA apagada
+  // lleva a ampliarle un cupo que no es el problema.
+  if (data.motivo === 'apagada') {
     const e = new Error('La generación con IA no está activa para esta carta.');
     e.iaApagada = true;
     throw e;
   }
 
-  if (disponibles <= 0) {
-    const e = new Error(`Se agotaron las ${cupo} animaciones de este restaurante. Escríbenos para ampliar el cupo.`);
+  if (data.motivo === 'sin_cupo') {
+    const e = new Error(`Se agotaron las ${data.cupo} animaciones de este restaurante. Escríbenos para ampliar el cupo.`);
     e.sinCupo = true;
     throw e;
   }
 
-  const { data, error } = await supabase.from('generaciones_ia')
-    .insert([{ restaurante_id, producto_id: producto_id || null }])
-    .select().single();
-  if (error) {
-    // 23505 es el índice único parcial de sql/13: ya hay una generación en
-    // curso para este plato. Es lo único que cierra de verdad la carrera entre
-    // dos peticiones simultáneas — la comprobación de la ruta lee y luego
-    // escribe, y entre las dos cosas cabe otra petición.
-    //
-    // No es un fallo del sistema, es la respuesta correcta, y por eso lleva
-    // marca propia: quien llama la traduce a un 409 con el mismo texto que da
-    // la comprobación de arriba, para que el usuario lea siempre lo mismo.
-    if (error.code === '23505') {
-      const e = new Error('Ese plato ya tiene una generación en camino. Espera a que termine.');
-      e.yaEnCurso = true;
-      throw e;
-    }
-    throw new Error(`reservando la generación: ${error.message}`);
+  // El índice único parcial de sql/13 haciendo su trabajo. No es un fallo del
+  // sistema, es la respuesta correcta: el mensaje de Postgres se queda en la
+  // base y el usuario lee lo mismo que le diría el freno de la ruta.
+  if (data.motivo === 'ya_en_curso') {
+    const e = new Error('Ese plato ya tiene una generación en camino. Espera a que termine.');
+    e.yaEnCurso = true;
+    throw e;
   }
-  return data;
+
+  // Un motivo que este código no conoce solo puede venir de una versión de la
+  // función más nueva que este archivo. No inventarse qué hacer: no gastar.
+  throw new Error(`reservando la generación: la base respondió algo que no se entiende (${data.motivo || 'sin motivo'})`);
 }
 
 // El identificador del proveedor se guarda EN CUANTO SE CREA la predicción,
