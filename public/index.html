@@ -1684,6 +1684,16 @@
 									letter-spacing:1px;cursor:pointer;white-space:nowrap;">
 									↑ Subir y convertir
 								</button>
+								<!-- Solo con un video ya puesto en el plato. No borra el
+								     archivo: lo quita de la carta y deja el original, así
+								     que un clic de más se deshace reconvirtiendo en vez
+								     de volviendo a grabar. -->
+								<button type="button" id="btnQuitarVideo" onclick="quitarVideo()"
+									style="display:none;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);
+									background:transparent;color:var(--danger);font-family:var(--mono);font-size:9px;
+									letter-spacing:1px;cursor:pointer;white-space:nowrap;">
+									🗑 Quitar video
+								</button>
 								<div id="videoUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
 							</div>
 
@@ -3023,6 +3033,9 @@ function pintarVideoPlato(p) {
 	} else {
 		prev.removeAttribute('src'); prev.style.display = 'none'; vacio.style.display = 'block';
 	}
+	// Quitar solo tiene sentido sobre un video que ya está en el plato: mientras
+	// se elige o se convierte, lo que hay que ofrecer es cancelar, no retirar.
+	document.getElementById('btnQuitarVideo').style.display = url ? 'block' : 'none';
 
 	// ── ¿ESTE VIDEO QUEDÓ EN EL FORMATO ANTERIOR? ─────────────
 	// Solo con video ya publicado: mientras convierte no se sabe en qué queda,
@@ -3443,6 +3456,37 @@ async function handleProductImgUpload(input) {
     document.getElementById('btnQuitarFoto').style.display='block';
     st.textContent='✓ Lista para guardar'; st.style.color='var(--success)';
   } catch(e) { st.textContent=e.message||'Error al subir'; st.style.color='var(--danger)'; }
+}
+
+// Quitar el video NO espera a guardar, al revés que quitarFoto().
+//
+// No es una incoherencia: la foto es un campo del formulario y se va con el
+// resto al pulsar guardar. El video no lo escribe nunca el formulario —lo pone
+// la cola de conversión— así que no hay ningún guardado al que engancharlo.
+// Fingir que sí obligaría a inventar un estado pendiente para algo que el
+// PATCH no puede mandar.
+//
+// Por eso pide confirmación: es inmediato. Y por eso el texto dice qué NO
+// pasa, que es lo que quita el miedo a pulsar.
+async function quitarVideo() {
+	const id = document.getElementById('editProductId').value;
+	if (!id) return;
+	if (!confirm('¿Quitar el video de este plato?\n\nEl plato volverá a mostrar su foto. El video original se conserva en el servidor, así que se puede volver a poner sin subirlo de nuevo.')) return;
+
+	const st = document.getElementById('videoUploadStatus');
+	st.textContent = 'Quitando…'; st.style.color = 'var(--text-muted)';
+	try {
+		await apiFetch('DELETE', `/api/productos/${id}/video`);
+		// Se recargan los productos y se repinta desde el dato fresco, en vez de
+		// tocar el DOM a mano: así lo que se ve es lo que hay guardado, no lo que
+		// esta función cree que debería haber.
+		state.productos = await apiFetch('GET', `/api/productos?restaurante_id=${state.restaurante.id}`);
+		pintarVideoPlato(state.productos.find(p => p.id === id));
+		st.textContent = 'Video quitado'; st.style.color = 'var(--success)';
+		showToast('Video quitado del plato', 'success');
+	} catch (e) {
+		st.textContent = 'Error: ' + e.message; st.style.color = 'var(--danger)';
+	}
 }
 
 function quitarFoto() {

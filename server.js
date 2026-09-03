@@ -1355,6 +1355,55 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
   res.json(data);
 });
 
+// ── QUITARLE EL VIDEO A UN PLATO ──────────────────────────────
+// Hasta ahora no se podía. 'video' está en ATRIBUTOS_PRODUCTO_DEL_SERVIDOR,
+// así que atributosProducto() lo copia SIEMPRE de lo que ya estaba guardado
+// e ignora lo que mande el cliente. Eso protege lo que escribe la cola de
+// conversión —el panel no puede pisarlo a medio convertir— pero tenía un
+// efecto que nadie buscó: ningún PATCH podía borrarlo. Un plato que estrenaba
+// video se quedaba con él para siempre, y quitarlo exigía entrar a la base a
+// mano.
+//
+// Por eso es una ruta propia y no un campo más del PATCH: la regla de que el
+// cliente no escribe 'video' sigue en pie. Lo que se añade es una acción
+// explícita que dice qué hace.
+//
+// ── LO QUE NO BORRA, Y POR QUÉ ────────────────────────────────
+// Solo quita la referencia del plato. No toca el archivo, ni la portada, ni
+// el master, ni la fila de trabajos_video.
+//
+// El master es de donde se vuelve a recortar cuando la carta cambia de
+// formato, y esta plataforma ya decidió no destruirlo: DELETE de un trabajo
+// 'listo' con master se rechaza con ese mismo argumento. Quitar un video de
+// la carta no es motivo para perder el original.
+//
+// Además deja una salida: el trabajo sigue ahí, así que "Reconvertir" lo
+// vuelve a dejar en el plato sin volver a subir nada. Si se borraran los
+// archivos, deshacer un clic de más costaría grabar otra vez.
+//
+// Los archivos tampoco quedan huérfanos: limpieza.js busca referencias en
+// trabajos_video además de en productos, y esa fila sigue nombrándolos.
+app.delete('/api/productos/:id/video', auth, async (req, res) => {
+  const { data: prod } = await supabase.from('productos')
+    .select('restaurante_id, atributos').eq('id', req.params.id).maybeSingle();
+  if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id))
+    return res.status(403).json({ error: 'Sin permiso' });
+
+  // No se comprueba el plan a propósito. El plan decide quién puede CREAR
+  // videos; a quien se le acabó tiene que poder retirar los que ya tiene, y
+  // no al revés.
+  if (!prod.atributos?.video)
+    return res.status(409).json({ error: 'Ese plato no tiene video' });
+
+  const { video, ...resto } = prod.atributos;
+  const { error } = await supabase.from('productos')
+    .update({ atributos: resto }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+
+  console.log(`🎬 video retirado del plato ${req.params.id} (el archivo se conserva)`);
+  res.json({ ok: true });
+});
+
 app.delete('/api/productos/:id', auth, async (req, res) => {
   const { data: prod } = await supabase.from('productos').select('restaurante_id, imagen_url').eq('id', req.params.id).single();
   if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });

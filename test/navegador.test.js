@@ -219,7 +219,7 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 	// contratado y que la API le va a rechazar.
 	const pantalla = () => {
 		const ids = ['videoGroup', 'videoEditPreview', 'videoEditVacio',
-			'btnSubirVideo', 'videoUploadStatus', 'videoFileInput',
+			'btnSubirVideo', 'btnQuitarVideo', 'videoUploadStatus', 'videoFileInput',
 			'videoDesdeFila', 'btnConfirmarVideo', 'videoDesde', 'videoDesdeAviso',
 				'videoFallido', 'videoFallidoMotivo',
 				// El bloque de revisión de lo que generó el modelo.
@@ -279,6 +279,31 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		assert.equal(m.videoEditPreview.src, url);
 		assert.equal(m.videoEditPreview.style.display, 'block');
 		assert.equal(m.videoEditVacio.style.display, 'none');
+	});
+
+	// ── QUITAR SOLO SE OFRECE CUANDO HAY ALGO QUE QUITAR ──────
+	// Es la mitad visible de una acción que hasta ahora no existía: 'video' lo
+	// escribe la cola y atributosProducto() lo conserva siempre, así que un
+	// plato con video no podía perderlo por ninguna vía del panel.
+	//
+	// El botón se ata al video YA PUESTO, no a haber elegido un archivo:
+	// mientras se elige o se convierte, lo que se necesita es cancelar, y eso
+	// es otra cosa que retirar lo que la carta ya está enseñando.
+
+	test('sin video no se ofrece quitarlo', () => {
+		const m = pintar(true, { id: 'p1' }, pantalla());
+		assert.equal(m.btnQuitarVideo.style.display, 'none');
+	});
+
+	test('con video puesto sí', () => {
+		const m = pintar(true, { id: 'p1', atributos: { video: { url: 'https://ejemplo.test/uploads/videos/a.mp4' } } }, pantalla());
+		assert.equal(m.btnQuitarVideo.style.display, 'block');
+	});
+
+	test('un plato sin guardar tampoco lo ofrece', () => {
+		// No tiene id, así que no hay a qué ruta llamar.
+		const m = pintar(true, null, pantalla());
+		assert.equal(m.btnQuitarVideo.style.display, 'none');
 	});
 
 	// ── EL VIDEO QUE QUEDÓ EN EL FORMATO ANTERIOR ─────────────

@@ -988,6 +988,82 @@ describe('productos · qué se puede escribir dentro de "atributos"', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('DELETE /api/productos/:id/video · retirar un video sin perderlo', () => {
+	// Hasta ahora no se podía quitar. 'video' vive en
+	// ATRIBUTOS_PRODUCTO_DEL_SERVIDOR, así que atributosProducto() lo copia
+	// siempre de lo guardado e ignora al cliente — lo que protege a la cola de
+	// conversión de que el panel la pise, y de paso hacía imposible borrarlo
+	// por PATCH. Un plato que estrenaba video se quedaba con él para siempre.
+	//
+	// Por eso es una ruta propia: la regla de que el cliente no escribe
+	// 'video' sigue intacta, y lo que se añade es una acción que dice qué hace.
+
+	const VIDEO = {
+		url:      'https://panel/uploads/videos/a.mp4',
+		portada:  'https://panel/uploads/miniaturas/a.jpg',
+		duracion: 8,
+	};
+	const conPlato = atributos => S.conTabla(st =>
+		st.tabla === 'productos'
+			? { data: { restaurante_id: IDS.restaurante, atributos }, error: null }
+			: { data: null, error: null });
+
+	test('quita el video y deja el resto de atributos intactos', async () => {
+		conPlato({ video: VIDEO, popular: true, filtros: ['picante'] });
+		const r = await S.pedir('DELETE', `/api/productos/${IDS.producto}/video`, null, tokenCliente);
+
+		assert.equal(r.status, 200);
+		const g = S.ultimaEscritura('productos');
+		assert.equal(g.atributos.video, undefined, 'el video se va');
+		assert.equal(g.atributos.popular, true, 'lo demás se queda');
+		assert.deepEqual(g.atributos.filtros, ['picante']);
+	});
+
+	test('NO borra el archivo, ni la portada, ni el master, ni el trabajo', async () => {
+		// El master es de donde se vuelve a recortar cuando la carta cambia de
+		// formato, y esta plataforma ya decidió no destruirlo: borrar un trabajo
+		// 'listo' con master se rechaza con ese mismo argumento. Quitar un video
+		// de la carta no es motivo para perder el original — y además deja la
+		// salida de "Reconvertir" para volver a ponerlo sin subir nada.
+		conPlato({ video: VIDEO });
+		await S.pedir('DELETE', `/api/productos/${IDS.producto}/video`, null, tokenCliente);
+
+		assert.equal(
+			S.llamadas.some(l => l.tabla === 'trabajos_video' && l.op === 'delete'), false,
+			'la fila del trabajo tiene que sobrevivir: es lo que referencia los archivos');
+	});
+
+	test('un plato sin video lo dice en vez de fingir que hizo algo', async () => {
+		conPlato({ popular: true });
+		const r = await S.pedir('DELETE', `/api/productos/${IDS.producto}/video`, null, tokenCliente);
+
+		assert.equal(r.status, 409);
+		assert.match(r.body.error, /no tiene video/);
+		assert.equal(S.llamadas.some(l => l.tabla === 'productos' && l.op === 'update'), false,
+			'no se escribe nada');
+	});
+
+	test('no se le puede quitar el video a un plato de otro restaurante', async () => {
+		S.conTabla(st => st.tabla === 'productos'
+			? { data: { restaurante_id: 'otro-resto', atributos: { video: VIDEO } }, error: null }
+			: { data: null, error: null });
+		const r = await S.pedir('DELETE', `/api/productos/${IDS.producto}/video`, null, tokenCliente);
+
+		assert.equal(r.status, 403);
+		assert.equal(S.llamadas.some(l => l.tabla === 'productos' && l.op === 'update'), false);
+	});
+
+	test('el plan no estorba para retirar', async () => {
+		// El plan decide quién puede CREAR videos. A quien se le acabó tiene que
+		// poder retirar los que ya tiene: al revés sería dejarle una carta con
+		// algo que ya no puede administrar.
+		conPlato({ video: VIDEO, plan: 'vitrina' });
+		const r = await S.pedir('DELETE', `/api/productos/${IDS.producto}/video`, null, tokenCliente);
+
+		assert.equal(r.status, 200);
+	});
+});
+
 describe('/api/facturacion · la cobranza sale de la tabla pública', () => {
 	// dia_pago y ultimo_pago vivían en restaurantes.atributos, que tiene
 	// lectura pública: la carta pide 'atributos' entero, así que viajaban al
