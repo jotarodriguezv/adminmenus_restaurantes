@@ -2043,6 +2043,34 @@
 </div>
 
 <!-- MODAL CONFIRMAR ELIMINAR -->
+<!-- Aviso de salida con un video a medio subir o convertir.
+     Mismas reglas que el de cambios sin guardar: sin ✕, dos botones, y un
+     clic fuera se entiende como quedarse.
+
+     Es una ventana aparte y no el confirm() del navegador, que fue el primer
+     intento: un diálogo del sistema en medio de una ficha rompe la coherencia
+     del panel, y en un móvil se ve peor todavía. Aquí ya había un patrón para
+     "estás a punto de salir de algo"; lo correcto era usarlo.
+
+     Y es aparte de 'cambiosModal' porque dice lo contrario que aquel. Allí
+     salir PIERDE lo hecho; aquí no se pierde nada, el proceso sigue solo. Un
+     mismo cartel para las dos cosas enseñaría a no leerlo. -->
+<div class="modal-bg" id="procesoModal" onclick="handleModalBg(event,'procesoModal')">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-head">
+      <span class="modal-title" id="procesoTitulo">Video en proceso</span>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-text" id="procesoTexto"></p>
+      <p style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;">Puedes volver a abrir el plato para ver cómo va.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('procesoModal')">Seguir aquí</button>
+      <button class="btn-save" onclick="salirConProcesoEnMarcha()">Cerrar de todos modos</button>
+    </div>
+  </div>
+</div>
+
 <!-- Aviso de salida con cambios sin guardar. No lleva ✕: las dos salidas son
      los dos botones, para que la elección sea explícita. Un clic fuera se
      entiende como "seguir editando", que es la opción que no pierde nada. -->
@@ -4178,10 +4206,13 @@ function intentarCerrarProducto() {
 	// No se bloquea el cierre. Un video de 66 MB puede tardar minutos y dejar
 	// a alguien encerrado en una ficha mirando una barra es peor que dejarle
 	// seguir trabajando. Lo que hacía falta era contar qué va a pasar.
-	if (state.subiendoVideo) {
-		if (!confirm('Se está subiendo un video.\n\nSi cierras, la subida sigue en segundo plano y te avisamos al terminar. Puedes volver a abrir el plato para ver cómo va.')) return;
-		state.firmaProducto = undefined;
-		return closeModal('productModal');
+	const proceso = procesoEnMarchaDelPlato();
+	if (proceso) {
+		const t = document.getElementById('procesoTexto');
+		if (t) t.textContent = proceso === 'subiendo'
+			? 'Se está subiendo un video. Si cierras, la subida sigue en segundo plano y te avisamos al terminar.'
+			: 'Se está convirtiendo el video. Si cierras, la conversión sigue y te avisamos al terminar.';
+		return openModal('procesoModal');
 	}
 
 	if (!productoTieneCambios()) {
@@ -4189,6 +4220,34 @@ function intentarCerrarProducto() {
 		return closeModal('productModal');
 	}
 	openModal('cambiosModal');
+}
+
+// ¿Hay un video de este plato a medias? Devuelve cuál, o null.
+//
+// La subida se sabe por una bandera porque ocurre en esta pestaña y no deja
+// rastro en ningún sitio hasta que termina. La conversión se saca de los
+// datos —que es más fiable— y así sigue detectándose después de recargar la
+// página, cuando la bandera ya no existiría.
+function procesoEnMarchaDelPlato() {
+	if (state.subiendoVideo) return 'subiendo';
+	const id = document.getElementById('editProductId')?.value;
+	// typeof porque las pruebas cargan trozos del archivo donde este ayudante
+	// no está, y sin la guarda sería un ReferenceError al cerrar la ficha.
+	if (id && typeof trabajoEnCursoDe === 'function' && trabajoEnCursoDe(id)) return 'convirtiendo';
+	return null;
+}
+
+// Cerrar con un proceso en marcha. No se pierde nada: la subida y la
+// conversión siguen solas y avisan al terminar.
+//
+// No se bloquea la salida a propósito. Un video de 66 MB tarda minutos, y la
+// conversión otro par: dejar a alguien encerrado en una ficha mirando una
+// barra es peor que dejarle seguir trabajando, y el proceso no necesita que
+// esté delante. Lo que hacía falta era decirlo, no impedirlo.
+function salirConProcesoEnMarcha() {
+	closeModal('procesoModal');
+	state.firmaProducto = undefined;
+	closeModal('productModal');
 }
 
 function salirSinGuardar() {
