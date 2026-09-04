@@ -470,6 +470,16 @@
 			
 			
 			/* ── GALERÍA IMÁGENES ADICIONALES ── */
+			/* ── ARRASTRANDO POR ENCIMA ────────────────────────
+			   Sin señal, nadie descubre que se puede soltar: se prueba una vez,
+			   no pasa nada visible, y no se vuelve a intentar. El borde y el
+			   tinte del acento son lo que dice "suéltalo aquí".
+
+			   Vale para las tres formas de zona, así que una sola regla. */
+			.soltando { outline: 2px dashed var(--accent) !important;
+			            outline-offset: 3px;
+			            background: color-mix(in srgb, var(--accent) 12%, transparent) !important; }
+
 			.img-gallery {
 				display: flex;
 				flex-wrap: wrap;
@@ -1674,12 +1684,12 @@
 					<input type="hidden" id="editProductId">
 					<div class="form-group">
 						<label class="form-label" id="labelImagen">Imagen</label>
-						<div class="img-edit-wrap" onclick="document.getElementById('imgFileInput').click()">
+						<div class="img-edit-wrap" id="zonaFotoPlato" onclick="document.getElementById('imgFileInput').click()">
 							<img id="imgEditPreview" class="img-edit-preview" src="" style="display:none">
 							<div class="img-edit-overlay"><span>📷 Cambiar foto</span></div>
 							<div id="imgEditPlaceholder" class="img-placeholder-text">Sin imagen · haz clic para subir</div>
 						</div>
-						<input type="file" id="imgFileInput" accept="image/*" style="display:none" onchange="handleProductImgUpload(this)">
+						<input type="file" id="imgFileInput" accept="image/*" style="display:none" data-zona="zonaFotoPlato" onchange="handleProductImgUpload(this)">
 						<div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
 							<div id="imgUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
 							<button type="button" id="btnQuitarFoto" onclick="quitarFoto()"
@@ -1696,7 +1706,7 @@
 						<div class="form-group" id="extraImgsGroup" style="margin-top:14px;">
 							<label class="form-label">Imágenes adicionales <span style="color:var(--text-dim)">(máx 4 · se ven en el modal del producto)</span></label>
 							<div class="img-gallery" id="extraImgsList"></div>
-							<input type="file" id="extraImgFileInput" accept="image/*" style="display:none" onchange="handleExtraImgUpload(this)">
+							<input type="file" id="extraImgFileInput" accept="image/*" style="display:none" data-zona="extraImgsList" onchange="handleExtraImgUpload(this)">
 						</div>
 					</div>
 					<!-- Solo con el plan de video. Esconderlo no basta: el servidor
@@ -1707,7 +1717,7 @@
 						     depende del modelo, y aquí clavado decía 16:9 también a
 						     los restaurantes verticales. -->
 						<label class="form-label" id="labelVideo">Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a 16:9 y se guardan 8 segundos)</span></label>
-						<div style="border:1px solid var(--border);border-radius:8px;padding:12px;">
+						<div id="zonaVideo" style="border:1px solid var(--border);border-radius:8px;padding:12px;">
 							<video id="videoEditPreview" style="display:none;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:#000" muted loop playsinline controls></video>
 							<div id="videoEditVacio" style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">Sin video</div>
 
@@ -1889,7 +1899,7 @@
 								<div id="iaRevisionEstado" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);flex:1"></div>
 							</div>
 						</div>
-						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" onchange="prepararVideoElegido(this)">
+						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" data-zona="zonaVideo" onchange="prepararVideoElegido(this)">
 					</div>
 					<div class="form-group">
 						<label for="editNombre" class="form-label">Nombre</label>
@@ -2014,12 +2024,12 @@
 
       <div class="form-group" id="editCatImgGroup" style="display:none;margin-bottom:0">
         <label class="form-label">Imagen de cabecera <span style="color:var(--text-dim)">(banner de la categoría, solo modelo explorar)</span></label>
-        <div class="img-edit-wrap" onclick="document.getElementById('catImgFileInput').click()">
+        <div class="img-edit-wrap" id="zonaFotoCategoria" onclick="document.getElementById('catImgFileInput').click()">
           <img id="editCatImgPreview" class="img-edit-preview" src="" style="display:none">
           <div class="img-edit-overlay"><span>📷 Cambiar imagen</span></div>
           <div id="editCatImgPlaceholder" class="img-placeholder-text">Sin imagen · haz clic para subir</div>
         </div>
-        <input type="file" id="catImgFileInput" accept="image/*" style="display:none" onchange="handleCatImgUpload(this)">
+        <input type="file" id="catImgFileInput" accept="image/*" style="display:none" data-zona="zonaFotoCategoria" onchange="handleCatImgUpload(this)">
         <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
           <div id="catImgUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
           <button type="button" id="btnQuitarCatImg" onclick="quitarCatImg()"
@@ -7244,7 +7254,95 @@ function toggleTema() {
 // El atributo ya lo puso el script del <head>; esto solo pone los iconos.
 aplicarTema(temaActual());
 
+// ── ARRASTRAR Y SOLTAR ────────────────────────────────────────
+// Soltar un archivo hace exactamente lo mismo que elegirlo con el diálogo: se
+// mete en el <input> de siempre y se dispara su 'change'. Así ningún manejador
+// de subida se entera de que existe otra vía, y no hay una segunda copia de la
+// lógica que se quede atrás cuando alguien toque la primera.
+//
+// Se activa en las ocho zonas de subida a la vez. Con la mitad puestas, quien
+// descubre que la foto del plato acepta arrastre lo intenta con el logo, no
+// pasa nada, y concluye que no funciona en ningún sitio.
+//
+// En un móvil no hay nada que arrastrar: no estorba y no se enseña.
+function tipoAceptado(input, archivo) {
+	const acepta = (input.getAttribute('accept') || '').toLowerCase();
+	if (!acepta) return true;
+	const tipo = (archivo.type || '').toLowerCase();
+	const nombre = (archivo.name || '').toLowerCase();
+	return acepta.split(',').some(regla => {
+		regla = regla.trim();
+		if (!regla) return false;
+		if (regla.endsWith('/*')) return tipo.startsWith(regla.slice(0, -1));
+		if (regla.startsWith('.')) return nombre.endsWith(regla);
+		return tipo === regla;
+	});
+}
+
+function habilitarArrastre() {
+	// Sin esto, un archivo soltado UNA PIZCA fuera de la zona lo abre el
+	// navegador en la pestaña: se va el panel con lo que hubiera sin guardar,
+	// y encima parece que el arrastre "no funciona". Con un video de 66 MB
+	// apuntar fino no es fácil, así que el fallo es probable.
+	for (const evento of ['dragover', 'drop']) {
+		window.addEventListener(evento, e => e.preventDefault());
+	}
+
+	for (const input of document.querySelectorAll('input[type="file"]')) {
+		// Las zonas visibles ya son una etiqueta que envuelve al input; las de
+		// los inputs ocultos se señalan con data-zona.
+		const zona = input.closest('.upload-zone') ||
+		             (input.dataset.zona ? document.getElementById(input.dataset.zona) : null);
+		if (!zona || zona.dataset.arrastreListo) continue;
+		zona.dataset.arrastreListo = '1';
+
+		zona.addEventListener('dragover', e => {
+			e.preventDefault();
+			zona.classList.add('soltando');
+		});
+		// 'dragleave' salta también al pasar por encima de un hijo. Sin
+		// comprobar a dónde se fue el puntero, el resaltado parpadea.
+		zona.addEventListener('dragleave', e => {
+			if (!zona.contains(e.relatedTarget)) zona.classList.remove('soltando');
+		});
+
+		zona.addEventListener('drop', e => {
+			e.preventDefault();
+			e.stopPropagation();
+			zona.classList.remove('soltando');
+			const archivo = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+			if (!archivo) return;
+
+			// Soltar un PDF sobre la foto del plato tiene que decirlo. Sin
+			// esto, el archivo llega al manejador, falla al decodificarse y el
+			// mensaje habla de otra cosa.
+			if (!tipoAceptado(input, archivo)) {
+				const esVideo = (input.getAttribute('accept') || '').includes('video');
+				showToast(esVideo ? 'Eso no es un video (MP4 o MOV)' : 'Eso no es una imagen', 'error');
+				return;
+			}
+
+			// Se le da al input de verdad y se dispara su 'change': a partir de
+			// ahí es indistinguible de haberlo elegido a mano.
+			try {
+				const dt = new DataTransfer();
+				dt.items.add(archivo);
+				input.files = dt.files;
+				input.dispatchEvent(new Event('change'));
+			} catch {
+				// Navegador que no deja construir un DataTransfer. Se llama al
+				// manejador directamente, que es lo que hace el atributo.
+				if (typeof input.onchange === 'function') {
+					input.onchange.call(input, { target: input });
+				}
+			}
+		});
+	}
+}
+
 // ── ARRANQUE ──────────────────────────────────────────────────
+habilitarArrastre();
+
 if(token && state.rol && state.restauranteSlug) {
   if(state.rol==='admin' && !sessionStorage.getItem('menuAdminEditingResto')) {
     enterAdmin();
