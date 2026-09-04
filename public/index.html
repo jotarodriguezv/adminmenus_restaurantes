@@ -267,7 +267,9 @@
 			.img-edit-wrap:hover .img-edit-overlay{opacity:1;}
 			.img-edit-overlay span{font-size:11px;color:var(--accent);letter-spacing:1px;font-family:var(--mono);text-transform:uppercase;}
 			.img-placeholder-text{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
-			  color:var(--text-dim);font-size:12px;font-family:var(--mono);}
+			  color:var(--text-dim);font-size:12px;font-family:var(--mono);
+			  /* Con la pista dentro el texto ya no cabe en una línea. */
+			  text-align:center;line-height:1.6;padding:0 14px;}
 
 			.btn-save{flex:1;padding:11px;background:var(--accent);color:var(--on-accent);border:none;border-radius:var(--radius);
 			  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity .2s;}
@@ -479,6 +481,31 @@
 			.soltando { outline: 2px dashed var(--accent) !important;
 			            outline-offset: 3px;
 			            background: color-mix(in srgb, var(--accent) 12%, transparent) !important; }
+
+			/* ── "…O ARRÁSTRALO AQUÍ" ───────────────────────────
+			   Sin una frase que lo diga, el arrastre no lo descubre nadie: no
+			   deja rastro en la pantalla hasta que ya lo estás intentando.
+
+			   Pero en un teléfono no se puede arrastrar, y desde un teléfono
+			   entra la mayoría. Prometer ahí algo que la pantalla no hace es
+			   peor que callarse: se intenta, no pasa nada, y se deja de creer
+			   al resto de los textos de la página.
+
+			   'hover' y 'pointer' preguntan por el ratón, que es lo que de
+			   verdad hace falta; el ancho de la pantalla no lo dice — un
+			   portátil pequeño y una tablet con teclado caerían del lado
+			   equivocado.
+
+			   REGLA: aquí dentro va SOLO lo que sobra sin ratón. Si un texto
+			   que hace falta desde un teléfono entra en un .pista-arrastre,
+			   ese usuario deja de verlo. Lo comprueba una prueba. */
+			.pista-arrastre { display: none; }
+			@media (hover: hover) and (pointer: fine) {
+			  /* 'revert' y no 'inline': la pista del recuadro de video y la de
+			     las imágenes adicionales son <div>, y forzarlas a inline las
+			     pegaría al final de la línea anterior. */
+			  .pista-arrastre { display: revert; }
+			}
 
 			.img-gallery {
 				display: flex;
@@ -793,7 +820,7 @@
 						<label class="upload-zone">
 							<input type="file" accept="image/*" onchange="handleLogoUpload(this)">
 							<div class="upload-zone-text">
-								<span>Haz clic para subir</span> el logo<br>
+								<span>Haz clic para subir</span> el logo<span class="pista-arrastre"> o arrástralo aquí</span><br>
 								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · idealmente cuadrado</span>
 							</div>
 						</label>
@@ -810,7 +837,7 @@
 						<label class="upload-zone">
 							<input type="file" accept="image/*" onchange="handleFondoUpload(this)">
 							<div class="upload-zone-text">
-								<span>Haz clic para subir</span> imagen de fondo<br>
+								<span>Haz clic para subir</span> imagen de fondo<span class="pista-arrastre"> o arrástrala aquí</span><br>
 								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG</span>
 							</div>
 						</label>
@@ -841,7 +868,7 @@
 						<label class="upload-zone">
 							<input type="file" accept="image/*" onchange="handlePortadaUpload(this)">
 							<div class="upload-zone-text">
-								<span>Haz clic para subir</span> imagen de portada<br>
+								<span>Haz clic para subir</span> imagen de portada<span class="pista-arrastre"> o arrástrala aquí</span><br>
 								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · horizontal se ve mejor</span>
 							</div>
 						</label>
@@ -1137,7 +1164,7 @@
 						<label class="upload-zone">
 							<input type="file" accept="image/*" onchange="handlePromoUpload(this)">
 							<div class="upload-zone-text">
-								<span>Haz clic para subir</span> imagen de promoción<br>
+								<span>Haz clic para subir</span> imagen de promoción<span class="pista-arrastre"> o arrástrala aquí</span><br>
 								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · máx 2MB recomendado</span>
 							</div>
 						</label>
@@ -1687,7 +1714,7 @@
 						<div class="img-edit-wrap" id="zonaFotoPlato" onclick="document.getElementById('imgFileInput').click()">
 							<img id="imgEditPreview" class="img-edit-preview" src="" style="display:none">
 							<div class="img-edit-overlay"><span>📷 Cambiar foto</span></div>
-							<div id="imgEditPlaceholder" class="img-placeholder-text">Sin imagen · haz clic para subir</div>
+							<div id="imgEditPlaceholder" class="img-placeholder-text">Sin imagen · haz clic para subir<span class="pista-arrastre"> o arrastra una aquí</span></div>
 						</div>
 						<input type="file" id="imgFileInput" accept="image/*" style="display:none" data-zona="zonaFotoPlato" onchange="handleProductImgUpload(this)">
 						<div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
@@ -1706,7 +1733,8 @@
 						<div class="form-group" id="extraImgsGroup" style="margin-top:14px;">
 							<label class="form-label">Imágenes adicionales <span style="color:var(--text-dim)">(máx 4 · se ven en el modal del producto)</span></label>
 							<div class="img-gallery" id="extraImgsList"></div>
-							<input type="file" id="extraImgFileInput" accept="image/*" style="display:none" data-zona="extraImgsList" onchange="handleExtraImgUpload(this)">
+							<div class="pista-arrastre" style="margin-top:6px;font-size:11px;color:var(--text-muted)">También puedes arrastrar las imágenes aquí</div>
+							<input type="file" id="extraImgFileInput" accept="image/*" style="display:none" data-zona="extraImgsGroup" onchange="handleExtraImgUpload(this)">
 						</div>
 					</div>
 					<!-- Solo con el plan de video. Esconderlo no basta: el servidor
@@ -1767,6 +1795,7 @@
 								</button>
 								<div id="videoUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
 							</div>
+							<div class="pista-arrastre" style="margin-top:6px;font-size:11px;color:var(--text-muted)">También puedes arrastrar el video hasta este recuadro</div>
 
 							<!-- ── GENERAR A PARTIR DE LA FOTO ──────────────────────
 							     Solo aparece si el plato TIENE foto: la foto es la
@@ -2027,7 +2056,7 @@
         <div class="img-edit-wrap" id="zonaFotoCategoria" onclick="document.getElementById('catImgFileInput').click()">
           <img id="editCatImgPreview" class="img-edit-preview" src="" style="display:none">
           <div class="img-edit-overlay"><span>📷 Cambiar imagen</span></div>
-          <div id="editCatImgPlaceholder" class="img-placeholder-text">Sin imagen · haz clic para subir</div>
+          <div id="editCatImgPlaceholder" class="img-placeholder-text">Sin imagen · haz clic para subir<span class="pista-arrastre"> o arrastra una aquí</span></div>
         </div>
         <input type="file" id="catImgFileInput" accept="image/*" style="display:none" data-zona="zonaFotoCategoria" onchange="handleCatImgUpload(this)">
         <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
@@ -3871,6 +3900,8 @@ function quitarFoto() {
 }
 
 // ── IMÁGENES ADICIONALES ──────────────────────────────────────
+const MAX_IMAGENES_EXTRA = 4;
+
 function renderExtraImgs(urls) {
   const list = document.getElementById('extraImgsList');
   list.innerHTML = '';
@@ -3890,7 +3921,7 @@ function renderExtraImgs(urls) {
     list.appendChild(item);
   });
   // Botón añadir (solo si hay menos de 4)
-  if ((urls || []).length < 4) {
+  if ((urls || []).length < MAX_IMAGENES_EXTRA) {
     const addBtn = document.createElement('div');
     addBtn.className = 'img-gallery-add';
     addBtn.textContent = '+';
@@ -3901,6 +3932,15 @@ function renderExtraImgs(urls) {
 
 async function handleExtraImgUpload(input) {
   const file = input.files[0]; if (!file) return;
+  // El tope lo guardaba solo el botón '+', que desaparece al llegar a cuatro.
+  // Soltar un archivo no pasa por el botón, así que la quinta imagen entraba:
+  // se subía al bucket y se guardaba en atributos.imagenes, donde el menú del
+  // comensal no la espera.
+  if ((state.extraImgs || []).length >= MAX_IMAGENES_EXTRA) {
+    showToast('Ya hay ' + MAX_IMAGENES_EXTRA + ' imágenes adicionales, el máximo', 'error');
+    input.value = '';
+    return;
+  }
   showToast('Subiendo imagen...', 'info');
   try {
     const blob = await compressImage(file, 800, 0.82);
