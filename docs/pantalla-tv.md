@@ -565,6 +565,52 @@ La pantalla salió con el aviso de **«sin conexión»** y la red perfectamente.
   desconocida. La lección general es que un simulador más permisivo que el
   sistema real no prueba nada — solo da confianza.
 
+## 11.ter Cómo llega la página a la pantalla (04/09/2026)
+
+Lo aprendido montándola en un local de verdad, que es lo que el diseño no
+había mirado: **se dio por hecho que el televisor tiene navegador.** El del
+restaurante no tenía. En su tienda de aplicaciones solo había navegadores de
+pago por suscripción — para enseñar una carta.
+
+Hay cuatro vías, y no son equivalentes:
+
+| Vía | Qué pasa de verdad | Estabilidad |
+|---|---|---|
+| **Cable HDMI** desde un computador | La imagen viaja sin comprimir | La mejor |
+| **Navegador del propio televisor** | El televisor pinta la página él mismo | Muy buena |
+| **Duplicar pantalla por WiFi** | El computador **codifica video en vivo** y lo emite | Da tirones |
+| **Transmitir tipo Chromecast** | El televisor cargaría la página él mismo | No se puede hoy |
+
+### Por qué el duplicado inalámbrico da tirones, y qué lo arregla
+
+No es el televisor: el del primer montaje tenía dos años y medio. Al duplicar,
+el computador convierte en video **todo lo que se ve**, y ahí la animación
+`suave` es el peor caso posible — el acercamiento corre durante los diez
+segundos enteros de cada pantalla, así que **no hay un solo fotograma repetido
+que el codificador pueda ahorrarse**. Con la animación apagada la imagen queda
+quieta entre transiciones y el enlace respira.
+
+De ahí que el interruptor de animación deje de explicarse como «los televisores
+viejos tienen poca capacidad de dibujo» —que es falso y manda a mirar donde no
+es— y pase a hablar de **cómo está conectada** la pantalla.
+
+### Por qué no se construye el «cast»
+
+Que el televisor cargue la página él mismo, como hace YouTube, **no es
+duplicar**: es una aplicación receptora propia. Exige registrarla en la consola
+de Google Cast, **pagar una cuota**, mantener una página receptora aparte y
+que el televisor traiga Chromecast integrado.
+
+Y ahí está el argumento que lo cierra por ahora: **un televisor sin navegador
+tampoco trae Chromecast.** Construirlo no habría resuelto el caso que lo hizo
+plantear. Un aparato de HDMI con navegador, por poco dinero, convierte
+cualquier televisor en el segundo caso de la tabla — y además libera al
+computador de las comandas, que en hora punta es justo cuando peor viene
+tenerlo ocupado.
+
+Se replantea si aparece como objeción de venta repetida en televisores que sí
+traen Chromecast.
+
 ## 12. Preguntas abiertas
 
 - ~~¿En qué planes entra?~~ **Decidido:** capacidad `tv` en `completo` y
