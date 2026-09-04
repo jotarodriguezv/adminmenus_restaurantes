@@ -2381,6 +2381,80 @@ describe('agruparVisitas · la gráfica no puede pintar una barra por día', () 
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('avisarSiElPrecioSeSale · el cero de más', () => {
+	// Un plato se creó a 2.500.000 en una carta cuya mediana son 25.000. No es
+	// un precio prohibido —la plataforma no puede saber qué vende cada uno—
+	// pero sí es un número que no se parece a nada del resto de su carta.
+	//
+	// Se avisa contra la MEDIANA del propio restaurante y no contra un tope
+	// fijo: 60.000 es caro en una salchipapería y barato en un restaurante de
+	// autor, y aquí hay de los dos.
+	//
+	// El umbral de 10 sale de mirar las cartas reales el 03/09/2026: el plato
+	// más caro de cada una está entre 1,1 y 3 veces su mediana. Diez deja
+	// sitio de sobra para lo legítimo y caza el cero de más, que son 10 veces
+	// exactas.
+
+	const montar = (precio, productos, id = 'nuevo') => {
+		const mapa = {
+			editPrecioNum: { value: String(precio) },
+			editProductId: { value: id },
+			precioAviso:   { textContent: '', style: {} },
+		};
+		const ctx = cargar('index.html', 'const VECES_LA_MEDIANA_PARA_AVISAR', 'function quitarFoto', {
+			state: { productos },
+			document: { getElementById: i => mapa[i] },
+			formatPrecio: n => `$ ${n}`,
+		});
+		ctx.avisarSiElPrecioSeSale();
+		return mapa.precioAviso.textContent;
+	};
+
+	// Una carta como las de verdad: mediana 25.000.
+	const carta = [20000, 22000, 25000, 28000, 31000, 60000]
+		.map((n, i) => ({ id: `p${i}`, precio_numerico: n }));
+
+	test('un precio con un cero de más se avisa', () => {
+		assert.match(montar(2500000, carta), /veces la mediana/);
+	});
+
+	test('el plato más caro de una carta real NO se avisa', () => {
+		// bonzas llega a 3 veces su mediana con 97 platos. Avisar ahí sería
+		// enseñar a ignorar el aviso.
+		assert.equal(montar(66000, carta), '');
+	});
+
+	test('tampoco se avisa un precio normal', () => {
+		assert.equal(montar(24000, carta), '');
+	});
+
+	test('con pocos platos no se dice nada', () => {
+		// Con dos precios, cualquier tercero duplica la mediana. Avisar mal es
+		// peor que no avisar.
+		const pocos = [{ id: 'a', precio_numerico: 20000 }, { id: 'b', precio_numerico: 25000 }];
+		assert.equal(montar(2500000, pocos), '');
+	});
+
+	test('el propio plato no cuenta para su mediana', () => {
+		// Editar un plato caro no puede hacer que su propio precio parezca
+		// normal por estar dentro del cálculo.
+		const conElCaro = [...carta, { id: 'caro', precio_numerico: 2500000 }];
+		assert.match(montar(2500000, conElCaro, 'caro'), /veces la mediana/);
+	});
+
+	test('un precio vacío o cero no dispara nada', () => {
+		assert.equal(montar(0, carta), '');
+	});
+
+	test('el aviso pregunta, no corrige', () => {
+		// El restaurante sabe lo que vende. Lo único que sabe el panel es que
+		// ese número no se parece al resto de su carta.
+		const texto = montar(2500000, carta);
+		assert.match(texto, /¿Es correcto\?/);
+		assert.doesNotMatch(texto, /no puedes|inválido|error/i);
+	});
+});
+
 describe('compressImage · formato de salida y fallos que antes colgaban', () => {
 	// Dos fallos en la misma función. Salía siempre JPEG, y JPEG no tiene canal
 	// alfa: un logo PNG con fondo transparente acababa con un rectángulo negro.

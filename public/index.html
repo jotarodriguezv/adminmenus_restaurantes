@@ -1632,6 +1632,10 @@
 							🗑 Quitar foto
 							</button>
 						</div>
+						<!-- Qué implica quitar la foto en un plato que tiene video. El texto
+						     depende de si el video se subió o se generó: a quien grabó el
+						     suyo, hablarle de la IA es ruido. -->
+						<div id="imgAvisoVideo" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;"></div>
 						<div class="form-group" id="extraImgsGroup" style="margin-top:14px;">
 							<label class="form-label">Imágenes adicionales <span style="color:var(--text-dim)">(máx 4 · se ven en el modal del producto)</span></label>
 							<div class="img-gallery" id="extraImgsList"></div>
@@ -1840,10 +1844,14 @@
 					</div>
 					<div class="form-group">
 						<label for="editPrecioNum" class="form-label">Precio <span style="color:var(--text-dim);font-weight:400">(solo el número, ej: 22000)</span></label>
-						<input type="number" class="form-input" id="editPrecioNum" placeholder="22000" min="0" step="100" oninput="document.getElementById('precioPreview').textContent=formatPrecio(this.value)">
+						<input type="number" class="form-input" id="editPrecioNum" placeholder="22000" min="0" step="100" oninput="document.getElementById('precioPreview').textContent=formatPrecio(this.value); avisarSiElPrecioSeSale()">
 						<div style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-muted)">
 							Vista previa: <span id="precioPreview" style="color:var(--accent)">—</span>
 						</div>
+						<!-- Aviso blando, nunca un tope. Un máximo fijo bloquearía casos
+						     legítimos —una paella para ocho, un catering— y el sistema no
+						     puede distinguirlos. Esto solo pregunta. -->
+						<div id="precioAviso" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
 					</div>
 					<div class="form-group">
 						<label for="editDesc" class="form-label">Descripción</label>
@@ -2619,6 +2627,10 @@ function openNewProductModal() {
 	document.getElementById('editNombre').value='';
 	document.getElementById('editPrecioNum').value='';
 	document.getElementById('precioPreview').textContent='—';
+	// Los avisos blandos son del plato anterior: dejarlos puestos sobre una
+	// ficha vacía sería decir algo que no viene de nada que se vea.
+	document.getElementById('precioAviso').textContent='';
+	document.getElementById('imgAvisoVideo').textContent='';
 	document.getElementById('editDesc').value='';
 	document.getElementById('editDescAvanzada').value='';
 	document.getElementById('editDisponible').checked=true;
@@ -2840,7 +2852,11 @@ function openEditProductModal(id) {
 	if (estIA) { estIA.textContent = ''; estIA.style.color = 'var(--text-muted)'; }
 	document.getElementById('editNombre').value=p.nombre||'';
 	document.getElementById('editPrecioNum').value=p.precio_numerico||'';
+	// También al abrir, no solo al teclear: un precio con un cero de más ya
+	// guardado no se detecta si el aviso solo salta al escribirlo.
+	document.getElementById('imgAvisoVideo').textContent='';
 	document.getElementById('precioPreview').textContent=formatPrecio(p.precio_numerico);
+	avisarSiElPrecioSeSale();
 	document.getElementById('editDesc').value=p.descripcion||'';
 	document.getElementById('editDescAvanzada').value=p.descripcion_avanzada||'';
 	document.getElementById('editDisponible').checked=p.disponible;
@@ -3664,6 +3680,57 @@ async function recuperarVideo() {
 	}
 }
 
+// ── ¿ESTE PRECIO SE SALE DE SU PROPIA CARTA? ──────────────────
+// Mide contra la mediana del restaurante y no contra un número fijo: 60.000
+// es caro en una salchipapería y barato en un restaurante de autor, y la
+// plataforma tiene los dos.
+//
+// El umbral sale de mirar las cartas reales el 03/09/2026. El plato más caro
+// de cada una está entre 1,1 y 3 veces su mediana — bonzas, la mayor con 97
+// platos, llega a 3. Un precio escrito de más se va mucho más lejos: el que
+// destapó esto estaba a 100 veces.
+//
+// Diez deja sitio de sobra para lo legítimo —una paella para ocho, un
+// catering— y sigue cazando el cero de más, que es el error real: escribir
+// 250000 en vez de 25000 son 10 veces exactas.
+const VECES_LA_MEDIANA_PARA_AVISAR = 10;
+
+// Con pocos platos la mediana no dice nada: con dos, cualquier segundo precio
+// la duplica. Antes de este número no se avisa de nada, que es preferible a
+// avisar mal y enseñar a ignorar el aviso.
+const PLATOS_PARA_FIARSE_DE_LA_MEDIANA = 5;
+
+function medianaDeLaCarta(excluyendoId) {
+	const precios = (state.productos || [])
+		.filter(p => p.id !== excluyendoId && Number(p.precio_numerico) > 0)
+		.map(p => Number(p.precio_numerico))
+		.sort((a, b) => a - b);
+	if (precios.length < PLATOS_PARA_FIARSE_DE_LA_MEDIANA) return null;
+	const m = Math.floor(precios.length / 2);
+	return precios.length % 2 ? precios[m] : (precios[m - 1] + precios[m]) / 2;
+}
+
+function avisarSiElPrecioSeSale() {
+	const aviso = document.getElementById('precioAviso');
+	if (!aviso) return;
+	aviso.textContent = '';
+
+	const precio = Number(document.getElementById('editPrecioNum')?.value) || 0;
+	if (precio <= 0) return;
+
+	const mediana = medianaDeLaCarta(document.getElementById('editProductId')?.value);
+	if (!mediana) return;
+
+	const veces = precio / mediana;
+	if (veces < VECES_LA_MEDIANA_PARA_AVISAR) return;
+
+	// Se pregunta, no se corrige. El restaurante sabe lo que vende; lo único
+	// que aquí se sabe es que este número no se parece al resto de su carta.
+	aviso.textContent =
+		`Este precio es ${Math.round(veces)} veces la mediana de tu carta (${formatPrecio(mediana)}). ` +
+		`¿Es correcto? Si te sobró un cero, este es el momento de verlo.`;
+}
+
 function quitarFoto() {
 	// Marcar imagen para eliminar al guardar
 	state.pendingImgUrl = '__remove__';
@@ -3673,6 +3740,28 @@ function quitarFoto() {
 	document.getElementById('btnQuitarFoto').style.display='none';
 	const st=document.getElementById('imgUploadStatus');
 	st.textContent='Foto eliminada al guardar'; st.style.color='var(--warn)';
+
+	// ── QUITAR LA FOTO TENIENDO VIDEO NO ES LO MISMO SIEMPRE ──
+	// No se bloquea: la carta sigue funcionando, porque el video lleva su
+	// propia portada sacada por ffmpeg. Lo que cambia es qué se pierde, y
+	// depende de DE DÓNDE salió ese video.
+	//
+	// A quien grabó el suyo, hablarle de la IA es ruido: puede que ni la
+	// tenga contratada. A quien lo generó desde esa foto sí le importa, porque
+	// sin ella no podrá volver a generarlo.
+	const id = document.getElementById('editProductId')?.value;
+	const p  = id ? (state.productos || []).find(x => x.id === id) : null;
+	if (!p?.atributos?.video?.url) return;
+
+	const t = typeof trabajoListoDe === 'function' ? trabajoListoDe(id) : null;
+	const generado = t?.origen_tipo === 'ia';
+	const nota = document.getElementById('imgAvisoVideo');
+	if (nota) {
+		nota.textContent = generado
+			? 'Ojo: el video de este plato se generó a partir de esta foto. El video se conserva y la carta lo sigue mostrando, pero sin foto no podrás volver a generarlo con IA.'
+			: 'Tranquilo: este plato tiene su propio video, así que la carta lo sigue mostrando. La foto solo haría falta si algún día quitas el video.';
+		nota.style.color = generado ? 'var(--warn)' : 'var(--text-muted)';
+	}
 }
 
 // ── IMÁGENES ADICIONALES ──────────────────────────────────────
