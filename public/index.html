@@ -5546,11 +5546,44 @@ function abrirVistaPrevia() {
 // "Subiendo..." para siempre, el catch de quien llamaba no llegaba a correr y
 // no había más salida que recargar la página. accept="image/*" no protege de
 // eso; el selector mira el nombre, no el contenido.
+// ── ¿ESTE NAVEGADOR SABE CODIFICAR WEBP? ──────────────────────
+// Hay que preguntarlo, no darlo por hecho, y este es el detalle que hace
+// peligroso el cambio: cuando toBlob() recibe un tipo que no sabe producir
+// NO falla — devuelve un PNG. Y un PNG de una foto pesa varias veces lo que
+// el JPEG que veníamos haciendo, así que dar por supuesto el soporte
+// empeoraría las cartas en los navegadores que no lo tienen, en silencio.
+//
+// Safari no encodea WebP hasta la 16.4, y en un panel que se usa desde el
+// móvil eso no es un caso raro.
+//
+// toDataURL sirve para preguntarlo porque hace la misma sustitución: si no
+// puede, devuelve 'data:image/png'. Se guarda la respuesta porque no cambia
+// mientras la pestaña esté abierta.
+let _haceWebp = null;
+function navegadorHaceWebp() {
+  if (_haceWebp !== null) return _haceWebp;
+  try {
+    const c = document.createElement('canvas');
+    c.width = c.height = 1;
+    _haceWebp = c.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+  } catch { _haceWebp = false; }
+  return _haceWebp;
+}
+
 function compressImage(file, maxW, q, { conservarTransparencia = false } = {}) {
-  // PNG solo si además el origen lo es: convertir un JPEG a PNG no recupera
-  // una transparencia que nunca tuvo, y sí multiplica el peso.
-  const tipo = (conservarTransparencia && /^image\/(png|webp)$/.test(file?.type || ''))
-    ? 'image/png' : 'image/jpeg';
+  // WebP cuando se pueda: la misma foto pesa entre un 30% y un 40% menos, y
+  // eso lo paga el comensal en datos móviles cada vez que abre una carta.
+  //
+  // Y de paso resuelve lo de la transparencia sin caso especial: WebP tiene
+  // canal alfa, así que un logo con fondo transparente ya no necesita salir
+  // en PNG para conservarlo. 'conservarTransparencia' solo decide algo
+  // cuando el navegador no hace WebP.
+  const tipo = navegadorHaceWebp()
+    ? 'image/webp'
+    // PNG solo si además el origen lo es: convertir un JPEG a PNG no recupera
+    // una transparencia que nunca tuvo, y sí multiplica el peso.
+    : (conservarTransparencia && /^image\/(png|webp)$/.test(file?.type || ''))
+      ? 'image/png' : 'image/jpeg';
 
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -5580,7 +5613,15 @@ async function uploadImg(blob,folder='productos') {
   // La extensión sale del tipo del blob y no de una cadena fija: el servidor
   // deriva de este nombre la extensión con la que guarda el archivo, así que
   // un PNG llamado .jpg se guardaría con la extensión equivocada.
-  const ext = blob?.type === 'image/png' ? 'png' : 'jpg';
+  //
+  // Con WebP esto pasa de ser un detalle a ser el todo: el archivo se sirve
+  // con el Content-Type que sale de su extensión, y un .webp llamado .jpg
+  // llegaría al navegador anunciado como JPEG. Muchos lo adivinan igual por
+  // el contenido, pero es exactamente la clase de cosa que funciona hasta que
+  // deja de hacerlo en un dispositivo concreto.
+  const ext = blob?.type === 'image/webp' ? 'webp'
+            : blob?.type === 'image/png'  ? 'png'
+            : 'jpg';
   fd.append('file',blob,`img_${Date.now()}.${ext}`);
   const data=await apiFetch('POST',`/api/upload?folder=${folder}`,fd,true);
   if(!data?.url) throw new Error('Sin URL');
