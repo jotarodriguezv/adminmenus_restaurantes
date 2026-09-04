@@ -988,6 +988,91 @@ describe('productos · qué se puede escribir dentro de "atributos"', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('un nombre vacío no es un nombre', () => {
+	// La regla existía solo en POST /api/categorias. De sus tres hermanos no
+	// la tenía ninguno, y no era teórico: el panel comprueba el precio antes
+	// de enviar pero no el nombre, así que guardar la ficha con ese campo en
+	// blanco creaba un plato sin nombre — una tarjeta con foto y precio y
+	// ningún texto en la carta del comensal.
+	//
+	// Sale a una función compartida por lo mismo que errorDeSlug(): copiada en
+	// cada ruta, la que alguien escriba dentro de seis meses nace sin ella,
+	// que es exactamente lo que había pasado.
+
+	const conPlato = () => S.conTabla(st => {
+		if (st.tabla === 'productos')  return { data: { restaurante_id: IDS.restaurante, atributos: {} }, error: null };
+		if (st.tabla === 'categorias') return { data: { restaurante_id: IDS.restaurante }, error: null };
+		return { data: null, error: null };
+	});
+
+	test('crear un plato sin nombre se rechaza con un mensaje legible', async () => {
+		conPlato();
+		const r = await S.pedir('POST', '/api/productos',
+			{ restaurante_id: IDS.restaurante, categoria_id: IDS.categoria, nombre: '', precio_numerico: 22000 }, tokenCliente);
+
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /Falta el nombre del plato/);
+		assert.equal(S.llamadas.some(l => l.tabla === 'productos' && l.op === 'insert'), false);
+	});
+
+	test('un nombre de solo espacios tampoco vale', async () => {
+		conPlato();
+		const r = await S.pedir('POST', '/api/productos',
+			{ restaurante_id: IDS.restaurante, categoria_id: IDS.categoria, nombre: '   ', precio_numerico: 22000 }, tokenCliente);
+
+		assert.equal(r.status, 400);
+	});
+
+	test('sin el campo, el mensaje es el mismo y no un 500 de Postgres', async () => {
+		// La columna es NOT NULL, así que antes esto llegaba a la base y volvía
+		// como un error interno que no dice qué falta.
+		conPlato();
+		const r = await S.pedir('POST', '/api/productos',
+			{ restaurante_id: IDS.restaurante, categoria_id: IDS.categoria, precio_numerico: 22000 }, tokenCliente);
+
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /Falta el nombre del plato/);
+	});
+
+	test('renombrar un plato a vacío se rechaza', async () => {
+		// Crear ya se cerraba en categorías, pero vaciar el nombre de algo que
+		// sí lo tenía no lo miraba nadie.
+		conPlato();
+		const r = await S.pedir('PATCH', `/api/productos/${IDS.producto}`, { nombre: '' }, tokenCliente);
+
+		assert.equal(r.status, 400);
+		assert.equal(S.llamadas.some(l => l.tabla === 'productos' && l.op === 'update'), false);
+	});
+
+	test('pero un PATCH que no habla del nombre sigue pasando', async () => {
+		// Es parcial: no mandarlo significa dejarlo como está, no borrarlo.
+		conPlato();
+		const r = await S.pedir('PATCH', `/api/productos/${IDS.producto}`, { disponible: false }, tokenCliente);
+
+		assert.notEqual(r.status, 400);
+	});
+
+	test('renombrar una categoría a vacío tampoco', async () => {
+		conPlato();
+		const r = await S.pedir('PATCH', `/api/categorias/${IDS.categoria}`, { nombre: '  ' }, tokenCliente);
+
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /Falta el nombre de la categoría/);
+	});
+
+	test('cada mensaje dice de qué cosa habla', async () => {
+		// "Falta el nombre" a secas obliga a mirar dónde estabas.
+		conPlato();
+		const plato = await S.pedir('POST', '/api/productos',
+			{ restaurante_id: IDS.restaurante, categoria_id: IDS.categoria, nombre: '' }, tokenCliente);
+		const cat = await S.pedir('POST', '/api/categorias',
+			{ restaurante_id: IDS.restaurante, nombre: '' }, tokenCliente);
+
+		assert.match(plato.body.error, /del plato/);
+		assert.match(cat.body.error, /de la categoría/);
+	});
+});
+
 describe('DELETE /api/productos/:id/video · retirar un video sin perderlo', () => {
 	// Hasta ahora no se podía quitar. 'video' vive en
 	// ATRIBUTOS_PRODUCTO_DEL_SERVIDOR, así que atributosProducto() lo copia

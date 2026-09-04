@@ -494,6 +494,25 @@ app.get('/api/restaurantes', auth, async (req, res) => {
 // no en el POST, que es justo donde nace el problema.
 const SLUGS_RESERVADOS = ['menu', 'www', 'admin', 'app', 'api'];
 
+// ── UN NOMBRE VACÍO NO ES UN NOMBRE ───────────────────────────
+// La regla vivía suelta en POST /api/categorias, y de sus tres hermanos no la
+// tenía ninguno. Lo que dejaba pasar no es teórico: el panel comprueba el
+// precio antes de enviar pero no el nombre, así que guardar la ficha con ese
+// campo en blanco crea un plato sin nombre, y en la carta sale una tarjeta
+// con precio y foto y ningún texto.
+//
+// Se saca a una función por lo mismo que errorDeSlug(): con la comprobación
+// copiada en cada ruta, la que alguien escriba dentro de seis meses nace sin
+// ella — que es exactamente lo que había pasado aquí.
+//
+// El nombre de la cosa entra como parámetro para que el mensaje diga "plato"
+// o "categoría". Un "Falta el nombre" a secas obliga a mirar dónde estabas.
+function errorDeNombre(nombre, queEs) {
+  if (typeof nombre !== 'string' || !nombre.trim())
+    return `Falta el nombre ${queEs}`;
+  return null;
+}
+
 // Devuelve el mensaje de error, o null si el slug vale. Se devuelve el texto
 // en vez de un booleano para que los dos sitios que la usan digan lo mismo:
 // dos mensajes distintos para la misma regla es como se acaban desincronizando.
@@ -1169,8 +1188,8 @@ app.post('/api/categorias', auth, async (req, res) => {
   // `nombre.toLowerCase()`. Antes del envoltorio de conCaptura() eso tumbaba el
   // proceso entero; ahora es un 500 que no dice nada, y sigue sin ser lo que
   // toca: falta un dato obligatorio y eso es un 400 que se pueda leer.
-  if (typeof nombre !== 'string' || !nombre.trim())
-    return res.status(400).json({ error: 'Falta el nombre de la categoría' });
+  const malNombreCat = errorDeNombre(nombre, 'de la categoría');
+  if (malNombreCat) return res.status(400).json({ error: malNombreCat });
   const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', restaurante_id).single();
   const atributosFiltrados = atributosCategoria(atributos, null, req.user.rol === 'admin', planDe(resto?.atributos));
   const { data, error } = await supabase.from('categorias')
@@ -1185,6 +1204,12 @@ app.patch('/api/categorias/:id', auth, async (req, res) => {
   if (!cat || !canAccessRestaurante(req.user, cat.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   const permitidos = ['nombre', 'emoji', 'orden', 'sin_fotos', 'atributos'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
+  // Igual que en productos: crear sin nombre ya se rechazaba, pero renombrar
+  // a vacío no. La categoría se quedaba sin título en la carta.
+  if (body.nombre !== undefined) {
+    const malNombre = errorDeNombre(body.nombre, 'de la categoría');
+    if (malNombre) return res.status(400).json({ error: malNombre });
+  }
   if (body.atributos !== undefined) {
     const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', cat.restaurante_id).single();
     body.atributos = atributosCategoria(body.atributos, cat.atributos, req.user.rol === 'admin', planDe(resto?.atributos));
@@ -1324,6 +1349,8 @@ app.get('/api/productos', auth, async (req, res) => {
 app.post('/api/productos', auth, async (req, res) => {
   const { restaurante_id, categoria_id, nombre, descripcion, descripcion_avanzada, imagen_url, disponible, orden, atributos } = req.body;
   if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  const malNombre = errorDeNombre(nombre, 'del plato');
+  if (malNombre) return res.status(400).json({ error: malNombre });
   const p = { precio: req.body.precio, precio_numerico: req.body.precio_numerico };
   const errPrecio = normalizarPrecio(p);
   if (errPrecio) return res.status(400).json({ error: errPrecio });
@@ -1342,6 +1369,13 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
   if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden', 'atributos'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
+  // Solo si viene: un PATCH es parcial, y no mandar el nombre significa
+  // dejarlo como está, no borrarlo. Lo que se cierra aquí es mandarlo vacío,
+  // que dejaría sin nombre a un plato que sí lo tenía.
+  if (body.nombre !== undefined) {
+    const malNombre = errorDeNombre(body.nombre, 'del plato');
+    if (malNombre) return res.status(400).json({ error: malNombre });
+  }
   const errPrecio = normalizarPrecio(body);
   if (errPrecio) return res.status(400).json({ error: errPrecio });
   if (body.atributos !== undefined) body.atributos = atributosProducto(body.atributos, prod.atributos);

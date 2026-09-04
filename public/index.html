@@ -4362,6 +4362,15 @@ async function saveProduct() {
 	//
 	// El cero escrito a mano sí pasa: una cortesía o un acompañamiento sin
 	// coste es un precio legítimo. Lo que se rechaza es no haber escrito nada.
+	// El nombre se comprobaba en el servidor y no aquí, así que el aviso
+	// llegaba después del viaje. El precio ya se miraba antes de enviar; esto
+	// es lo mismo para el otro campo obligatorio.
+	const nombrePlato=document.getElementById('editNombre').value.trim();
+	if(!nombrePlato){
+		showToast('Escribe el nombre del plato','error');
+		document.getElementById('editNombre').focus();
+		btn.disabled=false;btn.textContent='Guardar';return;
+	}
 	const precioBruto=document.getElementById('editPrecioNum').value.trim();
 	const precioNum=Number(precioBruto);
 	if(precioBruto===''||!Number.isFinite(precioNum)||precioNum<0){
@@ -4372,7 +4381,7 @@ async function saveProduct() {
 	const precioTexto=formatPrecio(precioNum);
 	const filtroActual=state.catFiltro; // conservar filtro activo
 	const body={
-		nombre:document.getElementById('editNombre').value.trim(),
+		nombre:nombrePlato,
 		categoria_id:catId,
 		precio:precioTexto,
 		precio_numerico:precioNum,
