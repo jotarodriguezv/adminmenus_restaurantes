@@ -121,6 +121,45 @@ distinta. Se detectó solo por verificar. El detalle completo está en `sql/16`.
 
 ## Pendiente
 
+### Decisión abierta: ¿avisar o impedir salir con un video a medias?
+
+**Marcado el 3 de septiembre de 2026. La decide el equipo del usuario, no
+nosotros.** No proponer un cambio aquí hasta que lo digan.
+
+Hoy, cerrar la ficha de un producto mientras un video se sube o se convierte
+enseña la ventana `procesoModal`, que **avisa y deja salir**: el proceso sigue
+en segundo plano y avisa al terminar con un aviso flotante.
+
+El usuario planteaba **impedir la salida**. Se implementó avisando, con este
+argumento: un video de 66 MB tarda minutos y la conversión un par más, así que
+encerrar a alguien en una ficha mirando una barra es peor que dejarle seguir
+trabajando, y el proceso no necesita que esté delante.
+
+Queda a revisión con su equipo, que no ha participado en el desarrollo y por
+eso lee la interfaz sin saber lo que hay detrás — que es exactamente el punto
+de vista que falta aquí.
+
+Si deciden impedir la salida, el cambio es **quitar un botón** de
+`procesoModal`.
+
+### Ocho diálogos del navegador sin unificar
+
+**Depende de la decisión de arriba. No empezar antes.**
+
+El panel usa dos patrones para lo mismo: la ventana en la página
+(`cambiosModal`, `procesoModal`) y el `confirm()` del navegador, este último en
+ocho sitios —borrar categoría, quitar imagen, quitar video, apagar la IA, y
+otros—. No es una convención rota por descuido reciente: llevan conviviendo
+desde antes.
+
+El usuario prefiere la ventana en la página, y su motivo es bueno: un diálogo
+del sistema en medio del panel rompe el aspecto, y en un móvil se nota más.
+
+**Por qué esperar:** si su equipo concluye que para estas confirmaciones el
+diálogo del navegador está bien —es más difícil de ignorar, y eso a veces se
+busca— unificar los ocho sería trabajo tirado. Primero la regla, después
+aplicarla.
+
 ### Quitar `conCaptura` de `server.js`
 
 **Anotado el 3 de septiembre de 2026, después de migrar a Express 5.**
