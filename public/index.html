@@ -1254,6 +1254,19 @@
 								<div style="font-size:11px;color:var(--text-dim);margin-top:6px">
 									Ábrelo una vez en el televisor y déjalo. Lo que cambies aquí aparece solo, sin volver a tocarlo.
 								</div>
+								<!-- Esto salió del primer montaje real. El texto de arriba daba por
+								     hecho que el televisor tiene navegador, y el del restaurante no
+								     tenía: solo navegadores de pago en su tienda de aplicaciones.
+								     Hubo que improvisar duplicando la pantalla de un computador. -->
+								<div style="font-size:11px;color:var(--text-dim);margin-top:10px;line-height:1.6">
+									<strong style="color:var(--text-muted)">Cómo llevarlo a la pantalla</strong>, de más a menos estable:
+									<div style="margin-top:5px">1. <strong>Cable HDMI</strong> desde un computador. Lo más seguro: no se ve a tirones.</div>
+									<div>2. <strong>El navegador del propio televisor</strong>, si lo trae. Abres el enlace y listo.</div>
+									<div>3. <strong>Duplicando la pantalla por WiFi.</strong> Funciona, pero puede ir a tirones.</div>
+									<div style="margin-top:5px">Si tu televisor no trae navegador, un aparato pequeño de HDMI con navegador
+									le pone uno por poco dinero y queda como el caso 2 — además de no depender de que
+									el computador del negocio esté libre.</div>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -1365,10 +1378,22 @@
 								<label class="toggle"><input type="checkbox" id="tvAnimacion"><span class="toggle-slider"></span></label>
 								<span style="font-size:13px;color:var(--text-muted)">Animación suave</span>
 							</div>
-							<div style="font-size:11px;color:var(--text-dim);margin-top:6px">
-								Las fotos se acercan despacio y los textos entran desde abajo. Si en tu
-								televisor se ve a tirones, apágala: los televisores viejos tienen poca
-								capacidad de dibujo.
+							<!-- Antes esto culpaba al televisor de los tirones. El primer montaje
+							     real lo desmintió: el televisor era razonablemente nuevo y los
+							     tirones venían de duplicar la pantalla por WiFi. Al hacer eso, el
+							     computador convierte en video todo lo que se ve, y una animación
+							     continua no le deja un solo fotograma repetido que ahorrar. -->
+							<div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.6">
+								Las fotos se acercan despacio y los textos entran desde abajo.
+								<div style="margin-top:5px">
+									Si se ve a tirones, casi siempre es por <strong>cómo está conectado el
+									televisor</strong> y no por el televisor: duplicar la pantalla por WiFi obliga
+									al computador a convertir en video todo lo que se mueve, y una animación
+									continua no le da respiro. <strong>Apágala mientras uses ese método.</strong>
+								</div>
+								<div style="margin-top:5px">
+									Con cable HDMI o con el navegador del propio televisor puedes dejarla encendida.
+								</div>
 							</div>
 							<div id="tvPromoBloque" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
 								<div class="form-check" style="margin-bottom:14px">
