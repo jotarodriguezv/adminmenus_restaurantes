@@ -859,12 +859,27 @@
 						</div>
 					</div>
 
+					<!-- ── AÑADIR UNA FUENTE NUEVA ──────────────────────────
+					     Se añade un <option> a la lista que toque y ya está: el
+					     valor tiene que ser el nombre EXACTO de la familia en
+					     Google Fonts, porque de ahí se construye la URL.
+
+					     No hay que tocar nada más. La carta (core/loader.js) y la
+					     cartelera (tv.html) arman el enlace a partir del nombre
+					     guardado, así que una fuente nueva funciona en los tres
+					     sitios en cuanto aparece aquí.
+
+					     Dos condiciones: que exista en Google Fonts —si el nombre
+					     no coincide, no carga y se ve la de reserva— y que sirva
+					     para lo suyo. Las de títulos son de cartel, para leerse
+					     grandes y de golpe; las de cuerpo tienen que aguantar un
+					     párrafo pequeño en un móvil. -->
 					<div class="section-card">
 						<div class="section-title">Tipografía</div>
 						<div class="form-row">
 							<div class="form-group">
 								<label for="apFuenteTitulo" class="form-label">Fuente títulos</label>
-								<select class="form-select" id="apFuenteTitulo">
+								<select class="form-select" id="apFuenteTitulo" onchange="previsualizarFuente('titulo')">
 									<option value="">Predeterminada (del sistema)</option>
 									<option value="Bebas Neue">Bebas Neue</option>
 									<option value="Oswald">Oswald</option>
@@ -875,10 +890,14 @@
 									<option value="Montserrat">Montserrat</option>
 									<option value="Poppins">Poppins</option>
 								</select>
+								<!-- La muestra existe porque el nombre no dice nada: nadie sabe
+								     cómo es "Archivo Black" hasta que la ve. Se carga solo la
+								     que se está mirando, no las dieciséis. -->
+								<div id="apMuestraTitulo" style="margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:22px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">HAMBURGUESA CLÁSICA</div>
 							</div>
 							<div class="form-group">
 								<label for="apFuenteCuerpo" class="form-label">Fuente cuerpo</label>
-								<select class="form-select" id="apFuenteCuerpo">
+								<select class="form-select" id="apFuenteCuerpo" onchange="previsualizarFuente('cuerpo')">
 									<option value="">Predeterminada (del sistema)</option>
 									<option value="Poppins">Poppins</option>
 									<option value="Inter">Inter</option>
@@ -889,6 +908,7 @@
 									<option value="Work Sans">Work Sans</option>
 									<option value="DM Sans">DM Sans</option>
 								</select>
+								<div id="apMuestraCuerpo" style="margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;line-height:1.5">Doble carne, queso cheddar y tocineta · $ 22.000</div>
 							</div>
 						</div>
 					</div>
@@ -3705,6 +3725,45 @@ async function recuperarVideo() {
 	}
 }
 
+// ── VER LA FUENTE ANTES DE ELEGIRLA ───────────────────────────
+// El nombre no dice nada: nadie sabe cómo es "Archivo Black" hasta que la ve,
+// y elegir a ciegas significa guardar, abrir la carta, mirar, y volver.
+//
+// Se carga SOLO la que se está mirando. Traer las dieciséis para pintar dos
+// listas desplegables serían dieciséis descargas para una decisión que se toma
+// una vez — y además pintar cada opción con su propia letra no funciona en
+// todas partes: en iOS el sistema dibuja las listas a su manera e ignora la
+// tipografía. Una muestra grande al lado se ve en todos los aparatos y además
+// se lee mejor que un renglón de lista.
+const fuentesCargadas = {};
+
+function cargarFuenteDeMuestra(familia) {
+	if (!familia || fuentesCargadas[familia]) return;
+	fuentesCargadas[familia] = true;
+	const link = document.createElement('link');
+	link.rel = 'stylesheet';
+	// Los mismos pesos que pide la carta, para que la muestra no engañe: una
+	// fuente en 400 y la misma en 700 no se parecen tanto como se cree.
+	link.href = `https://fonts.googleapis.com/css2?family=${familia.replace(/ /g, '+')}` +
+	            `:wght@300;400;600;700&display=swap`;
+	document.head.appendChild(link);
+}
+
+function previsualizarFuente(cual) {
+	const esTitulo = cual === 'titulo';
+	const sel = document.getElementById(esTitulo ? 'apFuenteTitulo' : 'apFuenteCuerpo');
+	const muestra = document.getElementById(esTitulo ? 'apMuestraTitulo' : 'apMuestraCuerpo');
+	if (!sel || !muestra) return;
+
+	const familia = sel.value;
+	cargarFuenteDeMuestra(familia);
+	// Sin elegir, se enseña con la del sistema: es lo que va a ver el comensal,
+	// así que la muestra tiene que decir la verdad también en ese caso.
+	muestra.style.fontFamily = familia ? `'${familia}', sans-serif` : '';
+	muestra.style.fontWeight = esTitulo ? '700' : '400';
+	muestra.style.color = familia ? 'var(--text)' : 'var(--text-muted)';
+}
+
 // ── ¿ESTE PRECIO SE SALE DE SU PROPIA CARTA? ──────────────────
 // Mide contra la mediana del restaurante y no contra un número fijo: 60.000
 // es caro en una salchipapería y barato en un restaurante de autor, y la
@@ -5139,6 +5198,10 @@ function renderApariencia() {
 
   document.getElementById('apFuenteTitulo').value = at.fuente_titulo || '';
   document.getElementById('apFuenteCuerpo').value = at.fuente_cuerpo || '';
+  // Al abrir, no solo al cambiar: lo primero que se quiere saber al entrar en
+  // Apariencia es cómo se ve lo que ya está puesto.
+  previsualizarFuente('titulo');
+  previsualizarFuente('cuerpo');
 
   document.getElementById('apNavModelo').value = at.nav || 'topnav';
   document.getElementById('apEstilo').value = at.estilo || 'clasico';
