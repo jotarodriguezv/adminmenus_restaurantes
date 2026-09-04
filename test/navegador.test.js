@@ -2461,7 +2461,8 @@ describe('compressImage · formato de salida y fallos que antes colgaban', () =>
 	// Y la promesa no tenía 'rej' ni manejadores de error, así que un archivo
 	// que no decodificaba dejaba la promesa sin resolver PARA SIEMPRE — el
 	// panel se quedaba en "Subiendo..." y no había más salida que recargar.
-	function entorno({ fallaLectura = false, fallaDecodificacion = false, blobNulo = false } = {}) {
+	function entorno({ fallaLectura = false, fallaDecodificacion = false, blobNulo = false,
+	                   haceWebp = false } = {}) {
 		const visto = {};
 		return {
 			visto,
@@ -2478,6 +2479,11 @@ describe('compressImage · formato de salida y fallos que antes colgaban', () =>
 				createElement: () => ({
 					getContext: () => ({ drawImage() {} }),
 					toBlob(cb, tipo) { visto.tipo = tipo; cb(blobNulo ? null : { type: tipo }); },
+					// Un navegador que no encodea WebP no falla al pedírselo:
+					// devuelve un PNG. Se imita porque es justo lo que hace
+					// peligroso el cambio, y lo que la detección tiene que ver.
+					toDataURL: tipo => (haceWebp && tipo === 'image/webp')
+						? 'data:image/webp;base64,AA' : 'data:image/png;base64,AA',
 				}),
 			},
 		};
@@ -2485,9 +2491,35 @@ describe('compressImage · formato de salida y fallos que antes colgaban', () =>
 
 	const comprimir = (archivo, opciones, fallos) => {
 		const ctx = entorno(fallos);
-		const cargado = cargar('index.html', [['function compressImage', 'async function uploadImg']], ctx);
+		const cargado = cargar('index.html', [['let _haceWebp', 'async function uploadImg']], ctx);
 		return { promesa: cargado.compressImage(archivo, 500, .9, opciones), visto: ctx.visto };
 	};
+
+	// ── CON WEBP, QUE ES EL CAMINO NORMAL HOY ─────────────────
+	// La misma foto pesa entre un 30% y un 40% menos, y eso lo paga el
+	// comensal en datos móviles cada vez que abre una carta.
+
+	test('una foto sale en WebP si el navegador sabe', async () => {
+		const { promesa, visto } = comprimir({ type: 'image/jpeg' }, {}, { haceWebp: true });
+		const blob = await promesa;
+		assert.equal(visto.tipo, 'image/webp');
+		assert.equal(blob.type, 'image/webp');
+	});
+
+	test('un logo también, porque WebP sí tiene transparencia', async () => {
+		// Salía en PNG solo para no perder el canal alfa. WebP lo tiene, así
+		// que se conserva igual y pesando bastante menos.
+		const { promesa, visto } = comprimir({ type: 'image/png' }, { conservarTransparencia: true }, { haceWebp: true });
+		await promesa;
+		assert.equal(visto.tipo, 'image/webp');
+	});
+
+	// ── SIN WEBP, TODO SIGUE COMO ESTABA ──────────────────────
+	// Y esto es lo que hace seguro el cambio. toBlob() no falla cuando no sabe
+	// producir el tipo que se le pide: devuelve un PNG. Un PNG de una foto
+	// pesa varias veces lo que el JPEG de antes, así que dar el soporte por
+	// supuesto habría empeorado las cartas en Safari anterior a la 16.4 —en
+	// silencio, que es lo peor.
 
 	test('un logo PNG se queda en PNG', async () => {
 		const { promesa, visto } = comprimir({ type: 'image/png' }, { conservarTransparencia: true });
@@ -2510,6 +2542,13 @@ describe('compressImage · formato de salida y fallos que antes colgaban', () =>
 		assert.equal(visto.tipo, 'image/jpeg');
 	});
 
+	test('nunca se pide WebP a quien no sabe hacerlo', async () => {
+		// Sería pedir un PNG por la puerta de atrás, que es peor que el JPEG.
+		const { promesa, visto } = comprimir({ type: 'image/jpeg' }, {});
+		await promesa;
+		assert.notEqual(visto.tipo, 'image/webp');
+	});
+
 	test('un archivo que no decodifica RECHAZA en vez de colgarse', async () => {
 		const { promesa } = comprimir({ type: 'image/png' }, {}, { fallaDecodificacion: true });
 		await assert.rejects(() => promesa, /no es una imagen/);
@@ -2523,5 +2562,31 @@ describe('compressImage · formato de salida y fallos que antes colgaban', () =>
 	test('y un toBlob que devuelve null tampoco deja la promesa colgada', async () => {
 		const { promesa } = comprimir({ type: 'image/png' }, {}, { blobNulo: true });
 		await assert.rejects(() => promesa, /No se pudo procesar/);
+	});
+
+	// ── EL NOMBRE TIENE QUE DECIR LO QUE ES ───────────────────
+	// El servidor saca la extensión con la que guarda del nombre que se le
+	// manda, y el archivo se sirve después con el Content-Type que sale de esa
+	// extensión. Un .webp llamado .jpg llegaría al navegador anunciado como
+	// JPEG: muchos lo adivinan por el contenido, y es justo la clase de cosa
+	// que funciona hasta que deja de hacerlo en un dispositivo concreto.
+
+	const subir = async blob => {
+		let nombre = null;
+		const ctx = cargar('index.html', [['async function uploadImg', 'function openModal']], {
+			FormData: class { append(_c, _b, n) { if (n) nombre = n; } },
+			apiFetch: async () => ({ url: 'https://panel/uploads/productos/x' }),
+		});
+		await ctx.uploadImg(blob);
+		return nombre;
+	};
+
+	test('un blob WebP se sube con extensión .webp', async () => {
+		assert.match(await subir({ type: 'image/webp' }), /\.webp$/);
+	});
+
+	test('y los de siempre siguen con la suya', async () => {
+		assert.match(await subir({ type: 'image/png' }),  /\.png$/);
+		assert.match(await subir({ type: 'image/jpeg' }), /\.jpg$/);
 	});
 });
