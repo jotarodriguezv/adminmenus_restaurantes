@@ -121,6 +121,33 @@ distinta. Se detectó solo por verificar. El detalle completo está en `sql/16`.
 
 ## Pendiente
 
+### Si las peticiones de fuente se vuelven frecuentes
+
+Hoy la lista de tipografías es **curada a mano**: 14 para títulos y 13 para
+cuerpo, en los dos `select` de `public/index.html`. Cuando un restaurante
+quiere otra, la pide y se añade una línea.
+
+**Eso está bien y no hay que cambiarlo todavía.** La lista no es una
+limitación técnica, es una decisión de diseño tomada por adelantado: Google
+tiene unas mil ochocientas familias y muchas son ilegibles a tamaño pequeño en
+un móvil. Si un restaurante elige mal, la carta se ve mal — y quien la
+construyó fue esta plataforma.
+
+**Cuándo cambia:** cuando el superadmin sea el cuello de botella, o sea,
+cuando lleguen peticiones cada semana y esperar a que alguien añada una línea
+estorbe la venta.
+
+**Qué NO hacer entonces:** abrir el catálogo entero de Google con su API. Eso
+regala el control de calidad a cambio de ahorrarse un minuto.
+
+**Qué hacer:** ampliar la lista curada a treinta o cuarenta y ponerle un
+buscador **entre ellas**. Se quita el trabajo manual y se conserva la curaduría.
+
+Un dato que se comprobó el 04/09/2026 y ahorra una preocupación: **los acentos
+y la ñ no son un problema**. Se probaron cinco familias, incluidas las más
+decorativas, y todas cubren el latín básico y el extendido. Lo que hay que
+mirar al añadir una fuente es la **legibilidad**, no la cobertura.
+
 ### `test/api.test.js` falla a veces en CI sin que nadie haya roto nada
 
 **Visto el 04/09/2026 en un pull request que solo cambiaba texto de HTML.**
