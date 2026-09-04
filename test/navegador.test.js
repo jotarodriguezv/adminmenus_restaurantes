@@ -2455,6 +2455,112 @@ describe('avisarSiElPrecioSeSale · el cero de más', () => {
 	});
 });
 
+describe('arrastrar y soltar · sin una segunda copia de la subida', () => {
+	// Soltar hace lo mismo que elegir con el diálogo: el archivo se mete en el
+	// <input> de siempre y se dispara su 'change'. Ningún manejador de subida
+	// se entera de que existe otra vía, así que no hay una segunda copia de la
+	// lógica que se quede atrás cuando alguien toque la primera.
+
+	const IMG = 'image/*';
+	const VID = 'video/mp4,video/quicktime,.mp4,.mov,.m4v';
+
+	const soloTipo = () => cargar('index.html', [['function tipoAceptado', 'function habilitarArrastre']], {});
+
+	test('una imagen pasa donde se piden imágenes', () => {
+		const { tipoAceptado } = soloTipo();
+		assert.equal(tipoAceptado({ getAttribute: () => IMG }, { type: 'image/jpeg', name: 'a.jpg' }), true);
+		assert.equal(tipoAceptado({ getAttribute: () => IMG }, { type: 'image/png', name: 'a.png' }), true);
+	});
+
+	test('un PDF sobre la foto del plato, no', () => {
+		// Sin esto llega al manejador, falla al decodificarse, y el mensaje
+		// habla de otra cosa.
+		const { tipoAceptado } = soloTipo();
+		assert.equal(tipoAceptado({ getAttribute: () => IMG }, { type: 'application/pdf', name: 'menu.pdf' }), false);
+	});
+
+	test('el video se acepta por tipo o por extensión', () => {
+		// Un .mov de iPhone llega a veces con el tipo vacío, y por eso la lista
+		// de 'accept' incluye las extensiones además de los tipos.
+		const { tipoAceptado } = soloTipo();
+		assert.equal(tipoAceptado({ getAttribute: () => VID }, { type: 'video/mp4', name: 'p.mp4' }), true);
+		assert.equal(tipoAceptado({ getAttribute: () => VID }, { type: '', name: 'PLATO.MOV' }), true);
+		assert.equal(tipoAceptado({ getAttribute: () => VID }, { type: 'image/jpeg', name: 'a.jpg' }), false);
+	});
+
+	// ── EL ARCHIVO TIENE QUE LLEGAR AL INPUT DE VERDAD ────────
+
+	const montarZona = ({ conDataTransfer = true } = {}) => {
+		const oyentes = {};
+		const zona = {
+			dataset: {}, classList: { add() {}, remove() {} },
+			contains: () => false,
+			addEventListener: (ev, fn) => { oyentes[ev] = fn; },
+		};
+		const input = {
+			dataset: { zona: 'z' }, files: null, cambios: 0, manejadoresLlamados: 0,
+            getAttribute: () => IMG,
+			closest: () => null,
+			dispatchEvent(e) { if (e && e.type === 'change') this.cambios++; return true; },
+			onchange() { this.manejadoresLlamados++; },
+		};
+		const avisos = [];
+		const ctx = cargar('index.html', [['function tipoAceptado', '// ── ARRANQUE']], {
+			document: {
+				querySelectorAll: () => [input],
+				getElementById: () => zona,
+			},
+			window: { addEventListener() {} },
+			showToast: (m, t) => avisos.push([t, m]),
+			Event: class { constructor(t) { this.type = t; } },
+			...(conDataTransfer ? {
+				DataTransfer: class { constructor() { this.items = { add: f => { this.archivo = f; } }; }
+				                      get files() { return [this.archivo]; } },
+			} : {}),
+		});
+		ctx.habilitarArrastre();
+		const soltar = archivo => oyentes.drop({
+			preventDefault() {}, stopPropagation() {},
+			dataTransfer: { files: archivo ? [archivo] : [] },
+		});
+		return { soltar, input, avisos };
+	};
+
+	test('el archivo soltado acaba en el input y se dispara su change', () => {
+		// Es lo que hace que no haya una segunda ruta de subida: a partir de
+		// aquí es indistinguible de haberlo elegido a mano.
+		const { soltar, input } = montarZona();
+		soltar({ type: 'image/jpeg', name: 'plato.jpg' });
+
+		assert.equal(input.files[0].name, 'plato.jpg');
+		assert.equal(input.cambios, 1);
+	});
+
+	test('un archivo que no encaja se rechaza y se dice por qué', () => {
+		const { soltar, input, avisos } = montarZona();
+		soltar({ type: 'application/pdf', name: 'carta.pdf' });
+
+		assert.equal(input.cambios, 0, 'no se sube nada');
+		assert.match(avisos[0][1], /no es una imagen/);
+	});
+
+	test('soltar algo que no es un archivo no hace nada', () => {
+		// Arrastrar texto seleccionado de otra pestaña, por ejemplo.
+		const { soltar, input } = montarZona();
+		soltar(null);
+		assert.equal(input.cambios, 0);
+	});
+
+	test('sin DataTransfer se llama al manejador igual', () => {
+		// Navegador que no deja construirlo: la subida tiene que seguir
+		// funcionando, no quedarse en silencio.
+		const { soltar, input } = montarZona({ conDataTransfer: false });
+		soltar({ type: 'image/jpeg', name: 'plato.jpg' });
+
+		assert.equal(input.manejadoresLlamados, 1);
+	});
+});
+
 describe('compressImage · formato de salida y fallos que antes colgaban', () => {
 	// Dos fallos en la misma función. Salía siempre JPEG, y JPEG no tiene canal
 	// alfa: un logo PNG con fondo transparente acababa con un rectángulo negro.
