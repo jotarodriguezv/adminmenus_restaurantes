@@ -121,6 +121,52 @@ distinta. Se detectó solo por verificar. El detalle completo está en `sql/16`.
 
 ## Pendiente
 
+### `test/api.test.js` falla a veces en CI sin que nadie haya roto nada
+
+**Visto el 04/09/2026 en un pull request que solo cambiaba texto de HTML.**
+Al relanzar el mismo commit, sin tocar una línea, pasó en verde.
+
+Cuesta más de lo que parece: **cada fallo manda un correo**, así que una
+inestabilidad no es ruido, es una falsa alarma que hace desconfiar de un cambio
+que estaba bien. Pasó exactamente eso.
+
+**Cómo se reconoce**, para no volver a perseguir el fantasma:
+
+```
+not ok 1 - test/api.test.js
+  failureType: 'uncaughtException'
+  error: 'Unable to deserialize cloned data due to invalid or unsupported version.'
+```
+
+Ese mensaje no habla del código: es la fontanería del ejecutor de pruebas de
+Node, que no consigue serializar una excepción para contarla.
+
+**La pista que lo delata es el recuento.** Un fallo de verdad deja el total
+intacto; aquí baja —485 en vez de 506— porque `api.test.js` se muere a mitad y
+sus pruebas restantes ni se ejecutan. Si el número cuadra, el fallo es real.
+
+**Lo que NO es el problema:** las líneas
+`⚠️ fallo no controlado en POST /api/video: Error: Request aborted` que salen
+alrededor. Es el servidor comportándose bien —registrando que una subida se
+cortó— y aparecen igual en las ejecuciones que pasan.
+
+**El sospechoso** es `subirYCortar()` en `test/helpers/servidor.js`: corta el
+socket a media subida a propósito, para cubrir la conexión que se cae con un
+video de 70 MB. Es una prueba valiosa y depende del tiempo, que es la
+combinación que produce inestabilidad.
+
+Cuando se aborde:
+
+- **Reproducir primero.** Correr `test/api.test.js` en bucle en local hasta que
+  falle. Sin eso no hay forma de saber si un arreglo arregló algo o solo tuvo
+  suerte.
+- **No aplicar el arreglo genérico** que sugieren las herramientas de análisis
+  automático: proponen envolver multer y rehacer el manejo de errores, citando
+  librerías que este repositorio no usa. Eso desharía `conCaptura` y
+  `limpiarSubidaCortada`, que están puestos por incidentes reales.
+- La prueba que se corta **no se borra**. Cubre un fallo que ocurrió de verdad;
+  lo que hay que arreglar es cómo se cuenta su excepción, no dejar de probarlo.
+
 ### Decisión abierta: ¿avisar o impedir salir con un video a medias?
 
 **Marcado el 3 de septiembre de 2026. La decide el equipo del usuario, no
