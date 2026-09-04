@@ -2561,6 +2561,76 @@ describe('arrastrar y soltar · sin una segunda copia de la subida', () => {
 	});
 });
 
+describe('la pista "o arrástralo aquí" · sin prometer nada al teléfono', () => {
+	// La pista se esconde donde no hay ratón. Eso la hace útil y la hace
+	// peligrosa a la vez: lo que se meta dentro desaparece para la mayoría de
+	// los usuarios, que entran desde el móvil.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const pistas = [...src.matchAll(/class="pista-arrastre"[^>]*>([^<]*)</g)].map(m => m[1]);
+
+	test('las ocho zonas donde se puede soltar la anuncian', () => {
+		// Media pantalla con pista y media sin ella enseña que la función no
+		// existe: se prueba donde no lo dice, no pasa nada, y no se reintenta.
+		assert.equal(pistas.length, 8);
+	});
+
+	test('dentro de la pista solo va lo que sobra sin ratón', () => {
+		// Si alguien mete aquí "haz clic para subir", el usuario de teléfono
+		// se queda sin la única instrucción que le servía.
+		for (const texto of pistas) {
+			assert.match(texto, /arrastr|arrástra/i, `esta pista no habla de arrastrar: "${texto}"`);
+			assert.doesNotMatch(texto, /clic/i, `esta pista esconde algo que hace falta sin ratón: "${texto}"`);
+		}
+	});
+
+	test('está escondida por defecto y solo aparece con ratón', () => {
+		// Al revés —visible por defecto y escondida en móvil— haría falta
+		// acertar con el ancho de pantalla, y el ancho no dice si hay ratón.
+		assert.ok(src.includes('.pista-arrastre { display: none; }'),
+			'la pista tiene que estar escondida por defecto');
+		assert.ok(src.includes('@media (hover: hover) and (pointer: fine)'),
+			'y aparecer solo donde hay ratón — no por ancho de pantalla');
+	});
+});
+
+describe('imágenes adicionales · el tope de cuatro sin el botón "+"', () => {
+	// El '+' desaparece al llegar a cuatro, y mientras esa fue la única forma
+	// de añadir, eso bastaba como tope. Soltar un archivo no pasa por el
+	// botón: sin una comprobación aparte, la quinta imagen entraba.
+	const montar = extras => {
+		const subidas = [];
+		const avisos = [];
+		const ctx = cargar('index.html', [['const MAX_IMAGENES_EXTRA', '// ── LA FICHA SEGÚN EL MODELO']], {
+			state: { extraImgs: [...extras] },
+			document: { getElementById: () => ({ innerHTML: '', appendChild() {}, querySelector: () => ({}) }) },
+			showToast: (m, t) => avisos.push([t, m]),
+			compressImage: async b => { subidas.push(b); return b; },
+			uploadImg: async () => 'https://x/nueva.jpg',
+			esc: v => v,
+		});
+		return { ctx, subidas, avisos };
+	};
+
+	test('la quinta no se sube', () => {
+		const { ctx, subidas, avisos } = montar(['a', 'b', 'c', 'd']);
+		const input = { files: [{ name: 'quinta.jpg' }], value: 'quinta.jpg' };
+		ctx.handleExtraImgUpload(input);
+
+		assert.equal(subidas.length, 0, 'no llega a comprimirse ni a subirse');
+		assert.equal(ctx.state.extraImgs.length, 4);
+		assert.match(avisos[0][1], /máximo/);
+		assert.equal(input.value, '', 'se limpia el input o el mismo archivo no vuelve a entrar');
+	});
+
+	test('la cuarta sí', async () => {
+		const { ctx, subidas } = montar(['a', 'b', 'c']);
+		await ctx.handleExtraImgUpload({ files: [{ name: 'cuarta.jpg' }], value: '' });
+
+		assert.equal(subidas.length, 1);
+		assert.equal(ctx.state.extraImgs.length, 4);
+	});
+});
+
 describe('compressImage · formato de salida y fallos que antes colgaban', () => {
 	// Dos fallos en la misma función. Salía siempre JPEG, y JPEG no tiene canal
 	// alfa: un logo PNG con fondo transparente acababa con un rectángulo negro.
