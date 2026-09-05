@@ -33,6 +33,104 @@ function cargar(archivo, desde, hasta, contexto = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+describe('la programación · el mismo juego de casos que el menú y el televisor', () => {
+	// La regla vive en TRES sitios y ninguno puede importar a los otros: el menú
+	// (core/horarios.js), la cartelera (una copia en dialecto viejo dentro de
+	// tv.html, porque un televisor de 2017 no entiende la sintaxis moderna) y
+	// este espejo del panel, que es el que dice "ahora mismo sí está saliendo".
+	//
+	// Tres copias que discrepan solo se notan los martes, que es cuando peor se
+	// encuentra el fallo. Este archivo —duplicado a propósito en los dos
+	// repositorios— es lo único que impide que se separen.
+	const CASOS = JSON.parse(
+		fs.readFileSync(path.join(__dirname, 'casos-programacion.json'), 'utf8'));
+
+	const regla = () => cargar('index.html',
+		[['function zonaRestaurante', 'function describirHorario']],
+		{ state: {}, Intl, Date, RegExp, String, Array, parseInt });
+
+	for (const c of CASOS.casos) {
+		test(c.nombre, () => {
+			assert.equal(
+				regla().vigenteAhora(c.programacion, CASOS.zona, new Date(c.momento)),
+				c.esperado);
+		});
+	}
+
+	test('el archivo de casos no se ha quedado vacío', () => {
+		// Una lista vacía haría pasar todo lo de arriba sin probar nada.
+		assert.ok(CASOS.casos.length >= 20, `solo hay ${CASOS.casos.length} casos`);
+	});
+
+	test('la zona se calcula de verdad, no se cae al reloj de la máquina', () => {
+		// Se pregunta por MADRID a propósito. Con Bogotá, una máquina que ya está
+		// en hora de Colombia da la respuesta correcta aunque el cálculo de zona
+		// NO se esté ejecutando, y la prueba pasa en verde sin probar nada. Eso
+		// ocurrió de verdad en el otro repositorio: verde en local, rojo en CI.
+		const r = regla().ahoraEnZona('Europe/Madrid', new Date('2026-09-08T23:30:00-05:00'));
+		assert.equal(r.dia, 3, 'en Madrid ya es miércoles');
+		assert.equal(r.minutos, 6 * 60 + 30);
+		assert.equal(r.fecha, '2026-09-09');
+	});
+
+	test('declarar algo no es estar vigente', () => {
+		// Unos martes SÍ tienen programación un jueves, aunque ese jueves no
+		// salgan. De esa diferencia depende la regla de dos niveles.
+		const { tieneProgramacion } = regla();
+		assert.equal(tieneProgramacion({}), false);
+		assert.equal(tieneProgramacion({ activo: true }), false);
+		assert.equal(tieneProgramacion({ activo: true, dias: [2] }), true);
+		assert.equal(tieneProgramacion({ activo: true, desde_fecha: '2026-12-01' }), true);
+		assert.equal(tieneProgramacion({ activo: false, dias: [2] }), false);
+	});
+
+	test('unos martes sin horas siguen siendo solo los martes', () => {
+		// Antes esto devolvía true y se saltaba los días, así que habría salido
+		// toda la semana. Comprobado que ninguna categoría en producción tenía
+		// horario activo antes de cambiarlo.
+		const { vigenteAhora } = regla();
+		const soloDias = { activo: true, dias: [2] };
+		assert.equal(vigenteAhora(soloDias, 'America/Bogota', new Date('2026-09-08T19:00:00-05:00')), true);
+		assert.equal(vigenteAhora(soloDias, 'America/Bogota', new Date('2026-09-09T19:00:00-05:00')), false);
+	});
+});
+
+describe('programacionDelFormulario · lo que la tarjeta manda a guardar', () => {
+	// La tarjeta de una promoción arma su programación desde sus propios campos.
+	const caja = valores => ({
+		querySelector: c => ({
+			checked: valores[c.slice(1)] === true,
+			value: typeof valores[c.slice(1)] === 'string' ? valores[c.slice(1)] : '',
+		}),
+	});
+	const fn = () => cargar('index.html',
+		[['function programacionDelFormulario', 'async function guardarPromo']], {});
+
+	test('con el interruptor apagado no manda nada', () => {
+		// Un objeto vacío es "de fondo, siempre vigente". Mandar días con el
+		// interruptor apagado guardaría una programación que la tarjeta no enseña.
+		const r = fn().programacionDelFormulario(caja({ 'p-prog': false }), new Set([2]));
+		assert.deepEqual(Object.keys(r), []);
+	});
+
+	test('con el interruptor encendido manda las tres capas', () => {
+		const r = fn().programacionDelFormulario(caja({
+			'p-prog': true, 'p-desde': '18:00', 'p-hasta': '23:00',
+			'p-desdef': '2026-12-01', 'p-hastaf': '2026-12-24',
+		}), new Set([2, 5]));
+		assert.equal(r.activo, true);
+		assert.equal(r.dias.join(','), '2,5');
+		assert.equal(r.desde, '18:00');
+		assert.equal(r.hasta_fecha, '2026-12-24');
+	});
+
+	test('los días salen ordenados', () => {
+		// Un Set no promete orden, y el orden acaba guardado en la base.
+		const r = fn().programacionDelFormulario(caja({ 'p-prog': true }), new Set([5, 0, 2]));
+		assert.equal(r.dias.join(','), '0,2,5');
+	});
+});
+
 describe('hex6 · normaliza colores para el selector nativo', () => {
 	const { hex6 } = cargar('index.html', 'function hex6', '// El cuadrito y el campo');
 
@@ -1235,6 +1333,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			['const TV_POR_DEFECTO', '// ── PEDIDOS (WhatsApp'],
 		], {
 			state: {
+				promociones: opciones.promociones || [],
 				restaurante: Object.assign(
 				{ id: 'r1', slug: 'bonzas', color_primario: opciones.colorPrimario,
 				  atributos: { tv: opciones.guardado || {} } },
@@ -1614,21 +1713,42 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		assert.equal(campos.tvCada.value, '4');
 	});
 
-	test('avisa si se enciende la promoción sin imagen', () => {
-		// La imagen se sube en otra pestaña y puede llegar después, así que se
-		// avisa en vez de bloquear el interruptor.
-		const { ctx, campos } = montar({ promoEnTv: true });
+	// Los avisos miran la TABLA de promociones, no las columnas viejas: desde el
+	// 05/09/2026 una promoción puede estar marcada para el televisor sin estarlo
+	// para la carta, y al revés.
+	test('avisa si todavía no hay ninguna promoción', () => {
+		const { ctx, campos } = montar({ promoEnTv: true, promociones: [] });
 		ctx.tvAlternarIntercalados();
-		assert.match(campos.tvPromoAyuda.textContent, /no has subido la imagen/);
+		assert.match(campos.tvPromoAyuda.textContent, /no has creado ninguna promoción/);
 	});
 
-	test('avisa si la promoción está apagada en su pestaña', () => {
+	test('avisa si ninguna está marcada para el televisor', () => {
 		const { ctx, campos } = montar({
 			promoEnTv: true,
-			promo: { promo_imagen_url: 'https://x/p.jpg', promo_activa: false },
+			promociones: [{ id: 'p1', activa: true, en_tv: false }],
 		});
 		ctx.tvAlternarIntercalados();
-		assert.match(campos.tvPromoAyuda.textContent, /apagada/);
+		assert.match(campos.tvPromoAyuda.textContent, /Ninguna de tus promociones/);
+	});
+
+	test('avisa si las del televisor están apagadas', () => {
+		const { ctx, campos } = montar({
+			promoEnTv: true,
+			promociones: [{ id: 'p1', activa: false, en_tv: true }],
+		});
+		ctx.tvAlternarIntercalados();
+		assert.match(campos.tvPromoAyuda.textContent, /apagadas/);
+	});
+
+	test('y con varias dice que se turnan, no que sale "la promoción"', () => {
+		// Con cinco promociones, un aviso en singular deja de ser cierto.
+		const { ctx, campos } = montar({
+			promoEnTv: true,
+			promociones: [{ id: 'p1', activa: true, en_tv: true },
+			              { id: 'p2', activa: true, en_tv: true }],
+		});
+		ctx.tvAlternarIntercalados();
+		assert.match(campos.tvPromoAyuda.textContent, /2 promociones del televisor se van turnando/);
 	});
 
 	test('avisa si se marca el logo sin haberlo subido', () => {
@@ -1772,73 +1892,6 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		// falla por el prototipo, no por el contenido.
 		assert.equal(enviado[0].atributos.tv.productos.length, 0);
 	});
-});
-
-// ═══════════════════════════════════════════════════════════════
-describe('Promoción · el nombre y el precio que pinta la cartelera', () => {
-	// Son columnas del restaurante, no de atributos. Hoy solo las enseña
-	// tv.html; se piden aquí porque son de la promoción, no de la pantalla.
-	const montar = (r = {}) => {
-		const campos = {
-			promoToggle: { checked: false }, promoDot: { className: '' },
-			promoStatusText: { textContent: '' },
-			promoImgPreview: { src: '', style: {} }, promoImgNone: { style: {} },
-			promoNombre: { value: '' }, promoPrecio: { value: '' },
-			promoTextoStatus: { textContent: '', style: {} },
-		};
-		const enviado = [];
-		const ctx = cargar('index.html', [
-			['// ── PROMO ─', '// ── DATOS DEL RESTAURANTE'],
-		], {
-			state: { restaurante: Object.assign({ id: 'r1' }, r) },
-			document: { getElementById: id => campos[id] },
-			apiFetch: async (m, ruta, cuerpo) => { enviado.push(cuerpo); return null; },
-			showToast: () => {},
-			uploadImg: async () => '', compressImage: async () => null,
-		});
-		return { ctx, campos, enviado };
-	};
-
-	test('se releen los dos campos', () => {
-		const { ctx, campos } = montar({ promo_nombre: '2x1', promo_precio: '$ 30.000' });
-		ctx.renderPromo();
-		assert.equal(campos.promoNombre.value, '2x1');
-		assert.equal(campos.promoPrecio.value, '$ 30.000');
-	});
-
-	test('sin nada guardado quedan vacíos, no en "null"', () => {
-		const { ctx, campos } = montar({});
-		ctx.renderPromo();
-		assert.equal(campos.promoNombre.value, '');
-		assert.equal(campos.promoPrecio.value, '');
-	});
-
-	test('se guardan solo esas dos columnas', () => {
-		// Mandar el restaurante entero desde la copia que el panel cargó al
-		// entrar es el fallo de §9.10, y aquí aplica igual.
-		const { ctx, campos, enviado } = montar({});
-		campos.promoNombre.value = '  2x1 en hamburguesas  ';
-		campos.promoPrecio.value = ' $ 30.000 ';
-		return ctx.savePromoTexto().then(() => {
-			assert.deepEqual(Object.keys(enviado[0]).sort(), ['promo_nombre', 'promo_precio']);
-			assert.equal(enviado[0].promo_nombre, '2x1 en hamburguesas', 'sin espacios sobrantes');
-			assert.equal(enviado[0].promo_precio, '$ 30.000');
-		});
-	});
-
-	test('se pueden dejar en blanco a propósito', () => {
-		// Muchas piezas ya llevan el texto dibujado dentro; repetirlo debajo se
-		// ve dos veces. Borrarlos tiene que guardar el borrado, no ignorarlo.
-		const { ctx, campos, enviado } = montar({ promo_nombre: '2x1' });
-		campos.promoNombre.value = '';
-		return ctx.savePromoTexto().then(() => {
-			assert.equal(enviado[0].promo_nombre, '');
-			assert.equal(state_del(ctx), '');
-		});
-	});
-
-	// El PATCH puede no devolver la fila; entonces el panel actualiza su copia.
-	const state_del = ctx => ctx.state.restaurante.promo_nombre;
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -2733,66 +2786,6 @@ describe('arrastrar y soltar · sin una segunda copia de la subida', () => {
 		soltar({ type: 'image/jpeg', name: 'plato.jpg' });
 
 		assert.equal(input.manejadoresLlamados, 1);
-	});
-});
-
-describe('el aviso de la promoción en la cartelera · donde se mira, no donde vive', () => {
-	// Apagar la promoción le quita una pantalla al televisor. El aviso de eso
-	// estaba solo en la pestaña del televisor, que es justo donde no está
-	// mirando quien la apaga.
-
-	const montar = (restaurante, cargarTambien = 'pintarAvisoTvEnPromo') => {
-		const el = { textContent: 'sucio', style: {} };
-		const ctx = cargar('index.html', [['function carteleraEsperaLaPromo', 'function renderPromo']], {
-			state: { restaurante },
-			document: { getElementById: () => el },
-		});
-		if (cargarTambien) ctx[cargarTambien]();
-		return { el, ctx };
-	};
-
-	const CON_TV = { atributos: { tv: { activa: true } }, promo_en_tv: true,
-	                 promo_imagen_url: 'https://x/p.jpg', promo_cada: 6 };
-
-	test('un restaurante sin cartelera no ve nada de esto', () => {
-		// Son casi todos. Un aviso que sale donde no aplica enseña a ignorarlos.
-		const { el } = montar({ promo_activa: true, promo_imagen_url: 'https://x/p.jpg' });
-		assert.equal(el.textContent, '');
-	});
-
-	test('con la promoción encendida se dice cada cuánto sale', () => {
-		const { el } = montar({ ...CON_TV, promo_activa: true });
-		assert.match(el.textContent, /cada 6 pantallas/);
-	});
-
-	test('apagada, se dice que el televisor la perdió y cómo recuperarla', () => {
-		// Sin la segunda mitad el aviso solo da una mala noticia.
-		const { el } = montar({ ...CON_TV, promo_activa: false });
-		assert.match(el.textContent, /televisor dejó de mostrarla/);
-		assert.match(el.textContent, /vuelve a salir/);
-		assert.equal(el.style.color, 'var(--warn)');
-	});
-
-	test('sin imagen no hay nada que perder, y no se avisa', () => {
-		const { el } = montar({ ...CON_TV, promo_imagen_url: null, promo_activa: false });
-		assert.equal(el.textContent, '');
-	});
-
-	test('con la cartelera apagada tampoco', () => {
-		const { el } = montar({ ...CON_TV, atributos: { tv: { activa: false } }, promo_activa: false });
-		assert.equal(el.textContent, '');
-	});
-
-	test('una cartelera sin la clave "activa" cuenta como encendida', () => {
-		// Así la lee tv.html: 'activa !== false'. Si aquí se leyera 'activa' a
-		// secas, el panel callaría sobre una pantalla que sí está mostrando.
-		const { ctx } = montar({ ...CON_TV, atributos: { tv: {} } }, null);
-		assert.equal(ctx.carteleraEsperaLaPromo(), true);
-	});
-
-	test('sin promo_cada se dice 4, que es lo que usa la cartelera', () => {
-		const { el } = montar({ ...CON_TV, promo_cada: null, promo_activa: true });
-		assert.match(el.textContent, /cada 4 pantallas/);
 	});
 });
 
