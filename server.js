@@ -610,14 +610,22 @@ const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 's
 // que ya se repite el chequeo del QR y de los videos.
 const ATRIBUTOS_SEGUN_PLAN = { qr: 'qr_disenador', tv: 'tv' };
 
+// 'promociones' es un NÚMERO y no una bandera, y por eso vive aquí y no como
+// una constante ni como un 'check' en la tabla: el día que se quiera vender
+// "hasta quince" en un plan de pago, es cambiar este número y nada más. Con un
+// tope clavado en el esquema, esa decisión comercial sería una migración.
+//
+// Hoy son cinco en todos los planes a propósito. Que existan varias no se
+// cobra: lo que se paga —si se decide— es PROGRAMARLAS, que va con 'horarios',
+// la misma bandera que ya gobierna los horarios de categoría.
 const PLANES = {
-  vitrina:  { qr_disenador: false, estadisticas: false, horarios: false, videos: false, carrito: false, tv: false },
-  pedidos:  { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true,  tv: false },
-  completo: { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true,  tv: true  },
+  vitrina:  { qr_disenador: false, estadisticas: false, horarios: false, videos: false, carrito: false, tv: false, promociones: 5 },
+  pedidos:  { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true,  tv: false, promociones: 5 },
+  completo: { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true,  tv: true,  promociones: 5 },
   // Único plan que abre la subida de video. Como el resto de banderas de
   // plan, se comprueba también aquí y no solo en el panel: esconder un
   // formulario no impide una llamada directa a la API.
-  video:    { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: true,  carrito: true,  tv: true  },
+  video:    { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: true,  carrito: true,  tv: true,  promociones: 5 },
 };
 const PLAN_POR_DEFECTO = 'pedidos';
 const planDe = atributos => PLANES[atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
@@ -1456,6 +1464,180 @@ app.delete('/api/productos/:id', auth, async (req, res) => {
     try { fs.unlinkSync(rutaImagen); } catch {}
   }
   const { error } = await supabase.from('productos').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// ── PROMOCIONES ───────────────────────────────────────────────
+// Paso 3 de docs/promociones.md. Hasta aquí la promoción era UNA, en columnas
+// de 'restaurantes'; ahora son filas con programación propia.
+//
+// Nada de esto lo lee todavía la carta ni la cartelera: siguen con las
+// columnas viejas hasta que se despliegue su parte. Se puede montar el panel
+// encima sin que cambie nada de lo que ve un comensal.
+
+// La programación se valida AL ENTRAR aunque al MOSTRAR se falle abierto.
+// No es contradictorio: lo que se puede comprobar antes de guardar se
+// comprueba, y lo que aun así acabe guardado raro se enseña igual, porque
+// esconderle la promoción a un restaurante por un dato mal escrito es peor que
+// enseñarla de más (es la regla que ya sigue core/horarios.js).
+//
+// Devuelve el mensaje de error o null, como errorDeNombre y errorDeSlug: dos
+// mensajes distintos para la misma regla es como se acaban desincronizando.
+const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+function errorDeProgramacion(p) {
+  if (p === undefined || p === null) return null;
+  if (typeof p !== 'object' || Array.isArray(p)) return 'La programación tiene que ser un objeto';
+
+  if (p.dias !== undefined && p.dias !== null) {
+    if (!Array.isArray(p.dias)) return 'Los días tienen que ser una lista';
+    // 0 es domingo y 6 sábado, igual que en core/horarios.js. Un 7 aquí sería
+    // un día que no existe y no saldría nunca sin que nada lo dijera.
+    if (!p.dias.every(d => Number.isInteger(d) && d >= 0 && d <= 6))
+      return 'Los días van de 0 (domingo) a 6 (sábado)';
+  }
+  for (const clave of ['desde', 'hasta']) {
+    const v = p[clave];
+    if (v !== undefined && v !== null && v !== '' && !HORA.test(String(v)))
+      return `La hora "${clave}" tiene que ir como HH:MM`;
+  }
+  for (const clave of ['desde_fecha', 'hasta_fecha']) {
+    const v = p[clave];
+    if (v !== undefined && v !== null && v !== '' && !FECHA.test(String(v)))
+      return `La fecha "${clave}" tiene que ir como AAAA-MM-DD`;
+  }
+  // Una franja de fechas al revés no falla sola: simplemente no sale nunca, y
+  // eso se descubre el día que el restaurante pregunta por qué no ve nada.
+  if (p.desde_fecha && p.hasta_fecha && String(p.hasta_fecha) < String(p.desde_fecha))
+    return 'La fecha de fin es anterior a la de inicio';
+  return null;
+}
+
+// Solo http(s). Un 'javascript:' o un 'data:' guardado aquí acaba en el src de
+// una imagen del menú y en el background-image de la cartelera, y no hay
+// ninguna razón legítima para que la URL de una promoción no sea una URL.
+function errorDeImagen(url) {
+  const u = String(url || '').trim();
+  if (!u) return 'Falta la imagen de la promoción';
+  if (!/^https?:\/\//i.test(u)) return 'La imagen tiene que ser una URL http o https';
+  return null;
+}
+
+// Los campos que el cliente puede escribir. Se enumeran en vez de pasar el
+// cuerpo entero: así una columna que se añada mañana no queda escribible desde
+// fuera por olvido, que es el fallo que ya nos costó una vez con 'atributos'.
+function promoDelCuerpo(body) {
+  const fila = {};
+  if (body.imagen_url !== undefined) fila.imagen_url = String(body.imagen_url).trim();
+  if (body.nombre !== undefined) fila.nombre = String(body.nombre || '').trim() || null;
+  if (body.precio !== undefined) fila.precio = String(body.precio || '').trim() || null;
+  if (body.activa !== undefined) fila.activa = !!body.activa;
+  if (body.en_popup !== undefined) fila.en_popup = !!body.en_popup;
+  if (body.en_tv !== undefined) fila.en_tv = !!body.en_tv;
+  if (body.orden !== undefined) fila.orden = Number.isInteger(body.orden) ? body.orden : 0;
+  if (body.programacion !== undefined) fila.programacion = body.programacion || {};
+  return fila;
+}
+
+// Programar es de plan, igual que los horarios de categoría. Que un
+// restaurante tenga VARIAS promociones no se cobra; lo que se cobra —si se
+// decide— es que salgan por días y horas. Se comprueba aquí y no solo en el
+// panel porque esconder un formulario no impide una llamada directa a la API.
+function programacionVacia(p) {
+  if (!p || typeof p !== 'object') return true;
+  return !p.activo && !(Array.isArray(p.dias) && p.dias.length) &&
+         !p.desde && !p.hasta && !p.desde_fecha && !p.hasta_fecha;
+}
+
+app.get('/api/promociones', auth, async (req, res) => {
+  const { restaurante_id } = req.query;
+  if (!restaurante_id || !canAccessRestaurante(req.user, restaurante_id))
+    return res.status(403).json({ error: 'Sin permiso' });
+  const { data, error } = await supabase.from('promociones')
+    .select('*').eq('restaurante_id', restaurante_id).order('orden', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/promociones', auth, async (req, res) => {
+  const { restaurante_id } = req.body;
+  if (!restaurante_id || !canAccessRestaurante(req.user, restaurante_id))
+    return res.status(403).json({ error: 'Sin permiso' });
+
+  const fila = promoDelCuerpo(req.body);
+  const malImagen = errorDeImagen(fila.imagen_url);
+  if (malImagen) return res.status(400).json({ error: malImagen });
+  const malProg = errorDeProgramacion(fila.programacion);
+  if (malProg) return res.status(400).json({ error: malProg });
+
+  const { data: resto } = await supabase.from('restaurantes')
+    .select('atributos').eq('id', restaurante_id).single();
+  const plan = planDe(resto?.atributos);
+
+  if (req.user.rol !== 'admin' && !plan.horarios && !programacionVacia(fila.programacion))
+    return res.status(403).json({ error: 'Programar promociones no está incluido en el plan actual' });
+
+  // El tope se cuenta al crear, no al listar: contar aquí es una consulta y
+  // deja la regla en un solo sitio.
+  const { count } = await supabase.from('promociones')
+    .select('id', { count: 'exact', head: true }).eq('restaurante_id', restaurante_id);
+  if (req.user.rol !== 'admin' && (count || 0) >= plan.promociones)
+    return res.status(409).json({ error: `Ya tienes ${plan.promociones} promociones, que es el máximo` });
+
+  fila.restaurante_id = restaurante_id;
+  if (fila.orden === undefined) fila.orden = count || 0;
+  // insert([fila]) y no insert(fila): es como lo hacen las demás rutas y como
+  // lo lee el doble de las pruebas. supabase-js acepta las dos, pero tener dos
+  // formas para lo mismo es justo lo que hace que una prueba mida otra cosa.
+  const { data, error } = await supabase.from('promociones').insert([fila]).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.patch('/api/promociones/:id', auth, async (req, res) => {
+  const { data: actual } = await supabase.from('promociones')
+    .select('restaurante_id').eq('id', req.params.id).single();
+  if (!actual) return res.status(404).json({ error: 'No existe' });
+  if (!canAccessRestaurante(req.user, actual.restaurante_id))
+    return res.status(403).json({ error: 'Sin permiso' });
+
+  const fila = promoDelCuerpo(req.body);
+  // 'restaurante_id' no está en promoDelCuerpo, así que una promoción no se
+  // puede mover al restaurante de otro mandándolo en el cuerpo.
+  if (fila.imagen_url !== undefined) {
+    const mal = errorDeImagen(fila.imagen_url);
+    if (mal) return res.status(400).json({ error: mal });
+  }
+  if (fila.programacion !== undefined) {
+    const mal = errorDeProgramacion(fila.programacion);
+    if (mal) return res.status(400).json({ error: mal });
+    const { data: resto } = await supabase.from('restaurantes')
+      .select('atributos').eq('id', actual.restaurante_id).single();
+    if (req.user.rol !== 'admin' && !planDe(resto?.atributos).horarios &&
+        !programacionVacia(fila.programacion))
+      return res.status(403).json({ error: 'Programar promociones no está incluido en el plan actual' });
+  }
+
+  const { data, error } = await supabase.from('promociones')
+    .update(fila).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// La imagen NO se borra aquí. Un archivo de uploads/ puede estar referenciado
+// desde otra fila —se clona una promoción, se reusa una foto— y quien sabe si
+// sobra es el limpiador, que mira las tablas enteras. Borrarla desde aquí es
+// como se acaba con un plato sin foto en la carta de otro.
+app.delete('/api/promociones/:id', auth, async (req, res) => {
+  const { data: actual } = await supabase.from('promociones')
+    .select('restaurante_id').eq('id', req.params.id).single();
+  if (!actual) return res.status(404).json({ error: 'No existe' });
+  if (!canAccessRestaurante(req.user, actual.restaurante_id))
+    return res.status(403).json({ error: 'Sin permiso' });
+
+  const { error } = await supabase.from('promociones').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });

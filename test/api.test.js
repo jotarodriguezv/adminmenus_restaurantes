@@ -1336,3 +1336,140 @@ describe('/api/resumen-video · la vista de la lista de restaurantes', () => {
 		assert.doesNotMatch(r.body.error, /relation/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('/api/promociones · varias promociones por restaurante', () => {
+	// Paso 3 de docs/promociones.md. Hasta aquí la promoción era UNA, en
+	// columnas de 'restaurantes'.
+	const PROMO = { restaurante_id: IDS.restaurante, imagen_url: 'https://x/p.jpg' };
+
+	const conPlan = (plan, extra = {}) => S.conTabla(st => {
+		if (st.tabla === 'restaurantes') return { data: { atributos: { plan } }, error: null };
+		if (st.tabla === 'promociones' && st.opciones?.count) return { data: null, error: null, count: extra.cuantas ?? 0 };
+		if (st.tabla === 'promociones') return { data: extra.fila ?? { id: 'p1', restaurante_id: IDS.restaurante }, error: null };
+		return { data: null, error: null };
+	});
+
+	test('sin token no se entra', async () => {
+		const r = await S.pedir('GET', '/api/promociones?restaurante_id=' + IDS.restaurante);
+		assert.equal(r.status, 401);
+	});
+
+	test('un restaurante no ve las de otro', async () => {
+		const r = await S.pedir('GET', '/api/promociones?restaurante_id=44444444-4444-4444-8444-444444444444',
+			null, tokenCliente);
+		assert.equal(r.status, 403);
+	});
+
+	test('se crea una promoción', async () => {
+		conPlan('pedidos');
+		const r = await S.pedir('POST', '/api/promociones', PROMO, tokenCliente);
+		assert.equal(r.status, 200);
+		const escrito = S.ultimaEscritura('promociones');
+		assert.equal(escrito.imagen_url, 'https://x/p.jpg');
+		assert.equal(escrito.restaurante_id, IDS.restaurante);
+	});
+
+	test('la imagen tiene que ser una URL http', async () => {
+		// Un 'javascript:' guardado aquí acaba en el src de una imagen del menú
+		// y en el background-image de la cartelera.
+		conPlan('pedidos');
+		for (const mala of ['javascript:alert(1)', 'data:text/html,<script>', '', '   ']) {
+			const r = await S.pedir('POST', '/api/promociones',
+				{ ...PROMO, imagen_url: mala }, tokenCliente);
+			assert.equal(r.status, 400, JSON.stringify(mala));
+		}
+	});
+
+	test('la programación se valida al entrar', async () => {
+		conPlan('pedidos');
+		const malas = [
+			[{ dias: [7] }, 'un día que no existe'],
+			[{ dias: 'martes' }, 'días que no son lista'],
+			[{ desde: '25:00' }, 'una hora imposible'],
+			[{ desde: '9:00' }, 'una hora sin cero delante'],
+			[{ desde_fecha: '01/12/2026' }, 'una fecha con otro formato'],
+			[{ desde_fecha: '2026-12-24', hasta_fecha: '2026-12-01' }, 'un rango al revés'],
+			[[], 'una lista en vez de un objeto'],
+		];
+		for (const [programacion, etiqueta] of malas) {
+			const r = await S.pedir('POST', '/api/promociones',
+				{ ...PROMO, programacion }, tokenCliente);
+			assert.equal(r.status, 400, etiqueta);
+		}
+	});
+
+	test('el martes solo es dias:[2] y eso sí vale', async () => {
+		conPlan('pedidos');
+		const r = await S.pedir('POST', '/api/promociones',
+			{ ...PROMO, programacion: { activo: true, dias: [2], desde: '18:00', hasta: '23:00' } },
+			tokenCliente);
+		assert.equal(r.status, 200);
+		assert.deepEqual(S.ultimaEscritura('promociones').programacion.dias, [2]);
+	});
+
+	test('programar es de plan; tener varias, no', async () => {
+		// 'vitrina' no tiene horarios, igual que no los tiene en categorías.
+		conPlan('vitrina');
+		const conHorario = await S.pedir('POST', '/api/promociones',
+			{ ...PROMO, programacion: { activo: true, dias: [2] } }, tokenCliente);
+		assert.equal(conHorario.status, 403);
+
+		conPlan('vitrina');
+		const sinHorario = await S.pedir('POST', '/api/promociones', PROMO, tokenCliente);
+		assert.equal(sinHorario.status, 200, 'sin programación sí puede');
+	});
+
+	test('el tope sale del plan y se cuenta al crear', async () => {
+		conPlan('pedidos', { cuantas: 5 });
+		const r = await S.pedir('POST', '/api/promociones', PROMO, tokenCliente);
+		assert.equal(r.status, 409);
+		assert.match(r.body.error, /5 promociones/);
+	});
+
+	test('con cuatro todavía cabe una más', async () => {
+		conPlan('pedidos', { cuantas: 4 });
+		const r = await S.pedir('POST', '/api/promociones', PROMO, tokenCliente);
+		assert.equal(r.status, 200);
+	});
+
+	test('el superadmin no tiene tope', async () => {
+		conPlan('pedidos', { cuantas: 99 });
+		const r = await S.pedir('POST', '/api/promociones', PROMO, tokenAdmin);
+		assert.equal(r.status, 200);
+	});
+
+	test('no se puede mover una promoción al restaurante de otro', async () => {
+		// 'restaurante_id' no está entre los campos que el cuerpo puede escribir.
+		conPlan('pedidos', { fila: { id: 'p1', restaurante_id: IDS.restaurante } });
+		const r = await S.pedir('PATCH', '/api/promociones/p1',
+			{ restaurante_id: '44444444-4444-4444-8444-444444444444', nombre: 'Otra' }, tokenCliente);
+		assert.equal(r.status, 200);
+		assert.equal('restaurante_id' in S.ultimaEscritura('promociones'), false);
+	});
+
+	test('no se edita la promoción de otro', async () => {
+		S.conTabla(st => st.tabla === 'promociones'
+			? { data: { id: 'p1', restaurante_id: '44444444-4444-4444-8444-444444444444' }, error: null }
+			: { data: null, error: null });
+		const r = await S.pedir('PATCH', '/api/promociones/p1', { nombre: 'Mía' }, tokenCliente);
+		assert.equal(r.status, 403);
+	});
+
+	test('ni se borra', async () => {
+		S.conTabla(st => st.tabla === 'promociones'
+			? { data: { id: 'p1', restaurante_id: '44444444-4444-4444-8444-444444444444' }, error: null }
+			: { data: null, error: null });
+		const r = await S.pedir('DELETE', '/api/promociones/p1', null, tokenCliente);
+		assert.equal(r.status, 403);
+	});
+
+	test('borrar la promoción no borra su imagen', async () => {
+		// Un archivo de uploads/ puede estar referenciado desde otra fila. Quien
+		// sabe si sobra es el limpiador, que mira las tablas enteras.
+		conPlan('pedidos', { fila: { id: 'p1', restaurante_id: IDS.restaurante } });
+		const r = await S.pedir('DELETE', '/api/promociones/p1', null, tokenCliente);
+		assert.equal(r.status, 200);
+		assert.equal(S.llamadas.some(l => l.tipo === 'rpc' && l.nombre === 'restaurante_del_archivo'), false);
+	});
+});
