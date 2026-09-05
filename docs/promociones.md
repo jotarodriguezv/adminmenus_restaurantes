@@ -552,6 +552,47 @@ verdad son las fechas y la lista de hasta cinco.
 
 ---
 
+### 9.quater La hora, el selector y la vista previa (05/09/2026)
+
+Salió de probar el panel con perroscriollos.
+
+**`<input type="time">` no sirve para pedir una hora aquí.** El formato lo
+decide el sistema operativo del visitante, **no la página**: comprobado en
+navegador con `lang="es-CO"`, `"es-ES"` y `"en-GB"` puestos en el propio input,
+los tres pintan «06:30 p. m.». No hay manera de forzar 24 horas.
+
+Y el a. m./p. m. falla justo donde duele: mucha gente duda si las doce del
+mediodía son 12 a. m. o 12 p. m., y una promoción de almuerzo puesta al revés no
+sale sin que nadie sepa por qué.
+
+**La solución es un `<select>`**, que resuelve las dos peticiones a la vez: es un
+selector —no hay que teclear— y enseña 24 h en cualquier aparato, porque las
+etiquetas las escribimos nosotros. Media hora de resolución: los horarios de un
+restaurante se dicen en horas y medias, y 48 opciones se recorren; con cuartos
+serían 96. Una hora guardada fuera de la rejilla **no desaparece del selector**,
+o abrir la ficha y guardar sin tocar nada le cambiaría el horario al negocio.
+
+Las **fechas** siguen siendo `<input type="date">` —ahí el formato dd/mm/aaaa no
+es ambiguo— pero abren el calendario al pulsar en cualquier parte del campo y no
+solo en el iconito (`showPicker()`, comprobado si existe).
+
+**Días sin horas = el día entero**, y ahora se dice con palabras: «L X V · todo
+el día» en vez de «L X V · –». Era la duda literal del usuario.
+
+**Encendido y vacío se guarda como sin programación.** Marcar «solo en ciertos
+días u horas» y no marcar nada se comporta igual que no marcarlo, así que
+guardar `activo:true` con todo vacío dejaría una fila prometiendo una
+programación que no existe — y la regla de dos niveles la leería como
+«programada», quitándole el turno a las de fondo sin motivo.
+
+**Y una vista previa de lo que sale ahora mismo**, con las imágenes. La pregunta
+que trae a todo el mundo a esta pestaña es «¿qué está saliendo?», y hasta ahora
+había que deducirla de cinco tarjetas y un horario. Se calcula con la MISMA
+regla que el menú y la cartelera: una aproximación sería peor que no tenerla,
+porque daría confianza en una respuesta falsa.
+
+---
+
 ### 9.ter Lo que quedó de las columnas viejas (05/09/2026)
 
 `promo_activa`, `promo_imagen_url`, `promo_nombre`, `promo_precio` y
@@ -602,5 +643,6 @@ mientras tanto la dejaría sin promoción sin que nadie entienda por qué.
 | 04/09/2026 | **Construido el paso 2**: `atributos.tv.intercalados` y `atributos.tv.cada`; la animación del logo cuelga del interruptor de animación que ya existía. |
 | 05/09/2026 | La rotación de intercalados **continúa entre vueltas**: reiniciarla dejaba sin salir todo lo que no fuera el primer elemento (§6.bis). |
 | 05/09/2026 | **D antes que C**: primero lee el menú, después escribe el panel. Al revés se configuran promociones que el comensal no ve. |
+| 05/09/2026 | La hora se pide con un **`<select>` en 24 h**: `input type="time"` no deja forzar el formato, lo decide el sistema del visitante. |
 | 05/09/2026 | El tope de promociones es un **número del plan**, no una restricción del esquema: si no, cambiarlo sería una migración. |
 | 05/09/2026 | Una pantalla de marca sin logo y sin frase **no se puede guardar**: antes se descartaba en silencio con el interruptor encendido. |

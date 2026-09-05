@@ -95,6 +95,82 @@ describe('la programación · el mismo juego de casos que el menú y el televiso
 	});
 });
 
+describe('la hora de las promociones · selector y 24 horas', () => {
+	// <input type="time"> no sirve para esto: el formato lo decide el sistema
+	// operativo del visitante, no la página. Comprobado en navegador el
+	// 05/09/2026 con lang="es-CO", "es-ES" y "en-GB" en el propio input — los
+	// tres pintan "06:30 p. m.".
+	//
+	// Un <select> es a la vez selector (no hay que teclear) y 24 h en cualquier
+	// aparato, porque las etiquetas las escribimos nosotros.
+	const horas = () => cargar('index.html',
+		[['const PASO_HORA', 'function abrirCalendarioAlPulsar']],
+		{ document: domDeSelect(), Math, String, Array });
+
+	function domDeSelect() {
+		return {
+			createElement: () => ({
+				className: '', value: '', textContent: '', hijos: [],
+				appendChild(h) { this.hijos.push(h); return h; },
+			}),
+		};
+	}
+
+	test('media hora de resolución, de 00:00 a 23:30', () => {
+		const o = horas().opcionesDeHora();
+		assert.equal(o.length, 48);
+		assert.equal(o[0], '00:00');
+		assert.equal(o[1], '00:30');
+		assert.equal(o[o.length - 1], '23:30');
+	});
+
+	test('todas van en 24 h, sin a. m. ni p. m.', () => {
+		// Es el punto entero del cambio: mucha gente duda si las doce del
+		// mediodía son 12 a. m. o 12 p. m.
+		const o = horas().opcionesDeHora();
+		assert.ok(o.every(h => /^\d{2}:\d{2}$/.test(h)), 'formato HH:MM');
+		assert.ok(o.includes('12:00'), 'el mediodía es 12:00');
+		assert.ok(o.includes('00:00'), 'y la medianoche 00:00');
+		assert.ok(o.includes('18:00'), 'las 6 de la tarde son 18:00');
+	});
+
+	test('la primera opción significa "todo el día"', () => {
+		// Contesta en el propio control la duda de marcar días sin marcar horas.
+		const sel = horas().selectorDeHora('p-desde', '');
+		assert.equal(sel.hijos[0].value, '');
+		assert.equal(sel.hijos[0].textContent, 'Todo el día');
+	});
+
+	test('una hora guardada fuera de la rejilla no desaparece', () => {
+		// Si no estuviera, abrir la ficha y guardar sin tocar nada le cambiaría
+		// el horario al restaurante sin que nadie lo pidiera.
+		const sel = horas().selectorDeHora('p-desde', '18:45');
+		assert.ok(sel.hijos.some(o => o.value === '18:45'), '18:45 sigue en la lista');
+	});
+});
+
+describe('describirHorario · unos días sin horas son el día entero', () => {
+	// La duda que trajo el usuario: marcar lunes, miércoles y viernes sin poner
+	// horas. Antes se leía "L X V · –", que no dice nada.
+	const fn = () => cargar('index.html',
+		[['function describirHorario', 'function renderCatDiasChips']],
+		{ DIAS_CORTOS: ['D','L','M','X','J','V','S'], Array });
+
+	test('sin franja lo dice con palabras', () => {
+		assert.match(fn().describirHorario({ dias: [1,3,5] }), /L X V · todo el día/);
+	});
+
+	test('con franja la enseña', () => {
+		assert.match(fn().describirHorario({ dias: [1,3,5], desde: '18:00', hasta: '23:00' }),
+			/L X V · 18:00–23:00/);
+	});
+
+	test('sin días marcados son todos', () => {
+		assert.match(fn().describirHorario({ desde: '18:00', hasta: '23:00' }),
+			/Todos los días/);
+	});
+});
+
 describe('programacionDelFormulario · lo que la tarjeta manda a guardar', () => {
 	// La tarjeta de una promoción arma su programación desde sus propios campos.
 	const caja = valores => ({
@@ -122,6 +198,29 @@ describe('programacionDelFormulario · lo que la tarjeta manda a guardar', () =>
 		assert.equal(r.dias.join(','), '2,5');
 		assert.equal(r.desde, '18:00');
 		assert.equal(r.hasta_fecha, '2026-12-24');
+	});
+
+	test('encendido y sin nada marcado se guarda como sin programación', () => {
+		// Guardar 'activo:true' con todo vacío deja una fila que promete una
+		// programación que no existe — y la regla de dos niveles la leería como
+		// "programada", quitándole el turno a las de fondo sin motivo. Se
+		// comporta igual (sale siempre), así que se guarda como tal.
+		const ctx = cargar('index.html',
+			[['function programacionDelFormulario', 'async function guardarPromo'],
+			 ['function zonaRestaurante', 'function describirHorario']],
+			{ state: {}, Intl, Date, RegExp, String, Array, parseInt });
+		const r = ctx.programacionParaGuardar(caja({ 'p-prog': true }), new Set());
+		assert.deepEqual(Object.keys(r), []);
+	});
+
+	test('pero con un solo día sí se guarda entera', () => {
+		const ctx = cargar('index.html',
+			[['function programacionDelFormulario', 'async function guardarPromo'],
+			 ['function zonaRestaurante', 'function describirHorario']],
+			{ state: {}, Intl, Date, RegExp, String, Array, parseInt });
+		const r = ctx.programacionParaGuardar(caja({ 'p-prog': true }), new Set([2]));
+		assert.equal(r.activo, true);
+		assert.equal(r.dias.join(','), '2');
 	});
 
 	test('los días salen ordenados', () => {
