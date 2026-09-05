@@ -106,10 +106,22 @@ es el VPS: es la memoria y la GPU del televisor.
     "animacion": "suave",
     "mostrar_categoria": true,
     "color_categoria": "marca",
-    "tema": "carta"
+    "tema": "carta",
+    "cada": 4,
+    "intercalados": [
+      { "tipo": "promocion" },
+      { "tipo": "marca", "logo": true, "frase": "Desde 1998" }
+    ]
   }
 }
 ```
+
+`cada` e `intercalados` son del **04/09/2026** y están explicados en
+`docs/promociones.md` §6. En resumen: cada `cada` pantallas de platos entra el
+siguiente elemento de `intercalados`, y al acabar la lista se vuelve a empezar.
+Con un solo elemento la secuencia es idéntica a la de antes, y quien no haya
+vuelto a guardar no tiene la lista: se arma desde `promo_en_tv` y `promo_cada`,
+que pasan a ser respaldo de lectura.
 
 `color_categoria` toma `oscuro` (por defecto), `claro` o `marca`, y `tema` toma
 `oscuro` (por defecto) o `carta`. Ninguno de los dos es un color libre: ver
