@@ -27,7 +27,7 @@ function clienteFalso() {
     from(tabla) {
       const st = { tipo: 'tabla', tabla, op: 'select', filtros: {} };
       const q = {
-        select(c) { st.cols = c; return q; },
+        select(c, opciones) { st.cols = c; st.opciones = opciones; return q; },
         insert(r) { st.op = 'insert'; st.payload = r; return q; },
         update(o) { st.op = 'update'; st.payload = o; return q; },
         upsert(o, x) { st.op = 'upsert'; st.payload = o; st.opts = x; return q; },

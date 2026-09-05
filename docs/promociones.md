@@ -473,8 +473,9 @@ está, para que no haya que reconstruirlo de una conversación:
 
 | | Qué | Estado |
 |---|---|---|
-| **A** | `sql/18_promociones.sql` — la tabla, su RLS y el copiado de lo que ya hay | **escrita, SIN aplicar** |
-| **B** | `server.js` — alta, baja y edición de promociones, y el tope como número del plan | pendiente |
+| ~~**A**~~ | `sql/18_promociones.sql` — la tabla, su RLS y el copiado de lo que ya hay | **aplicada el 05/09/2026** |
+| ~~**B**~~ | `server.js` — alta, baja y edición, y el tope como número del plan | **hecho el 05/09/2026** |
+| **A.bis** | `sql/19` — cerrar la escritura de la tabla a `anon` | **escrita, SIN aplicar** |
 | **C** | Panel — la lista de promociones y el editor de días, horas y fechas | pendiente |
 | **D** | `vmenus-app` — el popup elige una; `tv.html` resuelve la programación | pendiente |
 | **E** | El juego de casos compartido entre los dos repositorios (§8.3) | pendiente |
@@ -492,6 +493,24 @@ las lea.
 **El tope de cinco no va en el esquema.** Va a ser un número del plan, y
 clavarlo en un `check` convertiría una decisión comercial en una migración. Lo
 comprueba el servidor en B, que es quien conoce el plan.
+
+**Lo que se cobra es programar, no tener varias.** Decidido al hacer B: los
+cuatro planes llevan `promociones: 5`, y poner días u horas exige `horarios` —
+la misma bandera que ya gobierna los horarios de categoría, que `vitrina` no
+tiene. Es la respuesta a la pregunta abierta «¿en qué plan entra?», y se puede
+cambiar en una línea si el negocio decide otra cosa.
+
+**La tabla nació abierta a `anon`.** Al comprobar el 18 después de aplicarlo
+—la regla del `CLAUDE.md` de no dar nada por hecho— salió que `anon` tenía
+INSERT, UPDATE y DELETE sobre `promociones`. RLS lo bloquea, así que no había
+nada expuesto, pero toda la protección descansaba en una sola barrera. Lo cierra
+`sql/19`.
+
+La misma comprobación encontró que `anon` tiene DELETE sobre `productos`,
+`categorias` y `restaurantes`, y las tres cosas sobre `trabajos_video`,
+`eventos_analitica` y `menu_activo`. Todas con RLS activo, o sea que tampoco hay
+nada expuesto. **No se tocan de rebote**: van a la revisión de seguridad, que es
+donde toca mirarlas una por una.
 
 ---
 
