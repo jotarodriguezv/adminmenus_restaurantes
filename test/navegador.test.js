@@ -2561,6 +2561,82 @@ describe('arrastrar y soltar · sin una segunda copia de la subida', () => {
 	});
 });
 
+describe('el aviso de la promoción en la cartelera · donde se mira, no donde vive', () => {
+	// Apagar la promoción le quita una pantalla al televisor. El aviso de eso
+	// estaba solo en la pestaña del televisor, que es justo donde no está
+	// mirando quien la apaga.
+
+	const montar = (restaurante, cargarTambien = 'pintarAvisoTvEnPromo') => {
+		const el = { textContent: 'sucio', style: {} };
+		const ctx = cargar('index.html', [['function carteleraEsperaLaPromo', 'function renderPromo']], {
+			state: { restaurante },
+			document: { getElementById: () => el },
+		});
+		if (cargarTambien) ctx[cargarTambien]();
+		return { el, ctx };
+	};
+
+	const CON_TV = { atributos: { tv: { activa: true } }, promo_en_tv: true,
+	                 promo_imagen_url: 'https://x/p.jpg', promo_cada: 6 };
+
+	test('un restaurante sin cartelera no ve nada de esto', () => {
+		// Son casi todos. Un aviso que sale donde no aplica enseña a ignorarlos.
+		const { el } = montar({ promo_activa: true, promo_imagen_url: 'https://x/p.jpg' });
+		assert.equal(el.textContent, '');
+	});
+
+	test('con la promoción encendida se dice cada cuánto sale', () => {
+		const { el } = montar({ ...CON_TV, promo_activa: true });
+		assert.match(el.textContent, /cada 6 pantallas/);
+	});
+
+	test('apagada, se dice que el televisor la perdió y cómo recuperarla', () => {
+		// Sin la segunda mitad el aviso solo da una mala noticia.
+		const { el } = montar({ ...CON_TV, promo_activa: false });
+		assert.match(el.textContent, /televisor dejó de mostrarla/);
+		assert.match(el.textContent, /vuelve a salir/);
+		assert.equal(el.style.color, 'var(--warn)');
+	});
+
+	test('sin imagen no hay nada que perder, y no se avisa', () => {
+		const { el } = montar({ ...CON_TV, promo_imagen_url: null, promo_activa: false });
+		assert.equal(el.textContent, '');
+	});
+
+	test('con la cartelera apagada tampoco', () => {
+		const { el } = montar({ ...CON_TV, atributos: { tv: { activa: false } }, promo_activa: false });
+		assert.equal(el.textContent, '');
+	});
+
+	test('una cartelera sin la clave "activa" cuenta como encendida', () => {
+		// Así la lee tv.html: 'activa !== false'. Si aquí se leyera 'activa' a
+		// secas, el panel callaría sobre una pantalla que sí está mostrando.
+		const { ctx } = montar({ ...CON_TV, atributos: { tv: {} } }, null);
+		assert.equal(ctx.carteleraEsperaLaPromo(), true);
+	});
+
+	test('sin promo_cada se dice 4, que es lo que usa la cartelera', () => {
+		const { el } = montar({ ...CON_TV, promo_cada: null, promo_activa: true });
+		assert.match(el.textContent, /cada 4 pantallas/);
+	});
+});
+
+describe('los avisos usan una variable de color que existe', () => {
+	// --warning no existe: solo está definida --warn. Un var() sin definir hace
+	// que la declaración se descarte y el texto herede el color de al lado, o
+	// sea que el aviso salía igual que el texto normal. Comprobado en navegador.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('nadie escribe var(--warning)', () => {
+		assert.ok(!src.includes('var(--warning)'),
+			'esa variable no existe: los avisos saldrían del color del texto normal');
+	});
+
+	test('y --warn sigue definida', () => {
+		assert.ok(src.includes('--warn: #'), 'es la que sí existe');
+	});
+});
+
 describe('la pista "o arrástralo aquí" · sin prometer nada al teléfono', () => {
 	// La pista se esconde donde no hay ratón. Eso la hace útil y la hace
 	// peligrosa a la vez: lo que se meta dentro desaparece para la mayoría de

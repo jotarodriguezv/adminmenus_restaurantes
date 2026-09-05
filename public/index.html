@@ -1154,6 +1154,9 @@
 							</div>
 							<label class="toggle"><input type="checkbox" id="promoToggle" onchange="togglePromo()"><span class="toggle-slider"></span></label>
 						</div>
+						<!-- Qué le pasa al televisor con lo que se decide aquí. Vacío
+						     cuando el restaurante no tiene cartelera, que son casi todos. -->
+						<div id="promoAvisoTv" style="margin-top:10px;font-size:11px;line-height:1.6"></div>
 					</div>
 					<div class="section-card">
 						<div class="section-title">Imagen de la promoción</div>
@@ -1397,7 +1400,7 @@
 									</select>
 								</div>
 							</div>
-							<div id="tvAvisoTamano" style="font-size:11px;color:var(--warning);margin:-6px 0 14px;display:none"></div>
+							<div id="tvAvisoTamano" style="font-size:11px;color:var(--warn);margin:-6px 0 14px;display:none"></div>
 
 							<div class="form-row">
 								<div class="form-group" style="margin-bottom:0">
@@ -5077,6 +5080,48 @@ async function executeDelete() {
 }
 
 // ── PROMO ─────────────────────────────────────────────────────
+
+// ¿La cartelera enseñaría esta promoción si estuviera encendida aquí?
+//
+// Espejo de la condición de tv.html, que es quien decide de verdad:
+//
+//   r.promo_activa && r.promo_en_tv && imagenPromo && nuevos.length
+//
+// 'promo_activa' se deja fuera A PROPÓSITO: la pregunta que hay que
+// responder es qué se pierde al apagarla, y para eso no puede formar parte
+// de la condición. Los platos tampoco se miran: de que la cartelera se haya
+// quedado sin platos ya avisa su propia pestaña, y encadenar aquí una
+// condición más solo consigue que el aviso desaparezca cuando más falta hace.
+function carteleraEsperaLaPromo() {
+  const r = state.restaurante || {};
+  const tv = r.atributos?.tv;
+  // 'activa !== false' y no 'activa': así lo mira tv.html, y manda tv.html.
+  return !!(tv && tv.activa !== false && r.promo_en_tv && r.promo_imagen_url);
+}
+
+// El aviso vive AQUÍ y no solo en la pestaña del televisor a propósito. Quien
+// apaga la promoción está mirando esta pantalla y no tiene ningún motivo para
+// ir a la otra: un aviso que hay que ir a buscar no avisa de nada. Antes se
+// apagaba la promoción, el televisor perdía una pantalla, y el restaurante se
+// enteraba mirando la tele.
+function pintarAvisoTvEnPromo() {
+  const el = document.getElementById('promoAvisoTv');
+  if (!el) return;
+  if (!carteleraEsperaLaPromo()) { el.textContent = ''; return; }
+
+  const cada = parseInt(state.restaurante?.promo_cada, 10) || 4;
+  if (state.restaurante?.promo_activa) {
+    el.textContent = `También sale en la cartelera del televisor, cada ${cada} pantallas de platos.`;
+    el.style.color = 'var(--text-dim)';
+  } else {
+    // Se dice también cómo se deshace: apagarla suele ser justo el momento en
+    // que alguien descubre que no quería.
+    el.textContent = 'El televisor dejó de mostrarla. Sigue marcada en la cartelera, ' +
+                     'así que al encenderla aquí vuelve a salir.';
+    el.style.color = 'var(--warn)';
+  }
+}
+
 function renderPromo() {
   const r=state.restaurante;
   document.getElementById('promoToggle').checked=r.promo_activa;
@@ -5089,6 +5134,7 @@ function renderPromo() {
   document.getElementById('promoNombre').value = r.promo_nombre || '';
   document.getElementById('promoPrecio').value = r.promo_precio || '';
   document.getElementById('promoTextoStatus').textContent = '';
+  pintarAvisoTvEnPromo();
 }
 
 // El nombre y el precio de la promoción. Hoy solo los usa la cartelera del
@@ -5117,7 +5163,12 @@ async function togglePromo() {
   try {
     await apiFetch('PATCH',`/api/restaurantes/${state.restaurante.id}`,{promo_activa:activa});
     state.restaurante.promo_activa=activa; renderPromo();
-    showToast(activa?'Promo activada':'Promo desactivada','success');
+    // Apagarla puede costar una pantalla del televisor, y eso se dice en el
+    // mismo aviso que confirma la acción, no solo en el texto de debajo.
+    const enTv = carteleraEsperaLaPromo();
+    showToast(activa ? (enTv ? 'Promo activada · vuelve a salir en el televisor' : 'Promo activada')
+                     : (enTv ? 'Promo desactivada · el televisor deja de mostrarla' : 'Promo desactivada'),
+              'success');
   } catch(e) { showToast('Error','error'); document.getElementById('promoToggle').checked=!activa; }
 }
 
@@ -6470,11 +6521,11 @@ function tvAlternarPromo() {
   if (!hayImagen) {
     ayuda.textContent = 'Todavía no has subido la imagen de tu promoción. Se sube en la ' +
                         'pestaña Promoción, y hasta entonces esto no muestra nada.';
-    ayuda.style.color = 'var(--warning)';
+    ayuda.style.color = 'var(--warn)';
   } else if (!activa) {
     ayuda.textContent = 'Tu promoción está apagada en la pestaña Promoción, así que ' +
                         'tampoco saldrá aquí.';
-    ayuda.style.color = 'var(--warning)';
+    ayuda.style.color = 'var(--warn)';
   } else {
     ayuda.textContent = 'Tu promoción sale a pantalla completa cada tantas pantallas de platos.';
     ayuda.style.color = 'var(--text-dim)';
@@ -6628,7 +6679,7 @@ function tvPintarResumen() {
   const el = document.getElementById('tvResumen');
   if (!n) {
     el.textContent = '⚠ Con esto la pantalla no mostraría ningún plato: saldría solo tu logo.';
-    el.style.color = 'var(--warning)';
+    el.style.color = 'var(--warn)';
     return;
   }
   const porSlide = parseInt(document.getElementById('tvPorSlide').value, 10) || 1;
@@ -6671,7 +6722,7 @@ function tvPintarResumen() {
   }
 
   el.textContent = partes.join(' · ');
-  el.style.color = partes.length > 1 ? 'var(--warning)' : 'var(--text-muted)';
+  el.style.color = partes.length > 1 ? 'var(--warn)' : 'var(--text-muted)';
 }
 
 // Las fotos se guardan a 800 px de ancho. Repartidas entre dos o más platos

@@ -67,10 +67,23 @@ que persigue.
 
 **El interruptor «Intercalar mi promoción» no se bloquea cuando falta la
 imagen**, y está bien así — la promoción se configura en otra pestaña y puede
-llegar después. Pero el aviso vive **donde se configura la consecuencia, no
-donde se cambia la causa**: si alguien apaga la promoción desde la pestaña
-Promoción, nada le dice que el televisor acaba de perder una pantalla, y no
-tiene motivo para ir a mirarlo.
+llegar después.
+
+> **Resuelto el 04/09/2026 (paso 1).** El aviso vivía solo *donde se configura
+> la consecuencia*, no *donde se cambia la causa*: quien apagaba la promoción
+> desde su pestaña no tenía forma de saber que el televisor acababa de perder
+> una pantalla, ni motivo para ir a mirarlo.
+>
+> Ahora la pestaña Promoción dice qué le pasa al televisor, en los dos
+> sentidos: encendida, cada cuántas pantallas sale; apagada, que el televisor
+> dejó de mostrarla **y que vuelve al encenderla aquí**. La condición
+> (`carteleraEsperaLaPromo`) es espejo de la de `tv.html` a propósito, y deja
+> fuera `promo_activa`: si la incluyera, el aviso desaparecería justo en el
+> momento en que hace falta.
+>
+> De paso salió un fallo aparte: los cinco avisos que usaban `var(--warning)`
+> salían del color del texto normal, porque **esa variable no existe** — la
+> definida es `--warn`. Comprobado en navegador antes de tocarlo.
 
 ---
 
@@ -387,7 +400,7 @@ apaga la carta de todos los restaurantes a la vez.
 
 | | Qué | Por qué ahí |
 |---|---|---|
-| **1** | Avisar en la pestaña Promoción cuando se apaga y la cartelera la usaba | Pequeño e independiente; tapa un hueco de hoy |
+| ~~**1**~~ | ~~Avisar en la pestaña Promoción cuando se apaga y la cartelera la usaba~~ **Hecho el 04/09/2026**, ver §2 | Pequeño e independiente; tapaba un hueco de hoy |
 | **2** | Ritmo único + lista rotatoria (`promocion` y `marca`) | Con un elemento se comporta igual que hoy; Bonzas no nota nada |
 | **3** | Tabla `promociones` con programación | Aquí entra el martes, y aquí está el trabajo de verdad |
 
@@ -439,3 +452,4 @@ verdad son las fechas y la lista de hasta cinco.
 | 04/09/2026 | Programación de tres capas opcionales —fechas, días, horas—, reusando la forma de `horarios.js`. |
 | 04/09/2026 | **Sin programación propia para el televisor.** Apagarlo ya es la programación y no se desincroniza. |
 | 04/09/2026 | La programación se evalúa al pintar, nunca se guarda resuelta en la caché. |
+| 04/09/2026 | **Construido el paso 1**: la pestaña Promoción avisa de lo que le pasa al televisor. |
