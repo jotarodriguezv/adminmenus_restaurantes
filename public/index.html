@@ -1322,6 +1322,36 @@
 						</div>
 
 						<div id="tvCuerpo" style="display:none">
+							<!-- ── LA CARTELERA DE VERDAD, DENTRO DEL PANEL ──────────
+							     No es una imitación: es la MISMA página que se abre en el
+							     televisor, embebida. Una imitación tendría que reproducir
+							     el ciclo, las animaciones, la rotación de intercalados y
+							     los colores del restaurante, y el día que cualquiera de
+							     esas cosas cambiara en tv.html, la vista previa mentiría
+							     sin que nadie lo notara.
+
+							     NO se carga sola. Trae las fotos de todos los platos y se
+							     queda rotando, y esta pestaña se abre muchas veces solo
+							     para copiar el enlace. Se pide con el botón. -->
+							<div class="form-group">
+								<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+									<label class="form-label" style="margin:0">Vista previa</label>
+									<button type="button" class="btn-sm accent" id="btnVistaPrevia" onclick="tvAlternarVistaPrevia()">Ver cómo está quedando</button>
+									<button type="button" class="btn-sm" id="btnRecargarPrevia" style="display:none" onclick="tvRecargarVistaPrevia()">↻ Recargar</button>
+								</div>
+								<div id="tvPreviaMarco" style="display:none">
+									<div id="tvPreviaCaja" style="position:relative;border:1px solid var(--border);
+										border-radius:8px;overflow:hidden;background:#000;max-width:100%">
+										<iframe id="tvPrevia" title="Vista previa de la cartelera"
+											style="border:0;display:block;transform-origin:top left"></iframe>
+									</div>
+									<div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6">
+										Es la cartelera de verdad, con tus datos. Enseña lo <strong>guardado</strong>:
+										si acabas de cambiar algo, pulsa Guardar y luego ↻ Recargar.
+									</div>
+								</div>
+							</div>
+
 							<div class="form-group">
 								<label class="form-label">Enlace para el televisor</label>
 								<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1388,7 +1418,7 @@
 							<div class="form-row">
 								<div class="form-group">
 									<label for="tvOrientacion" class="form-label">Orientación del televisor</label>
-									<select class="form-input" id="tvOrientacion">
+									<select class="form-input" id="tvOrientacion" onchange="tvPintarMedidasDePrevia()">
 										<option value="horizontal">Horizontal (lo normal)</option>
 										<option value="vertical">Vertical (girado)</option>
 									</select>
@@ -7414,6 +7444,71 @@ function tvCopiarEnlace() {
 
 function tvAbrir() { window.open(document.getElementById('tvEnlace').value, '_blank'); }
 
+// ── LA VISTA PREVIA DE LA CARTELERA ───────────────────────────
+// Un televisor son 1280×720 (o 720×1280 en vertical). Se pinta a ese tamaño y
+// se encoge con transform: así las proporciones son las de la pantalla real y
+// no las de un hueco inventado. Escalar el iframe por su ancho en vez de
+// encogerlo daría una cartelera con otras proporciones, y lo que se está
+// mirando aquí es justo si algo cabe o no.
+const TV_ANCHO_PREVIA = 560;
+
+function tvMedidasDePrevia() {
+  const vertical = document.getElementById('tvOrientacion')?.value === 'vertical';
+  const w = vertical ? 720 : 1280;
+  const h = vertical ? 1280 : 720;
+  // En vertical, 560 de ancho daría casi mil de alto: se limita por altura.
+  const escala = vertical ? Math.min(TV_ANCHO_PREVIA / w, 420 / h) : TV_ANCHO_PREVIA / w;
+  return { w, h, escala };
+}
+
+function tvPintarMedidasDePrevia() {
+  const marco = document.getElementById('tvPreviaCaja');
+  const marcoIframe = document.getElementById('tvPrevia');
+  if (!marco || !marcoIframe) return;
+  const { w, h, escala } = tvMedidasDePrevia();
+  marcoIframe.style.width = w + 'px';
+  marcoIframe.style.height = h + 'px';
+  marcoIframe.style.transform = 'scale(' + escala + ')';
+  // La caja se queda con el tamaño ya encogido; si no, dejaría un hueco
+  // enorme debajo, porque el iframe sigue midiendo 720 px para el diseño.
+  marco.style.width = Math.round(w * escala) + 'px';
+  marco.style.height = Math.round(h * escala) + 'px';
+}
+
+function tvAlternarVistaPrevia() {
+  const marco = document.getElementById('tvPreviaMarco');
+  const boton = document.getElementById('btnVistaPrevia');
+  const recargar = document.getElementById('btnRecargarPrevia');
+  const abierta = marco.style.display !== 'none';
+
+  if (abierta) {
+    // Cerrar VACÍA el iframe, no lo esconde. Escondido seguiría rotando,
+    // pidiendo fotos y sondeando Supabase cada cinco minutos detrás de una
+    // pestaña que nadie mira.
+    document.getElementById('tvPrevia').src = 'about:blank';
+    marco.style.display = 'none';
+    recargar.style.display = 'none';
+    boton.textContent = 'Ver cómo está quedando';
+    return;
+  }
+  marco.style.display = 'block';
+  recargar.style.display = '';
+  boton.textContent = 'Ocultar vista previa';
+  tvPintarMedidasDePrevia();
+  tvRecargarVistaPrevia();
+}
+
+function tvRecargarVistaPrevia() {
+  const marco = document.getElementById('tvPreviaMarco');
+  if (!marco || marco.style.display === 'none') return;
+  tvPintarMedidasDePrevia();
+  // El parámetro con la hora fuerza una carga nueva: sin él, cambiar el src al
+  // mismo valor no vuelve a pedir nada y la vista previa se quedaría con la
+  // configuración anterior justo después de guardar.
+  const base = document.getElementById('tvEnlace').value;
+  if (base) document.getElementById('tvPrevia').src = base + '?v=' + Date.now();
+}
+
 async function saveTV() {
   const st = document.getElementById('tvStatus');
   const activa = document.getElementById('tvActiva').checked;
@@ -7481,6 +7576,10 @@ async function saveTV() {
     document.getElementById('tvSegundos').value = tv.segundos;
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     showToast('Pantalla TV guardada', 'success');
+    // Lo que se acaba de guardar es lo que la cartelera va a leer, así que la
+    // vista previa se recarga sola: pedirle al usuario que pulse dos botones
+    // para ver su propio cambio es la clase de paso que nadie da.
+    tvRecargarVistaPrevia();
   } catch (e) {
     st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)';
     showToast('Error: ' + e.message, 'error');

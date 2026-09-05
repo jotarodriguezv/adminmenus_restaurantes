@@ -95,6 +95,87 @@ describe('la programación · el mismo juego de casos que el menú y el televiso
 	});
 });
 
+describe('la vista previa de la cartelera', () => {
+	// Es la cartelera de VERDAD embebida, no una imitación. Una imitación
+	// tendría que reproducir el ciclo, las animaciones, la rotación de
+	// intercalados y los colores, y el día que cualquiera de esas cosas
+	// cambiara en tv.html mentiría sin que nadie lo notara.
+	const montar = (orientacion = 'horizontal', enlace = 'https://menu.vmenus.co/bonzas/tv') => {
+		const campos = {
+			tvOrientacion: { value: orientacion },
+			tvEnlace:      { value: enlace },
+			tvPrevia:      { style: {}, src: '' },
+			tvPreviaCaja:  { style: {} },
+			tvPreviaMarco: { style: { display: 'none' } },
+			btnVistaPrevia:   { textContent: '' },
+			btnRecargarPrevia:{ style: {} },
+		};
+		const ctx = cargar('index.html',
+			[['const TV_ANCHO_PREVIA', 'async function saveTV']],
+			{ document: { getElementById: id => campos[id] }, Math, Date, Number });
+		return { ctx, campos };
+	};
+
+	test('apaisada usa las proporciones de un televisor', () => {
+		const { ctx } = montar('horizontal');
+		const m = ctx.tvMedidasDePrevia();
+		assert.equal(m.w, 1280);
+		assert.equal(m.h, 720);
+	});
+
+	test('vertical las invierte y se limita por altura', () => {
+		// Con 560 de ancho, una vertical daría casi mil de alto y empujaría el
+		// resto del formulario fuera de la pantalla.
+		const { ctx } = montar('vertical');
+		const m = ctx.tvMedidasDePrevia();
+		assert.equal(m.w, 720);
+		assert.equal(m.h, 1280);
+		assert.ok(m.h * m.escala <= 420, 'no pasa de 420 px de alto');
+	});
+
+	test('la caja se queda con el tamaño ya encogido', () => {
+		// El iframe sigue midiendo 720 px para el diseño aunque se vea a 315:
+		// sin fijar la caja, quedaría un hueco enorme debajo.
+		const { ctx, campos } = montar('horizontal');
+		ctx.tvPintarMedidasDePrevia();
+		assert.equal(campos.tvPrevia.style.width, '1280px');
+		assert.equal(campos.tvPreviaCaja.style.height, '315px');
+	});
+
+	test('recargar fuerza una carga nueva, no repite el mismo src', () => {
+		// Asignar el mismo valor a src no vuelve a pedir nada, y la vista previa
+		// se quedaría con la configuración anterior justo después de guardar.
+		const { ctx, campos } = montar();
+		campos.tvPreviaMarco.style.display = 'block';
+		ctx.tvRecargarVistaPrevia();
+		assert.match(campos.tvPrevia.src, /^https:\/\/menu\.vmenus\.co\/bonzas\/tv\?v=\d+$/);
+	});
+
+	test('con la vista previa cerrada no se carga nada', () => {
+		const { ctx, campos } = montar();
+		ctx.tvRecargarVistaPrevia();
+		assert.equal(campos.tvPrevia.src, '');
+	});
+
+	test('cerrarla VACÍA el iframe, no lo esconde', () => {
+		// Escondido seguiría rotando, pidiendo fotos y sondeando Supabase cada
+		// cinco minutos detrás de una pestaña que nadie mira.
+		const { ctx, campos } = montar();
+		ctx.tvAlternarVistaPrevia();                       // abrir
+		assert.match(campos.tvPrevia.src, /menu\.vmenus\.co/);
+		ctx.tvAlternarVistaPrevia();                       // cerrar
+		assert.equal(campos.tvPrevia.src, 'about:blank');
+		assert.equal(campos.tvPreviaMarco.style.display, 'none');
+	});
+
+	test('sin enlace todavía no intenta cargar', () => {
+		const { ctx, campos } = montar('horizontal', '');
+		campos.tvPreviaMarco.style.display = 'block';
+		ctx.tvRecargarVistaPrevia();
+		assert.equal(campos.tvPrevia.src, '');
+	});
+});
+
 describe('el televisor solo se ofrece a quien puede tenerlo', () => {
 	// perroscriollos no tiene cartelera —su plan no la incluye— y aun así la
 	// tarjeta de promoción le ofrecía un interruptor «En el televisor». Un
