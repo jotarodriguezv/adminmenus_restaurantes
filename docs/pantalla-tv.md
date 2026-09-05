@@ -629,6 +629,40 @@ tenerlo ocupado.
 Se replantea si aparece como objeción de venta repetida en televisores que sí
 traen Chromecast.
 
+## 11.quater La vista previa dentro del panel (05/09/2026)
+
+La pestaña enseña **la cartelera de verdad, embebida en un iframe**. No es una
+imitación, y eso es la decisión, no un detalle: una imitación tendría que
+reproducir el ciclo, las animaciones, la rotación de intercalados, la elección
+de promociones por horario y los colores del restaurante — y el día que
+cualquiera de esas cosas cambiara en `tv.html`, la vista previa mentiría sin que
+nadie lo notara. Una vista previa que miente es peor que no tenerla.
+
+**Se puede embeber porque nada lo impide**, comprobado con `curl` antes de
+construirlo: el nginx del menú no manda `X-Frame-Options` ni
+`Content-Security-Policy: frame-ancestors`. Si algún día se añadieran —y hay
+razones para querer `X-Frame-Options` en un sitio público— **esto se rompe**, así
+que quien las ponga tiene que dejar fuera la ruta `/tv` o usar
+`frame-ancestors` con el dominio del panel.
+
+**No se carga sola.** Trae las fotos de todos los platos y se queda rotando, y
+esta pestaña se abre muchas veces solo para copiar el enlace. Va detrás de un
+botón, y al cerrarla el iframe se **vacía** (`about:blank`) en vez de esconderse:
+escondido seguiría rotando, pidiendo fotos y sondeando Supabase cada cinco
+minutos detrás de una pestaña que nadie mira.
+
+**Se pinta a 1280×720 y se encoge con `transform`**, no a un ancho suelto: las
+proporciones tienen que ser las de la pantalla real, porque lo que se mira aquí
+es justo si algo cabe o no. En vertical se invierte a 720×1280 y se limita por
+altura, que si no empujaría el resto del formulario fuera de la pantalla.
+
+**Enseña lo guardado, no el formulario.** Se recarga sola al pulsar Guardar
+—pedir dos botones para ver el propio cambio es la clase de paso que nadie da— y
+hay un ↻ para el resto de los casos. Que enseñe lo guardado es también lo
+honesto: es lo que el televisor del local está viendo en ese momento.
+
+---
+
 ## 12. Preguntas abiertas
 
 - ~~¿En qué planes entra?~~ **Decidido:** capacidad `tv` en `completo` y
