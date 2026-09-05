@@ -5337,7 +5337,10 @@ function pintarQueSaleAhora() {
                       `(hora de ${zona.split('/').pop().replace(/_/g, ' ')})`;
 
   cuerpo.appendChild(bloqueDeSuperficie('En la carta', elegiblesAhora(promos, 'en_popup', zona), true));
-  cuerpo.appendChild(bloqueDeSuperficie('En el televisor', elegiblesAhora(promos, 'en_tv', zona), false));
+  // Una columna "En el televisor" en un restaurante sin cartelera solo puede
+  // decir "Ninguna", y eso se lee como un problema que arreglar.
+  if (restauranteTieneTv())
+    cuerpo.appendChild(bloqueDeSuperficie('En el televisor', elegiblesAhora(promos, 'en_tv', zona), false));
 }
 
 // Las que saldrían en una superficie, con los dos niveles ya aplicados. Espejo
@@ -5424,7 +5427,7 @@ function tarjetaDePromo(p) {
             <span style="font-size:12px;color:var(--text-muted)">Activa</span></div>
           <div class="form-check"><label class="toggle"><input type="checkbox" class="p-popup"><span class="toggle-slider"></span></label>
             <span style="font-size:12px;color:var(--text-muted)">En la carta</span></div>
-          <div class="form-check"><label class="toggle"><input type="checkbox" class="p-tv"><span class="toggle-slider"></span></label>
+          <div class="p-tv-fila form-check"><label class="toggle"><input type="checkbox" class="p-tv"><span class="toggle-slider"></span></label>
             <span style="font-size:12px;color:var(--text-muted)">En el televisor</span></div>
         </div>
       </div>
@@ -5488,6 +5491,16 @@ function tarjetaDePromo(p) {
   q('p-activa').checked = !!p.activa;
   q('p-popup').checked = !!p.en_popup;
   q('p-tv').checked = !!p.en_tv;
+
+  // Sin cartelera no se ofrece el interruptor: un control que promete algo que
+  // el plan no incluye confunde y no lleva a ninguna parte.
+  //
+  // Se ESCONDE, no se quita del DOM ni se apaga. perroscriollos ya tenía dos
+  // promociones marcadas para el televisor —marcadas cuando el interruptor
+  // estaba a la vista— y leerlas como 'false' al guardar cualquier otra cosa de
+  // la tarjeta les cambiaría el dato sin que nadie lo pidiera. Escondido, el
+  // valor viaja de ida y vuelta intacto.
+  if (!restauranteTieneTv()) q('p-tv-fila').style.display = 'none';
   q('p-prog').checked = !!h.activo;
   q('p-campos').style.display = h.activo ? 'block' : 'none';
   q('p-desdef').value = h.desde_fecha || '';
@@ -5523,8 +5536,11 @@ function tarjetaDePromo(p) {
       el.textContent = 'Apagada: no sale en ningún sitio.';
       el.style.color = 'var(--warn)'; return;
     }
-    if (!q('p-popup').checked && !q('p-tv').checked) {
-      el.textContent = 'No está marcada ni para la carta ni para el televisor, así que no sale en ninguno.';
+    const conTv = restauranteTieneTv();
+    if (!q('p-popup').checked && (!conTv || !q('p-tv').checked)) {
+      el.textContent = conTv
+        ? 'No está marcada ni para la carta ni para el televisor, así que no sale en ninguno.'
+        : 'No está marcada para la carta, así que no sale en ningún sitio.';
       el.style.color = 'var(--warn)'; return;
     }
     if (!h2.activo) {
@@ -6121,11 +6137,23 @@ function ajustarPestanasAlModelo() {
   document.getElementById('tabBtnPedidos').style.display = hayCarrito ? 'block' : 'none';
   // La cartelera es de pago. Esconder la pestaña es cortesía, no protección:
   // quien la quiera de verdad tiene que poder guardar 'tv', y eso lo filtra el
-  // servidor por plan. Se enseña también si ya está configurada, para que un
-  // cambio de plan no deje una pantalla encendida sin forma de apagarla.
-  const tieneTv = !!planActual().tv || !!attr.tv;
-  document.getElementById('tabBtnTv').style.display = tieneTv ? 'block' : 'none';
+  // servidor por plan.
+  document.getElementById('tabBtnTv').style.display = restauranteTieneTv() ? 'block' : 'none';
   if (hayCarrito) { renderPedidos(); renderMetodosPago(); }
+}
+
+// ¿Este restaurante puede tener cartelera?
+//
+// Vive en una función y no repetida en cada sitio porque la contestan DOS
+// pantallas —la pestaña del televisor y las tarjetas de promoción— y dos copias
+// de una regla de plan acaban discrepando. Cuando eso pasa, lo que ve el
+// usuario es un interruptor que ofrece algo que su plan no incluye.
+//
+// Se enseña también si la cartelera YA está configurada, aunque el plan no la
+// incluya: un cambio de plan no puede dejar una pantalla encendida en la pared
+// de un local sin forma de apagarla desde el panel.
+function restauranteTieneTv() {
+  return !!planActual().tv || !!state.restaurante?.atributos?.tv;
 }
 
 // Qué modelo se guarda. Parece una lectura tonta del desplegable y no lo es.
