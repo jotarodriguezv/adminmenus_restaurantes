@@ -1178,6 +1178,20 @@
 							onchange="reemplazarImagenDePromo(this)">
 						<div id="promoNuevaEstado" style="font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-bottom:12px"></div>
 
+						<!-- Qué se está viendo AHORA MISMO, con la imagen. Un texto que
+						     describe un horario obliga a hacer la cuenta mentalmente; la
+						     imagen contesta la pregunta de un vistazo, que es la que trae
+						     todo el mundo a esta pestaña. -->
+						<div id="promoAhora" style="display:none;margin-bottom:18px;padding:14px;
+							border:1px solid var(--border);border-radius:var(--radius);background:var(--card)">
+							<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+								<span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;
+									text-transform:uppercase;color:var(--accent)">Ahora mismo</span>
+								<span id="promoAhoraReloj" style="font-size:11px;color:var(--text-dim)"></span>
+							</div>
+							<div id="promoAhoraCuerpo" style="display:flex;gap:22px;flex-wrap:wrap"></div>
+						</div>
+
 						<div id="promoLista"></div>
 						<div id="promoVacio" style="display:none;font-size:12px;color:var(--text-dim);line-height:1.6;
 							border:1px dashed var(--border2);border-radius:var(--radius);padding:20px;text-align:center">
@@ -4706,7 +4720,71 @@ function describirHorario(h) {
   if (sel.length===7) texto='Todos los días';
   else if (sel.length===5 && [1,2,3,4,5].every(d=>dias.includes(d))) texto='L a V';
   else texto = sel.map(d=>DIAS_CORTOS[d]).join(' ');
-  return `${texto} · ${h.desde}–${h.hasta}`;
+  // Sin franja no es un hueco: es el día entero. "L X V · –" no lo dice; "L X V
+  // · todo el día" sí, y esa es justo la duda que trae quien marca días y no
+  // marca horas.
+  const franja = (h.desde && h.hasta) ? `${h.desde}–${h.hasta}` : 'todo el día';
+  return `${texto} · ${franja}`;
+}
+
+// ── LA HORA, EN SELECTOR Y EN FORMATO DE 24 HORAS ─────────────
+// <input type="time"> parece la respuesta obvia y no sirve para esto: el
+// formato lo decide el sistema operativo del visitante, NO la página.
+// Comprobado en navegador el 05/09/2026 con lang="es-CO", "es-ES" y "en-GB" en
+// el propio input: los tres pintan "06:30 p. m.". No hay forma de forzar 24 h.
+//
+// Y el a. m./p. m. se presta a error justo donde más duele: mucha gente duda si
+// las doce del mediodía son 12 a. m. o 12 p. m., y una promoción de almuerzo
+// puesta al revés no sale y nadie sabe por qué.
+//
+// Un <select> resuelve las dos cosas de una vez: es un selector —no hay que
+// teclear nada, que era la otra petición— y enseña 24 h en cualquier aparato,
+// porque las etiquetas las escribimos nosotros.
+//
+// Media hora de resolución. Los horarios de un restaurante se dicen en horas y
+// medias ("de 6 a 11"), y 48 opciones se recorren; con cuartos serían 96.
+const PASO_HORA = 30;
+
+function opcionesDeHora() {
+  const out = [];
+  for (let m = 0; m < 24 * 60; m += PASO_HORA) {
+    const hh = String(Math.floor(m / 60)).padStart(2, '0');
+    const mm = String(m % 60).padStart(2, '0');
+    out.push(`${hh}:${mm}`);
+  }
+  return out;
+}
+
+// Un valor guardado que no caiga en la rejilla —de una versión anterior, o
+// escrito a mano— no puede desaparecer del selector: se le añade su propia
+// opción. Si no, abrir la ficha y guardar sin tocar nada cambiaría el horario.
+function selectorDeHora(clase, valor) {
+  const sel = document.createElement('select');
+  sel.className = 'form-input ' + clase;
+  const vacia = document.createElement('option');
+  vacia.value = '';
+  vacia.textContent = 'Todo el día';
+  sel.appendChild(vacia);
+  const horas = opcionesDeHora();
+  if (valor && !horas.includes(valor)) horas.push(valor);
+  horas.sort();
+  for (const h of horas) {
+    const o = document.createElement('option');
+    o.value = h; o.textContent = h;
+    sel.appendChild(o);
+  }
+  sel.value = valor || '';
+  return sel;
+}
+
+// Abre el calendario al pulsar en cualquier parte del campo, no solo en el
+// iconito. Es de Chrome 99 y Safari 16, así que se comprueba antes: donde no
+// esté, el campo sigue funcionando como siempre.
+function abrirCalendarioAlPulsar(input) {
+  input.addEventListener('click', () => {
+    try { if (typeof input.showPicker === 'function') input.showPicker(); }
+    catch { /* algunos navegadores lo rechazan si no viene de un gesto */ }
+  });
 }
 
 function renderCatDiasChips() {
@@ -5207,6 +5285,7 @@ function pintarPromociones() {
     ? `Has llegado a ${max} promociones, que es el máximo. Elimina una para añadir otra.`
     : '';
 
+  pintarQueSaleAhora();
   avisarSiCompitenPromociones();
 }
 
@@ -5226,6 +5305,93 @@ function avisarSiCompitenPromociones() {
   el.textContent = `Ahora mismo compiten ${compiten.length} promociones en la carta: ` +
                    'cada cliente verá una.';
   el.style.color = 'var(--text-muted)';
+}
+
+// ── LO QUE SE ESTÁ VIENDO AHORA MISMO ─────────────────────────
+// La pregunta que trae todo el mundo a esta pestaña es "¿qué está saliendo?", y
+// hasta ahora había que deducirla de cinco tarjetas y un horario. Con la imagen
+// delante se contesta de un vistazo.
+//
+// Se calcula con la MISMA regla que el menú y la cartelera, no con una
+// aproximación: si esto y la carta discreparan, la vista previa sería peor que
+// no tenerla — daría confianza en una respuesta falsa.
+function pintarQueSaleAhora() {
+  const caja = document.getElementById('promoAhora');
+  const cuerpo = document.getElementById('promoAhoraCuerpo');
+  if (!caja || !cuerpo) return;
+
+  const promos = state.promociones || [];
+  if (!promos.length) { caja.style.display = 'none'; return; }
+  caja.style.display = 'block';
+  cuerpo.innerHTML = '';
+
+  const zona = zonaRestaurante();
+  const ahora = ahoraEnZona(zona);
+  const reloj = document.getElementById('promoAhoraReloj');
+  const hh = String(Math.floor(ahora.minutos / 60)).padStart(2, '0');
+  const mm = String(ahora.minutos % 60).padStart(2, '0');
+  // La hora del RESTAURANTE, que es con la que se decide. Si el usuario está en
+  // otro huso —o el portátil mal puesto— ver aquí su propia hora explicaría al
+  // revés por qué algo no sale.
+  reloj.textContent = `${DIAS_LARGOS[ahora.dia]} ${ahora.fecha} · ${hh}:${mm} ` +
+                      `(hora de ${zona.split('/').pop().replace(/_/g, ' ')})`;
+
+  cuerpo.appendChild(bloqueDeSuperficie('En la carta', elegiblesAhora(promos, 'en_popup', zona), true));
+  cuerpo.appendChild(bloqueDeSuperficie('En el televisor', elegiblesAhora(promos, 'en_tv', zona), false));
+}
+
+// Las que saldrían en una superficie, con los dos niveles ya aplicados. Espejo
+// de core/promociones.js: el filtro por superficie va ANTES que los niveles.
+function elegiblesAhora(promos, donde, zona) {
+  const candidatas = promos.filter(p => p.activa && p.imagen_url && p[donde]);
+  const vivas = candidatas.filter(p => vigenteAhora(programacionDe(p), zona));
+  const programadas = vivas.filter(p => tieneProgramacion(programacionDe(p)));
+  return programadas.length ? programadas : vivas.filter(p => !tieneProgramacion(programacionDe(p)));
+}
+
+function bloqueDeSuperficie(titulo, lista, esPopup) {
+  const col = document.createElement('div');
+  col.style.cssText = 'flex:1;min-width:200px';
+
+  const h = document.createElement('div');
+  h.style.cssText = 'font-size:12px;color:var(--text-muted);margin-bottom:8px';
+  h.textContent = titulo;
+  col.appendChild(h);
+
+  if (!lista.length) {
+    const nada = document.createElement('div');
+    nada.style.cssText = 'font-size:12px;color:var(--text-dim);border:1px dashed var(--border2);' +
+                         'border-radius:8px;padding:16px;text-align:center';
+    nada.textContent = 'Ninguna';
+    col.appendChild(nada);
+    return col;
+  }
+
+  const fila = document.createElement('div');
+  fila.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+  for (const p of lista) {
+    const m = document.createElement('img');
+    m.src = p.imagen_url;
+    m.title = p.nombre || '';
+    m.style.cssText = 'width:96px;height:72px;object-fit:cover;border-radius:6px;' +
+                      'border:1px solid var(--border)';
+    fila.appendChild(m);
+  }
+  col.appendChild(fila);
+
+  const pie = document.createElement('div');
+  pie.style.cssText = 'font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5';
+  // El popup enseña UNA de las que hay; la cartelera las rota todas. Decirlo
+  // aquí es lo que evita leer dos imágenes como "salen las dos a la vez".
+  pie.textContent = esPopup
+    ? (lista.length === 1
+        ? 'Cada cliente ve esta.'
+        : `Cada cliente ve UNA de estas ${lista.length}, al azar.`)
+    : (lista.length === 1
+        ? 'Sale esta, cada tantas pantallas de platos.'
+        : `Se van turnando las ${lista.length} en el hueco de la cartelera.`);
+  col.appendChild(pie);
+  return col;
 }
 
 function tarjetaDePromo(p) {
@@ -5272,13 +5438,17 @@ function tarjetaDePromo(p) {
       <div class="p-campos" style="display:none">
         <label class="form-label">Días</label>
         <div class="p-dias" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
-        <div class="form-row" style="margin-bottom:10px">
+        <div class="form-row" style="margin-bottom:4px">
           <div class="form-group" style="margin-bottom:0">
-            <label class="form-label">Desde</label><input type="time" class="form-input p-desde">
+            <label class="form-label">Desde</label><span class="p-desde-hueco"></span>
           </div>
           <div class="form-group" style="margin-bottom:0">
-            <label class="form-label">Hasta</label><input type="time" class="form-input p-hasta">
+            <label class="form-label">Hasta</label><span class="p-hasta-hueco"></span>
           </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.5">
+          En formato de 24 horas: las 6 de la tarde son <strong>18:00</strong>. Déjalo
+          en «Todo el día» si la promoción sale a cualquier hora de esos días.
         </div>
         <div class="form-row" style="margin-bottom:0">
           <div class="form-group" style="margin-bottom:0">
@@ -5304,6 +5474,14 @@ function tarjetaDePromo(p) {
     </div>`;
 
   const q = c => caja.querySelector('.' + c);
+
+  // Los dos selectores de hora se construyen en JS: sus 48 opciones no tienen
+  // por qué vivir repetidas en el HTML de cada tarjeta.
+  const selDesde = selectorDeHora('p-desde', h.desde || '');
+  const selHasta = selectorDeHora('p-hasta', h.hasta || '');
+  caja.querySelector('.p-desde-hueco').replaceWith(selDesde);
+  caja.querySelector('.p-hasta-hueco').replaceWith(selHasta);
+
   q('p-img').src = p.imagen_url;
   q('p-nombre').value = p.nombre || '';
   q('p-precio').value = p.precio || '';
@@ -5312,10 +5490,10 @@ function tarjetaDePromo(p) {
   q('p-tv').checked = !!p.en_tv;
   q('p-prog').checked = !!h.activo;
   q('p-campos').style.display = h.activo ? 'block' : 'none';
-  q('p-desde').value = h.desde || '';
-  q('p-hasta').value = h.hasta || '';
   q('p-desdef').value = h.desde_fecha || '';
   q('p-hastaf').value = h.hasta_fecha || '';
+  abrirCalendarioAlPulsar(q('p-desdef'));
+  abrirCalendarioAlPulsar(q('p-hastaf'));
 
   const elegidos = new Set(Array.isArray(h.dias) ? h.dias : []);
   const pintarDias = () => {
@@ -5353,9 +5531,17 @@ function tarjetaDePromo(p) {
       el.textContent = 'Sale siempre, cualquier día y a cualquier hora.';
       el.style.color = 'var(--text-dim)'; return;
     }
+    // Interruptor encendido y nada marcado: es lo mismo que tenerlo apagado, y
+    // decirlo evita que alguien se quede pensando que ha programado algo. Al
+    // guardar se normaliza a "sin programación" para que el dato no mienta.
+    if (!tieneProgramacion(h2)) {
+      el.textContent = 'No has marcado ningún día ni ninguna hora, así que sale ' +
+                       'siempre — es lo mismo que dejar este interruptor apagado.';
+      el.style.color = 'var(--warn)'; return;
+    }
     const partes = [describirHorario(h2)];
     if (h2.desde_fecha || h2.hasta_fecha) {
-      partes.push('del ' + (h2.desde_fecha || '…') + ' al ' + (h2.hasta_fecha || '…'));
+      partes.push('· del ' + (h2.desde_fecha || '…') + ' al ' + (h2.hasta_fecha || '…'));
     }
     const ahora = vigenteAhora(h2, zonaRestaurante());
     partes.push(ahora ? '· ahora mismo SÍ está saliendo' : '· ahora mismo no está saliendo');
@@ -5390,6 +5576,17 @@ function programacionDelFormulario(caja, elegidos) {
   };
 }
 
+// Lo que se guarda de verdad. Un interruptor encendido sin un solo día, hora ni
+// fecha se guarda como SIN programación: se comporta igual —sale siempre— y así
+// el dato dice lo que pasa. Guardar 'activo:true' con todo vacío deja una fila
+// que promete una programación que no existe, y esa fila la lee después la
+// regla de dos niveles: contaría como "programada" y le quitaría el turno a las
+// de fondo sin motivo.
+function programacionParaGuardar(caja, elegidos) {
+  const h = programacionDelFormulario(caja, elegidos);
+  return tieneProgramacion(h) ? h : {};
+}
+
 async function guardarPromo(id, caja, elegidos) {
   const q = c => caja.querySelector('.' + c);
   const st = q('p-estado');
@@ -5401,12 +5598,13 @@ async function guardarPromo(id, caja, elegidos) {
       activa: q('p-activa').checked,
       en_popup: q('p-popup').checked,
       en_tv: q('p-tv').checked,
-      programacion: programacionDelFormulario(caja, elegidos),
+      programacion: programacionParaGuardar(caja, elegidos),
     });
     const i = (state.promociones || []).findIndex(x => x.id === id);
     if (i >= 0 && data) state.promociones[i] = data;
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     showToast('Promoción guardada', 'success');
+    pintarQueSaleAhora();
     avisarSiCompitenPromociones();
   } catch (e) {
     st.textContent = e.message || 'Error al guardar'; st.style.color = 'var(--danger)';
