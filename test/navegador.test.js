@@ -262,6 +262,70 @@ describe('la hora de las promociones · selector y 24 horas', () => {
 	});
 });
 
+describe('la nota del horario de categoría', () => {
+	// El editor de categorías decía "completa las dos horas: vacías o iguales,
+	// la categoría se verá siempre". Dejó de ser verdad al unificar la regla del
+	// horario en tv.html y core/horarios.js: sin franja válida mandan los días
+	// solos. La nota pedía rellenar algo que no hace falta y prometía un
+	// comportamiento que ya no ocurre.
+	const montar = (dias, desde, hasta) => {
+		const campos = {
+			editCatHorarioNota: { textContent: '', innerHTML: '', style: {} },
+			editCatDesde: { value: desde },
+			editCatHasta: { value: hasta },
+		};
+		const ctx = cargar('index.html', [
+			// Hasta 'let catDiasSel' y no más allá: un 'let' dentro de un vm no se
+			// puede pisar desde el contexto, así que si entrara aquí la prueba no
+			// podría elegir los días.
+			['const DIAS_CORTOS', 'let catDiasSel'],
+			['function zonaRestaurante', 'function describirHorario'],
+			['function describirHorario', 'function renderCatDiasChips'],
+			['function renderCatHorarioNota', 'function cargarCatHorario'],
+		], {
+			document: { getElementById: id => campos[id] },
+			state: {}, Intl, Date, RegExp, String, Array, parseInt, Set,
+		});
+		ctx.catDiasSel = new Set(dias);
+		ctx.renderCatHorarioNota();
+		return campos.editCatHorarioNota;
+	};
+
+	test('ya no pide rellenar horas que no hacen falta', () => {
+		const nota = montar([1,3,5], '', '');
+		assert.doesNotMatch(nota.innerHTML + nota.textContent, /Completa las dos horas/);
+	});
+
+	test('unos días sin horas se describen como el día entero', () => {
+		const nota = montar([1,3,5], '', '');
+		assert.match(nota.innerHTML, /L X V · todo el día/);
+		assert.match(nota.innerHTML, /de una medianoche a la siguiente/);
+	});
+
+	test('con franja se describe la franja, sin esa coletilla', () => {
+		const nota = montar([1,3,5], '11:00', '15:00');
+		assert.match(nota.innerHTML, /11:00–15:00/);
+		assert.doesNotMatch(nota.innerHTML, /de una medianoche a la siguiente/);
+	});
+
+	test('sin ningún día sí avisa, porque eso sí lo hace ver siempre', () => {
+		const nota = montar([], '11:00', '15:00');
+		assert.match(nota.textContent, /Elige al menos un día/);
+	});
+
+	test('la franja que cruza medianoche sigue explicándose', () => {
+		const nota = montar([5], '18:00', '02:00');
+		assert.match(nota.innerHTML, /cruza la medianoche/);
+	});
+
+	test('dice si ahora mismo se está viendo', () => {
+		// Con los siete días y todo el día, la respuesta no depende de cuándo se
+		// corra la prueba.
+		const nota = montar([0,1,2,3,4,5,6], '', '');
+		assert.match(nota.innerHTML, /Ahora mismo se está mostrando/);
+	});
+});
+
 describe('describirHorario · unos días sin horas son el día entero', () => {
 	// La duda que trajo el usuario: marcar lunes, miércoles y viernes sin poner
 	// horas. Antes se leía "L X V · –", que no dice nada.

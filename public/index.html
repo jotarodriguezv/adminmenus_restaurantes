@@ -1503,6 +1503,17 @@
 									Con cable HDMI o con el navegador del propio televisor puedes dejarla encendida.
 								</div>
 							</div>
+							<!-- La cartelera respeta los horarios de categoría desde siempre,
+							     y nadie tenía forma de saberlo desde aquí: se configuran en
+							     otra pestaña y su efecto se ve en esta. -->
+							<div style="margin-top:18px;padding:12px;border:1px solid var(--border);
+								border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.6">
+								<strong style="color:var(--text)">Los horarios de categoría también mandan aquí.</strong>
+								Si una categoría solo se ve de 07:00 a 11:00, sus platos desaparecen
+								de la cartelera fuera de esa franja, igual que de la carta. Se
+								configura en <strong>Categorías</strong>.
+							</div>
+
 							<div id="tvPromoBloque" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
 								<div class="section-title" style="margin-bottom:4px">Pantallas intercaladas</div>
 								<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
@@ -2113,15 +2124,19 @@
         <div id="editCatHorarioCampos" style="display:none;margin-top:14px;">
           <label class="form-label">Días</label>
           <div id="editCatDias" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
-          <div class="form-row" style="margin-bottom:0">
+          <div class="form-row" style="margin-bottom:4px">
             <div class="form-group" style="margin-bottom:0">
-              <label for="editCatDesde" class="form-label">Desde</label>
-              <input type="time" class="form-input" id="editCatDesde" onchange="renderCatHorarioNota()">
+              <label class="form-label">Desde</label>
+              <span id="editCatDesdeHueco"></span>
             </div>
             <div class="form-group" style="margin-bottom:0">
-              <label for="editCatHasta" class="form-label">Hasta</label>
-              <input type="time" class="form-input" id="editCatHasta" onchange="renderCatHorarioNota()">
+              <label class="form-label">Hasta</label>
+              <span id="editCatHastaHueco"></span>
             </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);line-height:1.5">
+            En formato de 24 horas: las 6 de la tarde son <strong>18:00</strong>. Déjalo
+            en «Todo el día» si la categoría se ve a cualquier hora de esos días.
           </div>
           <div id="editCatHorarioNota" style="margin-top:12px;font-size:11px;line-height:1.6;"></div>
         </div>
@@ -4852,15 +4867,19 @@ function renderCatHorarioNota() {
     el.textContent='Elige al menos un día, o la categoría se verá siempre.';
     el.style.color='var(--warn)'; return;
   }
-  if(dmin===null||hmin===null||dmin===hmin) {
-    el.textContent='Completa las dos horas. Vacías o iguales, la categoría se verá siempre.';
-    el.style.color='var(--warn)'; return;
-  }
+  // Aquí decía "completa las dos horas: vacías o iguales, la categoría se verá
+  // siempre". Dejó de ser verdad al unificar la regla del horario: sin franja
+  // válida mandan los días solos, y "Desayunos, de lunes a viernes, todo el
+  // día" es una configuración perfectamente razonable. La nota pedía rellenar
+  // algo que no hace falta, y además prometía un comportamiento que ya no era
+  // el que ocurre.
   const horario={activo:true,dias:[...catDiasSel],desde,hasta};
-  const visible=categoriaVisibleAhora({atributos:{horario}});
+  const visible=vigenteAhora(horario, zonaRestaurante());
   el.style.color='var(--text-muted)';
+  const soloDias = dmin===null || hmin===null || dmin===hmin;
   el.innerHTML = describirHorario(horario) +
-    (dmin>hmin ? ' <span style="color:var(--text-dim)">· cruza la medianoche; la madrugada cuenta como parte de la noche anterior</span>' : '') +
+    (soloDias ? ' <span style="color:var(--text-dim)">· esos días entera, de una medianoche a la siguiente</span>' : '') +
+    (!soloDias && dmin>hmin ? ' <span style="color:var(--text-dim)">· cruza la medianoche; la madrugada cuenta como parte de la noche anterior</span>' : '') +
     `<br><span style="color:${visible?'var(--success)':'var(--text-muted)'}">${visible?'✓ Ahora mismo se está mostrando':'○ Ahora mismo está oculta'}</span>`;
 }
 
@@ -4868,8 +4887,23 @@ function cargarCatHorario(cat) {
   const h = cat?.atributos?.horario;
   const activo = !!h?.activo;
   document.getElementById('editCatHorarioActivo').checked = activo;
-  document.getElementById('editCatDesde').value = h?.desde || '11:00';
-  document.getElementById('editCatHasta').value = h?.hasta || '15:00';
+
+  // El mismo selector que las promociones: 24 h y sin teclear. Con
+  // <input type="time"> el formato lo decide el sistema del visitante —sale
+  // "06:30 p. m."— y el a. m./p. m. falla justo al mediodía, que es cuando más
+  // se usa para separar almuerzo de cena.
+  //
+  // Se reemplaza el hueco cada vez que se abre una ficha: el modal es uno solo
+  // y se reutiliza para todas las categorías, así que el selector de la
+  // anterior tiene que irse con ella.
+  for (const [hueco, clave, previo] of [['editCatDesdeHueco', 'desde', 'editCatDesde'],
+                                        ['editCatHastaHueco', 'hasta', 'editCatHasta']]) {
+    const sel = selectorDeHora('', h?.[clave] || '');
+    sel.id = previo;
+    sel.onchange = renderCatHorarioNota;
+    const donde = document.getElementById(previo) || document.getElementById(hueco);
+    donde.replaceWith(sel);
+  }
   catDiasSel = new Set(Array.isArray(h?.dias) && h.dias.length ? h.dias : [0,1,2,3,4,5,6]);
   document.getElementById('editCatHorarioCampos').style.display = activo ? 'block' : 'none';
   renderCatDiasChips();
