@@ -1483,14 +1483,18 @@
 
 								<div class="form-check" style="margin-bottom:10px">
 									<label class="toggle"><input type="checkbox" id="tvIntercalaMarca" onchange="tvAlternarMarca()"><span class="toggle-slider"></span></label>
-									<span style="font-size:13px;color:var(--text-muted)">Mi marca</span>
+									<span style="font-size:13px;color:var(--text-muted)">Una pantalla con mi marca</span>
 								</div>
 								<div id="tvMarcaOpciones" style="display:none;margin:-4px 0 14px;padding-left:14px;border-left:1px solid var(--border)">
+									<p style="font-size:11px;color:var(--text-dim);margin:0 0 10px;line-height:1.5">
+										Esa pantalla lleva el logo, una frase, o las dos. Apagando las dos
+										no queda nada que enseñar y no se puede guardar.
+									</p>
 									<div class="form-check" style="margin-bottom:10px">
 										<label class="toggle"><input type="checkbox" id="tvMarcaLogo" onchange="tvAlternarIntercalados()"><span class="toggle-slider"></span></label>
-										<span style="font-size:13px;color:var(--text-muted)">Mostrar el logo</span>
+										<span style="font-size:13px;color:var(--text-muted)">Incluir mi logo</span>
 									</div>
-									<label for="tvMarcaFrase" class="form-label">Frase (opcional)</label>
+									<label for="tvMarcaFrase" class="form-label">Frase</label>
 									<input type="text" class="form-input" id="tvMarcaFrase" maxlength="80"
 										placeholder="Hamburguesas a la parrilla desde 1998"
 										oninput="tvAlternarIntercalados()" style="max-width:420px">
@@ -6644,10 +6648,10 @@ function tvAlternarIntercalados() {
   const quiereLogo = document.getElementById('tvMarcaLogo').checked;
   if (conMarca && quiereLogo && !state.restaurante?.logo_url) {
     mAyuda.textContent = 'Todavía no has subido tu logo. Se sube en Apariencia, y hasta ' +
-                         'entonces esta pantalla saldría solo con la frase.';
+                         'entonces esta pantalla sale solo con la frase.';
     mAyuda.style.color = 'var(--warn)';
   } else if (conMarca && !quiereLogo && !document.getElementById('tvMarcaFrase').value.trim()) {
-    mAyuda.textContent = 'Marca el logo o escribe una frase: si no, no hay pantalla que enseñar.';
+    mAyuda.textContent = 'Incluye tu logo o escribe una frase: así como está no hay pantalla que enseñar, y no deja guardar.';
     mAyuda.style.color = 'var(--warn)';
   } else {
     mAyuda.textContent = '';
@@ -6933,6 +6937,19 @@ async function saveTV() {
   if (activa && !tvCuantos()) {
     showToast('Con esa selección no se mostraría ningún plato', 'error');
     st.textContent = 'Revisa qué platos se muestran'; st.style.color = 'var(--danger)';
+    return;
+  }
+
+  // Lo mismo con la pantalla de marca. Antes esto SÍ se guardaba: la entrada se
+  // descartaba en silencio, el interruptor se quedaba encendido y en el
+  // televisor no salía nada. Quien lo veía no tenía forma de saber por qué, y
+  // el interruptor encendido decía justo lo contrario de lo que pasaba.
+  if (document.getElementById('tvIntercalaMarca').checked &&
+      !document.getElementById('tvMarcaLogo').checked &&
+      !document.getElementById('tvMarcaFrase').value.trim()) {
+    showToast('La pantalla de marca necesita el logo o una frase', 'error');
+    st.textContent = 'Incluye tu logo o escribe una frase';
+    st.style.color = 'var(--danger)';
     return;
   }
 

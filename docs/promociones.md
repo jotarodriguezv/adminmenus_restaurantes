@@ -335,6 +335,18 @@ justo ahí no interrumpe nada, porque el ciclo estaba volviendo a empezar de
 todos modos. Sin `aleatorio` el resultado es idéntico salvo por el intercalado;
 con `aleatorio` encendido además se rebaraja, que es lo que esa casilla promete.
 
+**Y una tercera, del 05/09/2026 por la tarde.** Encender la pantalla de marca
+y apagar el logo dejando la frase vacía **sí dejaba guardar**: la entrada se
+descartaba en silencio, el interruptor se quedaba encendido y en el televisor no
+salía nada. El interruptor decía justo lo contrario de lo que pasaba, y quien lo
+miraba no tenía forma de saber por qué.
+
+Ahora **no deja guardar**, con el mismo patrón que ya usaba la cartelera
+encendida sin platos. Y los nombres cambian, porque parte del lío era el
+lenguaje: «Mi marca» → **«Una pantalla con mi marca»**, «Mostrar el logo» →
+**«Incluir mi logo»**, y la frase deja de llamarse «(opcional)» —lo es solo si
+el logo está encendido—.
+
 **Dos cosas más que salieron de la misma prueba:**
 
 - Encender «Mi marca» sin marcar el logo ni escribir una frase era un **estado
@@ -513,3 +525,4 @@ verdad son las fechas y la lista de hasta cinco.
 | 04/09/2026 | **Construido el paso 1**: la pestaña Promoción avisa de lo que le pasa al televisor. |
 | 04/09/2026 | **Construido el paso 2**: `atributos.tv.intercalados` y `atributos.tv.cada`; la animación del logo cuelga del interruptor de animación que ya existía. |
 | 05/09/2026 | La rotación de intercalados **continúa entre vueltas**: reiniciarla dejaba sin salir todo lo que no fuera el primer elemento (§6.bis). |
+| 05/09/2026 | Una pantalla de marca sin logo y sin frase **no se puede guardar**: antes se descartaba en silencio con el interruptor encendido. |

@@ -1556,12 +1556,32 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			'marca promocion');
 	});
 
-	test('una marca sin logo y sin frase no se guarda', async () => {
-		// Guardarla pintaría un hueco negro cada tantas pantallas.
-		const { ctx, enviado } = montar({ promoEnTv: true, marca: { logo: false, frase: '  ' } });
+	test('una marca sin logo y sin frase no deja guardar', async () => {
+		// Antes esto SÍ se guardaba: la entrada se descartaba en silencio, el
+		// interruptor se quedaba encendido y en el televisor no salía nada. Quien
+		// lo miraba no tenía forma de saber por qué, y el interruptor encendido
+		// decía justo lo contrario de lo que pasaba. Mismo patrón que la
+		// cartelera encendida sin platos, que ya se rechazaba.
+		const { ctx, campos, enviado } = montar({ promoEnTv: true, marca: { logo: false, frase: '  ' } });
+		await ctx.saveTV();
+		assert.equal(enviado.length, 0, 'no se manda nada');
+		assert.match(campos.tvStatus.textContent, /Incluye tu logo o escribe una frase/);
+	});
+
+	test('pero con solo la frase sí', async () => {
+		// Quitar el logo y dejar la frase es una configuración legítima, y la
+		// cartelera la pinta: la frase sola, más grande.
+		const { ctx, enviado } = montar({ marca: { logo: false, frase: 'SABOR AL GUSTO' } });
 		await ctx.saveTV();
 		assert.equal(JSON.stringify(enviado[0].atributos.tv.intercalados),
-			JSON.stringify([{ tipo: 'promocion' }]));
+			JSON.stringify([{ tipo: 'marca', logo: false, frase: 'SABOR AL GUSTO' }]));
+	});
+
+	test('y con solo el logo también', async () => {
+		const { ctx, enviado } = montar({ marca: { logo: true, frase: '' } });
+		await ctx.saveTV();
+		assert.equal(JSON.stringify(enviado[0].atributos.tv.intercalados),
+			JSON.stringify([{ tipo: 'marca', logo: true, frase: '' }]));
 	});
 
 	test('lo guardado se relee en las casillas', () => {
@@ -1621,7 +1641,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 	test('y si la marca se queda sin logo y sin frase', () => {
 		const { ctx, campos } = montar({ marca: { logo: false, frase: '' } });
 		ctx.tvAlternarIntercalados();
-		assert.match(campos.tvMarcaAyuda.textContent, /Marca el logo o escribe una frase/);
+		assert.match(campos.tvMarcaAyuda.textContent, /Incluye tu logo o escribe una frase/);
 	});
 
 	test('elegir el orden solo aparece con dos cosas que ordenar', () => {
