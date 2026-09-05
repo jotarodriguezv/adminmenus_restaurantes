@@ -1,0 +1,102 @@
+{
+  "_lee_esto_antes_de_tocar": [
+    "Los casos que TODA implementación de la programación tiene que contestar igual.",
+    "",
+    "La misma regla vive hoy en tres sitios, y no por descuido: 'core/horarios.js'",
+    "para la carta, una copia en dialecto viejo dentro de 'tv.html' porque un",
+    "televisor de 2017 no entiende la sintaxis moderna, y un espejo en el panel",
+    "para poder avisar de lo que se está guardando.",
+    "",
+    "Tres copias que discrepan solo se notan los martes, que es cuando peor se",
+    "encuentra el fallo. Este archivo es lo unico que impide que se separen: cada",
+    "repositorio lo corre contra SU implementacion.",
+    "",
+    "ESTE ARCHIVO ESTA DUPLICADO en adminmenus_restaurantes/test/. Son dos",
+    "repositorios que se despliegan por separado y no pueden compartir un modulo;",
+    "si se cambia aqui, hay que cambiarlo alli. Anadir un caso nuevo es barato y",
+    "es la forma correcta de cerrar un fallo de programacion que aparezca.",
+    "",
+    "'dia' va de 0 (domingo) a 6 (sabado). 2026-09-08 es martes."
+  ],
+  "zona": "America/Bogota",
+  "casos": [
+    { "nombre": "sin programacion sale siempre",
+      "programacion": {}, "momento": "2026-09-08T19:00:00-05:00", "esperado": true },
+
+    { "nombre": "apagada sale siempre: 'activo' es el interruptor, no el horario",
+      "programacion": { "activo": false, "dias": [2] },
+      "momento": "2026-09-10T19:00:00-05:00", "esperado": true },
+
+    { "nombre": "los martes, en martes",
+      "programacion": { "activo": true, "dias": [2] },
+      "momento": "2026-09-08T19:00:00-05:00", "esperado": true },
+
+    { "nombre": "los martes, en miercoles",
+      "programacion": { "activo": true, "dias": [2] },
+      "momento": "2026-09-09T19:00:00-05:00", "esperado": false },
+
+    { "nombre": "martes de 18 a 23, a las 19",
+      "programacion": { "activo": true, "dias": [2], "desde": "18:00", "hasta": "23:00" },
+      "momento": "2026-09-08T19:00:00-05:00", "esperado": true },
+
+    { "nombre": "martes de 18 a 23, a las 15",
+      "programacion": { "activo": true, "dias": [2], "desde": "18:00", "hasta": "23:00" },
+      "momento": "2026-09-08T15:00:00-05:00", "esperado": false },
+
+    { "nombre": "la franja que cruza medianoche, el viernes a las 23",
+      "programacion": { "activo": true, "dias": [5], "desde": "18:00", "hasta": "02:00" },
+      "momento": "2026-09-11T23:00:00-05:00", "esperado": true },
+
+    { "nombre": "y la madrugada del sabado sigue siendo la noche del viernes",
+      "programacion": { "activo": true, "dias": [5], "desde": "18:00", "hasta": "02:00" },
+      "momento": "2026-09-12T01:00:00-05:00", "esperado": true },
+
+    { "nombre": "pero a las 3 de la madrugada ya no",
+      "programacion": { "activo": true, "dias": [5], "desde": "18:00", "hasta": "02:00" },
+      "momento": "2026-09-12T03:00:00-05:00", "esperado": false },
+
+    { "nombre": "temporada de diciembre, mirada en noviembre",
+      "programacion": { "activo": true, "desde_fecha": "2026-12-01", "hasta_fecha": "2026-12-24" },
+      "momento": "2026-11-30T19:00:00-05:00", "esperado": false },
+
+    { "nombre": "temporada de diciembre, el ultimo dia incluido",
+      "programacion": { "activo": true, "desde_fecha": "2026-12-01", "hasta_fecha": "2026-12-24" },
+      "momento": "2026-12-24T23:00:00-05:00", "esperado": true },
+
+    { "nombre": "temporada de diciembre, el dia siguiente ya no",
+      "programacion": { "activo": true, "desde_fecha": "2026-12-01", "hasta_fecha": "2026-12-24" },
+      "momento": "2026-12-25T00:30:00-05:00", "esperado": false },
+
+    { "nombre": "fechas y dias a la vez: martes de diciembre",
+      "programacion": { "activo": true, "dias": [2], "desde_fecha": "2026-12-01", "hasta_fecha": "2026-12-31" },
+      "momento": "2026-12-08T19:00:00-05:00", "esperado": true },
+
+    { "nombre": "y un jueves de diciembre no",
+      "programacion": { "activo": true, "dias": [2], "desde_fecha": "2026-12-01", "hasta_fecha": "2026-12-31" },
+      "momento": "2026-12-10T19:00:00-05:00", "esperado": false },
+
+    { "nombre": "una hora imposible se ignora y mandan los dias",
+      "programacion": { "activo": true, "dias": [2], "desde": "25:00", "hasta": "99:99" },
+      "momento": "2026-09-08T19:00:00-05:00", "esperado": true },
+
+    { "nombre": "una hora imposible no convierte el martes en todos los dias",
+      "programacion": { "activo": true, "dias": [2], "desde": "25:00", "hasta": "99:99" },
+      "momento": "2026-09-09T19:00:00-05:00", "esperado": false },
+
+    { "nombre": "una fecha con otra forma se ignora en vez de esconderlo todo",
+      "programacion": { "activo": true, "desde_fecha": "01/12/2026" },
+      "momento": "2026-09-08T19:00:00-05:00", "esperado": true },
+
+    { "nombre": "EL CASO DEL HUSO: martes 23:30 en Bogota sigue siendo martes",
+      "programacion": { "activo": true, "dias": [2] },
+      "momento": "2026-09-08T23:30:00-05:00", "esperado": true },
+
+    { "nombre": "EL CASO DEL HUSO: miercoles 00:30 en Bogota ya no es martes",
+      "programacion": { "activo": true, "dias": [2] },
+      "momento": "2026-09-09T00:30:00-05:00", "esperado": false },
+
+    { "nombre": "dias vacios significa todos los dias",
+      "programacion": { "activo": true, "dias": [], "desde": "18:00", "hasta": "23:00" },
+      "momento": "2026-09-10T19:00:00-05:00", "esperado": true }
+  ]
+}

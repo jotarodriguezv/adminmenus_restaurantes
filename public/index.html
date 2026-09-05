@@ -1146,53 +1146,45 @@
 				<!-- TAB PROMO -->
 				<div id="tabPromo" class="hidden">
 					<div class="section-card">
-						<div class="section-title">Estado de la promoción</div>
-						<div class="promo-row">
-							<div class="promo-status">
-								<div class="status-dot" id="promoDot"></div>
-								<span class="status-text" id="promoStatusText">Inactiva</span>
-							</div>
-							<label class="toggle"><input type="checkbox" id="promoToggle" onchange="togglePromo()"><span class="toggle-slider"></span></label>
+						<div class="section-header">
+							<div class="section-title">Promociones</div>
+							<button type="button" id="btnNuevaPromo" onclick="document.getElementById('promoFileInput').click()"
+								style="padding:8px 14px;border-radius:8px;border:1px solid var(--accent);background:transparent;
+								color:var(--accent);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">
+								+ Añadir promoción
+							</button>
 						</div>
-						<!-- Qué le pasa al televisor con lo que se decide aquí. Vacío
-						     cuando el restaurante no tiene cartelera, que son casi todos. -->
-						<div id="promoAvisoTv" style="margin-top:10px;font-size:11px;line-height:1.6"></div>
-					</div>
-					<div class="section-card">
-						<div class="section-title">Imagen de la promoción</div>
-						<div style="margin-bottom:12px;">
-							<img id="promoImgPreview" class="promo-img-preview" src="" style="display:none">
-							<span id="promoImgNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin imagen configurada</span>
+						<p style="font-size:12px;color:var(--text-muted);margin:0 0 4px;line-height:1.6">
+							La promoción sale como una ventana al abrir tu carta, y como pantalla
+							completa en la cartelera del televisor. Puedes tener varias y decidir
+							qué días y a qué horas sale cada una.
+						</p>
+						<p style="font-size:12px;color:var(--text-muted);margin:0 0 16px;line-height:1.6">
+							<strong>Si varias están vigentes a la vez, cada cliente ve una al azar.</strong>
+							Casi nadie escanea el QR dos veces en la misma visita, así que repartirlas
+							es lo que hace que se vean todas.
+						</p>
+
+						<!-- Añadir empieza por la imagen a propósito: una promoción sin ella no
+						     es nada que se pueda enseñar, así que una tarjeta vacía sería un
+						     estado muerto — el mismo que ya nos costó una ronda con la pantalla
+						     de marca. -->
+						<input type="file" id="promoFileInput" accept="image/*" style="display:none"
+							data-zona="promoLista" onchange="crearPromoConImagen(this)">
+						<!-- Aparte del de añadir: uno crea una promoción y el otro sustituye la
+						     imagen de una que ya existe. Compartirlos obligaría a llevar un
+						     modo por fuera, y ese modo es justo lo que se queda pegado. -->
+						<input type="file" id="promoCambioInput" accept="image/*" style="display:none"
+							onchange="reemplazarImagenDePromo(this)">
+						<div id="promoNuevaEstado" style="font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-bottom:12px"></div>
+
+						<div id="promoLista"></div>
+						<div id="promoVacio" style="display:none;font-size:12px;color:var(--text-dim);line-height:1.6;
+							border:1px dashed var(--border2);border-radius:var(--radius);padding:20px;text-align:center">
+							Todavía no tienes promociones.<br>
+							<span class="pista-arrastre">Pulsa «Añadir promoción» o arrastra una imagen aquí.</span>
 						</div>
-						<label class="upload-zone">
-							<input type="file" accept="image/*" onchange="handlePromoUpload(this)">
-							<div class="upload-zone-text">
-								<span>Haz clic para subir</span> imagen de promoción<span class="pista-arrastre"> o arrástrala aquí</span><br>
-								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · máx 2MB recomendado</span>
-							</div>
-						</label>
-						<div id="promoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-					</div>
-					<div class="section-card">
-						<div class="section-title">Texto de la promoción</div>
-						<div class="form-row">
-							<div class="form-group">
-								<label for="promoNombre" class="form-label">Nombre</label>
-								<input type="text" class="form-input" id="promoNombre" maxlength="80" placeholder="2x1 en hamburguesas">
-							</div>
-							<div class="form-group">
-								<label for="promoPrecio" class="form-label">Precio</label>
-								<input type="text" class="form-input" id="promoPrecio" maxlength="30" placeholder="$ 30.000">
-							</div>
-						</div>
-						<div style="font-size:11px;color:var(--text-dim);margin:-4px 0 16px">
-							Salen debajo de la imagen en la pantalla del televisor. <b>Si tu imagen ya
-							lleva el texto dibujado dentro, déjalos en blanco</b> — si no, se ve dos veces.
-						</div>
-						<div style="text-align:right">
-							<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="savePromoTexto()">Guardar</button>
-						</div>
-						<div id="promoTextoStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						<div id="promoTope" style="display:none;font-size:11px;color:var(--warn);margin-top:12px;line-height:1.6"></div>
 					</div>
 				</div>
 
@@ -2469,7 +2461,7 @@ async function loadData() {
     state.categorias = await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
     await cargarTrabajosVideo();
-    renderCatFilter(); renderOrdenProductos(); renderProducts(); renderCatList(); renderPromo();
+    renderCatFilter(); renderOrdenProductos(); renderProducts(); renderCatList(); renderPromociones();
     // Apariencia es solo para superadmin: el cliente no debe poder tocar
     // logo, colores, fuentes, modelo de página ni CSS personalizado.
     document.getElementById('tabBtnApariencia').style.display = state.rol === 'admin' ? 'block' : 'none';
@@ -2497,6 +2489,7 @@ const PLANES = {
     marca: true, qr_disenador: false, estadisticas: false, horarios: false,
     videos: false, carrito: false,
     tv: false,
+    promociones: 5,
   },
   pedidos: {
     nombre: 'Pedidos',
@@ -2504,6 +2497,7 @@ const PLANES = {
     marca: true, qr_disenador: true, estadisticas: true, horarios: true,
     videos: false, carrito: true,
     tv: false,
+    promociones: 5,
   },
   completo: {
     nombre: 'Completo',
@@ -2511,6 +2505,7 @@ const PLANES = {
     marca: false, qr_disenador: true, estadisticas: true, horarios: true,
     videos: false, carrito: true,
     tv: true,
+    promociones: 5,
   },
   // La carta en video va en su propio plan porque su coste no se parece al
   // de los demás: cada plato es un archivo que hay que almacenar, convertir
@@ -2523,6 +2518,7 @@ const PLANES = {
     marca: false, qr_disenador: true, estadisticas: true, horarios: true,
     videos: true, carrito: true,
     tv: true,
+    promociones: 5,
   },
 };
 const PLAN_POR_DEFECTO = 'pedidos';
@@ -4640,13 +4636,19 @@ function zonaRestaurante() {
   try { new Intl.DateTimeFormat('en-US',{timeZone:z}); return z; } catch { return ZONA_POR_DEFECTO; }
 }
 
-function ahoraEnZona() {
+function ahoraEnZona(zona, referencia) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-US',{
-    timeZone: zonaRestaurante(), weekday:'short', hour:'2-digit', minute:'2-digit', hour12:false
-  }).formatToParts(new Date()).map(x=>[x.type,x.value]));
+    timeZone: zona || zonaRestaurante(), weekday:'short', hour:'2-digit', minute:'2-digit',
+    hour12:false, year:'numeric', month:'2-digit', day:'2-digit'
+  }).formatToParts(referencia || new Date()).map(x=>[x.type,x.value]));
   const dias={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
-  return { dia: dias[p.weekday], minutos: (parseInt(p.hour,10)%24)*60 + parseInt(p.minute,10) };
+  // La fecha sale como AAAA-MM-DD: en ese formato el orden alfabético es el
+  // del calendario, así que comparar un rango es comparar dos cadenas.
+  return { dia: dias[p.weekday], minutos: (parseInt(p.hour,10)%24)*60 + parseInt(p.minute,10),
+           fecha: `${p.year}-${p.month}-${p.day}` };
 }
+
+const ES_FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 function horaAMinutos(hhmm) {
   const m=/^(\d{1,2}):(\d{2})$/.exec(String(hhmm??'').trim());
@@ -4655,18 +4657,46 @@ function horaAMinutos(hhmm) {
   return (h>23||mi>59)?null:h*60+mi;
 }
 
-function categoriaVisibleAhora(cat) {
-  const h=cat?.atributos?.horario;
+// La misma regla que core/horarios.js, generalizada aquí para que las
+// promociones no traigan una segunda forma de leer un horario. Las tres copias
+// —esta, la del menú y la de tv.html— se comprueban contra el MISMO juego de
+// casos (test/casos-programacion.json). Si se separan, el panel dice que el dos
+// por uno del martes está saliendo y el televisor dice que no, y eso solo se
+// nota los martes.
+//
+// Ante cualquier configuración incompleta o inválida devuelve true: vale más
+// enseñar de más que esconder por un dato mal escrito.
+function vigenteAhora(h, zona, referencia) {
   if(!h?.activo) return true;
+  const {dia, minutos, fecha} = ahoraEnZona(zona, referencia);
+
+  if(ES_FECHA.test(String(h.desde_fecha||'')) && fecha < h.desde_fecha) return false;
+  if(ES_FECHA.test(String(h.hasta_fecha||'')) && fecha > h.hasta_fecha) return false;
+
   const desde=horaAMinutos(h.desde), hasta=horaAMinutos(h.hasta);
-  if(desde===null||hasta===null||desde===hasta) return true;
   const dias=Array.isArray(h.dias)&&h.dias.length?h.dias:[0,1,2,3,4,5,6];
-  const {dia,minutos}=ahoraEnZona();
+  // Sin franja válida mandan los días solos. Antes esto devolvía true y se
+  // saltaba también los días: unos martes sin horas habrían salido toda la
+  // semana.
+  if(desde===null||hasta===null||desde===hasta) return dias.includes(dia);
   if(desde<hasta) return dias.includes(dia)&&minutos>=desde&&minutos<hasta;
   // Cruza medianoche: la madrugada pertenece a la noche del día anterior
   if(minutos>=desde) return dias.includes(dia);
   if(minutos<hasta)  return dias.includes((dia+6)%7);
   return false;
+}
+
+// Declarar algo no es estar vigente: unos martes SÍ tienen programación un
+// jueves, aunque ese jueves no salgan.
+function tieneProgramacion(h) {
+  if(!h?.activo) return false;
+  return !!(Array.isArray(h.dias)&&h.dias.length) ||
+         horaAMinutos(h.desde)!==null || horaAMinutos(h.hasta)!==null ||
+         ES_FECHA.test(String(h.desde_fecha||'')) || ES_FECHA.test(String(h.hasta_fecha||''));
+}
+
+function categoriaVisibleAhora(cat) {
+  return vigenteAhora(cat?.atributos?.horario);
 }
 
 function describirHorario(h) {
@@ -5083,13 +5113,21 @@ function confirmDelete(tipo,id,nombre) {
   // "¿seguro que quieres eliminar Entrantes?", y nadie que lea eso espera
   // perder doce platos con sus fotos y sus videos.
   const arrastre = document.getElementById('confirmArrastre');
-  const afectados = tipo === 'categoria'
-    ? state.productos.filter(p => p.categoria_id === id).length
-    : 0;
-  arrastre.style.display = afectados ? 'block' : 'none';
-  arrastre.textContent = afectados === 1
-    ? '⚠ También se borrará el plato que hay dentro. No se puede recuperar.'
-    : `⚠ También se borrarán los ${afectados} platos que hay dentro. No se pueden recuperar.`;
+  // Borrar una promoción NO borra su imagen del disco: puede estar
+  // referenciada desde otra fila, y quien sabe si sobra es el limpiador. Se
+  // dice aquí porque es justo lo que alguien teme al pulsar.
+  if (tipo === 'promocion') {
+    arrastre.style.display = 'block';
+    arrastre.textContent = 'La imagen no se borra del servidor.';
+  } else {
+    const afectados = tipo === 'categoria'
+      ? state.productos.filter(p => p.categoria_id === id).length
+      : 0;
+    arrastre.style.display = afectados ? 'block' : 'none';
+    arrastre.textContent = afectados === 1
+      ? '⚠ También se borrará el plato que hay dentro. No se puede recuperar.'
+      : `⚠ También se borrarán los ${afectados} platos que hay dentro. No se pueden recuperar.`;
+  }
 
   openModal('confirmModal');
 }
@@ -5102,6 +5140,11 @@ async function executeDelete() {
       state.productos=state.productos.filter(p=>p.id!==id);
       renderCatFilter(); renderProducts();
       showToast('Producto eliminado','success');
+    } else if(tipo==='promocion') {
+      await apiFetch('DELETE',`/api/promociones/${id}`);
+      state.promociones=(state.promociones||[]).filter(x=>x.id!==id);
+      pintarPromociones();
+      showToast('Promoción eliminada','success');
     } else {
       await apiFetch('DELETE',`/api/categorias/${id}`);
       state.categorias=state.categorias.filter(c=>c.id!==id);
@@ -5118,109 +5161,315 @@ async function executeDelete() {
 
 // ── PROMO ─────────────────────────────────────────────────────
 
-// ¿La cartelera enseñaría esta promoción si estuviera encendida aquí?
+// ── PROMOCIONES ───────────────────────────────────────────────
+// Hasta el 05/09/2026 la promoción era UNA, en columnas del restaurante. Ahora
+// son filas de la tabla 'promociones', cada una con su programación.
 //
-// Espejo de la condición de tv.html, que es quien decide de verdad:
-//
-//   r.promo_activa && r.promo_en_tv && imagenPromo && nuevos.length
-//
-// 'promo_activa' se deja fuera A PROPÓSITO: la pregunta que hay que
-// responder es qué se pierde al apagarla, y para eso no puede formar parte
-// de la condición. Los platos tampoco se miran: de que la cartelera se haya
-// quedado sin platos ya avisa su propia pestaña, y encadenar aquí una
-// condición más solo consigue que el aviso desaparezca cuando más falta hace.
-function carteleraEsperaLaPromo() {
-  const r = state.restaurante || {};
-  const tv = r.atributos?.tv;
-  // 'activa !== false' y no 'activa': así lo mira tv.html, y manda tv.html.
-  return !!(tv && tv.activa !== false && r.promo_en_tv && r.promo_imagen_url);
+// Cada tarjeta se guarda sola. Un botón único al final obligaría a leer cinco
+// tarjetas para saber qué cambió, y a acertar con las cinco a la vez.
+const DIAS_PROMO = [1, 2, 3, 4, 5, 6, 0];   // de lunes a domingo, como se lee
+
+function programacionDe(p) {
+  return (p && typeof p.programacion === 'object' && p.programacion) || {};
 }
 
-// El aviso vive AQUÍ y no solo en la pestaña del televisor a propósito. Quien
-// apaga la promoción está mirando esta pantalla y no tiene ningún motivo para
-// ir a la otra: un aviso que hay que ir a buscar no avisa de nada. Antes se
-// apagaba la promoción, el televisor perdía una pantalla, y el restaurante se
-// enteraba mirando la tele.
-function pintarAvisoTvEnPromo() {
-  const el = document.getElementById('promoAvisoTv');
-  if (!el) return;
-  if (!carteleraEsperaLaPromo()) { el.textContent = ''; return; }
-
-  const cada = parseInt(state.restaurante?.promo_cada, 10) || 4;
-  if (state.restaurante?.promo_activa) {
-    el.textContent = `También sale en la cartelera del televisor, cada ${cada} pantallas de platos.`;
-    el.style.color = 'var(--text-dim)';
-  } else {
-    // Se dice también cómo se deshace: apagarla suele ser justo el momento en
-    // que alguien descubre que no quería.
-    el.textContent = 'El televisor dejó de mostrarla. Sigue marcada en la cartelera, ' +
-                     'así que al encenderla aquí vuelve a salir.';
-    el.style.color = 'var(--warn)';
-  }
-}
-
-function renderPromo() {
-  const r=state.restaurante;
-  document.getElementById('promoToggle').checked=r.promo_activa;
-  document.getElementById('promoDot').className='status-dot'+(r.promo_activa?' on':'');
-  document.getElementById('promoStatusText').textContent=r.promo_activa?'Activa':'Inactiva';
-  const prev=document.getElementById('promoImgPreview');
-  const none=document.getElementById('promoImgNone');
-  if(r.promo_imagen_url){prev.src=r.promo_imagen_url;prev.style.display='block';none.style.display='none';}
-  else{prev.style.display='none';none.style.display='block';}
-  document.getElementById('promoNombre').value = r.promo_nombre || '';
-  document.getElementById('promoPrecio').value = r.promo_precio || '';
-  document.getElementById('promoTextoStatus').textContent = '';
-  pintarAvisoTvEnPromo();
-}
-
-// El nombre y el precio de la promoción. Hoy solo los usa la cartelera del
-// televisor —el popup de la carta enseña la imagen sola—, pero se piden aquí
-// porque son de la promoción, no de la pantalla: el día que el popup quiera
-// mostrarlos ya están guardados.
-async function savePromoTexto() {
-  const st = document.getElementById('promoTextoStatus');
-  const promo_nombre = document.getElementById('promoNombre').value.trim();
-  const promo_precio = document.getElementById('promoPrecio').value.trim();
+async function renderPromociones() {
+  const lista = document.getElementById('promoLista');
+  if (!lista) return;
   try {
-    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`,
-                                { promo_nombre, promo_precio });
-    if (data) state.restaurante = data;
-    else { state.restaurante.promo_nombre = promo_nombre; state.restaurante.promo_precio = promo_precio; }
-    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
-    showToast('Texto de la promoción guardado', 'success');
+    state.promociones = await apiFetch('GET',
+      `/api/promociones?restaurante_id=${state.restaurante.id}`) || [];
   } catch (e) {
-    st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)';
+    lista.textContent = 'No se pudieron cargar las promociones: ' + e.message;
+    return;
+  }
+  pintarPromociones();
+}
+
+function pintarPromociones() {
+  const lista = document.getElementById('promoLista');
+  const vacio = document.getElementById('promoVacio');
+  const tope  = document.getElementById('promoTope');
+  const boton = document.getElementById('btnNuevaPromo');
+  if (!lista) return;
+
+  lista.innerHTML = '';
+  const promos = state.promociones || [];
+  vacio.style.display = promos.length ? 'none' : 'block';
+  for (const p of promos) lista.appendChild(tarjetaDePromo(p));
+
+  // El tope lo pone el plan y lo hace cumplir el servidor; aquí solo se
+  // enseña, porque esconder un botón no impide una llamada directa.
+  const max = planActual().promociones || 5;
+  boton.style.display = promos.length >= max ? 'none' : '';
+  tope.style.display = promos.length >= max ? 'block' : 'none';
+  tope.textContent = promos.length >= max
+    ? `Has llegado a ${max} promociones, que es el máximo. Elimina una para añadir otra.`
+    : '';
+
+  avisarSiCompitenPromociones();
+}
+
+// Cuántas saldrían AHORA MISMO. Con el azar y una sola visita por cliente, que
+// haya cuatro vigentes significa que cada una la ve uno de cada cuatro — y eso
+// hay que decirlo con ese lenguaje, no dejarlo a que se deduzca.
+function avisarSiCompitenPromociones() {
+  const el = document.getElementById('promoNuevaEstado');
+  if (!el) return;
+  const zona = zonaRestaurante();
+  const vivas = (state.promociones || []).filter(p =>
+    p.activa && p.en_popup && vigenteAhora(programacionDe(p), zona));
+  const programadas = vivas.filter(p => tieneProgramacion(programacionDe(p)));
+  const compiten = programadas.length ? programadas : vivas;
+
+  if (compiten.length <= 1) { el.textContent = ''; return; }
+  el.textContent = `Ahora mismo compiten ${compiten.length} promociones en la carta: ` +
+                   'cada cliente verá una.';
+  el.style.color = 'var(--text-muted)';
+}
+
+function tarjetaDePromo(p) {
+  const h = programacionDe(p);
+  const caja = document.createElement('div');
+  caja.className = 'section-card';
+  caja.style.cssText = 'margin-bottom:14px;padding:14px';
+  caja.dataset.promo = p.id;
+
+  // El esqueleto no lleva ni un dato del restaurante: todo lo que viene de la
+  // base se asigna después con .value y .textContent, así que no hay nada que
+  // escapar y no puede haber un olvido.
+  caja.innerHTML = `
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <img class="p-img" style="width:110px;height:82px;object-fit:cover;border-radius:8px;
+        border:1px solid var(--border);cursor:pointer" title="Cambiar imagen">
+      <div style="flex:1;min-width:220px">
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Nombre <span style="color:var(--text-dim)">(solo en el televisor)</span></label>
+            <input type="text" class="form-input p-nombre" maxlength="80" placeholder="2x1 en hamburguesas">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Precio</label>
+            <input type="text" class="form-input p-precio" maxlength="30" placeholder="$ 30.000">
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+          <div class="form-check"><label class="toggle"><input type="checkbox" class="p-activa"><span class="toggle-slider"></span></label>
+            <span style="font-size:12px;color:var(--text-muted)">Activa</span></div>
+          <div class="form-check"><label class="toggle"><input type="checkbox" class="p-popup"><span class="toggle-slider"></span></label>
+            <span style="font-size:12px;color:var(--text-muted)">En la carta</span></div>
+          <div class="form-check"><label class="toggle"><input type="checkbox" class="p-tv"><span class="toggle-slider"></span></label>
+            <span style="font-size:12px;color:var(--text-muted)">En el televisor</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+      <div class="form-check" style="margin-bottom:10px">
+        <label class="toggle"><input type="checkbox" class="p-prog"><span class="toggle-slider"></span></label>
+        <span style="font-size:12px;color:var(--text-muted)">Solo en ciertos días u horas</span>
+      </div>
+      <div class="p-campos" style="display:none">
+        <label class="form-label">Días</label>
+        <div class="p-dias" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div class="form-row" style="margin-bottom:10px">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Desde</label><input type="time" class="form-input p-desde">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Hasta</label><input type="time" class="form-input p-hasta">
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:0">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Empieza el <span style="color:var(--text-dim)">(opcional)</span></label>
+            <input type="date" class="form-input p-desdef">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Termina el <span style="color:var(--text-dim)">(opcional)</span></label>
+            <input type="date" class="form-input p-hastaf">
+          </div>
+        </div>
+      </div>
+      <div class="p-nota" style="margin-top:10px;font-size:11px;line-height:1.6"></div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button type="button" class="btn-save p-guardar" style="width:auto;padding:9px 22px">Guardar</button>
+      <button type="button" class="p-borrar" style="padding:8px 12px;border-radius:6px;border:1px solid var(--danger);
+        background:transparent;color:var(--danger);font-family:var(--mono);font-size:9px;letter-spacing:1px;cursor:pointer">
+        🗑 Eliminar
+      </button>
+      <div class="p-estado" style="font-size:11px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
+    </div>`;
+
+  const q = c => caja.querySelector('.' + c);
+  q('p-img').src = p.imagen_url;
+  q('p-nombre').value = p.nombre || '';
+  q('p-precio').value = p.precio || '';
+  q('p-activa').checked = !!p.activa;
+  q('p-popup').checked = !!p.en_popup;
+  q('p-tv').checked = !!p.en_tv;
+  q('p-prog').checked = !!h.activo;
+  q('p-campos').style.display = h.activo ? 'block' : 'none';
+  q('p-desde').value = h.desde || '';
+  q('p-hasta').value = h.hasta || '';
+  q('p-desdef').value = h.desde_fecha || '';
+  q('p-hastaf').value = h.hasta_fecha || '';
+
+  const elegidos = new Set(Array.isArray(h.dias) ? h.dias : []);
+  const pintarDias = () => {
+    const cont = q('p-dias');
+    cont.innerHTML = '';
+    for (const d of DIAS_PROMO) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cat-chip' + (elegidos.has(d) ? ' active' : '');
+      b.style.cssText = 'min-width:38px;text-align:center;padding:7px 10px';
+      b.textContent = DIAS_CORTOS[d];
+      b.title = DIAS_LARGOS[d];
+      b.onclick = () => {
+        if (elegidos.has(d)) elegidos.delete(d); else elegidos.add(d);
+        pintarDias(); nota();
+      };
+      cont.appendChild(b);
+    }
+  };
+
+  // Qué está pasando AHORA con esta promoción. Es lo que evita la llamada de
+  // "la configuré y no sale": lo dice la pantalla, no hay que deducirlo.
+  const nota = () => {
+    const el = q('p-nota');
+    const h2 = programacionDelFormulario(caja, elegidos);
+    if (!q('p-activa').checked) {
+      el.textContent = 'Apagada: no sale en ningún sitio.';
+      el.style.color = 'var(--warn)'; return;
+    }
+    if (!q('p-popup').checked && !q('p-tv').checked) {
+      el.textContent = 'No está marcada ni para la carta ni para el televisor, así que no sale en ninguno.';
+      el.style.color = 'var(--warn)'; return;
+    }
+    if (!h2.activo) {
+      el.textContent = 'Sale siempre, cualquier día y a cualquier hora.';
+      el.style.color = 'var(--text-dim)'; return;
+    }
+    const partes = [describirHorario(h2)];
+    if (h2.desde_fecha || h2.hasta_fecha) {
+      partes.push('del ' + (h2.desde_fecha || '…') + ' al ' + (h2.hasta_fecha || '…'));
+    }
+    const ahora = vigenteAhora(h2, zonaRestaurante());
+    partes.push(ahora ? '· ahora mismo SÍ está saliendo' : '· ahora mismo no está saliendo');
+    el.textContent = partes.join(' ');
+    el.style.color = ahora ? 'var(--text-dim)' : 'var(--warn)';
+  };
+
+  pintarDias(); nota();
+
+  for (const c of ['p-activa', 'p-popup', 'p-tv', 'p-desde', 'p-hasta', 'p-desdef', 'p-hastaf'])
+    q(c).onchange = nota;
+  q('p-prog').onchange = () => {
+    q('p-campos').style.display = q('p-prog').checked ? 'block' : 'none';
+    nota();
+  };
+  q('p-img').onclick = () => cambiarImagenDePromo(p.id);
+  q('p-guardar').onclick = () => guardarPromo(p.id, caja, elegidos);
+  q('p-borrar').onclick = () => eliminarPromo(p.id);
+  return caja;
+}
+
+function programacionDelFormulario(caja, elegidos) {
+  const q = c => caja.querySelector('.' + c);
+  if (!q('p-prog').checked) return {};
+  return {
+    activo: true,
+    dias: [...elegidos].sort(),
+    desde: q('p-desde').value || '',
+    hasta: q('p-hasta').value || '',
+    desde_fecha: q('p-desdef').value || '',
+    hasta_fecha: q('p-hastaf').value || '',
+  };
+}
+
+async function guardarPromo(id, caja, elegidos) {
+  const q = c => caja.querySelector('.' + c);
+  const st = q('p-estado');
+  st.textContent = 'Guardando…'; st.style.color = 'var(--text-muted)';
+  try {
+    const data = await apiFetch('PATCH', `/api/promociones/${id}`, {
+      nombre: q('p-nombre').value.trim(),
+      precio: q('p-precio').value.trim(),
+      activa: q('p-activa').checked,
+      en_popup: q('p-popup').checked,
+      en_tv: q('p-tv').checked,
+      programacion: programacionDelFormulario(caja, elegidos),
+    });
+    const i = (state.promociones || []).findIndex(x => x.id === id);
+    if (i >= 0 && data) state.promociones[i] = data;
+    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    showToast('Promoción guardada', 'success');
+    avisarSiCompitenPromociones();
+  } catch (e) {
+    st.textContent = e.message || 'Error al guardar'; st.style.color = 'var(--danger)';
     showToast('Error: ' + e.message, 'error');
   }
 }
 
-async function togglePromo() {
-  const activa=document.getElementById('promoToggle').checked;
+// Añadir empieza por la imagen: sin ella no hay promoción que enseñar, así que
+// una tarjeta vacía sería un interruptor encendido que no hace nada.
+async function crearPromoConImagen(input) {
+  const file = input.files[0]; if (!file) return;
+  const st = document.getElementById('promoNuevaEstado');
+  st.textContent = 'Subiendo la imagen…'; st.style.color = 'var(--text-muted)';
   try {
-    await apiFetch('PATCH',`/api/restaurantes/${state.restaurante.id}`,{promo_activa:activa});
-    state.restaurante.promo_activa=activa; renderPromo();
-    // Apagarla puede costar una pantalla del televisor, y eso se dice en el
-    // mismo aviso que confirma la acción, no solo en el texto de debajo.
-    const enTv = carteleraEsperaLaPromo();
-    showToast(activa ? (enTv ? 'Promo activada · vuelve a salir en el televisor' : 'Promo activada')
-                     : (enTv ? 'Promo desactivada · el televisor deja de mostrarla' : 'Promo desactivada'),
-              'success');
-  } catch(e) { showToast('Error','error'); document.getElementById('promoToggle').checked=!activa; }
+    const blob = await compressImage(file, 1200, .85);
+    const url = await uploadImg(blob, 'promos');
+    const nueva = await apiFetch('POST', '/api/promociones', {
+      restaurante_id: state.restaurante.id,
+      imagen_url: url,
+      activa: true, en_popup: true, en_tv: false,
+      programacion: {},
+      orden: (state.promociones || []).length,
+    });
+    state.promociones = [...(state.promociones || []), nueva];
+    pintarPromociones();
+    st.textContent = '';
+    showToast('Promoción añadida', 'success');
+  } catch (e) {
+    st.textContent = e.message || 'Error al añadir'; st.style.color = 'var(--danger)';
+    showToast('Error: ' + e.message, 'error');
+  }
+  input.value = '';
 }
 
-async function handlePromoUpload(input) {
-  const file=input.files[0]; if(!file) return;
-  const st=document.getElementById('promoUploadStatus');
-  st.textContent='Subiendo...'; st.style.color='var(--text-muted)';
+let promoCambiandoImagen = null;
+function cambiarImagenDePromo(id) {
+  promoCambiandoImagen = id;
+  document.getElementById('promoCambioInput').click();
+}
+
+async function reemplazarImagenDePromo(input) {
+  const file = input.files[0]; if (!file || !promoCambiandoImagen) return;
+  const id = promoCambiandoImagen;
   try {
-    const blob=await compressImage(file,1200,.85);
-    const url=await uploadImg(blob,'promos');
-    await apiFetch('PATCH',`/api/restaurantes/${state.restaurante.id}`,{promo_imagen_url:url});
-    state.restaurante.promo_imagen_url=url; renderPromo();
-    st.textContent='✓ Imagen actualizada'; st.style.color='var(--success)';
-    showToast('Imagen de promo guardada','success');
-  } catch(e) { st.textContent=e.message||'Error al subir'; st.style.color='var(--danger)'; }
+    const blob = await compressImage(file, 1200, .85);
+    const url = await uploadImg(blob, 'promos');
+    const data = await apiFetch('PATCH', `/api/promociones/${id}`, { imagen_url: url });
+    const i = (state.promociones || []).findIndex(x => x.id === id);
+    if (i >= 0 && data) state.promociones[i] = data;
+    pintarPromociones();
+    showToast('Imagen actualizada', 'success');
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+  input.value = '';
+  promoCambiandoImagen = null;
+}
+
+// La imagen del disco NO se borra: puede estar referenciada desde otra fila, y
+// quien sabe si sobra es el limpiador, que mira las tablas enteras.
+function eliminarPromo(id) {
+  const p = (state.promociones || []).find(x => x.id === id);
+  confirmDelete('promocion', id, (p && p.nombre) || 'esta promoción');
 }
 
 // ── DATOS DEL RESTAURANTE (nombre + slug) ──────────────────────
@@ -6628,17 +6877,29 @@ function tvAlternarIntercalados() {
 
   // Se avisa de lo que falta en vez de bloquear el interruptor: la promoción se
   // configura en otra pestaña y puede llegar después.
+  // Se mira la TABLA, no las columnas viejas: desde el 05/09/2026 una
+  // promoción puede estar marcada para el televisor sin estarlo para la carta,
+  // y al revés. Contar solo las que sirven aquí es lo que hace que el aviso
+  // diga algo cierto.
   const ayuda = document.getElementById('tvPromoAyuda');
-  if (!state.restaurante?.promo_imagen_url) {
-    ayuda.textContent = 'Todavía no has subido la imagen de tu promoción. Se sube en la ' +
+  const paraTv = (state.promociones || []).filter(p => p.en_tv);
+  const encendidas = paraTv.filter(p => p.activa);
+  if (!(state.promociones || []).length) {
+    ayuda.textContent = 'Todavía no has creado ninguna promoción. Se crean en la ' +
                         'pestaña Promoción, y hasta entonces esto no muestra nada.';
     ayuda.style.color = 'var(--warn)';
-  } else if (!state.restaurante?.promo_activa) {
-    ayuda.textContent = 'Tu promoción está apagada en la pestaña Promoción, así que ' +
-                        'tampoco saldrá aquí.';
+  } else if (!paraTv.length) {
+    ayuda.textContent = 'Ninguna de tus promociones está marcada «En el televisor». ' +
+                        'Se marca en la pestaña Promoción.';
+    ayuda.style.color = 'var(--warn)';
+  } else if (!encendidas.length) {
+    ayuda.textContent = 'Tus promociones del televisor están apagadas, así que tampoco ' +
+                        'saldrán aquí.';
     ayuda.style.color = 'var(--warn)';
   } else {
-    ayuda.textContent = 'Tu promoción sale a pantalla completa cada tantas pantallas de platos.';
+    ayuda.textContent = encendidas.length === 1
+      ? 'Tu promoción sale a pantalla completa cada tantas pantallas de platos.'
+      : `Tus ${encendidas.length} promociones del televisor se van turnando en ese hueco.`;
     ayuda.style.color = 'var(--text-dim)';
   }
 

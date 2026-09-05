@@ -475,10 +475,22 @@ está, para que no haya que reconstruirlo de una conversación:
 |---|---|---|
 | ~~**A**~~ | `sql/18_promociones.sql` — la tabla, su RLS y el copiado de lo que ya hay | **aplicada el 05/09/2026** |
 | ~~**B**~~ | `server.js` — alta, baja y edición, y el tope como número del plan | **hecho el 05/09/2026** |
-| **A.bis** | `sql/19` — cerrar la escritura de la tabla a `anon` | **escrita, SIN aplicar** |
-| **C** | Panel — la lista de promociones y el editor de días, horas y fechas | pendiente |
-| **D** | `vmenus-app` — el popup elige una; `tv.html` resuelve la programación | pendiente |
-| **E** | El juego de casos compartido entre los dos repositorios (§8.3) | pendiente |
+| ~~**A.bis**~~ | `sql/19` — cerrar la escritura de la tabla a `anon` | **aplicada el 05/09/2026** |
+| ~~**D**~~ | `vmenus-app` — el popup elige una; `tv.html` resuelve la programación | **hecho el 05/09/2026** |
+| ~~**E**~~ | El juego de casos compartido (§8.3) | **hecho el 05/09/2026** |
+| ~~**C**~~ | Panel — la lista de promociones y el editor de días, horas y fechas | **hecho el 05/09/2026** |
+
+**D se hizo antes que C, cambiando el orden de esta tabla.** Con el panel
+primero, un restaurante habría podido configurar promociones que el comensal no
+veía —la carta seguía leyendo las columnas viejas—, que es exactamente el estado
+muerto que costó una ronda con la pantalla de marca. Primero quien lee.
+
+**Las tres copias de la regla ya están vigiladas.** `test/casos-programacion.json`
+—duplicado a propósito en los dos repositorios— corre contra las tres: el menú,
+la cartelera y el espejo del panel. Uno de sus casos pregunta por Madrid y no
+por Bogotá, porque en una máquina que ya está en hora de Colombia un cálculo de
+zona que NO se ejecuta acierta por casualidad. Eso pasó de verdad: verde en
+local, rojo en CI.
 
 **A es aditiva y va primero**, por la regla de `pantalla-tv.md` §11.bis: la tabla
 nace y no la lee nadie, así que aplicarla no cambia nada de lo que se ve hoy.
@@ -540,6 +552,22 @@ verdad son las fechas y la lista de hasta cinco.
 
 ---
 
+### 9.ter Lo que quedó de las columnas viejas (05/09/2026)
+
+`promo_activa`, `promo_imagen_url`, `promo_nombre`, `promo_precio` y
+`promo_en_tv` **siguen en la tabla `restaurantes` y nadie las escribe ya**. El
+panel dejó de tocarlas al pasar a la tabla.
+
+Se leen todavía, como respaldo, en dos sitios: `core/loader.js` y `tv.html`, y
+solo cuando la tabla no devuelve NADA para ese restaurante. Es para una carta o
+una cartelera que lleve días abierta sin recargar.
+
+**Se borran cuando nada las lea**, en una migración posterior. Antes no: una
+pantalla de restaurante puede pasarse días sin recargar, y quitarles el respaldo
+mientras tanto la dejaría sin promoción sin que nadie entienda por qué.
+
+---
+
 ## 11. Preguntas abiertas
 
 - **¿El popup debe recordar que ya se enseñó?** Hoy sale en cada carga. Una vez
@@ -573,5 +601,6 @@ verdad son las fechas y la lista de hasta cinco.
 | 04/09/2026 | **Construido el paso 1**: la pestaña Promoción avisa de lo que le pasa al televisor. |
 | 04/09/2026 | **Construido el paso 2**: `atributos.tv.intercalados` y `atributos.tv.cada`; la animación del logo cuelga del interruptor de animación que ya existía. |
 | 05/09/2026 | La rotación de intercalados **continúa entre vueltas**: reiniciarla dejaba sin salir todo lo que no fuera el primer elemento (§6.bis). |
+| 05/09/2026 | **D antes que C**: primero lee el menú, después escribe el panel. Al revés se configuran promociones que el comensal no ve. |
 | 05/09/2026 | El tope de promociones es un **número del plan**, no una restricción del esquema: si no, cambiarlo sería una migración. |
 | 05/09/2026 | Una pantalla de marca sin logo y sin frase **no se puede guardar**: antes se descartaba en silencio con el interruptor encendido. |
