@@ -1206,9 +1206,17 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvAvisoColorCategoria: { textContent: '' },
 			tvTema: { value: 'sin pintar' },
 			tvTemaAyuda: { textContent: '' },
-			tvPromoEnTv: { checked: !!opciones.promoEnTv },
-			tvPromoCada: { value: 'sin pintar' },
-			tvPromoCadaFila: { style: {} },
+			tvIntercalaPromo: { checked: !!opciones.promoEnTv },
+			tvIntercalaMarca: { checked: !!opciones.marca },
+			tvMarcaOpciones: { style: {} },
+			tvMarcaLogo: { checked: !!(opciones.marca && opciones.marca.logo) },
+			tvMarcaFrase: { value: (opciones.marca && opciones.marca.frase) || '' },
+			tvMarcaAyuda: { textContent: '', style: {} },
+			tvOrdenFila: { style: {} },
+			tvOrdenIntercalados: { value: (opciones.primero || 'promocion') },
+			tvCada: { value: String(opciones.cada || 4) },
+			tvCadaFila: { style: {} },
+			tvSecuencia: { textContent: '' },
 			tvPromoAyuda: { textContent: '', style: {} },
 			tvMarcarTodos: { innerHTML: '', appendChild() {} },
 			tvResumen:     { textContent: '', style: {} },
@@ -1305,8 +1313,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const { ctx, enviado } = montar();
 		await ctx.saveTV();
 		assert.deepEqual(Object.keys(enviado[0].atributos), ['tv']);
-		assert.deepEqual(Object.keys(enviado[0]).sort(),
-			['atributos', 'promo_cada', 'promo_en_tv']);
+		assert.deepEqual(Object.keys(enviado[0]).sort(), ['atributos', 'promo_en_tv']);
 	});
 
 	test('no deja encender una cartelera que no enseñaría nada', async () => {
@@ -1517,35 +1524,81 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		assert.equal(campos.tvTema.value, 'oscuro');
 	});
 
-	test('la promoción viaja como columnas, no dentro de atributos', async () => {
-		// Son columnas del restaurante, las mismas que ya usa la pestaña de
-		// Promoción. Meterlas en atributos.tv las duplicaría.
+	test('la lista se guarda en atributos.tv, no como columnas sueltas', async () => {
+		// El ritmo y qué se intercala son del TELEVISOR. 'promo_en_tv' sigue
+		// siendo columna porque es una propiedad de la promoción, y se deriva de
+		// la lista para que no puedan discrepar.
 		const { ctx, campos, enviado } = montar({ promoEnTv: true });
-		campos.tvPromoCada.value = '3';
+		campos.tvCada.value = '3';
 		await ctx.saveTV();
+		assert.equal(JSON.stringify(enviado[0].atributos.tv.intercalados),
+			JSON.stringify([{ tipo: 'promocion' }]));
+		assert.equal(enviado[0].atributos.tv.cada, 3);
 		assert.equal(enviado[0].promo_en_tv, true);
-		assert.equal(enviado[0].promo_cada, 3);
-		assert.equal(enviado[0].atributos.tv.promo_en_tv, undefined);
+		// El ritmo dejó de ser de la promoción: ya no se escribe esa columna.
+		assert.equal('promo_cada' in enviado[0], false);
 	});
 
-	test('la frecuencia de la promoción se relee de la columna', () => {
+	test('la marca se guarda con su logo y su frase', async () => {
+		const { ctx, enviado } = montar({ marca: { logo: true, frase: 'Desde 1998' } });
+		await ctx.saveTV();
+		assert.equal(JSON.stringify(enviado[0].atributos.tv.intercalados),
+			JSON.stringify([{ tipo: 'marca', logo: true, frase: 'Desde 1998' }]));
+		assert.equal(enviado[0].promo_en_tv, false);
+	});
+
+	test('el orden elegido es el orden guardado', async () => {
+		const { ctx, enviado } = montar({
+			promoEnTv: true, marca: { logo: true, frase: '' }, primero: 'marca',
+		});
+		await ctx.saveTV();
+		assert.equal(enviado[0].atributos.tv.intercalados.map(i => i.tipo).join(' '),
+			'marca promocion');
+	});
+
+	test('una marca sin logo y sin frase no se guarda', async () => {
+		// Guardarla pintaría un hueco negro cada tantas pantallas.
+		const { ctx, enviado } = montar({ promoEnTv: true, marca: { logo: false, frase: '  ' } });
+		await ctx.saveTV();
+		assert.equal(JSON.stringify(enviado[0].atributos.tv.intercalados),
+			JSON.stringify([{ tipo: 'promocion' }]));
+	});
+
+	test('lo guardado se relee en las casillas', () => {
+		const { ctx, campos } = montar({
+			guardado: { cada: 6, intercalados: [
+				{ tipo: 'marca', logo: true, frase: 'Hola' }, { tipo: 'promocion' }] },
+		});
+		ctx.renderTV();
+		assert.equal(campos.tvIntercalaPromo.checked, true);
+		assert.equal(campos.tvIntercalaMarca.checked, true);
+		assert.equal(campos.tvMarcaLogo.checked, true);
+		assert.equal(campos.tvMarcaFrase.value, 'Hola');
+		assert.equal(campos.tvOrdenIntercalados.value, 'marca');
+		assert.equal(campos.tvCada.value, '6');
+	});
+
+	test('sin lista guardada se arma desde las columnas de siempre', () => {
+		// Es lo que hace tv.html, y las dos lecturas tienen que coincidir: si no,
+		// el panel enseñaría una cosa y la pared otra.
 		const { ctx, campos } = montar({ promo: { promo_en_tv: true, promo_cada: 6 } });
 		ctx.renderTV();
-		assert.equal(campos.tvPromoEnTv.checked, true);
-		assert.equal(campos.tvPromoCada.value, '6');
+		assert.equal(campos.tvIntercalaPromo.checked, true);
+		assert.equal(campos.tvIntercalaMarca.checked, false);
+		assert.equal(campos.tvCada.value, '6');
 	});
 
-	test('una frecuencia rara no deja el selector en blanco', () => {
+	test('un ritmo raro no deja el selector en blanco', () => {
 		const { ctx, campos } = montar({ promo: { promo_cada: 97 } });
 		ctx.renderTV();
-		assert.equal(campos.tvPromoCada.value, '4');
+		assert.equal(campos.tvCada.value, '4');
 	});
 
 	test('avisa si se enciende la promoción sin imagen', () => {
 		// La imagen se sube en otra pestaña y puede llegar después, así que se
 		// avisa en vez de bloquear el interruptor.
 		const { ctx, campos } = montar({ promoEnTv: true });
-		ctx.tvAlternarPromo();
+		ctx.tvAlternarIntercalados();
 		assert.match(campos.tvPromoAyuda.textContent, /no has subido la imagen/);
 	});
 
@@ -1554,11 +1607,50 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			promoEnTv: true,
 			promo: { promo_imagen_url: 'https://x/p.jpg', promo_activa: false },
 		});
-		ctx.tvAlternarPromo();
+		ctx.tvAlternarIntercalados();
 		assert.match(campos.tvPromoAyuda.textContent, /apagada/);
 	});
 
-	test('el resumen cuenta las pantallas de promoción en la vuelta', () => {
+	test('avisa si se marca el logo sin haberlo subido', () => {
+		// La casilla diría que sí y la pantalla saldría sin nada.
+		const { ctx, campos } = montar({ marca: { logo: true, frase: '' } });
+		ctx.tvAlternarIntercalados();
+		assert.match(campos.tvMarcaAyuda.textContent, /no has subido tu logo/);
+	});
+
+	test('y si la marca se queda sin logo y sin frase', () => {
+		const { ctx, campos } = montar({ marca: { logo: false, frase: '' } });
+		ctx.tvAlternarIntercalados();
+		assert.match(campos.tvMarcaAyuda.textContent, /Marca el logo o escribe una frase/);
+	});
+
+	test('elegir el orden solo aparece con dos cosas que ordenar', () => {
+		const sola = montar({ promoEnTv: true });
+		sola.ctx.tvAlternarIntercalados();
+		assert.equal(sola.campos.tvOrdenFila.style.display, 'none');
+
+		const dos = montar({ promoEnTv: true, marca: { logo: true, frase: '' } });
+		dos.ctx.tvAlternarIntercalados();
+		assert.equal(dos.campos.tvOrdenFila.style.display, 'block');
+	});
+
+	test('la secuencia se escribe tal cual se va a ver', () => {
+		// Nadie tiene por qué deducir de "cada 2" y dos casillas qué sale cuándo.
+		const { ctx, campos } = montar({
+			guardado: { por_slide: 1, cada: 2, intercalados: [{ tipo: 'promocion' },
+			            { tipo: 'marca', logo: true, frase: '' }] },
+			promo: { promo_activa: true, promo_imagen_url: 'https://x/p.jpg',
+			         logo_url: 'https://x/l.png' },
+			productos: [1, 2, 3, 4].map(i => ({ id: 'p' + i, nombre: 'P' + i, disponible: true,
+				imagen_url: 'https://x/' + i + '.jpg', categoria_id: 'c1' })),
+		});
+		ctx.renderTV();
+		// 4 pantallas con una intercalada cada 2: la promoción tras la 2.ª y la
+		// marca tras la 4.ª, que es lo que dice la lista al rotar.
+		assert.match(campos.tvSecuencia.textContent, /platos ×2 → PROMOCIÓN → platos ×2 → MARCA/);
+	});
+
+	test('el resumen cuenta las pantallas intercaladas en la vuelta', () => {
 		// Si no se cuentan, el resumen dice que la vuelta dura menos de lo que
 		// dura, y el restaurante calcula mal cuánto tarda en repetirse.
 		// Por 'guardado' y no por los campos: renderTV los repinta desde lo
@@ -1569,8 +1661,8 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			         promo_imagen_url: 'https://x/p.jpg', promo_cada: 2 },
 		});
 		ctx.renderTV();
-		// 2 platos con foto, de uno en uno = 2 pantallas + 1 de promoción = 30 s
-		assert.match(campos.tvResumen.textContent, /\+ 1 de promoción/);
+		// 2 platos con foto, de uno en uno = 2 pantallas + 1 intercalada = 30 s
+		assert.match(campos.tvResumen.textContent, /\+ 1 intercalada/);
 		assert.match(campos.tvResumen.textContent, /30 s/);
 	});
 

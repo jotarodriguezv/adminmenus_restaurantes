@@ -261,6 +261,30 @@ Así la lista de intercalados tiene solo dos tipos: **`promocion`** y **`marca`*
 
 ## 6. Cómo se intercala en la cartelera
 
+> **Construido el 04/09/2026.** Lo de abajo describe lo que hace el código.
+> Lo que se guarda es `atributos.tv.intercalados` (lista ordenada de
+> `{tipo:'promocion'}` y `{tipo:'marca', logo, frase}`) más
+> `atributos.tv.cada` (el ritmo).
+>
+> **`promo_cada` dejó de escribirse.** El ritmo es del televisor, no de la
+> promoción: manda sobre cualquier intercalado. Queda en la tabla como
+> respaldo de lectura para las pantallas que aún no se hayan vuelto a
+> guardar, y se puede quitar cuando todas lo hayan hecho.
+>
+> **`promo_en_tv` se queda**, derivado de la lista al guardar para que no
+> puedan discrepar. Es una propiedad de la promoción —"esta promoción puede
+> salir en el televisor"—, o sea lo que será `promociones.en_tv` en el §5.1
+> cuando haya varias, y es de lo que se entera la pestaña Promoción para
+> avisar (§2).
+>
+> **Lo que NO se construyó:** el editor de N entradas. El panel tiene dos
+> casillas —promoción y marca— y, cuando las dos están encendidas, un
+> selector de cuál va primero. Con dos tipos, ordenar es solo decir cuál va
+> delante, y una lista con flechas para eso es más interfaz de la que el
+> problema pide, sobre todo en un móvil. Lo que se pierde es tener el logo y
+> la frase en **dos pantallas separadas**; el dato ya lo admite, así que el
+> día que alguien lo pida es interfaz y nada más.
+
 **Un solo ritmo, y una lista que rota por él.** No una frecuencia por tipo de
 pantalla, sino una sola: *intercalar algo cada N pantallas de platos*. N sale de
 la lista que ya existe hoy (2, 3, 4, 6, 8).
@@ -401,7 +425,7 @@ apaga la carta de todos los restaurantes a la vez.
 | | Qué | Por qué ahí |
 |---|---|---|
 | ~~**1**~~ | ~~Avisar en la pestaña Promoción cuando se apaga y la cartelera la usaba~~ **Hecho el 04/09/2026**, ver §2 | Pequeño e independiente; tapaba un hueco de hoy |
-| **2** | Ritmo único + lista rotatoria (`promocion` y `marca`) | Con un elemento se comporta igual que hoy; Bonzas no nota nada |
+| ~~**2**~~ | ~~Ritmo único + lista rotatoria (`promocion` y `marca`)~~ **Hecho el 04/09/2026**, ver §6 | Con un elemento se comporta igual que hoy; Bonzas no nota nada |
 | **3** | Tabla `promociones` con programación | Aquí entra el martes, y aquí está el trabajo de verdad |
 
 Lo de la frase y el logo cabe entero en el paso 2, que es el barato.
@@ -453,3 +477,4 @@ verdad son las fechas y la lista de hasta cinco.
 | 04/09/2026 | **Sin programación propia para el televisor.** Apagarlo ya es la programación y no se desincroniza. |
 | 04/09/2026 | La programación se evalúa al pintar, nunca se guarda resuelta en la caché. |
 | 04/09/2026 | **Construido el paso 1**: la pestaña Promoción avisa de lo que le pasa al televisor. |
+| 04/09/2026 | **Construido el paso 2**: `atributos.tv.intercalados` y `atributos.tv.cada`; la animación del logo cuelga del interruptor de animación que ya existía. |

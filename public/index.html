@@ -1468,14 +1468,45 @@
 								</div>
 							</div>
 							<div id="tvPromoBloque" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
-								<div class="form-check" style="margin-bottom:14px">
-									<label class="toggle"><input type="checkbox" id="tvPromoEnTv" onchange="tvAlternarPromo()"><span class="toggle-slider"></span></label>
-									<span style="font-size:13px;color:var(--text-muted)">Intercalar mi promoción</span>
+								<div class="section-title" style="margin-bottom:4px">Pantallas intercaladas</div>
+								<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
+									Pantallas que salen entre las de platos. Si marcas las dos, se van
+									turnando: primero una, a la siguiente vuelta la otra.
+								</p>
+
+								<div class="form-check" style="margin-bottom:10px">
+									<label class="toggle"><input type="checkbox" id="tvIntercalaPromo" onchange="tvAlternarIntercalados()"><span class="toggle-slider"></span></label>
+									<span style="font-size:13px;color:var(--text-muted)">Mi promoción</span>
 								</div>
-								<div id="tvPromoAyuda" style="font-size:11px;color:var(--text-dim);margin:-8px 0 12px"></div>
-								<div id="tvPromoCadaFila" style="display:none;max-width:260px">
-									<label for="tvPromoCada" class="form-label">Cada cuántas pantallas</label>
-									<select class="form-input" id="tvPromoCada" onchange="tvPintarResumen()">
+								<div id="tvPromoAyuda" style="font-size:11px;color:var(--text-dim);margin:-4px 0 14px"></div>
+
+								<div class="form-check" style="margin-bottom:10px">
+									<label class="toggle"><input type="checkbox" id="tvIntercalaMarca" onchange="tvAlternarIntercalados()"><span class="toggle-slider"></span></label>
+									<span style="font-size:13px;color:var(--text-muted)">Mi marca</span>
+								</div>
+								<div id="tvMarcaOpciones" style="display:none;margin:-4px 0 14px;padding-left:14px;border-left:1px solid var(--border)">
+									<div class="form-check" style="margin-bottom:10px">
+										<label class="toggle"><input type="checkbox" id="tvMarcaLogo" onchange="tvAlternarIntercalados()"><span class="toggle-slider"></span></label>
+										<span style="font-size:13px;color:var(--text-muted)">Mostrar el logo</span>
+									</div>
+									<label for="tvMarcaFrase" class="form-label">Frase (opcional)</label>
+									<input type="text" class="form-input" id="tvMarcaFrase" maxlength="80"
+										placeholder="Hamburguesas a la parrilla desde 1998"
+										oninput="tvAlternarIntercalados()" style="max-width:420px">
+									<div id="tvMarcaAyuda" style="font-size:11px;color:var(--text-dim);margin-top:8px"></div>
+								</div>
+
+								<div id="tvOrdenFila" style="display:none;max-width:260px;margin-bottom:14px">
+									<label for="tvOrdenIntercalados" class="form-label">Cuál sale primero</label>
+									<select class="form-input" id="tvOrdenIntercalados" onchange="tvPintarResumen()">
+										<option value="promocion">La promoción</option>
+										<option value="marca">La marca</option>
+									</select>
+								</div>
+
+								<div id="tvCadaFila" style="display:none;max-width:260px">
+									<label for="tvCada" class="form-label">Cada cuántas pantallas</label>
+									<select class="form-input" id="tvCada" onchange="tvPintarResumen()">
 										<option value="2">Cada 2</option>
 										<option value="3">Cada 3</option>
 										<option value="4">Cada 4</option>
@@ -1483,6 +1514,7 @@
 										<option value="8">Cada 8</option>
 									</select>
 								</div>
+								<div id="tvSecuencia" style="font-size:11px;font-family:var(--mono);color:var(--text-dim);margin-top:10px;line-height:1.7"></div>
 							</div>
 						</div>
 					</div>
@@ -6398,9 +6430,26 @@ function renderTV() {
   // La promoción son columnas del restaurante, no de atributos.tv: las mismas
   // que ya usa la pestaña de Promoción. Aquí solo se decide si entran en la
   // rotación del televisor y cada cuánto, que es otra decisión.
-  document.getElementById('tvPromoEnTv').checked = !!state.restaurante?.promo_en_tv;
-  document.getElementById('tvPromoCada').value =
-    String([2, 3, 4, 6, 8].includes(state.restaurante?.promo_cada) ? state.restaurante.promo_cada : 4);
+  // Lo guardado es 'atributos.tv.intercalados'. Quien no haya vuelto a guardar
+  // desde este cambio no lo tiene: se arma desde las columnas de siempre, que
+  // es exactamente lo que hace tv.html. Las dos lecturas tienen que coincidir.
+  const guardados = Array.isArray(cfg.intercalados) && cfg.intercalados.length
+    ? cfg.intercalados
+    : (state.restaurante?.promo_en_tv ? [{ tipo: 'promocion' }] : []);
+  const laMarca = guardados.filter(i => i && i.tipo === 'marca')[0] || {};
+
+  document.getElementById('tvIntercalaPromo').checked = guardados.some(i => i && i.tipo === 'promocion');
+  document.getElementById('tvIntercalaMarca').checked = !!guardados.filter(i => i && i.tipo === 'marca').length;
+  document.getElementById('tvMarcaLogo').checked = !!laMarca.logo;
+  document.getElementById('tvMarcaFrase').value = laMarca.frase || '';
+  document.getElementById('tvOrdenIntercalados').value =
+    (guardados[0] && guardados[0].tipo === 'marca') ? 'marca' : 'promocion';
+
+  // 'cada' es del televisor y manda sobre cualquier intercalado, no solo sobre
+  // la promoción. 'promo_cada' queda de respaldo para quien no haya guardado.
+  const cadaGuardado = parseInt(cfg.cada, 10) || parseInt(state.restaurante?.promo_cada, 10);
+  document.getElementById('tvCada').value =
+    String([2, 3, 4, 6, 8].includes(cadaGuardado) ? cadaGuardado : 4);
   document.getElementById('tvEnlace').value = urlPublica(state.restaurante) + '/tv';
   document.getElementById('tvStatus').textContent = '';
 
@@ -6425,7 +6474,7 @@ function renderTV() {
   tvAlternarActiva();
   tvAlternarCategoria();
   tvPintarTema();
-  tvAlternarPromo();
+  tvAlternarIntercalados();
   tvCambiarModo();
   tvAvisoTamano();
 }
@@ -6509,20 +6558,61 @@ function tvPintarTema() {
 // La promoción del televisor. Reutiliza la que ya está en la pestaña de
 // Promoción: pedirle una segunda imagen sería pedirle el mismo trabajo dos
 // veces. Lo que se decide aquí es solo si entra en la rotación y cada cuánto.
-function tvAlternarPromo() {
-  const on = document.getElementById('tvPromoEnTv').checked;
-  const hayImagen = !!state.restaurante?.promo_imagen_url;
-  const activa = !!state.restaurante?.promo_activa;
-  document.getElementById('tvPromoCadaFila').style.display = on ? 'block' : 'none';
+// ── LO QUE SE INTERCALA ENTRE LAS PANTALLAS DE PLATOS ─────────
+//
+// Antes solo cabía la promoción, con su propia frecuencia. Ahora es una lista
+// ordenada que rota por UN SOLO ritmo: cada N pantallas de platos entra el
+// siguiente elemento, y al acabar la lista se vuelve a empezar.
+//
+// Un ritmo por tipo —el logo cada 3 y la promoción cada 4— se pelearía por la
+// pantalla 12, y el restaurante no podría predecir qué ve mirando esto. Con la
+// lista el coste además se VE: añadir la marca le quita la mitad de los turnos
+// a la promoción, en vez de diluirla a escondidas. Y la promoción es la que
+// vende.
+//
+// Lo que se guarda es la lista, no las dos casillas: el día que haya un tipo
+// más, ni tv.html ni los datos cambian. Lo que aquí no se construye es el
+// editor de N entradas —dos veces "marca" para tener el logo y la frase en
+// pantallas separadas, por ejemplo—; con dos tipos, ordenar es solo decir cuál
+// va primero, y una lista con flechas para eso es más interfaz de la que el
+// problema pide, sobre todo en un móvil.
+function tvIntercaladosDelFormulario() {
+  const lista = [];
+  const conPromo = document.getElementById('tvIntercalaPromo')?.checked;
+  const conMarca = document.getElementById('tvIntercalaMarca')?.checked;
+  const marca = { tipo: 'marca',
+                  logo: !!document.getElementById('tvMarcaLogo')?.checked,
+                  frase: (document.getElementById('tvMarcaFrase')?.value || '').trim() };
 
-  const ayuda = document.getElementById('tvPromoAyuda');
+  // Una marca sin logo y sin frase no es una pantalla: no se guarda aunque el
+  // interruptor esté encendido, porque guardarla pintaría un hueco negro.
+  const marcaVale = conMarca && (marca.logo || marca.frase);
+  const primero = document.getElementById('tvOrdenIntercalados')?.value;
+
+  if (marcaVale && primero === 'marca') lista.push(marca);
+  if (conPromo) lista.push({ tipo: 'promocion' });
+  if (marcaVale && primero !== 'marca') lista.push(marca);
+  return lista;
+}
+
+function tvAlternarIntercalados() {
+  const conPromo = document.getElementById('tvIntercalaPromo').checked;
+  const conMarca = document.getElementById('tvIntercalaMarca').checked;
+  document.getElementById('tvMarcaOpciones').style.display = conMarca ? 'block' : 'none';
+
+  const lista = tvIntercaladosDelFormulario();
+  document.getElementById('tvCadaFila').style.display = lista.length ? 'block' : 'none';
+  // Ordenar solo tiene sentido con dos cosas que ordenar.
+  document.getElementById('tvOrdenFila').style.display = lista.length > 1 ? 'block' : 'none';
+
   // Se avisa de lo que falta en vez de bloquear el interruptor: la promoción se
   // configura en otra pestaña y puede llegar después.
-  if (!hayImagen) {
+  const ayuda = document.getElementById('tvPromoAyuda');
+  if (!state.restaurante?.promo_imagen_url) {
     ayuda.textContent = 'Todavía no has subido la imagen de tu promoción. Se sube en la ' +
                         'pestaña Promoción, y hasta entonces esto no muestra nada.';
     ayuda.style.color = 'var(--warn)';
-  } else if (!activa) {
+  } else if (!state.restaurante?.promo_activa) {
     ayuda.textContent = 'Tu promoción está apagada en la pestaña Promoción, así que ' +
                         'tampoco saldrá aquí.';
     ayuda.style.color = 'var(--warn)';
@@ -6530,7 +6620,50 @@ function tvAlternarPromo() {
     ayuda.textContent = 'Tu promoción sale a pantalla completa cada tantas pantallas de platos.';
     ayuda.style.color = 'var(--text-dim)';
   }
+
+  // Marcar el logo sin haberlo subido es la trampa evidente: la casilla dice
+  // que sí y la pantalla no enseña nada.
+  const mAyuda = document.getElementById('tvMarcaAyuda');
+  const quiereLogo = document.getElementById('tvMarcaLogo').checked;
+  if (conMarca && quiereLogo && !state.restaurante?.logo_url) {
+    mAyuda.textContent = 'Todavía no has subido tu logo. Se sube en Apariencia, y hasta ' +
+                         'entonces esta pantalla saldría solo con la frase.';
+    mAyuda.style.color = 'var(--warn)';
+  } else if (conMarca && !quiereLogo && !document.getElementById('tvMarcaFrase').value.trim()) {
+    mAyuda.textContent = 'Marca el logo o escribe una frase: si no, no hay pantalla que enseñar.';
+    mAyuda.style.color = 'var(--warn)';
+  } else {
+    mAyuda.textContent = '';
+  }
+
   tvPintarResumen();
+}
+
+// La secuencia escrita tal cual se va a ver. Un restaurante no tiene por qué
+// deducir de "cada 4" y dos casillas qué sale en qué momento.
+function tvPintarSecuencia(pantallas) {
+  const el = document.getElementById('tvSecuencia');
+  if (!el) return;
+  const lista = tvIntercaladosDelFormulario();
+  if (!lista.length || !pantallas) { el.textContent = ''; return; }
+
+  const cada = tvCada();
+  const nombre = it => it.tipo === 'promocion' ? 'PROMOCIÓN' : 'MARCA';
+  const trozos = [];
+  let turno = 0;
+  for (let n = 1; n <= pantallas && trozos.length < 8; n++) {
+    if (n % cada === 0) { trozos.push(nombre(lista[turno % lista.length])); turno++; }
+  }
+  if (!trozos.length) { el.textContent = ''; return; }
+
+  el.textContent = 'Se verá así: ' +
+    trozos.map(t => 'platos ×' + cada + ' → ' + t).join(' → ') +
+    (trozos.length >= 8 ? ' → …' : '');
+}
+
+function tvCada() {
+  const v = parseInt(document.getElementById('tvCada')?.value, 10);
+  return (v && v > 0) ? v : 4;
 }
 
 function tvCambiarModo() {
@@ -6680,31 +6813,39 @@ function tvPintarResumen() {
   if (!n) {
     el.textContent = '⚠ Con esto la pantalla no mostraría ningún plato: saldría solo tu logo.';
     el.style.color = 'var(--warn)';
+    tvPintarSecuencia(0);
     return;
   }
   const porSlide = parseInt(document.getElementById('tvPorSlide').value, 10) || 1;
   const seg = Math.min(60, Math.max(4, parseInt(document.getElementById('tvSegundos').value, 10) || 8));
   const pantallas = Math.ceil(n / porSlide);
 
-  // La promoción alarga la vuelta: si no se cuenta, el resumen miente.
-  const promoOn = document.getElementById('tvPromoEnTv')?.checked
-    && !!state.restaurante?.promo_activa && !!state.restaurante?.promo_imagen_url;
-  const cada = parseInt(document.getElementById('tvPromoCada')?.value, 10) || 4;
-  const dePromo = promoOn ? Math.floor(pantallas / cada) : 0;
+  // Los intercalados alargan la vuelta: si no se cuentan, el resumen miente.
+  // Se cuentan solo los que la cartelera va a poder pintar de verdad — una
+  // promoción apagada no ocupa turno, y sumarla aquí prometería una vuelta más
+  // larga de la que se ve.
+  const lista = tvIntercaladosDelFormulario().filter(it =>
+    it.tipo === 'promocion'
+      ? (!!state.restaurante?.promo_activa && !!state.restaurante?.promo_imagen_url)
+      : (it.frase || (it.logo && !!state.restaurante?.logo_url)));
+  const cada = tvCada();
+  const dePromo = lista.length ? Math.floor(pantallas / cada) : 0;
+
+  tvPintarSecuencia(pantallas);
 
   const vueltas = (pantallas + dePromo) * seg;
   const min = Math.floor(vueltas / 60), s = vueltas % 60;
 
   const partes = [`${n} plato${n === 1 ? '' : 's'} · ${pantallas} pantalla${pantallas === 1 ? '' : 's'}` +
-    (dePromo ? ` + ${dePromo} de promoción` : '') + ' · ' +
+    (dePromo ? ` + ${dePromo} intercalada${dePromo === 1 ? '' : 's'}` : '') + ' · ' +
     'la vuelta dura ' + (min ? `${min} min ${s ? s + ' s' : ''}`.trim() : `${s} s`)];
 
   // Encender la promoción y que no salga nunca porque el ciclo es más corto
   // que la frecuencia es exactamente el tipo de cosa que se descubre con la
   // tele puesta.
-  if (promoOn && !dePromo) {
-    partes.push(`Con ${pantallas} pantalla${pantallas === 1 ? '' : 's'} y la promoción cada ${cada}, ` +
-                'no llegaría a salir nunca: bájala.');
+  if (lista.length && !dePromo) {
+    partes.push(`Con ${pantallas} pantalla${pantallas === 1 ? '' : 's'} de platos y una intercalada cada ${cada}, ` +
+                'no llegaría a salir nunca: baja ese número.');
   }
 
   // Menos platos que huecos. No es un fallo —salen más grandes y llenan igual—
@@ -6773,16 +6914,27 @@ async function saveTV() {
     mostrar_categoria: document.getElementById('tvMostrarCategoria').checked,
     color_categoria: document.getElementById('tvColorCategoria').value,
     tema: document.getElementById('tvTema').value,
+    // La lista manda sobre las columnas de siempre. 'promo_cada' ya no se
+    // escribe: el ritmo es del televisor, no de la promoción, y tv.html solo lo
+    // lee de respaldo mientras queden restaurantes sin volver a guardar.
+    cada: tvCada(),
+    intercalados: tvIntercaladosDelFormulario(),
   };
 
   // De 'atributos', solo su clave: el servidor funde. Ver saveToppings.
-  // promo_en_tv y promo_cada NO van en atributos: son columnas del restaurante,
-  // las mismas que lee tv.html. Viajan en el mismo PATCH para que guardar sea
-  // un solo botón y no dos.
+  //
+  // 'promo_en_tv' sigue siendo columna del restaurante y se deriva de la lista,
+  // no de una casilla aparte: así no pueden discrepar. Es una propiedad de la
+  // PROMOCIÓN —"esta promoción puede salir en el televisor"—, que es lo que
+  // será 'promociones.en_tv' cuando haya varias (docs/promociones.md §5.1), y
+  // además es de lo que se entera la pestaña Promoción para avisar.
+  //
+  // 'promo_cada' ya NO se escribe. El ritmo es del televisor, no de la
+  // promoción: manda sobre cualquier intercalado. Queda en la tabla como
+  // respaldo de lectura para las pantallas de quien todavía no haya guardado.
   const cuerpo = {
     atributos: { tv },
-    promo_en_tv: document.getElementById('tvPromoEnTv').checked,
-    promo_cada: parseInt(document.getElementById('tvPromoCada').value, 10) || 4,
+    promo_en_tv: tv.intercalados.some(i => i.tipo === 'promocion'),
   };
   try {
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, cuerpo);
