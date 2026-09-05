@@ -27,6 +27,7 @@ la tarea roza alguno de estos temas, leer el documento primero:
 | `docs/cartas-en-video.md` | Los parámetros de codificación de video y de dónde salió cada número. |
 | `docs/video-con-ia.md` | La generación con Replicate (`minimax/hailuo-02`) y sus costes. |
 | `docs/pantalla-tv.md` | La cartelera para televisores del local. |
+| `docs/promociones.md` | La promoción: el popup de la carta y la pantalla del televisor. Diseño de las promociones programadas. |
 
 Si el código y un documento se contradicen, manda el código — y hay que
 corregir el documento en la misma tarea.
