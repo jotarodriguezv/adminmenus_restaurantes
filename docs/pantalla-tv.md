@@ -137,6 +137,11 @@ parpadea y marea; con 3600 parece congelada. `por_slide` entre 1 y 4.
 
 ### 5.2 Cuatro columnas nuevas en `restaurantes`, para la promoción
 
+> **04/09/2026.** Lo de aquí abajo describe lo construido y sigue vigente. El
+> diseño de **varias promociones con horario** —y de las pantallas de marca
+> intercaladas— vive en `docs/promociones.md`, aparte, porque la promoción no
+> es una función del televisor: nació en el popup de la carta.
+
 Hoy la promoción son dos columnas —`promo_activa` y `promo_imagen_url`— y **no
 existe ninguna tabla de promociones**. Se añaden:
 
