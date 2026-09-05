@@ -1634,20 +1634,83 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		assert.equal(dos.campos.tvOrdenFila.style.display, 'block');
 	});
 
-	test('la secuencia se escribe tal cual se va a ver', () => {
-		// Nadie tiene por qué deducir de "cada 2" y dos casillas qué sale cuándo.
-		const { ctx, campos } = montar({
-			guardado: { por_slide: 1, cada: 2, intercalados: [{ tipo: 'promocion' },
-			            { tipo: 'marca', logo: true, frase: '' }] },
+	// ── LO QUE SE VA A VER, DICHO COMO PASA DE VERDAD ─────────
+	// La primera versión dibujaba la secuencia DENTRO de una vuelta y se leía
+	// mal en el caso más común: con una sola intercalada por vuelta parecía que
+	// la segunda no salía nunca. Sale — en la vuelta siguiente.
+	const conSecuencia = (opciones, cuantosPlatos) => {
+		const { ctx, campos } = montar(Object.assign({
 			promo: { promo_activa: true, promo_imagen_url: 'https://x/p.jpg',
+			         logo_url: 'https://x/l.png' },
+			productos: Array.from({ length: cuantosPlatos }, (_, i) => ({
+				id: 'p' + i, nombre: 'P' + i, disponible: true,
+				imagen_url: 'https://x/' + i + '.jpg', categoria_id: 'c1' })),
+		}, opciones));
+		ctx.renderTV();
+		return campos.tvSecuencia.textContent;
+	};
+
+	const LAS_DOS = [{ tipo: 'promocion' }, { tipo: 'marca', logo: true, frase: '' }];
+
+	test('con una sola, se dice cada cuánto sale', () => {
+		const t = conSecuencia({ guardado: { por_slide: 1, cada: 2,
+			intercalados: [{ tipo: 'promocion' }] } }, 4);
+		assert.match(t, /Sale tu promoción cada 2 pantallas/);
+	});
+
+	test('si caben las dos en una vuelta, se dice que salen las dos', () => {
+		const t = conSecuencia({ guardado: { por_slide: 1, cada: 2, intercalados: LAS_DOS } }, 4);
+		assert.match(t, /Cada vuelta salen las 2/);
+	});
+
+	test('y si solo cabe una, que se van turnando', () => {
+		// El caso que se leía mal: 3 pantallas y una cada 2 = un solo hueco.
+		const t = conSecuencia({ guardado: { por_slide: 1, cada: 2, intercalados: LAS_DOS } }, 3);
+		assert.match(t, /se van turnando/);
+		assert.match(t, /esta vuelta tu promoción, la siguiente tu marca/);
+	});
+
+	test('si no cabe ninguna no se promete nada', () => {
+		// De eso avisa el resumen, y decirlo dos veces con otras palabras confunde.
+		const t = conSecuencia({ guardado: { por_slide: 1, cada: 8, intercalados: LAS_DOS } }, 4);
+		assert.equal(t, '');
+	});
+
+	test('una promoción apagada no cuenta para la secuencia', () => {
+		// La cartelera no le da turno, así que prometerlo sería mentir.
+		const { ctx, campos } = montar({
+			guardado: { por_slide: 1, cada: 2, intercalados: LAS_DOS },
+			promo: { promo_activa: false, promo_imagen_url: 'https://x/p.jpg',
 			         logo_url: 'https://x/l.png' },
 			productos: [1, 2, 3, 4].map(i => ({ id: 'p' + i, nombre: 'P' + i, disponible: true,
 				imagen_url: 'https://x/' + i + '.jpg', categoria_id: 'c1' })),
 		});
 		ctx.renderTV();
-		// 4 pantallas con una intercalada cada 2: la promoción tras la 2.ª y la
-		// marca tras la 4.ª, que es lo que dice la lista al rotar.
-		assert.match(campos.tvSecuencia.textContent, /platos ×2 → PROMOCIÓN → platos ×2 → MARCA/);
+		assert.match(campos.tvSecuencia.textContent, /Sale tu marca cada 2/);
+	});
+
+	test('encender "Mi marca" enciende el logo', () => {
+		// Encenderlo sin nada dentro era un estado muerto: el interruptor decía
+		// que sí y no salía ninguna pantalla.
+		const { ctx, campos } = montar({ marca: { logo: false, frase: '' } });
+		campos.tvIntercalaMarca.checked = true;
+		ctx.tvAlternarMarca();
+		assert.equal(campos.tvMarcaLogo.checked, true);
+	});
+
+	test('pero no lo reenciende cuando ya hay una frase', () => {
+		// Quien quiere la frase sola apaga el logo; no se le puede devolver.
+		const { ctx, campos } = montar({ marca: { logo: false, frase: 'Desde 1998' } });
+		campos.tvIntercalaMarca.checked = true;
+		ctx.tvAlternarMarca();
+		assert.equal(campos.tvMarcaLogo.checked, false);
+	});
+
+	test('ni al apagar "Mi marca"', () => {
+		const { ctx, campos } = montar({ marca: { logo: false, frase: '' } });
+		campos.tvIntercalaMarca.checked = false;
+		ctx.tvAlternarMarca();
+		assert.equal(campos.tvMarcaLogo.checked, false);
 	});
 
 	test('el resumen cuenta las pantallas intercaladas en la vuelta', () => {

@@ -312,6 +312,40 @@ Con frecuencias independientes, además, aparece la colisión: logo cada 3 y
 promoción cada 4 se pelean por la pantalla 12, y el restaurante no puede
 predecir qué verá mirando el panel.
 
+### 6.bis La rotación tiene que seguir entre vueltas (05/09/2026)
+
+**Fallo encontrado con la tele puesta, al día siguiente de construirlo.** Con la
+promoción y la marca encendidas, **solo salía la primera. Siempre.**
+
+La causa: la rotación empezaba de cero en cada vuelta. Una vuelta con seis
+pantallas de platos y una intercalada cada cuatro tiene **un solo hueco**, así
+que ese hueco era siempre `intercalados[0]` y el segundo elemento no aparecía
+jamás. Para verlos todos hacían falta `cada × elementos` pantallas de platos
+—ocho, en ese ejemplo— y casi ningún restaurante las tiene.
+
+Lo llamativo es que el texto del panel ya describía el comportamiento correcto
+—*«se van turnando: primero una, a la siguiente vuelta la otra»*—. **El texto
+estaba bien y el código hacía otra cosa**, que es la forma de fallo más difícil
+de ver leyendo el diff: todo parece coherente porque la intención está escrita
+al lado.
+
+**El arreglo:** el contador de rotación es de la página, no de la vuelta, y
+`avanzar()` lo incrementa y rehace los slides al volver al índice 0. Rehacerlos
+justo ahí no interrumpe nada, porque el ciclo estaba volviendo a empezar de
+todos modos. Sin `aleatorio` el resultado es idéntico salvo por el intercalado;
+con `aleatorio` encendido además se rebaraja, que es lo que esa casilla promete.
+
+**Dos cosas más que salieron de la misma prueba:**
+
+- Encender «Mi marca» sin marcar el logo ni escribir una frase era un **estado
+  muerto**: el interruptor decía que sí, no se guardaba nada y no salía ninguna
+  pantalla. Ahora encender «Mi marca» enciende el logo, que es lo que se quiere
+  decir al marcarlo. Quien quiera la frase sola lo apaga después.
+- La línea de secuencia del panel dibujaba la vuelta **por dentro**, así que con
+  un solo hueco enseñaba `platos ×4 → PROMOCIÓN` y daba a entender que la marca
+  no salía. Ahora dice lo que pasa de verdad: *«cabe 1 por vuelta, así que se
+  van turnando: esta vuelta tu promoción, la siguiente tu marca»*.
+
 ---
 
 ## 7. Reglas cerradas
@@ -478,3 +512,4 @@ verdad son las fechas y la lista de hasta cinco.
 | 04/09/2026 | La programación se evalúa al pintar, nunca se guarda resuelta en la caché. |
 | 04/09/2026 | **Construido el paso 1**: la pestaña Promoción avisa de lo que le pasa al televisor. |
 | 04/09/2026 | **Construido el paso 2**: `atributos.tv.intercalados` y `atributos.tv.cada`; la animación del logo cuelga del interruptor de animación que ya existía. |
+| 05/09/2026 | La rotación de intercalados **continúa entre vueltas**: reiniciarla dejaba sin salir todo lo que no fuera el primer elemento (§6.bis). |

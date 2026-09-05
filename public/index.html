@@ -1470,8 +1470,9 @@
 							<div id="tvPromoBloque" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
 								<div class="section-title" style="margin-bottom:4px">Pantallas intercaladas</div>
 								<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
-									Pantallas que salen entre las de platos. Si marcas las dos, se van
-									turnando: primero una, a la siguiente vuelta la otra.
+									Pantallas que salen entre las de platos. Si marcas las dos y solo cabe
+									una por vuelta, se van turnando: primero una, a la vuelta siguiente la
+									otra.
 								</p>
 
 								<div class="form-check" style="margin-bottom:10px">
@@ -1481,7 +1482,7 @@
 								<div id="tvPromoAyuda" style="font-size:11px;color:var(--text-dim);margin:-4px 0 14px"></div>
 
 								<div class="form-check" style="margin-bottom:10px">
-									<label class="toggle"><input type="checkbox" id="tvIntercalaMarca" onchange="tvAlternarIntercalados()"><span class="toggle-slider"></span></label>
+									<label class="toggle"><input type="checkbox" id="tvIntercalaMarca" onchange="tvAlternarMarca()"><span class="toggle-slider"></span></label>
 									<span style="font-size:13px;color:var(--text-muted)">Mi marca</span>
 								</div>
 								<div id="tvMarcaOpciones" style="display:none;margin:-4px 0 14px;padding-left:14px;border-left:1px solid var(--border)">
@@ -6595,6 +6596,22 @@ function tvIntercaladosDelFormulario() {
   return lista;
 }
 
+// Encender "Mi marca" sin nada dentro era un estado muerto: el interruptor
+// decía que sí, no se guardaba nada y la pantalla no salía. Lo que se quiere al
+// marcarlo es enseñar la marca, y la marca es el logo, así que se enciende
+// solo. Quien quiera la frase sola lo apaga después.
+//
+// Va en su propio manejador y no dentro de tvAlternarIntercalados porque ahí lo
+// llaman también el logo y la frase: encenderlo desde allí impediría apagar el
+// logo nunca.
+function tvAlternarMarca() {
+  const marca = document.getElementById('tvIntercalaMarca');
+  const logo = document.getElementById('tvMarcaLogo');
+  const frase = document.getElementById('tvMarcaFrase');
+  if (marca.checked && !logo.checked && !frase.value.trim()) logo.checked = true;
+  tvAlternarIntercalados();
+}
+
 function tvAlternarIntercalados() {
   const conPromo = document.getElementById('tvIntercalaPromo').checked;
   const conMarca = document.getElementById('tvIntercalaMarca').checked;
@@ -6641,24 +6658,48 @@ function tvAlternarIntercalados() {
 
 // La secuencia escrita tal cual se va a ver. Un restaurante no tiene por qué
 // deducir de "cada 4" y dos casillas qué sale en qué momento.
+// Qué se va a ver, dicho como pasa de verdad.
+//
+// La versión anterior dibujaba la secuencia DENTRO de una vuelta, y eso se leía
+// mal en el caso más común: con seis pantallas de platos y una intercalada cada
+// cuatro solo cabe una por vuelta, así que enseñaba "platos ×4 → PROMOCIÓN" y
+// daba a entender que la marca no salía. Sale — en la vuelta siguiente.
 function tvPintarSecuencia(pantallas) {
   const el = document.getElementById('tvSecuencia');
   if (!el) return;
-  const lista = tvIntercaladosDelFormulario();
+  const lista = tvIntercaladosVisibles();
+  const cada = tvCada();
   if (!lista.length || !pantallas) { el.textContent = ''; return; }
 
-  const cada = tvCada();
-  const nombre = it => it.tipo === 'promocion' ? 'PROMOCIÓN' : 'MARCA';
-  const trozos = [];
-  let turno = 0;
-  for (let n = 1; n <= pantallas && trozos.length < 8; n++) {
-    if (n % cada === 0) { trozos.push(nombre(lista[turno % lista.length])); turno++; }
-  }
-  if (!trozos.length) { el.textContent = ''; return; }
+  const huecos = Math.floor(pantallas / cada);
+  if (!huecos) { el.textContent = ''; return; }   // de eso avisa el resumen
 
-  el.textContent = 'Se verá así: ' +
-    trozos.map(t => 'platos ×' + cada + ' → ' + t).join(' → ') +
-    (trozos.length >= 8 ? ' → …' : '');
+  const nombre = it => it.tipo === 'promocion' ? 'tu promoción' : 'tu marca';
+
+  if (lista.length === 1) {
+    el.textContent = 'Sale ' + nombre(lista[0]) + ' cada ' + cada + ' pantallas de platos.';
+    return;
+  }
+  if (huecos >= lista.length) {
+    el.textContent = 'Cada vuelta salen las ' + lista.length + ': ' +
+                     lista.map(nombre).join(' y luego ') + '.';
+    return;
+  }
+  // El caso que se leía mal: no caben todas en una vuelta, así que se turnan.
+  el.textContent = 'Cabe' + (huecos === 1 ? '' : 'n') + ' ' + huecos +
+    ' por vuelta, así que se van turnando: esta vuelta ' +
+    lista.slice(0, huecos).map(nombre).join(' y ') +
+    ', la siguiente ' + nombre(lista[huecos % lista.length]) + '.';
+}
+
+// Los que la cartelera va a poder pintar de verdad. Una promoción apagada no
+// ocupa turno, y contarla prometería una vuelta más larga de la que se ve en la
+// pared. Es el mismo filtro que hace listaIntercalados() en tv.html.
+function tvIntercaladosVisibles() {
+  return tvIntercaladosDelFormulario().filter(it =>
+    it.tipo === 'promocion'
+      ? (!!state.restaurante?.promo_activa && !!state.restaurante?.promo_imagen_url)
+      : (it.frase || (it.logo && !!state.restaurante?.logo_url)));
 }
 
 function tvCada() {
@@ -6821,13 +6862,7 @@ function tvPintarResumen() {
   const pantallas = Math.ceil(n / porSlide);
 
   // Los intercalados alargan la vuelta: si no se cuentan, el resumen miente.
-  // Se cuentan solo los que la cartelera va a poder pintar de verdad — una
-  // promoción apagada no ocupa turno, y sumarla aquí prometería una vuelta más
-  // larga de la que se ve.
-  const lista = tvIntercaladosDelFormulario().filter(it =>
-    it.tipo === 'promocion'
-      ? (!!state.restaurante?.promo_activa && !!state.restaurante?.promo_imagen_url)
-      : (it.frase || (it.logo && !!state.restaurante?.logo_url)));
+  const lista = tvIntercaladosVisibles();
   const cada = tvCada();
   const dePromo = lista.length ? Math.floor(pantallas / cada) : 0;
 
