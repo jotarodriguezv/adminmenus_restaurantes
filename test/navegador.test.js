@@ -95,6 +95,38 @@ describe('la programación · el mismo juego de casos que el menú y el televiso
 	});
 });
 
+describe('el televisor solo se ofrece a quien puede tenerlo', () => {
+	// perroscriollos no tiene cartelera —su plan no la incluye— y aun así la
+	// tarjeta de promoción le ofrecía un interruptor «En el televisor». Un
+	// control que promete algo que el plan no incluye confunde y no lleva a
+	// ninguna parte. Es el mismo patrón que ya apareció con la pantalla de marca.
+	const conPlan = (plan, atributos = {}) => cargar('index.html',
+		[['const PLANES', 'function planActual() {'],
+		 	['function planActual() {', '// ── MODELOS QUE PINTAN VIDEO'],
+		 	['function restauranteTieneTv', '// Qué modelo se guarda']],
+		{ state: { restaurante: { atributos: { plan, ...atributos } } } });
+
+	test('un plan sin cartelera no la ofrece', () => {
+		assert.equal(conPlan('pedidos').restauranteTieneTv(), false);
+	});
+
+	test('sin plan asignado tampoco', () => {
+		// Es el caso de perroscriollos: cae en el plan por defecto.
+		assert.equal(conPlan(undefined).restauranteTieneTv(), false);
+	});
+
+	test('un plan con cartelera sí', () => {
+		assert.equal(conPlan('completo').restauranteTieneTv(), true);
+		assert.equal(conPlan('video').restauranteTieneTv(), true);
+	});
+
+	test('y una cartelera ya configurada la ofrece aunque el plan baje', () => {
+		// Si no, un cambio de plan dejaría una pantalla encendida en la pared de
+		// un local sin forma de apagarla desde el panel.
+		assert.equal(conPlan('pedidos', { tv: { activa: true } }).restauranteTieneTv(), true);
+	});
+});
+
 describe('la hora de las promociones · selector y 24 horas', () => {
 	// <input type="time"> no sirve para esto: el formato lo decide el sistema
 	// operativo del visitante, no la página. Comprobado en navegador el

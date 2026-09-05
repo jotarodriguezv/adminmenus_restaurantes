@@ -593,6 +593,36 @@ porque daría confianza en una respuesta falsa.
 
 ---
 
+### 9.quinquies El televisor solo se ofrece a quien puede tenerlo (05/09/2026)
+
+perroscriollos **no tiene cartelera** —su plan no la incluye, y de hecho no
+tiene plan asignado, así que cae en `pedidos`— y aun así la tarjeta de
+promoción le ofrecía un interruptor «En el televisor». Un control que promete
+algo que el plan no incluye confunde y no lleva a ninguna parte. Es el mismo
+patrón que ya apareció con la pantalla de marca.
+
+La condición pasa a vivir en `restauranteTieneTv()` **una sola vez**, y la usan
+las dos pantallas que la necesitan: la pestaña del televisor y las tarjetas de
+promoción. Dos copias de una regla de plan acaban discrepando, y cuando eso pasa
+lo que ve el usuario es exactamente esto.
+
+Sigue enseñándose si la cartelera **ya está configurada** aunque el plan no la
+incluya: un cambio de plan no puede dejar una pantalla encendida en la pared de
+un local sin forma de apagarla.
+
+**El interruptor se esconde, no se apaga ni se quita del DOM.** perroscriollos ya
+tenía dos promociones marcadas para el televisor —marcadas cuando el interruptor
+estaba a la vista— y leerlas como `false` al guardar cualquier otra cosa de la
+tarjeta les cambiaría el dato sin que nadie lo pidiera. Escondido, el valor viaja
+de ida y vuelta intacto.
+
+**Esas dos filas se quedan como están**, con `en_tv: true` y sin efecto. No hacen
+nada mientras el restaurante no tenga cartelera; si algún día sube de plan,
+empezarían a salir. Vaciarlas sería tocar datos del usuario sin que lo haya
+pedido.
+
+---
+
 ### 9.ter Lo que quedó de las columnas viejas (05/09/2026)
 
 `promo_activa`, `promo_imagen_url`, `promo_nombre`, `promo_precio` y
