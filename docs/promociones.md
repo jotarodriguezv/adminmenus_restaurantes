@@ -466,13 +466,42 @@ apaga la carta de todos los restaurantes a la vez.
 
 ---
 
+### 9.bis Por dónde va el paso 3 (05/09/2026)
+
+El paso 3 es varios despliegues, no uno. Este es el reparto y en qué punto
+está, para que no haya que reconstruirlo de una conversación:
+
+| | Qué | Estado |
+|---|---|---|
+| **A** | `sql/18_promociones.sql` — la tabla, su RLS y el copiado de lo que ya hay | **escrita, SIN aplicar** |
+| **B** | `server.js` — alta, baja y edición de promociones, y el tope como número del plan | pendiente |
+| **C** | Panel — la lista de promociones y el editor de días, horas y fechas | pendiente |
+| **D** | `vmenus-app` — el popup elige una; `tv.html` resuelve la programación | pendiente |
+| **E** | El juego de casos compartido entre los dos repositorios (§8.3) | pendiente |
+
+**A es aditiva y va primero**, por la regla de `pantalla-tv.md` §11.bis: la tabla
+nace y no la lee nadie, así que aplicarla no cambia nada de lo que se ve hoy.
+Al revés, el código preguntaría por una tabla que no existe y PostgREST
+devuelve 400, que tumba la petición entera.
+
+**Las columnas viejas no se borran en A.** Las siguen leyendo las cartas y las
+carteleras que no se hayan recargado, y una pantalla de restaurante puede
+pasarse días sin recargar. Se borran en una migración posterior, cuando nada
+las lea.
+
+**El tope de cinco no va en el esquema.** Va a ser un número del plan, y
+clavarlo en un `check` convertiría una decisión comercial en una migración. Lo
+comprueba el servidor en B, que es quien conoce el plan.
+
+---
+
 ## 10. Orden propuesto
 
 | | Qué | Por qué ahí |
 |---|---|---|
 | ~~**1**~~ | ~~Avisar en la pestaña Promoción cuando se apaga y la cartelera la usaba~~ **Hecho el 04/09/2026**, ver §2 | Pequeño e independiente; tapaba un hueco de hoy |
 | ~~**2**~~ | ~~Ritmo único + lista rotatoria (`promocion` y `marca`)~~ **Hecho el 04/09/2026**, ver §6 | Con un elemento se comporta igual que hoy; Bonzas no nota nada |
-| **3** | Tabla `promociones` con programación | Aquí entra el martes, y aquí está el trabajo de verdad |
+| **3** | Tabla `promociones` con programación · **empezado el 05/09/2026**, ver §9.bis | Aquí entra el martes, y aquí está el trabajo de verdad |
 
 Lo de la frase y el logo cabe entero en el paso 2, que es el barato.
 
@@ -525,4 +554,5 @@ verdad son las fechas y la lista de hasta cinco.
 | 04/09/2026 | **Construido el paso 1**: la pestaña Promoción avisa de lo que le pasa al televisor. |
 | 04/09/2026 | **Construido el paso 2**: `atributos.tv.intercalados` y `atributos.tv.cada`; la animación del logo cuelga del interruptor de animación que ya existía. |
 | 05/09/2026 | La rotación de intercalados **continúa entre vueltas**: reiniciarla dejaba sin salir todo lo que no fuera el primer elemento (§6.bis). |
+| 05/09/2026 | El tope de promociones es un **número del plan**, no una restricción del esquema: si no, cambiarlo sería una migración. |
 | 05/09/2026 | Una pantalla de marca sin logo y sin frase **no se puede guardar**: antes se descartaba en silencio con el interruptor encendido. |
