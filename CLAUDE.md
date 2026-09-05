@@ -9,8 +9,15 @@ sin framework de frontend. El menú que ve el comensal es **otro repositorio**,
 
 - **Nunca commitear sobre `main`.** Una rama por tarea, salida de `main`, y el
   merge lo hace el usuario por pull request.
-- **No hacer `git commit` ni `git push` por iniciativa propia.** Se editan los
-  archivos, se resume lo tocado y se espera el visto bueno del usuario.
+- **Commitear y abrir el pull request al terminar cada tarea, sin preguntar.**
+  Acordado el 05/09/2026; antes había que esperar el visto bueno antes de cada
+  commit. La revisión pasó a ocurrir **en el pull request**: el usuario entra,
+  lee el diff y mergea. Preguntar al final de cada tarea era un paso de más que
+  no añadía revisión, porque la revisión de verdad la hace igualmente en GitHub.
+- **El merge lo sigue haciendo el usuario.** Un pull request abierto no es un
+  cambio aplicado, y `main` no se toca nunca directamente.
+- **Correr las pruebas antes de commitear**, no después: ya no hay una pausa en
+  la que alguien las mire por ti.
 - Código, comentarios y documentación en español. Los mensajes de commit son la
   excepción: van en inglés e imperativos ("Add…", "Enhance…", "Refactor…"),
   siguiendo el historial existente.
