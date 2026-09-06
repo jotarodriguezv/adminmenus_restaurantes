@@ -136,10 +136,19 @@ sobre `productos`, `categorias` y `restaurantes`, y las tres operaciones sobre
 protección descansa en una sola barrera, igual que pasaba con `promociones`
 antes del `sql/19`.
 
-No se tocan aquí porque son tablas que llevan meses funcionando y cambiarles los
-permisos dentro de una revisión que va de subidas es como se rompe algo sin que
-nadie pueda rastrear por qué. **Es la siguiente tarea natural**, y se hace igual
-que el `sql/19`: un `revoke` por tabla, y comprobar después.
+> **Hecho el 06/09/2026 en `sql/20`**, ya como tarea aparte.
+>
+> Antes de escribirlo se comprobó **qué tablas lee de verdad el público**,
+> buscando en `vmenus-app` todas las llamadas a `sbFetch()` y `pedir()`:
+> `categorias`, `productos`, `promociones` y `restaurantes`. Y ninguna otra.
+>
+> Así que a esas cuatro se les deja la lectura —quitarla dejaría a los nueve
+> restaurantes sin carta— y se les quita el resto. A `eventos_analitica`,
+> `menu_activo` y `trabajos_video` se les quita también la lectura: nadie las
+> pide desde fuera.
+>
+> Sigue sin haber nada expuesto antes ni después: RLS ya lo denegaba. Lo que
+> cambia es que deja de haber **una sola barrera**.
 
 ---
 
