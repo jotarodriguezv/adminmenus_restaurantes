@@ -697,14 +697,38 @@ se note que fue ella. Mismo principio que la promoción «encendida y vacía».
 intercalados— así que la selección se resuelve otra vez como mucho una vuelta
 después. El problema del §8.1 de `promociones.md` quedó resuelto de rebote.
 
-### Lo que esta versión NO hace
+### Lo que se añadió al día siguiente (06/09/2026)
 
-**La lista manual de platos solo existe en la selección base.** Una excepción
-puede decir «todos» o «una categoría», no «estos siete platos». El selector de
-platos es uno global pensado para una sola selección, y montar uno por excepción
-es mucha interfaz para un caso que nadie ha pedido todavía: los ejemplos que
-motivaron esto —desayunos por la mañana, almuerzos al mediodía, bebidas los
-martes— son todos de categoría.
+Aquí decía que la lista manual de platos se quedaba fuera «para un caso que
+nadie ha pedido todavía». Se pidió al día siguiente, y con ella dos cosas más.
+
+**Platos sueltos por excepción.** La rejilla de platos se separó de quién la
+usa: recibe dónde pintar, qué lista tocar y qué hacer después. Antes escribía
+siempre en `tvSeleccion` y pintaba siempre en `#tvPlatos`, y copiarla habría
+sido la forma de que las dos acabaran comportándose distinto sin que nadie
+supiera por qué.
+
+**Sumar en vez de reemplazar** (`mezclar`). «Los martes añadimos alitas a las
+hamburguesas» es una petición distinta de «los martes solo alitas», y hasta
+entonces solo se podía la segunda.
+
+**Las imágenes sueltas, visibles desde aquí.** Esto no añadió ningún dato: una
+imagen libre para la pantalla ya era una promoción con `en_tv` y sin
+`en_popup`. Lo que faltaba era encontrarla.
+
+> El usuario pidió **tres veces** algo que ya existía: «solo en la pantalla, no
+> en la carta», «una imagen los martes» y «una imagen suelta que no sea un
+> plato». Las tres veces la respuesta era la misma promoción con dos casillas.
+>
+> Si se le escapa tres veces a quien lo construyó, a un restaurante no le
+> aparece nunca. El problema no era la funcionalidad: era que vivía en una
+> pestaña llamada «Promociones» y nadie la busca ahí cuando lo que quiere es
+> «una imagen para mi pantalla».
+>
+> La pestaña del televisor lista ahora esas imágenes y ofrece crear una ya
+> marcada solo para él. **No se duplica el dato**: editarla a fondo —días,
+> horas, nombre— sigue siendo cosa de su pestaña, y así solo hay un sitio donde
+> se define qué es una promoción.
 
 ---
 
