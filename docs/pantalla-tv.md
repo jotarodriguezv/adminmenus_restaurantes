@@ -663,6 +663,51 @@ honesto: es lo que el televisor del local está viendo en ese momento.
 
 ---
 
+## 11.quinquies La pantalla cambia de contenido según la hora (06/09/2026)
+
+Es la respuesta a la pregunta comercial de siempre: **por qué esto y no una
+memoria USB**. Un USB enseña un bucle fijo; esto enseña desayunos a las siete,
+almuerzos a las doce y lo que haga falta los martes.
+
+```json
+"tv": {
+  "modo": "todos",
+  "respetar_horarios": true,
+  "programaciones": [
+    { "programacion": { "activo": true, "desde": "07:00", "hasta": "11:00" },
+      "modo": "categoria", "categoria_id": "…" }
+  ]
+}
+```
+
+La selección base no cambia: `programaciones` son **excepciones** encima de
+ella, y una lista vacía deja la pantalla como estaba.
+
+**Manda la primera vigente, no la más específica.** El orden lo pone el
+restaurante y se ve en el panel, con flechas para moverlas. Una regla de
+especificidad hay que deducirla, y el día que dos se solapen nadie sabría
+explicar por qué salió una y no la otra.
+
+**Una excepción sin días, horas ni fechas se descarta**, tanto al guardar como
+al leer. Sería vigente siempre y taparía la selección base para siempre, sin que
+se note que fue ella. Mismo principio que la promoción «encendida y vacía».
+
+**Nada especial hace falta para que el cambio de hora surta efecto.**
+`avanzar()` ya rehace los slides al cerrar cada vuelta —por la rotación de
+intercalados— así que la selección se resuelve otra vez como mucho una vuelta
+después. El problema del §8.1 de `promociones.md` quedó resuelto de rebote.
+
+### Lo que esta versión NO hace
+
+**La lista manual de platos solo existe en la selección base.** Una excepción
+puede decir «todos» o «una categoría», no «estos siete platos». El selector de
+platos es uno global pensado para una sola selección, y montar uno por excepción
+es mucha interfaz para un caso que nadie ha pedido todavía: los ejemplos que
+motivaron esto —desayunos por la mañana, almuerzos al mediodía, bebidas los
+martes— son todos de categoría.
+
+---
+
 ## 12. Preguntas abiertas
 
 - ~~¿En qué planes entra?~~ **Decidido:** capacidad `tv` en `completo` y

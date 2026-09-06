@@ -1411,6 +1411,28 @@
 							</div>
 
 							<div id="tvResumen" style="font-size:12px;color:var(--text-muted);margin-top:4px"></div>
+
+							<!-- ── CAMBIAR DE CONTENIDO SEGÚN LA HORA ────────────────
+							     Lo de arriba es lo que la pantalla enseña por defecto. Esto
+							     son excepciones con horario: a las siete desayunos, a las
+							     doce almuerzos, los martes lo que sea. -->
+							<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+								<div class="section-header" style="margin-bottom:4px">
+									<div class="section-title">Cambiar de contenido según la hora</div>
+									<button type="button" class="btn-sm accent" onclick="tvNuevaProgramacion()">+ Añadir horario</button>
+								</div>
+								<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.6">
+									Excepciones a lo de arriba. Dentro de su horario, la pantalla enseña
+									lo que diga la excepción; fuera de él, vuelve a lo de siempre.
+									<strong>Manda la primera de la lista que esté vigente</strong>, así que
+									el orden importa.
+								</p>
+								<div id="tvProgramaciones"></div>
+								<div id="tvProgVacio" style="font-size:12px;color:var(--text-dim);line-height:1.6;
+									border:1px dashed var(--border2);border-radius:var(--radius);padding:16px;text-align:center">
+									Sin horarios: la pantalla enseña siempre lo mismo.
+								</div>
+							</div>
 						</div>
 
 						<div class="section-card">
@@ -6978,6 +7000,8 @@ function renderTV() {
   // encendido, que es lo que su cartelera lleva haciendo desde siempre.
   document.getElementById('tvRespetarHorarios').checked = cfg.respetar_horarios !== false;
   tvPintarNotaHorarios();
+  tvProgs = Array.isArray(cfg.programaciones) ? JSON.parse(JSON.stringify(cfg.programaciones)) : [];
+  tvPintarProgramaciones();
   // La promoción son columnas del restaurante, no de atributos.tv: las mismas
   // que ya usa la pestaña de Promoción. Aquí solo se decide si entran en la
   // rotación del televisor y cada cuánto, que es otra decisión.
@@ -7284,6 +7308,187 @@ function tvPintarNotaHorarios() {
       'fuera de horario. La carta del QR sigue respetándolos: esto solo cambia el televisor.';
   el.style.color = on ? 'var(--text-muted)' : 'var(--text-dim)';
   tvPintarResumen();
+}
+
+// ── PROGRAMACIONES DE LA CARTELERA ────────────────────────────
+// Excepciones con horario a la selección base. Manda la PRIMERA vigente, que es
+// como lo resuelve tv.html: el orden lo pone el restaurante y se ve aquí. Una
+// regla de "la más específica" habría que deducirla, y con dos solapadas nadie
+// sabría explicar por qué salió una.
+//
+// Esta primera versión ofrece "todos los platos" o "una categoría". La lista
+// manual se queda solo en la selección base a propósito: su selector es uno
+// global y pensado para una sola selección, y montar uno por excepción es
+// mucha interfaz para un caso que todavía nadie ha pedido. Los ejemplos que
+// motivaron esto —desayunos por la mañana, almuerzos al mediodía— son todos
+// de categoría.
+let tvProgs = [];
+
+function tvNuevaProgramacion() {
+  tvProgs.push({ programacion: { activo: true, dias: [], desde: '', hasta: '',
+                                 desde_fecha: '', hasta_fecha: '' },
+                 modo: 'categoria', categoria_id: null });
+  tvPintarProgramaciones();
+  tvPintarResumen();
+}
+
+function tvPintarProgramaciones() {
+  const cont = document.getElementById('tvProgramaciones');
+  const vacio = document.getElementById('tvProgVacio');
+  if (!cont) return;
+  cont.innerHTML = '';
+  vacio.style.display = tvProgs.length ? 'none' : 'block';
+  tvProgs.forEach((pr, i) => cont.appendChild(tvTarjetaDeProgramacion(pr, i)));
+}
+
+function tvTarjetaDeProgramacion(pr, indice) {
+  const caja = document.createElement('div');
+  caja.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px';
+
+  caja.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <span class="tp-orden" style="font-family:var(--mono);font-size:10px;color:var(--accent)"></span>
+      <select class="form-input tp-modo" style="max-width:190px">
+        <option value="todos">Todos los platos</option>
+        <option value="categoria">Una categoría</option>
+      </select>
+      <select class="form-input tp-cat" style="max-width:220px"></select>
+      <div style="flex:1"></div>
+      <button type="button" class="btn-sm tp-subir" title="Subir">↑</button>
+      <button type="button" class="btn-sm tp-bajar" title="Bajar">↓</button>
+      <button type="button" class="tp-borrar" style="padding:6px 10px;border-radius:6px;
+        border:1px solid var(--danger);background:transparent;color:var(--danger);
+        font-family:var(--mono);font-size:9px;cursor:pointer">🗑</button>
+    </div>
+    <label class="form-label">Días</label>
+    <div class="tp-dias" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+    <div class="form-row" style="margin-bottom:4px">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Desde</label><span class="tp-desde-hueco"></span>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Hasta</label><span class="tp-hasta-hueco"></span>
+      </div>
+    </div>
+    <div class="form-row" style="margin-bottom:0">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Empieza el <span style="color:var(--text-dim)">(opcional)</span></label>
+        <input type="date" class="form-input tp-desdef">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Termina el <span style="color:var(--text-dim)">(opcional)</span></label>
+        <input type="date" class="form-input tp-hastaf">
+      </div>
+    </div>
+    <div class="tp-nota" style="margin-top:10px;font-size:11px;line-height:1.6"></div>`;
+
+  const q = c => caja.querySelector('.' + c);
+  const h = pr.programacion || {};
+
+  q('tp-orden').textContent = (indice + 1) + '.º';
+  q('tp-modo').value = pr.modo === 'todos' ? 'todos' : 'categoria';
+
+  const cat = q('tp-cat');
+  for (const c of state.categorias || []) {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.nombre;
+    cat.appendChild(o);
+  }
+  cat.value = pr.categoria_id || (state.categorias?.[0]?.id ?? '');
+  cat.style.display = q('tp-modo').value === 'categoria' ? '' : 'none';
+
+  const selDesde = selectorDeHora('tp-desde', h.desde || '');
+  const selHasta = selectorDeHora('tp-hasta', h.hasta || '');
+  q('tp-desde-hueco').replaceWith(selDesde);
+  q('tp-hasta-hueco').replaceWith(selHasta);
+  q('tp-desdef').value = h.desde_fecha || '';
+  q('tp-hastaf').value = h.hasta_fecha || '';
+  abrirCalendarioAlPulsar(q('tp-desdef'));
+  abrirCalendarioAlPulsar(q('tp-hastaf'));
+
+  const elegidos = new Set(Array.isArray(h.dias) ? h.dias : []);
+  const pintarDias = () => {
+    const cont = q('tp-dias');
+    cont.innerHTML = '';
+    for (const d of DIAS_PROMO) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cat-chip' + (elegidos.has(d) ? ' active' : '');
+      b.style.cssText = 'min-width:38px;text-align:center;padding:7px 10px';
+      b.textContent = DIAS_CORTOS[d];
+      b.title = DIAS_LARGOS[d];
+      b.onclick = () => { elegidos.has(d) ? elegidos.delete(d) : elegidos.add(d); pintarDias(); leer(); };
+      cont.appendChild(b);
+    }
+  };
+
+  // Lee la tarjeta al estado y repinta la nota. Se guarda en tvProgs en cada
+  // cambio y no solo al pulsar Guardar: el resumen de arriba y la nota de aquí
+  // tienen que hablar del mismo dato.
+  const leer = () => {
+    pr.modo = q('tp-modo').value;
+    pr.categoria_id = pr.modo === 'categoria' ? (q('tp-cat').value || null) : null;
+    pr.programacion = {
+      activo: true,
+      dias: [...elegidos].sort(),
+      desde: q('tp-desde').value || '',
+      hasta: q('tp-hasta').value || '',
+      desde_fecha: q('tp-desdef').value || '',
+      hasta_fecha: q('tp-hastaf').value || '',
+    };
+    cat.style.display = pr.modo === 'categoria' ? '' : 'none';
+    nota();
+    tvPintarResumen();
+  };
+
+  const nota = () => {
+    const el = q('tp-nota');
+    const h2 = pr.programacion;
+    // Sin nada marcado sería vigente siempre y taparía la selección base para
+    // siempre. tv.html se la salta a propósito; aquí hay que decir por qué.
+    if (!tieneProgramacion(h2)) {
+      el.textContent = 'Sin días, horas ni fechas esta excepción no se aplica: ' +
+                       'taparía siempre a lo de arriba y nadie sabría por qué.';
+      el.style.color = 'var(--warn)'; return;
+    }
+    const que = pr.modo === 'todos' ? 'todos los platos'
+      : (state.categorias || []).find(c => c.id === pr.categoria_id)?.nombre || 'una categoría';
+    const partes = [describirHorario(h2)];
+    if (h2.desde_fecha || h2.hasta_fecha)
+      partes.push('· del ' + (h2.desde_fecha || '…') + ' al ' + (h2.hasta_fecha || '…'));
+    const ahora = vigenteAhora(h2, zonaRestaurante());
+    el.textContent = `${partes.join(' ')} → ${que}` +
+                     (ahora ? ' · ahora mismo manda esta' : '');
+    el.style.color = ahora ? 'var(--success)' : 'var(--text-dim)';
+  };
+
+  pintarDias(); nota();
+  for (const c of ['tp-modo', 'tp-cat', 'tp-desde', 'tp-hasta', 'tp-desdef', 'tp-hastaf'])
+    q(c).onchange = leer;
+  q('tp-subir').onclick = () => tvMoverProgramacion(indice, -1);
+  q('tp-bajar').onclick = () => tvMoverProgramacion(indice, 1);
+  q('tp-borrar').onclick = () => {
+    tvProgs.splice(indice, 1);
+    tvPintarProgramaciones();
+    tvPintarResumen();
+  };
+  return caja;
+}
+
+// El orden decide cuál manda cuando dos se solapan, así que moverlas tiene que
+// ser tan fácil como marcarlas.
+function tvMoverProgramacion(i, paso, lista = tvProgs) {
+  const j = i + paso;
+  if (j < 0 || j >= lista.length) return lista;
+  const t = lista[i]; lista[i] = lista[j]; lista[j] = t;
+  tvPintarProgramaciones();
+  return lista;
+}
+
+// Solo las que dicen algo. Una entrada sin horario se descarta al guardar por
+// la misma razón que tv.html se la salta: sería vigente siempre.
+function tvProgramacionesParaGuardar(lista = tvProgs) {
+  return lista.filter(pr => tieneProgramacion(pr.programacion));
 }
 
 function tvCambiarModo() {
@@ -7607,6 +7812,7 @@ async function saveTV() {
     color_categoria: document.getElementById('tvColorCategoria').value,
     tema: document.getElementById('tvTema').value,
     respetar_horarios: document.getElementById('tvRespetarHorarios').checked,
+    programaciones: tvProgramacionesParaGuardar(),
     // La lista manda sobre las columnas de siempre. 'promo_cada' ya no se
     // escribe: el ritmo es del televisor, no de la promoción, y tv.html solo lo
     // lee de respaldo mientras queden restaurantes sin volver a guardar.
