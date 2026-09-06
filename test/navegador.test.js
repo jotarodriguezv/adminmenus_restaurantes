@@ -1563,6 +1563,22 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 	// La cartelera vive en atributos.tv y la lee tv.html. Que esa clave exista
 	// es lo único que la enciende, así que lo que se guarde aquí es lo que va a
 	// estar puesto en la pared de un restaurante durante todo un servicio.
+	// Un nodo que aguanta lo que hacen las tarjetas: innerHTML, querySelector,
+	// replaceWith y appendChild. querySelector devuelve uno nuevo cada vez —no
+	// hace falta que recuerde nada, porque lo que estas pruebas comprueban es
+	// el ESTADO que se guarda, no el DOM que se pinta.
+	const nodoDeMentira = () => ({
+		style: {}, onclick: null, onchange: null, textContent: '', className: '',
+		value: '', src: '', title: '', type: '',
+		_html: '', firstChild: { style: {} }, lastChild: { style: {}, textContent: '' },
+		set innerHTML(v) { this._html = v; },
+		get innerHTML() { return this._html; },
+		appendChild(h) { return h; },
+		replaceWith() {},
+		querySelector: () => nodoDeMentira(),
+		addEventListener() {},
+	});
+
 	const montar = (opciones = {}) => {
 		const campos = {
 			tvActiva:      { checked: opciones.activa !== false },
@@ -1580,6 +1596,8 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvAvisoColorCategoria: { textContent: '' },
 			tvTema: { value: 'sin pintar' },
 			tvRespetarHorarios: { checked: opciones.respetarHorarios !== false },
+			tvProgramaciones: { innerHTML: '', appendChild() {} },
+			tvProgVacio: { style: {} },
 			tvNotaHorarios: { innerHTML: '', style: {} },
 			tvTemaAyuda: { textContent: '' },
 			tvIntercalaPromo: { checked: !!opciones.promoEnTv },
@@ -1608,6 +1626,14 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const enviado = [];
 		const avisos = [];
 		const ctx = cargar('index.html', [
+			// La regla del horario vive antes en el archivo: las excepciones de la
+			// cartelera la usan para saber si una entrada dice algo.
+			['const DIAS_CORTOS', 'let catDiasSel'],
+			['function zonaRestaurante', 'function describirHorario'],
+			['function describirHorario', 'function renderCatDiasChips'],
+			// DIAS_PROMO vive con las tarjetas de promoción y lo reusan las de la
+			// cartelera: los días de la semana se leen igual en los dos sitios.
+			['const DIAS_PROMO', 'function programacionDe'],
 			['const TV_POR_DEFECTO', '// ── PEDIDOS (WhatsApp'],
 		], {
 			state: {
@@ -1629,12 +1655,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			// sin hijos revienta ahí, así que se los damos.
 			document: {
 				getElementById: id => campos[id],
-				createElement: () => ({
-					style: {}, onclick: null, textContent: '',
-					_html: '', firstChild: { style: {} }, lastChild: { style: {}, textContent: '' },
-					set innerHTML(v) { this._html = v; },
-					get innerHTML() { return this._html; },
-				}),
+				createElement: () => nodoDeMentira(),
 			},
 			urlPublica: () => 'https://menu.vmenus.co/bonzas',
 			apiFetch: async (m, r, cuerpo) => { enviado.push(cuerpo); return { id: 'r1', atributos: {} }; },
@@ -1899,6 +1920,68 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const { ctx, campos } = montar({});
 		ctx.renderTV();
 		assert.equal(campos.tvTema.value, 'oscuro');
+	});
+
+	// ── EXCEPCIONES CON HORARIO ───────────────────────────────
+	// A las siete desayunos, a las doce almuerzos, los martes lo que sea. Manda
+	// la PRIMERA vigente, así que el orden importa y hay que poder cambiarlo.
+	const CON_HORARIO = { activo: true, dias: [2], desde: '', hasta: '',
+	                      desde_fecha: '', hasta_fecha: '' };
+	const SIN_NADA    = { activo: true, dias: [], desde: '', hasta: '',
+	                      desde_fecha: '', hasta_fecha: '' };
+
+	test('lo guardado se relee', () => {
+		const { ctx } = montar({ guardado: { programaciones: [
+			{ programacion: CON_HORARIO, modo: 'categoria', categoria_id: 'c1' }] } });
+		ctx.renderTV();
+		assert.equal(ctx.tvProgramacionesParaGuardar().length, 1);
+		assert.equal(ctx.tvProgramacionesParaGuardar()[0].categoria_id, 'c1');
+	});
+
+	test('y se guarda dentro de atributos.tv', async () => {
+		const { ctx, enviado } = montar({ guardado: { programaciones: [
+			{ programacion: CON_HORARIO, modo: 'categoria', categoria_id: 'c1' }] } });
+		ctx.renderTV();
+		await ctx.saveTV();
+		assert.equal(enviado[0].atributos.tv.programaciones.length, 1);
+		assert.equal(enviado[0].atributos.tv.programaciones[0].modo, 'categoria');
+	});
+
+	test('una excepción sin días, horas ni fechas no se guarda', () => {
+		// Sería vigente siempre y taparía la selección base para siempre, sin que
+		// se note que fue ella. tv.html se la salta; aquí ni se guarda.
+		const { ctx } = montar();
+		const lista = [{ programacion: SIN_NADA, modo: 'todos' },
+		               { programacion: CON_HORARIO, modo: 'categoria', categoria_id: 'c1' }];
+		const guardadas = ctx.tvProgramacionesParaGuardar(lista);
+		assert.equal(guardadas.length, 1);
+		assert.equal(guardadas[0].categoria_id, 'c1');
+	});
+
+	test('sin excepciones se guarda una lista vacía, no falta la clave', () => {
+		// Si faltara, tv.html caería en su valor por defecto y no habría forma de
+		// borrar la última excepción.
+		const { ctx, enviado } = montar();
+		return ctx.saveTV().then(() => {
+			// Con longitud y no con deepEqual: el array nace dentro del vm y una
+			// comparación profunda entre realms falla aunque el contenido coincida.
+			assert.equal(enviado[0].atributos.tv.programaciones.length, 0);
+		});
+	});
+
+	test('moverlas cambia el orden, que es lo que decide cuál manda', () => {
+		const { ctx } = montar();
+		const lista = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+		ctx.tvMoverProgramacion(2, -1, lista);
+		assert.equal(lista.map(x => x.id).join(''), 'acb');
+	});
+
+	test('no se puede mover más allá de los extremos', () => {
+		const { ctx } = montar();
+		const lista = [{ id: 'a' }, { id: 'b' }];
+		ctx.tvMoverProgramacion(0, -1, lista);
+		ctx.tvMoverProgramacion(1, 1, lista);
+		assert.equal(lista.map(x => x.id).join(''), 'ab');
 	});
 
 	// ── LOS HORARIOS DE CATEGORÍA, OPCIONALES ─────────────────
