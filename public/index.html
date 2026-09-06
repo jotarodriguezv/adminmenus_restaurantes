@@ -1503,15 +1503,15 @@
 									Con cable HDMI o con el navegador del propio televisor puedes dejarla encendida.
 								</div>
 							</div>
-							<!-- La cartelera respeta los horarios de categoría desde siempre,
-							     y nadie tenía forma de saberlo desde aquí: se configuran en
-							     otra pestaña y su efecto se ve en esta. -->
-							<div style="margin-top:18px;padding:12px;border:1px solid var(--border);
-								border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.6">
-								<strong style="color:var(--text)">Los horarios de categoría también mandan aquí.</strong>
-								Si una categoría solo se ve de 07:00 a 11:00, sus platos desaparecen
-								de la cartelera fuera de esa franja, igual que de la carta. Se
-								configura en <strong>Categorías</strong>.
+							<!-- La cartelera respetó los horarios de categoría desde siempre y
+							     nadie tenía forma de saberlo desde aquí. Ahora además se puede
+							     apagar: el televisor y la carta no siempre quieren lo mismo. -->
+							<div style="margin-top:18px;padding:12px;border:1px solid var(--border);border-radius:8px">
+								<div class="form-check" style="margin-bottom:8px">
+									<label class="toggle"><input type="checkbox" id="tvRespetarHorarios" onchange="tvPintarNotaHorarios()"><span class="toggle-slider"></span></label>
+									<span style="font-size:13px;color:var(--text-muted)">Respetar los horarios de categoría</span>
+								</div>
+								<div id="tvNotaHorarios" style="font-size:12px;color:var(--text-muted);line-height:1.6"></div>
 							</div>
 
 							<div id="tvPromoBloque" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
@@ -6944,7 +6944,10 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          segundos: 8, modo: 'todos', categoria_id: null,
                          productos: [], aleatorio: false, animacion: 'suave',
                          mostrar_categoria: false, color_categoria: 'oscuro',
-                         tema: 'oscuro' };
+                         tema: 'oscuro',
+                         // Por defecto SÍ, que es lo que hacía la cartelera
+                         // antes de existir esta clave.
+                         respetar_horarios: true };
 
 let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
 let tvFiltro = 'all';   // categoría que se está mirando en el selector
@@ -6971,6 +6974,10 @@ function renderTV() {
   document.getElementById('tvColorCategoria').value =
     ['oscuro', 'claro', 'marca'].includes(cfg.color_categoria) ? cfg.color_categoria : 'oscuro';
   document.getElementById('tvTema').value = cfg.tema === 'carta' ? 'carta' : 'oscuro';
+  // '!== false' y no '!!': quien no tenga la clave guardada tiene que salir
+  // encendido, que es lo que su cartelera lleva haciendo desde siempre.
+  document.getElementById('tvRespetarHorarios').checked = cfg.respetar_horarios !== false;
+  tvPintarNotaHorarios();
   // La promoción son columnas del restaurante, no de atributos.tv: las mismas
   // que ya usa la pestaña de Promoción. Aquí solo se decide si entran en la
   // rotación del televisor y cada cuánto, que es otra decisión.
@@ -7260,6 +7267,23 @@ function tvIntercaladosVisibles() {
 function tvCada() {
   const v = parseInt(document.getElementById('tvCada')?.value, 10);
   return (v && v > 0) ? v : 4;
+}
+
+// Qué implica el interruptor, dicho en los dos sentidos. Encendido no es
+// "nada": es una regla que está actuando y que se configura en OTRA pestaña,
+// que es justo la clase de cosa que nadie descubre solo.
+function tvPintarNotaHorarios() {
+  const el = document.getElementById('tvNotaHorarios');
+  if (!el) return;
+  const on = document.getElementById('tvRespetarHorarios').checked;
+  el.innerHTML = on
+    ? 'Si una categoría solo se ve de 07:00 a 11:00, sus platos desaparecen de la ' +
+      'cartelera fuera de esa franja, igual que de la carta. Se configura en ' +
+      '<strong>Categorías</strong>.'
+    : 'La cartelera enseña <strong>todos</strong> los platos, aunque su categoría esté ' +
+      'fuera de horario. La carta del QR sigue respetándolos: esto solo cambia el televisor.';
+  el.style.color = on ? 'var(--text-muted)' : 'var(--text-dim)';
+  tvPintarResumen();
 }
 
 function tvCambiarModo() {
@@ -7582,6 +7606,7 @@ async function saveTV() {
     mostrar_categoria: document.getElementById('tvMostrarCategoria').checked,
     color_categoria: document.getElementById('tvColorCategoria').value,
     tema: document.getElementById('tvTema').value,
+    respetar_horarios: document.getElementById('tvRespetarHorarios').checked,
     // La lista manda sobre las columnas de siempre. 'promo_cada' ya no se
     // escribe: el ritmo es del televisor, no de la promoción, y tv.html solo lo
     // lee de respaldo mientras queden restaurantes sin volver a guardar.

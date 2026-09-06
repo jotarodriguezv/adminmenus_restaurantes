@@ -1579,6 +1579,8 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvMuestraCategoria: { style: {} },
 			tvAvisoColorCategoria: { textContent: '' },
 			tvTema: { value: 'sin pintar' },
+			tvRespetarHorarios: { checked: opciones.respetarHorarios !== false },
+			tvNotaHorarios: { innerHTML: '', style: {} },
 			tvTemaAyuda: { textContent: '' },
 			tvIntercalaPromo: { checked: !!opciones.promoEnTv },
 			tvIntercalaMarca: { checked: !!opciones.marca },
@@ -1897,6 +1899,47 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const { ctx, campos } = montar({});
 		ctx.renderTV();
 		assert.equal(campos.tvTema.value, 'oscuro');
+	});
+
+	// ── LOS HORARIOS DE CATEGORÍA, OPCIONALES ─────────────────
+	// El televisor y la carta no siempre quieren lo mismo: una categoría de
+	// desayunos escondida a las once tiene sentido en el QR y ninguno en una
+	// pantalla que enseña lo que el negocio sabe hacer.
+	test('por defecto se respetan, aunque no esté guardado', async () => {
+		// Una cartelera que lleva meses funcionando no tiene esta clave, y no
+		// puede notar que apareció.
+		const { ctx, campos, enviado } = montar();
+		ctx.renderTV();
+		assert.equal(campos.tvRespetarHorarios.checked, true);
+		await ctx.saveTV();
+		assert.equal(enviado[0].atributos.tv.respetar_horarios, true);
+	});
+
+	test('lo guardado se relee, también cuando está apagado', () => {
+		const { ctx, campos } = montar({ guardado: { respetar_horarios: false } });
+		ctx.renderTV();
+		assert.equal(campos.tvRespetarHorarios.checked, false);
+	});
+
+	test('apagado se guarda apagado', async () => {
+		const { ctx, campos, enviado } = montar({ respetarHorarios: false });
+		await ctx.saveTV();
+		assert.equal(enviado[0].atributos.tv.respetar_horarios, false);
+	});
+
+	test('la nota dice lo que pasa en los dos sentidos', () => {
+		// Encendido no es "nada": es una regla actuando, configurada en OTRA
+		// pestaña, que es justo lo que nadie descubre solo.
+		const on = montar();
+		on.ctx.tvPintarNotaHorarios();
+		assert.match(on.campos.tvNotaHorarios.innerHTML, /desaparecen de la cartelera/);
+		assert.match(on.campos.tvNotaHorarios.innerHTML, /Categorías/);
+
+		const off = montar({ respetarHorarios: false });
+		off.ctx.tvPintarNotaHorarios();
+		assert.match(off.campos.tvNotaHorarios.innerHTML, /todos<\/strong> los platos/);
+		// Y que quede claro que no toca la carta del comensal.
+		assert.match(off.campos.tvNotaHorarios.innerHTML, /solo cambia el televisor/);
 	});
 
 	test('la lista se guarda en atributos.tv, no como columnas sueltas', async () => {
