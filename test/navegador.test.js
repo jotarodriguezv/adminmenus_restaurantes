@@ -1598,6 +1598,8 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvRespetarHorarios: { checked: opciones.respetarHorarios !== false },
 			tvProgramaciones: { innerHTML: '', appendChild() {} },
 			tvProgVacio: { style: {} },
+			tvImagenes: { innerHTML: '', appendChild() {} },
+			tvImagenesEstado: { textContent: '', style: {} },
 			tvNotaHorarios: { innerHTML: '', style: {} },
 			tvTemaAyuda: { textContent: '' },
 			tvIntercalaPromo: { checked: !!opciones.promoEnTv },
@@ -1633,7 +1635,9 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			['function describirHorario', 'function renderCatDiasChips'],
 			// DIAS_PROMO vive con las tarjetas de promoción y lo reusan las de la
 			// cartelera: los días de la semana se leen igual en los dos sitios.
-			['const DIAS_PROMO', 'function programacionDe'],
+			// Hasta renderPromociones: programacionDe la usan también las
+			// miniaturas de imágenes sueltas de la pestaña del televisor.
+			['const DIAS_PROMO', 'async function renderPromociones'],
 			['const TV_POR_DEFECTO', '// ── PEDIDOS (WhatsApp'],
 		], {
 			state: {
@@ -1920,6 +1924,62 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const { ctx, campos } = montar({});
 		ctx.renderTV();
 		assert.equal(campos.tvTema.value, 'oscuro');
+	});
+
+	// ── PLATOS SUELTOS Y MEZCLA EN LAS EXCEPCIONES ────────────
+	test('una excepción de platos sueltos guarda su lista', () => {
+		const { ctx } = montar();
+		const lista = [{ programacion: { activo: true, dias: [2] }, modo: 'manual',
+		                 productos: ['p1', 'p2'], categoria_id: 'c1' }];
+		const g = ctx.tvProgramacionesParaGuardar(lista)[0];
+		assert.equal(g.modo, 'manual');
+		assert.equal(g.productos.join(' '), 'p1 p2');
+		// La categoría no pinta nada en modo manual: guardarla dejaría un dato
+		// que nadie lee y que confunde al mirar la fila.
+		assert.equal(g.categoria_id, null);
+	});
+
+	test('una de categoría no arrastra una lista de platos', () => {
+		const { ctx } = montar();
+		const lista = [{ programacion: { activo: true, dias: [2] }, modo: 'categoria',
+		                 categoria_id: 'c1', productos: ['p1'] }];
+		const g = ctx.tvProgramacionesParaGuardar(lista)[0];
+		assert.equal(g.categoria_id, 'c1');
+		assert.equal(g.productos.length, 0);
+	});
+
+	test('la mezcla se guarda como booleano, no como lo que venga', () => {
+		const { ctx } = montar();
+		const lista = [{ programacion: { activo: true, dias: [2] }, modo: 'todos', mezclar: 'sí' }];
+		assert.equal(ctx.tvProgramacionesParaGuardar(lista)[0].mezclar, true);
+	});
+
+	test('sin mezclar declarado, se guarda apagada', () => {
+		const { ctx } = montar();
+		const lista = [{ programacion: { activo: true, dias: [2] }, modo: 'todos' }];
+		assert.equal(ctx.tvProgramacionesParaGuardar(lista)[0].mezclar, false);
+	});
+
+	// ── LAS IMÁGENES SUELTAS DE LA PANTALLA ───────────────────
+	// Son promociones con 'en_tv'. Lo que faltaba no era el dato: era poder
+	// verlas y crearlas desde la pestaña donde se buscan.
+	test('solo se listan las marcadas para el televisor', () => {
+		const { ctx, campos } = montar({ promociones: [
+			{ id: 'a', en_tv: true,  activa: true, imagen_url: 'https://x/a.jpg', programacion: {} },
+			{ id: 'b', en_tv: false, activa: true, imagen_url: 'https://x/b.jpg', programacion: {} },
+		] });
+		let pintadas = 0;
+		campos.tvImagenes.appendChild = () => { pintadas++; };
+		ctx.tvPintarImagenes();
+		assert.equal(pintadas, 1);
+	});
+
+	test('sin ninguna se dice, en vez de dejar el hueco vacío', () => {
+		const { ctx, campos } = montar({ promociones: [] });
+		let texto = '';
+		campos.tvImagenes.appendChild = n => { texto = n.textContent; };
+		ctx.tvPintarImagenes();
+		assert.match(texto, /Ninguna/);
 	});
 
 	// ── EXCEPCIONES CON HORARIO ───────────────────────────────
