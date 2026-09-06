@@ -31,5 +31,45 @@ jobs:
       - name: Instalar dependencias
         run: npm ci --no-audit --no-fund
 
+      # ── UN SEGUNDO INTENTO, Y SOLO CONTRA UN FALLO CONOCIDO ──────
+      #
+      # 'test/api.test.js' se cae de vez en cuando con un error que no es del
+      # código:
+      #
+      #   not ok 1 - test/api.test.js
+      #   error: 'Unable to deserialize cloned data due to invalid or
+      #           unsupported version.'
+      #
+      # No habla del panel: es la fontanería del ejecutor de pruebas de Node,
+      # que no consigue leer lo que el proceso hijo le manda. La señal que lo
+      # delata es que el RECUENTO baja —el archivo se muere a mitad y sus
+      # pruebas restantes ni se ejecutan— mientras que un fallo de verdad deja
+      # el total intacto.
+      #
+      # Cuesta más de lo que parece: cada fallo manda un correo, y una falsa
+      # alarma acaba haciendo desconfiar de un verde que sí valía.
+      #
+      # Se reintenta UNA vez y SOLO si el fallo trae ese mensaje. Un fallo de
+      # verdad es determinista: vuelve a fallar, y aquí ni siquiera se
+      # reintenta. Lo único que este reintento puede esconder es código de
+      # producto genuinamente inestable, y no hay ninguno conocido.
+      #
+      # El primer intento se conserva en el registro a propósito: si esto
+      # empieza a saltar a menudo, tiene que verse.
+      #
+      # Investigado el 06/09/2026 sin encontrar la causa. Lo descartado está en
+      # CLAUDE.md, para no repetir el camino.
       - name: Ejecutar pruebas
-        run: npm test
+        run: |
+          set +e
+          npm test 2>&1 | tee /tmp/pruebas1.log
+          codigo=${PIPESTATUS[0]}
+          set -e
+          if [ "$codigo" -eq 0 ]; then exit 0; fi
+          if grep -q "Unable to deserialize cloned data" /tmp/pruebas1.log; then
+            echo "::warning::Primer intento roto por el fallo conocido del ejecutor de pruebas (no del código). Reintentando una vez."
+            npm test
+          else
+            echo "Fallo real: no se reintenta."
+            exit "$codigo"
+          fi

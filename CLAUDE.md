@@ -190,17 +190,70 @@ socket a media subida a propósito, para cubrir la conexión que se cae con un
 video de 70 MB. Es una prueba valiosa y depende del tiempo, que es la
 combinación que produce inestabilidad.
 
-Cuando se aborde:
+### Lo que se investigó el 06/09/2026, y lo que quedó descartado
 
-- **Reproducir primero.** Correr `test/api.test.js` en bucle en local hasta que
-  falle. Sin eso no hay forma de saber si un arreglo arregló algo o solo tuvo
-  suerte.
+**No se encontró la causa.** Lo que sigue es para no repetir el camino.
+
+Lo que **sí** se sabe:
+
+- El mensaje sale del deserializador de V8, en el canal por el que el proceso
+  hijo de cada archivo de pruebas le cuenta al padre cómo le fue. «Versión no
+  soportada» significa que el lector empezó a leer en el sitio equivocado: o se
+  colaron bytes en el canal, o un mensaje llegó cortado.
+- El recuento baja porque el padre deja de leer ese archivo a mitad.
+
+Lo que se **descartó**, con la prueba al lado:
+
+| Hipótesis | Cómo se descartó |
+|---|---|
+| Es de `api.test.js` por sí solo | 8 ejecuciones del archivo suelto, todas verdes |
+| Se reproduce con la suite entera a voluntad | 6 ejecuciones completas seguidas, todas verdes |
+| Lo causa el registro tardío de `limpiarSubidaCortada` (500 ms después, con un temporizador `unref`) | Se parametrizó el retraso y se probó con 900, 1200, 1500, 1800 y 2200 ms, 3 ejecuciones cada uno: **0 de 15** |
+| Lo causa la **clase** de escritura tardía por `stdout` | Laboratorio aparte con 40 escrituras tardías desde un temporizador `unref` y tres archivos en paralelo: **0 de 10** |
+
+O sea que **no es una escritura tardía**, que era la sospecha obvia. El
+parámetro del retraso se revirtió: no se deja código especulativo en el manejo
+de errores.
+
+Sigue apareciendo bajo carga —las dos veces que se vio en local fue con el
+equipo ocupado— así que la siguiente pista razonable es la contención, no el
+código.
+
+### Mientras tanto: un reintento acotado en CI
+
+El coste real de esto no es el fallo, es **el correo**: una falsa alarma acaba
+haciendo desconfiar de un verde que sí valía.
+
+El workflow reintenta **una vez y solo si el fallo trae ese mensaje**. Un fallo
+de verdad es determinista: vuelve a fallar, y ahí ni siquiera se reintenta. Lo
+único que puede esconder es código de producto genuinamente inestable, y no hay
+ninguno conocido. Los cuatro casos —verde, fallo conocido que se recupera,
+fallo conocido que persiste, y fallo real— se comprobaron a mano antes de
+subirlo.
+
+**Es una mitigación, no un arreglo.** El primer intento se conserva en el
+registro a propósito: si esto empieza a saltar a menudo, tiene que verse.
+
+Cuando se retome:
+
+- **Reproducir primero.** Sin eso no hay forma de saber si un arreglo arregló
+  algo o solo tuvo suerte. Probar **bajo carga**, que es donde apareció.
 - **No aplicar el arreglo genérico** que sugieren las herramientas de análisis
   automático: proponen envolver multer y rehacer el manejo de errores, citando
   librerías que este repositorio no usa. Eso desharía `conCaptura` y
   `limpiarSubidaCortada`, que están puestos por incidentes reales.
 - La prueba que se corta **no se borra**. Cubre un fallo que ocurrió de verdad;
   lo que hay que arreglar es cómo se cuenta su excepción, no dejar de probarlo.
+
+### En pausa: la cartelera, a evaluación del equipo
+
+**06/09/2026.** El paso 3 de `docs/promociones.md` quedó completo —promociones
+con horario, excepciones por hora en la pantalla, mezclar en vez de reemplazar,
+platos sueltos e imágenes libres— y el usuario lo para aquí a propósito para
+evaluarlo con su equipo antes de seguir añadiendo.
+
+**No empezar nada más de horarios o calendario sin que él lo pida.** Lo que
+venga después sale de esa evaluación, no de seguir la lista.
 
 ### Decisión abierta: ¿avisar o impedir salir con un video a medias?
 
