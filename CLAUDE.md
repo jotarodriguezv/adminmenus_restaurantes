@@ -42,10 +42,10 @@ corregir el documento en la misma tarea.
 
 ## Estructura
 
-- `server.js` (~2000 líneas) — Express y todas las rutas HTTP. Incluye una red
-  de captura (`conCaptura`) que envuelve los manejadores al registrarlos: sin
-  ella, una promesa rechazada dentro de un `async` tumba el proceso entero, y
-  con él el panel y las tres colas a la vez.
+- `server.js` (~2000 líneas) — Express y todas las rutas HTTP. Un manejador
+  que lanza no tumba el proceso: Express 5 manda la excepción al manejador de
+  errores del final. Fuera de una petición —una cola, un temporizador— eso no
+  aplica, y ahí está el `process.on('unhandledRejection')`.
 - `video.js` — cola de conversión de video. Un trabajo a la vez, porque ffmpeg
   y Express comparten un solo núcleo. **Límite por CPU.**
 - `colaia.js` — cola de generación con IA. Carril aparte del anterior a
@@ -241,8 +241,8 @@ Cuando se retome:
   algo o solo tuvo suerte. Probar **bajo carga**, que es donde apareció.
 - **No aplicar el arreglo genérico** que sugieren las herramientas de análisis
   automático: proponen envolver multer y rehacer el manejo de errores, citando
-  librerías que este repositorio no usa. Eso desharía `conCaptura` y
-  `limpiarSubidaCortada`, que están puestos por incidentes reales.
+  librerías que este repositorio no usa. Eso desharía `limpiarSubidaCortada`,
+  que está puesto por un incidente real.
 - La prueba que se corta **no se borra**. Cubre un fallo que ocurrió de verdad;
   lo que hay que arreglar es cómo se cuenta su excepción, no dejar de probarlo.
 
@@ -294,37 +294,6 @@ del sistema en medio del panel rompe el aspecto, y en un móvil se nota más.
 diálogo del navegador está bien —es más difícil de ignorar, y eso a veces se
 busca— unificar los ocho sería trabajo tirado. Primero la regla, después
 aplicarla.
-
-### Quitar `conCaptura` de `server.js`
-
-**Anotado el 3 de septiembre de 2026, después de migrar a Express 5.**
-Deliberadamente aparcado: no se toca el manejo de errores hasta que Express 5
-lleve un tiempo en producción sin sorpresas.
-
-`conCaptura` existe porque en **Express 4** una promesa rechazada dentro de un
-manejador `async` no la capturaba nadie y Node terminaba el proceso — se caían
-el panel y las tres colas a la vez, y bastaba un `POST /api/categorias` sin
-`nombre`. Por eso se envuelven los manejadores al registrarlos, parcheando
-`app.get/post/put/patch/delete/all/use`.
-
-**Express 5 ya reenvía las promesas rechazadas al manejador de errores por sí
-solo.** Comprobado el 03/09/2026 con un servidor mínimo sin envoltorio: la
-petición contesta 500 por el manejador de errores y el proceso sigue vivo. Así
-que el parcheo sobra en su mayor parte y son ~40 líneas y un monkey-patch
-menos.
-
-Cuando se haga:
-
-- Rama propia. No mezclarlo con otra cosa: toca cómo falla *todo* el servidor.
-- La red de seguridad es la prueba **`01 · un throw en una ruta async ya no
-  mata el proceso`** en `test/regresiones.test.js`. Tiene que seguir pasando
-  sin tocarla; si hay que modificarla para que pase, la respuesta es no quitar
-  `conCaptura`.
-- Comprobar también los manejadores **síncronos** que lanzan, y los registrados
-  con `app.use`, que es donde el envoltorio hacía algo más que lo que hace
-  Express 5 solo.
-- Dejar el `process.on('unhandledRejection')`: cubre lo que ocurre fuera de una
-  ruta —una cola, un temporizador— y eso Express no lo ve.
 
 ## Comandos
 
