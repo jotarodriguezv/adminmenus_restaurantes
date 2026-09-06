@@ -73,6 +73,30 @@ process.on('unhandledRejection', e => {
   console.error('⚠️  promesa sin capturar:', e?.stack || e?.message || e);
 });
 
+// ── CABECERAS DE SEGURIDAD ────────────────────────────────────
+// Van antes de todo, incluidos los archivos servidos de /uploads.
+//
+// 'nosniff' es la que importa aquí, y por un motivo concreto: lo subido se
+// valida por extensión y ahora también por sus primeros bytes, pero un archivo
+// que pase por imagen y lleve HTML dentro se serviría como 'image/jpeg'. Un
+// navegador moderno no lo ejecuta; uno que adivine el tipo por el contenido,
+// sí. Esta línea le prohíbe adivinar.
+//
+// NO se pone Content-Security-Policy. El panel es una sola página con estilos
+// y manejadores en línea por todas partes: una CSP realista necesitaría
+// 'unsafe-inline', que es casi no tenerla, y una estricta lo rompería entero.
+// Va anotado en docs/seguridad-subidas.md como trabajo aparte, no como un
+// olvido.
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // El panel no se enmarca desde ningún sitio. OJO: esto vale para el PANEL.
+  // El menú público sí se enmarca —la vista previa de la cartelera lo mete en
+  // un iframe— así que en su nginx esta cabecera rompería esa vista previa.
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 // ── ¿SIGUE VIVO Y ATENDIENDO? ─────────────────────────────────
 // Dokploy no sabía distinguir un proceso colgado de uno sano: mientras el
 // contenedor no muriera, para él estaba bien. Un ffmpeg atascado, un bucle que
@@ -195,6 +219,30 @@ function nombreGenerado(ext) {
 }
 
 const IMAGEN_MAX_MB = Number(process.env.IMAGEN_MAX_MB || 10);
+
+// Las firmas de los tres formatos que se aceptan. Son los primeros bytes del
+// archivo y no se pueden falsear sin que deje de ser ese formato: quien las
+// imite está subiendo una imagen de verdad, que es justo lo que se pide.
+//
+// Se comprueban 12 bytes, que es lo que necesita WebP —'RIFF' al principio y
+// 'WEBP' en la posición 8— y sobra para los otros dos.
+function pareceImagen(ruta) {
+  let b;
+  try {
+    const fd = fs.openSync(ruta, 'r');
+    b = Buffer.alloc(12);
+    const leidos = fs.readSync(fd, b, 0, 12, 0);
+    fs.closeSync(fd);
+    if (leidos < 12) return false;
+  } catch { return false; }
+
+  if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return true;               // JPEG
+  if (b.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])))
+    return true;                                                                  // PNG
+  if (b.slice(0, 4).toString('latin1') === 'RIFF' &&
+      b.slice(8, 12).toString('latin1') === 'WEBP') return true;                  // WebP
+  return false;
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -1643,8 +1691,40 @@ app.delete('/api/promociones/:id', auth, async (req, res) => {
 });
 
 // ── IMÁGENES ──────────────────────────────────────────────────
-app.post('/api/upload', auth, upload.single('file'), (req, res) => {
+app.post('/api/upload', auth,
+  (req, res, next) => {
+    // El mismo guardián que la ruta de video, y por el mismo motivo: con el
+    // disco lleno no deja de funcionar la subida, deja de funcionar el
+    // servidor entero, porque no se puede ni escribir un registro.
+    //
+    // Una imagen son 10 MB como mucho, no 200, pero el limpiador tarda siete
+    // días en recoger huérfanos: una racha de subidas llena el disco mucho
+    // antes de eso. Que la ruta grande estuviera protegida y la pequeña no era
+    // una asimetría sin razón.
+    if (espacioLibreMB() < MARGEN_DISCO_MB)
+      return res.status(507).json({ error: 'No hay espacio suficiente en el servidor' });
+    next();
+  },
+  upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió imagen' });
+
+  // ── Y AHORA EL CONTENIDO, NO SOLO EL NOMBRE ────────────────
+  // La extensión la elige quien sube. Hasta aquí eso bastaba para no escribir
+  // cosas raras en el disco —el nombre lo pone el servidor y la extensión sale
+  // de una lista— pero NADA comprobaba que dentro hubiera una imagen.
+  //
+  // El riesgo no es que se ejecute: se sirve como 'image/jpeg' y con 'nosniff'.
+  // Es que el dominio de la plataforma se convierte en alojamiento gratis de
+  // cualquier cosa, con URL permanente y caché de un año. Eso se paga en
+  // ancho de banda y en reputación del dominio.
+  //
+  // Se mira DESPUÉS de escribir porque multer decide el destino antes de ver
+  // un solo byte. Si no encaja, se borra: dejarlo sería exactamente lo que se
+  // quiere evitar.
+  if (!pareceImagen(req.file.path)) {
+    try { fs.unlinkSync(req.file.path); } catch {}
+    return res.status(400).json({ error: 'El archivo no es una imagen JPG, PNG o WEBP' });
+  }
   // Misma función que usó multer para elegir el destino: así la URL que se
   // devuelve siempre apunta a donde realmente quedó el archivo.
   const sub = carpetaDe(req);

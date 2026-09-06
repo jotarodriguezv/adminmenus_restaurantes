@@ -798,6 +798,73 @@ describe('POST /api/restaurantes · la dirección repetida se explica', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('POST /api/upload · el contenido, no solo el nombre', () => {
+	// Salió de la revisión de seguridad del 06/09/2026, probando el servidor de
+	// verdad: la extensión se validaba bien desde hacía tiempo, pero NADA
+	// comprobaba que dentro hubiera una imagen.
+	//
+	// El riesgo no es que se ejecute —se sirve como image/jpeg y ahora con
+	// 'nosniff'— sino que el dominio de la plataforma acabe alojando cualquier
+	// cosa, con URL permanente y caché de un año.
+	const dirProductos = () => path.join(__dirname, '..', 'uploads', 'productos');
+	const listar = () => (fs.existsSync(dirProductos()) ? fs.readdirSync(dirProductos()) : []);
+
+	test('un HTML con nombre .jpg se rechaza', async () => {
+		const antes = new Set(listar());
+		const r = await S.pedirArchivo('/api/upload', {}, tokenCliente, 'trampa.jpg',
+			Buffer.from('<script>alert(document.domain)</script>'));
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /no es una imagen/);
+		// Y no se queda en el disco: multer ya lo había escrito cuando se mira.
+		assert.equal(listar().filter(f => !antes.has(f)).length, 0, 'no deja el archivo');
+	});
+
+	test('un archivo demasiado corto para tener firma tampoco', async () => {
+		const r = await S.pedirArchivo('/api/upload', {}, tokenCliente, 'corto.jpg',
+			Buffer.from([0xFF, 0xD8]));
+		assert.equal(r.status, 400);
+	});
+
+	test('los tres formatos de verdad sí entran', async () => {
+		const firmas = {
+			'jpeg.jpg': [0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0],
+			'png.png':  [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0],
+			'webp.webp': [...Buffer.from('RIFF'), 0, 0, 0, 0, ...Buffer.from('WEBP')],
+		};
+		for (const [nombre, bytes] of Object.entries(firmas)) {
+			const r = await S.pedirArchivo('/api/upload', {}, tokenCliente, nombre,
+				Buffer.concat([Buffer.from(bytes), Buffer.alloc(64)]));
+			assert.equal(r.status, 200, nombre);
+		}
+	});
+
+	test('un WEBP falso —RIFF sin WEBP— se rechaza', async () => {
+		// RIFF lo comparten WAV y AVI: mirar solo los primeros cuatro bytes
+		// dejaría entrar un audio o un video con nombre de imagen.
+		const r = await S.pedirArchivo('/api/upload', {}, tokenCliente, 'falso.webp',
+			Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVE'), Buffer.alloc(64)]));
+		assert.equal(r.status, 400);
+	});
+});
+
+describe('cabeceras de seguridad', () => {
+	// Ninguna estaba puesta antes de la revisión del 06/09/2026.
+	test('todo lo que sirve el panel lleva nosniff', async () => {
+		// Es la que importa para lo subido: sin ella, un navegador que adivine
+		// el tipo por el contenido podría tratar una "imagen" como otra cosa.
+		const r = await S.pedirTexto('/salud');
+		assert.equal(r.nosniff, 'nosniff');
+	});
+
+	test('y el panel no se puede enmarcar', async () => {
+		// OJO: esto es del PANEL. El menú público SÍ se enmarca —la vista previa
+		// de la cartelera lo mete en un iframe— así que esta cabecera en su
+		// nginx rompería esa vista previa.
+		const r = await S.pedirTexto('/salud');
+		assert.equal(r.marco, 'DENY');
+	});
+});
+
 describe('POST /api/upload · la extensión no la escribe quien sube', () => {
 	// El nombre del archivo lo genera el servidor entero salvo la extensión.
 	// Antes se comprobaba con /jpeg|jpg|png|webp/ sin anclar, así que bastaba

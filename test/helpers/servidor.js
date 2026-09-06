@@ -129,13 +129,22 @@ async function pedir(metodo, ruta, cuerpo, token) {
 // Igual que pedir(), pero multipart. La ruta de video pasa por multer y no
 // entiende JSON, así que sin esto su comprobación de plan no se puede probar
 // por HTTP como el resto.
-async function pedirArchivo(ruta, campos, token, nombre = 'plato.mp4') {
+// Los primeros bytes de un JPEG. Desde que /api/upload comprueba el contenido
+// y no solo la extensión, un relleno de ceros se rechaza —con razón— así que el
+// arnés manda algo que de verdad parece una imagen.
+//
+// A la ruta de video le da igual el contenido: quien valida que sea video es
+// ffmpeg, ya en la cola. Con un solo relleno valen las dos.
+const RELLENO_IMAGEN = Buffer.concat([
+  Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01]),
+  Buffer.alloc(1012),
+]);
+
+async function pedirArchivo(ruta, campos, token, nombre = 'plato.mp4', contenido = RELLENO_IMAGEN) {
   const p = await puertoListo();
   const fd = new FormData();
   for (const [k, v] of Object.entries(campos)) fd.append(k, v);
-  // Contenido irrelevante: quien valida que sea video de verdad es ffmpeg,
-  // ya en la cola. Aquí solo importa que llegue un archivo con extensión buena.
-  fd.append('file', new Blob([Buffer.alloc(1024)], { type: 'video/mp4' }), nombre);
+  fd.append('file', new Blob([contenido], { type: 'video/mp4' }), nombre);
 
   const res = await fetch(`http://127.0.0.1:${p}${ruta}`, {
     method: 'POST',
@@ -154,7 +163,10 @@ async function pedirTexto(ruta) {
   const p = await puertoListo();
   const res = await fetch(`http://127.0.0.1:${p}${ruta}`);
   return { status: res.status, tipo: res.headers.get('content-type'),
-           cache: res.headers.get('cache-control'), html: await res.text() };
+           cache: res.headers.get('cache-control'),
+           nosniff: res.headers.get('x-content-type-options'),
+           marco: res.headers.get('x-frame-options'),
+           html: await res.text() };
 }
 
 // Una petición SIN Content-Type, que es lo que manda un cliente mal escrito o
