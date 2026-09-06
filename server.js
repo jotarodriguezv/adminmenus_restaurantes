@@ -29,42 +29,35 @@ const supabase = createClient(
 const TRUST_PROXY = process.env.TRUST_PROXY ?? '1';
 app.set('trust proxy', /^\d+$/.test(TRUST_PROXY) ? Number(TRUST_PROXY) : TRUST_PROXY);
 
-// ── UN THROW DENTRO DE UN async NO PUEDE TUMBAR EL SERVIDOR ────
-// Express 4 no mira lo que devuelve un manejador. Si es una promesa y se
-// rechaza, nadie la captura: Node 22 termina el proceso con código 1. No es
-// que se cuelgue la petición — se cae el panel, la cola de conversión, la de
-// IA y el limpiador, todos a la vez, porque son el mismo proceso.
+// ── LO QUE PASA CUANDO UN MANEJADOR LANZA ─────────────────────
+// Aquí vivía 'conCaptura': un envoltorio que se ponía a TODOS los manejadores
+// parcheando app.get/post/put/patch/delete/all/use al registrarlos.
 //
-// Y llegar ahí no pedía nada raro. Bastaba un POST a /api/categorias sin
-// 'nombre' (nombre.toLowerCase() sobre undefined) o un /api/estadisticas con
-// una fecha mal escrita (Intl revienta con una Invalid Date). Los dos son
-// alcanzables por cualquier restaurante con sesión iniciada.
+// Existía porque Express 4 no miraba lo que devolvía un manejador. Si era una
+// promesa y se rechazaba, nadie la capturaba: Node terminaba el proceso con
+// código 1. No se colgaba una petición — se caían el panel, la cola de
+// conversión, la de IA y el limpiador a la vez, porque son el mismo proceso.
+// Y llegar ahí no pedía nada raro: bastaba un POST a /api/categorias sin
+// 'nombre'.
 //
-// Se arregla aquí, en las cuatro líneas que registran las rutas, y no
-// envolviendo cada manejador a mano. El motivo es que a mano hay que
-// acordarse: la ruta que alguien escriba dentro de seis meses nace cubierta
-// si la red está puesta en el registro, y nace descubierta si hay que
-// recordar un envoltorio. Es la misma razón por la que el escapado de HTML
-// vive en una función compartida y no copiado en cada plantilla.
+// **Express 5 lo hace solo.** Comprobado el 06/09/2026 contra la versión
+// instalada aquí (5.2.1), con un servidor mínimo y los cinco casos que el
+// envoltorio cubría:
 //
-// Los manejadores de ERROR (los de cuatro argumentos) se dejan intactos:
-// Express los distingue por el número de parámetros, y envolverlos los
-// convertiría en middleware normal y dejaría de llamarlos.
-function conCaptura(fn) {
-  if (typeof fn !== 'function' || fn.length === 4) return fn;
-  return function (req, res, next) {
-    try {
-      const salida = fn.call(this, req, res, next);
-      // Solo se encadena si de verdad es una promesa: un manejador normal
-      // devuelve undefined y no hay nada que esperar.
-      if (salida && typeof salida.then === 'function') salida.catch(next);
-    } catch (e) { next(e); }
-  };
-}
-for (const metodo of ['get', 'post', 'put', 'patch', 'delete', 'all', 'use']) {
-  const original = app[metodo].bind(app);
-  app[metodo] = (...args) => original(...args.map(conCaptura));
-}
+//   ruta async que rechaza          → 500 por el manejador de errores
+//   ruta síncrona que lanza         → 500
+//   middleware async que rechaza    → 500
+//   middleware síncrono que lanza   → 500
+//   throw DESPUÉS de responder      → llega al manejador, sin responder dos veces
+//
+// Y ninguno se escapó del proceso. Así que el envoltorio sobraba entero: eran
+// cuarenta líneas y un parcheo de la propia aplicación, que es de las cosas
+// que más cuesta entender cuando alguien lee esto por primera vez.
+//
+// Lo que NO se quita es el 'unhandledRejection' de abajo, y no es lo mismo:
+// Express solo ve lo que pasa dentro de una petición. Una cola o un
+// temporizador que fallen ocurren fuera, y ahí no hay manejador de errores que
+// valga.
 
 // Última red, por si algo se escapa fuera de una ruta (una cola, un
 // temporizador). Registrar y seguir vivo es mejor que morir: lo que se pierde
@@ -103,9 +96,9 @@ app.use((req, res, next) => {
 // no suelta el turno o un OOM a medias dejan el servidor en pie sin atender a
 // nadie, y eso no lo arregla nadie hasta que alguien se queja.
 //
-// Esto pesa un poco MÁS desde que las excepciones dejaron de matar el proceso
-// (ver conCaptura, más abajo): antes un fallo grave se llevaba el proceso por
-// delante y Docker lo reiniciaba solo. Ahora puede quedarse vivo y tonto.
+// Esto pesa un poco MÁS desde que las excepciones dejaron de matar el proceso:
+// antes un fallo grave se llevaba el proceso por delante y Docker lo reiniciaba
+// solo. Ahora puede quedarse vivo y tonto.
 //
 // Va lo primero de todo, antes de cors() y del cuerpo JSON, porque lo que se
 // quiere medir es si el bucle de eventos responde — no si el resto de la
@@ -136,15 +129,16 @@ app.use(express.urlencoded({ extended: true }));
 // 'const { slug, pin } = req.body'— pasan de contestar un 400 explicando qué
 // falta a lanzar un TypeError.
 //
-// No tumba el servidor, porque conCaptura lo recoge, pero convierte un
-// mensaje útil en un 500 genérico y mete en el registro de errores algo que
-// no es un fallo del servidor sino una petición mal escrita. Buscar ahí un
-// problema que no existe cuesta una tarde.
+// No tumba el servidor —Express 5 manda esa excepción al manejador de
+// errores— pero convierte un mensaje útil en un 500 genérico y mete en el
+// registro algo que no es un fallo del servidor sino una petición mal escrita.
+// Buscar ahí un problema que no existe cuesta una tarde.
 //
 // Se restaura aquí, en una línea, y no repartiendo '?? {}' por las veinte
 // rutas que leen el cuerpo: a mano hay que acordarse, y la ruta que alguien
 // escriba dentro de seis meses nacería descubierta. Es la misma razón por la
-// que conCaptura envuelve en el registro y no manejador a manejador.
+// que el escapado de HTML vive en una función compartida y no copiado en cada
+// plantilla.
 app.use((req, _res, next) => {
   if (req.body === undefined) req.body = {};
   next();
@@ -1241,9 +1235,9 @@ app.post('/api/categorias', auth, async (req, res) => {
   const { restaurante_id, nombre, slug, emoji, orden, sin_fotos, atributos } = req.body;
   if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   // El slug se deriva del nombre, así que sin nombre esto reventaba en
-  // `nombre.toLowerCase()`. Antes del envoltorio de conCaptura() eso tumbaba el
-  // proceso entero; ahora es un 500 que no dice nada, y sigue sin ser lo que
-  // toca: falta un dato obligatorio y eso es un 400 que se pueda leer.
+  // `nombre.toLowerCase()`. En Express 4 eso tumbaba el proceso entero; hoy es
+  // un 500 que no dice nada, y sigue sin ser lo que toca: falta un dato
+  // obligatorio y eso es un 400 que se pueda leer.
   const malNombreCat = errorDeNombre(nombre, 'de la categoría');
   if (malNombreCat) return res.status(400).json({ error: malNombreCat });
   const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', restaurante_id).single();
@@ -2355,10 +2349,11 @@ app.use((err, req, res, next) => {
   }
   if (/^Solo /.test(err?.message || '')) return res.status(400).json({ error: err.message });
 
-  // Todo lo demás llega por conCaptura(): un fallo que antes mataba el
-  // proceso. Se registra entero —con la ruta, que es lo que permite
-  // encontrarlo— y al otro lado va un mensaje sin nada dentro: el texto de
-  // una excepción de Node puede llevar rutas del disco o nombres de tablas.
+  // Todo lo demás lo trae Express desde el manejador que lanzó: un fallo que
+  // en Express 4 mataba el proceso. Se registra entero —con la ruta, que es lo
+  // que permite encontrarlo— y al otro lado va un mensaje sin nada dentro: el
+  // texto de una excepción de Node puede llevar rutas del disco o nombres de
+  // tablas.
   console.error(`⚠️  fallo no controlado en ${req.method} ${req.originalUrl}:`, err?.stack || err?.message || err);
   if (res.headersSent) return next(err);
   res.status(500).json({ error: 'Algo falló en el servidor. Inténtalo de nuevo.' });
