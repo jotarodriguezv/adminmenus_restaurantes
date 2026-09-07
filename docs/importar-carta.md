@@ -7,13 +7,36 @@ Documento de diseño. Escrito el 06/09/2026.
 | pieza | dónde | estado |
 |---|---|---|
 | Sacar el texto de un PDF | `lectorpdf.js` | **hecho** |
-| La tabla del borrador | `sql/21` | **escrita**, pendiente de aplicar |
+| La tabla del borrador | `sql/21` | **aplicada** el 07/09/2026 |
 | Hablar con el modelo | `lectorcarta.js` | **hecho** |
-| Las rutas HTTP | `server.js` | pendiente |
+| Decidir qué se crearía | `importacion.js` | **hecho** |
+| Las rutas HTTP | `server.js` | **hecho** |
 | La pantalla de revisión | `public/index.html` | pendiente |
 
-Nada de esto está enchufado todavía: no hay ninguna ruta que lo llame, así que
-en el panel aún no se ve nada.
+La API ya funciona de punta a punta. Lo que falta es la pantalla: hasta que
+exista, en el panel no se ve nada.
+
+Falta también `ANTHROPIC_API_KEY` en las variables de entorno de Dokploy. El
+servidor **arranca sin ella** —solo la pide al importar—, así que ponerla no
+corre prisa y su ausencia no rompe nada más.
+
+### Lo que la vía de imagen sí y no hace hoy
+
+| entra | pasa |
+|---|---|
+| PDF con capa de texto | vía de texto ✅ |
+| JPG / PNG / WEBP | vía de imagen ✅ |
+| **PDF escaneado** | **se rechaza con un mensaje que ofrece la salida** |
+
+Convertir las páginas de un PDF a imágenes pide una herramienta nativa
+(`poppler`, `ImageMagick`) que este servidor no tiene y que habría que meter en
+la imagen de Docker. En vez de eso el servidor dice: *«Este PDF no lleva texto
+dentro: es un escaneo o una imagen. Sube una foto de cada página y se leen
+igual.»*
+
+Es la funcionalidad completa por un camino que el usuario entiende, sin
+dependencias nuevas. Si aparecen suficientes cartas escaneadas, se añade la
+herramienta y ese mensaje desaparece.
 
 Las cifras van marcadas como **medida** (sale de una ejecución real sobre un
 archivo de un restaurante nuestro) o **estimada**.

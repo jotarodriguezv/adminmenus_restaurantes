@@ -62,6 +62,9 @@ corregir el documento en la misma tarea.
 - `lectorcarta.js` — convierte esa carta en categorías y platos hablando con la
   API de Anthropic. Es a la importación lo que `ia.js` a los videos: lo único
   que depende de un tercero. `ANTHROPIC_API_KEY` vive en Dokploy.
+- `importacion.js` — decide qué categorías y qué platos crearía un borrador, sin
+  escribir nada. Las dos reglas que protege: la importación **añade y nunca
+  reemplaza**, y lo nuevo entra **detrás** de lo que el restaurante ya tenía.
 - `precios.js` — la regla de precios, compartida por la API y el importador.
   **Un precio se guarda dos veces** (`precio` y `precio_numerico`) y separarlos
   hace que la carta muestre uno y el carrito cobre otro. Ya pasó.
