@@ -36,6 +36,7 @@ la tarea roza alguno de estos temas, leer el documento primero:
 | `docs/pantalla-tv.md` | La cartelera para televisores del local. |
 | `docs/promociones.md` | La promoción: el popup de la carta y la pantalla del televisor. Diseño de las promociones programadas. |
 | `docs/seguridad-subidas.md` | Las dos puertas por las que entra un archivo. Qué se comprobó, qué se arregló y qué se dejó a propósito. |
+| `docs/importar-carta.md` | Importar la carta desde un PDF o una imagen. Las dos pruebas de realidad, con sus números. |
 
 Si el código y un documento se contradicen, manda el código — y hay que
 corregir el documento en la misma tarea.
