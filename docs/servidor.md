@@ -124,6 +124,17 @@ Dokploy y **no** en un archivo del repositorio. `ANTHROPIC_API_KEY` la usa
 `SUPABASE_SERVICE_KEY`: solo la usa el servidor y jamás puede acabar en nada
 que se sirva al navegador.
 
+**Se pone en Environment y hay que volver a desplegar**, como todas: Dokploy
+inyecta el entorno al arrancar el contenedor, así que guardarla sin redesplegar
+no la mete. El servidor **arranca igual sin ella** —solo se pide al importar una
+carta—, así que su ausencia no rompe nada más.
+
+Opcionales, todas con valor por defecto razonable: `LECTOR_MODELO` y
+`LECTOR_MODELO_VISION` (qué modelo lee la carta por cada vía),
+`LECTOR_MAX_IMPORTACIONES` (cupo por restaurante, 5) y `CARTA_MAX_MB` (30). El
+modelo también se puede elegir **por importación desde el panel**, que es lo que
+evita un despliegue solo para comparar dos.
+
 ### Sobre la clave del respaldo
 
 Es la única de la lista que **no se puede regenerar**. Cifra el repositorio; ni

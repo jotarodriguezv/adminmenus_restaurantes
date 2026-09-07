@@ -275,3 +275,52 @@ describe('cuando la cosa sale mal', () => {
 		await assert.rejects(() => carta.extraer({ paginas: ['x'] }), /502/);
 	});
 });
+
+describe('qué modelo lee la carta', () => {
+	test('la lista de permitidos no está vacía y trae precio', () => {
+		// El precio se le enseña a quien elige. Si falta, se elige a ciegas.
+		assert.ok(carta.MODELOS.length >= 2);
+		for (const m of carta.MODELOS) {
+			assert.match(m.id, /^claude-/);
+			assert.ok(m.precio && m.nota, `${m.id} sin precio o sin nota`);
+		}
+	});
+
+	test('cada vía usa el suyo', () => {
+		// La de imagen puede subir de modelo sin arrastrar a la de texto: es la
+		// única donde el modelo LEE un precio en vez de copiarlo.
+		assert.equal(carta.cuerpoDeTexto(['x']).model, carta.MODELO);
+		assert.equal(carta.cuerpoDeImagenes([{ tipo: 'image/png', datos: 'AA' }]).model, carta.MODELO_VISION);
+	});
+
+	test('el que se elige manda sobre el configurado', async () => {
+		responder(conCarta([]));
+		await carta.extraer({ paginas: ['x'], modelo: 'claude-opus-5' });
+		assert.equal(peticiones[0].cuerpo.model, 'claude-opus-5');
+	});
+
+	test('sin elegir ninguno, se usa el de la vía', async () => {
+		responder(conCarta([]));
+		await carta.extraer({ paginas: ['x'] });
+		assert.equal(peticiones[0].cuerpo.model, carta.MODELO);
+	});
+
+	test('uno que no está en la lista no se manda a ninguna parte', async () => {
+		// El modelo llega en la petición. Sin lista blanca, cualquiera podría
+		// pedir el más caro —o uno inventado— y la factura es nuestra.
+		responder(conCarta([]));
+		await assert.rejects(() => carta.extraer({ paginas: ['x'], modelo: 'claude-carisimo-9' }),
+			/no está permitido/);
+		assert.equal(peticiones.length, 0, 'ni se intenta la llamada');
+	});
+
+	test('tampoco vale colar cualquier cosa en su sitio', async () => {
+		responder(conCarta([]));
+		for (const malo of ['', ' ', 'gpt-4', '../../etc', 'claude-', 42, {}]) {
+			peticiones.length = 0;
+			if (!malo) continue;   // vacío significa "el configurado"
+			await assert.rejects(() => carta.extraer({ paginas: ['x'], modelo: malo }));
+			assert.equal(peticiones.length, 0);
+		}
+	});
+});

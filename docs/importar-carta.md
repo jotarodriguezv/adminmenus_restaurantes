@@ -316,6 +316,20 @@ Dos comportamientos que hay que decidir a conciencia:
   importación **suma**. Nunca borra lo que había. Es la misma regla que se tomó
   para las selecciones de la cartelera, y por el mismo motivo: reemplazar es
   irreversible y nadie lo pidió.
+
+  **Pero eso solo protege contra destruir, y no contra duplicar** — lo levantó
+  el usuario el 07/09/2026 preguntando qué pasaría si le metía un PDF a Bonzas,
+  que ya tiene 97 platos. La respuesta era: los 97 quedarían dos veces, y la
+  pantalla no diría nada.
+
+  Así que la pantalla ahora **avisa de cuántos platos ya tiene el restaurante,
+  marca los que se llaman igual y ofrece quitarlos de un golpe**. Marcar y
+  ofrecer, no quitarlos sola: que desaparezcan sin que se vea es peor que
+  verlos duplicados, porque nadie se entera de lo que decidió el programa.
+
+  Se comparan los nombres con la misma regla que las categorías —sin tildes ni
+  mayúsculas— para que la pantalla no diga dos cosas distintas sobre el mismo
+  texto.
 - **Categoría que ya existe.** Si la carta trae `POSTRES` y el restaurante ya
   tiene `Postres`, los platos van a la que existe. Casar por nombre normalizado
   (sin tildes, sin mayúsculas); si no hay coincidencia, se crea.
@@ -384,14 +398,45 @@ Y esto no es una preferencia: **la medición de §2.2 ya se hizo con Claude**. L
 28 platos, 28 precios y 6 categorías de la carta en imagen salieron por esta
 vía. La opción que se recomienda es la única de las dos que está medida.
 
-| | modelo | por qué |
+| vía | modelo | por qué |
 |---|---|---|
-| Arranque | **Claude Sonnet 5** en las dos vías | Un solo modelo, un solo prompt que mantener. La vía de imagen necesita el lector bueno y no se ahorra ahí. |
-| Después | **Claude Haiku 4.5** en la vía de texto | Estructurar texto ya limpio es trabajo fácil. Es la mitad de precio. Pero primero se mide, no se supone. |
+| texto | **Claude Sonnet 5** | El texto ya es exacto: el modelo solo lo ordena en filas. No puede equivocarse en un precio porque lo está copiando. |
+| imagen | **Claude Sonnet 5**, y Opus si las fotos son malas | Es la única parte donde el modelo **lee** un precio en vez de copiarlo. Aquí no se ahorra. |
 
-Como en `ia.js`, **el modelo va en una variable de entorno**, no incrustado en
-el código: cambiar de modelo no debería exigir un despliegue. Allí es
-`IA_MODELO`; aquí puede ser `LECTOR_MODELO`.
+### Corrección: bajar a Haiku no vale la pena **(07/09/2026)**
+
+Este documento decía «después, Haiku 4.5 en la vía de texto, midiendo primero».
+**Esa medición no hay que hacerla**, y conviene explicar por qué en vez de
+dejarlo como una tarea pendiente que nadie entiende.
+
+Haiku cuesta la mitad: unos $0,045 por carta en vez de $0,09. Con **nueve
+restaurantes**, importar la carta de todos cuesta menos de un dólar, y bajar de
+modelo ahorraría **unos cuarenta centavos en total**. Eso no es una decisión.
+
+Lo que sí cuesta dinero de verdad es **cada error que el modelo comete**, porque
+lo paga una persona buscando el precio malo entre ciento setenta filas. Con ese
+criterio, «precio-beneficio» no se juega en la factura de la API: se juega en
+cuánto trabajo de revisión genera el resultado. Y ahí no se baja de modelo.
+
+### Cómo se elige
+
+Dos variables de entorno, no una, porque las dos vías no piden lo mismo:
+
+| variable | qué |
+|---|---|
+| `LECTOR_MODELO` | el de la vía de texto. Por defecto `claude-sonnet-5`. |
+| `LECTOR_MODELO_VISION` | el de la vía de imagen. Si no se pone, el mismo. |
+
+Y además **se puede elegir en el panel, por importación**. Cambiar una variable
+en Dokploy obliga a volver a desplegar, que es demasiada ceremonia para comparar
+dos modelos sobre la misma carta — que es justo lo que hay que hacer antes de
+decidir nada.
+
+La lista de modelos elegibles **está cerrada en el servidor** (`MODELOS` en
+`lectorcarta.js`) y el panel la pide en vez de traer su propia copia. Sin lista
+blanca, el modelo llega en la petición y cualquiera podría pedir el más caro.
+Solo el superadmin puede elegir: al restaurante no le significa nada y sí cambia
+lo que se paga.
 
 ### Lo que cuesta de verdad **(estimada, con precios consultados el 06/09/2026)**
 
