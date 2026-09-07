@@ -6,6 +6,24 @@ const path = require('node:path');
 const S = require('./helpers/servidor.js');
 
 const { IDS, tokenCliente, tokenAdmin } = S;
+
+// ── uploads/ ES UNA CARPETA COMPARTIDA ────────────────────────
+// El ejecutor corre cada fichero de prueba en un proceso APARTE y en paralelo,
+// pero todos escriben en el mismo uploads/. Contar "los archivos que no
+// estaban" mezcla los de otro fichero con los propios, y borrarlos todos borra
+// los suyos.
+//
+// Pasó de verdad el 07/09/2026: regresiones.test.js escribe
+// 'uploads/productos/verif-huerfano.jpg' y lo borra por HTTP esperando un 200.
+// Si aparecía justo dentro de la ventana de una de las pruebas de aquí —entre
+// la foto de "lo que había" y la siguiente lectura— se lo llevaba por delante,
+// y allí saltaba un 404 que no tenía nada que ver con la ruta. Ya había pasado
+// lo mismo con uploads/originales, y está anotado en regresiones.test.js.
+//
+// La regla, entonces: **solo lo que nombró el servidor en ESTA subida**. Sus
+// nombres son '<milisegundos>-<azar>.<ext>' y no se parecen a los que escriben
+// a mano los otros ficheros.
+const NOMBRE_DEL_SERVIDOR = /^\d+-[a-z0-9]+\.[a-z0-9]+$/;
 beforeEach(() => S.reiniciar());
 
 // ═══════════════════════════════════════════════════════════════
@@ -816,7 +834,8 @@ describe('POST /api/upload · el contenido, no solo el nombre', () => {
 		assert.equal(r.status, 400);
 		assert.match(r.body.error, /no es una imagen/);
 		// Y no se queda en el disco: multer ya lo había escrito cuando se mira.
-		assert.equal(listar().filter(f => !antes.has(f)).length, 0, 'no deja el archivo');
+		assert.equal(listar().filter(f => !antes.has(f) && NOMBRE_DEL_SERVIDOR.test(f)).length, 0,
+			'no deja el archivo');
 	});
 
 	test('un archivo demasiado corto para tener firma tampoco', async () => {
@@ -904,20 +923,20 @@ describe('POST /api/upload · la extensión no la escribe quien sube', () => {
 
 		// Y lo que quedó en el disco se llama exactamente igual que lo que se
 		// devolvió: es lo que hace que la base y el disco no se separen.
-		const nuevos = listar().filter(f => !antes.has(f));
+		const nuevos = listar().filter(f => !antes.has(f) && NOMBRE_DEL_SERVIDOR.test(f));
 		assert.deepEqual(nuevos, [r.body.filename]);
-		for (const f of nuevos) fs.unlinkSync(path.join(dirProductos(), f));
+		// Por nombre exacto, no "todo lo nuevo": lo nuevo puede ser de otro.
+		fs.unlinkSync(path.join(dirProductos(), r.body.filename));
 	});
 
 	test('el nombre original no llega al disco', async () => {
-		const antes = new Set(listar());
 		const r = await S.pedirArchivo('/api/upload', {}, tokenCliente, 'nombre del cliente.png');
 
 		assert.equal(r.status, 200);
 		assert.ok(!r.body.filename.includes('nombre'), 'no debe quedar rastro del original');
 		assert.ok(!/\s/.test(r.body.filename), 'ni espacios, que limpieza.js no reconoce');
 
-		for (const f of listar().filter(x => !antes.has(x))) fs.unlinkSync(path.join(dirProductos(), f));
+		fs.unlinkSync(path.join(dirProductos(), r.body.filename));
 	});
 });
 

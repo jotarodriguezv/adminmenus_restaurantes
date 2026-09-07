@@ -13,6 +13,9 @@ const limpieza = require('./limpieza');
 const cupo     = require('./cupo');
 const colaia   = require('./colaia');
 const precios  = require('./precios');
+const lectorpdf   = require('./lectorpdf');
+const lectorcarta = require('./lectorcarta');
+const importacion = require('./importacion');
 const { formatoPrecio } = precios;
 
 const app  = express();
@@ -2325,6 +2328,280 @@ app.get('/api/og', async (req, res) => {
     console.error('[og] ', e.message);
     res.status(200).send(paginaOpenGraph({ nombre: 'Carta digital' }, destino));
   }
+});
+
+// ══════════════════════════════════════════════════════════════
+// IMPORTAR LA CARTA DESDE UN PDF O UNA IMAGEN
+// ══════════════════════════════════════════════════════════════
+// docs/importar-carta.md. El reparto de piezas:
+//
+//   lectorpdf.js    saca el texto del PDF y dice si es un escaneo
+//   lectorcarta.js  convierte eso en categorías y platos (Anthropic)
+//   importacion.js  decide qué se crearía, sin escribir nada
+//   aquí            la puerta, el cupo, y las escrituras
+//
+// La regla que manda: NADA llega a 'categorias' ni a 'productos' sin que una
+// persona lo apruebe. La extracción deja un borrador y ahí se para.
+
+const EXTENSIONES_CARTA = ['.pdf', ...EXTENSIONES_IMAGEN];
+
+// Una carta de verdad medida: 9 páginas, 23,6 MB. 30 deja margen sin dejar
+// pasar cualquier cosa.
+const CARTA_MAX_MB = Number(process.env.CARTA_MAX_MB || 30);
+
+const almacenCarta = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'uploads', 'cartas');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => cb(null, nombreGenerado(extensionSegura(file.originalname, EXTENSIONES_CARTA))),
+});
+const subidaCarta = multer({
+  storage: almacenCarta,
+  limits: { fileSize: CARTA_MAX_MB * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (extensionSegura(file.originalname, EXTENSIONES_CARTA)) cb(null, true);
+    else cb(new Error('Solo PDF, JPG, PNG o WEBP'));
+  },
+});
+
+// 'cartas' NO está en limpieza.CARPETAS a propósito. El limpiador borra lo que
+// no referencia ninguna de las tablas que conoce, y no conoce
+// 'importaciones_carta': si estuviera en la lista se llevaría por delante el
+// archivo de una importación que todavía no se ha revisado. Dejarlo fuera hace
+// que esos archivos no se limpien nunca, que es el fallo seguro de los dos.
+
+// La extensión la elige quien sube. Esto mira lo que hay DENTRO, igual que
+// pareceImagen() en /api/upload y por el mismo motivo: sin esta comprobación el
+// dominio de la plataforma es alojamiento gratis de cualquier cosa.
+function tipoDeCarta(ruta) {
+  let fd;
+  try {
+    fd = fs.openSync(ruta, 'r');
+    const b = Buffer.alloc(12);
+    fs.readSync(fd, b, 0, 12, 0);
+    if (b.slice(0, 5).toString('latin1') === '%PDF-') return 'pdf';
+  } catch {
+    return null;
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch {} }
+  }
+  return pareceImagen(ruta) ? 'imagen' : null;
+}
+
+const TIPOS_MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
+
+// Cuántas importaciones puede hacer un restaurante. Cada una se paga, y sin
+// tope alguien sube el mismo PDF veinte veces y la factura la pagamos nosotros
+// (docs/importar-carta.md §8). Un alta necesita una, quizá dos.
+//
+// Se cuentan TODAS las filas, incluidas las que fallaron o se descartaron: si
+// llamó al modelo, costó. Es el mismo criterio de 'generaciones_ia', donde solo
+// la reserva liberada —la que nunca llegó a pedirse— no cuenta.
+const MAX_IMPORTACIONES = Number(process.env.LECTOR_MAX_IMPORTACIONES || 5);
+
+async function extraerDelArchivo(ruta, origen) {
+  if (origen === 'imagen') {
+    const datos = fs.readFileSync(ruta).toString('base64');
+    const tipo = TIPOS_MIME[path.extname(ruta).toLowerCase()] || 'image/jpeg';
+    return lectorcarta.extraer({ imagenes: [{ tipo, datos }] });
+  }
+
+  const leido = lectorpdf.leerPdf(fs.readFileSync(ruta));
+
+  if (leido.cifrado)
+    throw Object.assign(new Error('El PDF tiene contraseña. Guárdalo sin protección y vuelve a subirlo.'), { publico: true });
+
+  // Un PDF escaneado necesita mandarle las PÁGINAS COMO IMÁGENES al modelo, y
+  // convertir un PDF a imágenes pide una herramienta nativa que este servidor
+  // no tiene. Se dice claro y se ofrece la salida que sí funciona hoy, en vez
+  // de fallar con un mensaje que no ayuda a nadie.
+  if (leido.escaneado)
+    throw Object.assign(new Error('Este PDF no lleva texto dentro: es un escaneo o una imagen. Sube una foto de cada página y se leen igual.'), { publico: true });
+
+  return lectorcarta.extraer({ paginas: leido.paginas });
+}
+
+// ── SUBIR Y EXTRAER ───────────────────────────────────────────
+app.post('/api/importaciones', auth,
+  async (req, res, next) => {
+    // El permiso y el cupo se miran ANTES que multer, con el id en la query:
+    // en multipart req.body todavía no existe cuando multer escribe, y no hay
+    // ninguna razón para dejar que alguien sin permiso llene el disco primero.
+    const rid = req.query.restaurante_id;
+    if (!rid || !canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+
+    // El mismo guardián que las otras dos puertas: con el disco lleno no deja
+    // de funcionar la subida, deja de funcionar el servidor entero.
+    if (espacioLibreMB() < MARGEN_DISCO_MB)
+      return res.status(507).json({ error: 'No hay espacio suficiente en el servidor' });
+
+    if (req.user.rol !== 'admin') {
+      const { count } = await supabase.from('importaciones_carta')
+        .select('id', { count: 'exact', head: true }).eq('restaurante_id', rid);
+      if ((count || 0) >= MAX_IMPORTACIONES)
+        return res.status(409).json({ error: `Ya se hicieron ${MAX_IMPORTACIONES} importaciones para este restaurante` });
+    }
+    next();
+  },
+  subidaCarta.single('file'),
+  async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
+
+    // Se mira DESPUÉS de escribir porque multer decide el destino antes de ver
+    // un solo byte. Si no encaja, se borra.
+    const origen = tipoDeCarta(req.file.path);
+    if (!origen) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+      return res.status(400).json({ error: 'El archivo no es un PDF ni una imagen JPG, PNG o WEBP' });
+    }
+
+    const rid = req.query.restaurante_id;
+
+    // La fila se crea ANTES de llamar al modelo, y esa es la reserva de cupo:
+    // si la respuesta se pierde por el camino el intento ya está contado, y
+    // nadie puede repetirlo gratis. Mismo razonamiento que cupo.js.
+    const { data: fila, error: errIns } = await supabase.from('importaciones_carta')
+      .insert([{ restaurante_id: rid, origen, archivo: `cartas/${req.file.filename}`, estado: 'pendiente' }])
+      .select().single();
+    if (errIns) return res.status(500).json({ error: errIns.message });
+
+    try {
+      const r = await extraerDelArchivo(req.file.path, origen);
+      const { data, error } = await supabase.from('importaciones_carta').update({
+        estado: 'listo',
+        via: r.via,
+        borrador: r.borrador,
+        modelo: r.modelo,
+        tokens_entrada: r.tokens_entrada,
+        tokens_salida: r.tokens_salida,
+      }).eq('id', fila.id).select().single();
+      if (error) return res.status(500).json({ error: error.message });
+      res.json(data);
+    } catch (e) {
+      // Lo que se guarda y lo que se enseña tiene que poder leerlo alguien que
+      // no programa. Un mensaje escrito por nosotros sale tal cual; el de una
+      // excepción cualquiera no, que puede llevar rutas del disco o nombres de
+      // tablas. Misma regla que el manejador de errores del final.
+      const mensaje = (e.publico || e.definitivo) ? e.message : 'No se pudo leer la carta';
+      console.error(`⚠️ importación ${fila.id}: ${e.message}`);
+      await supabase.from('importaciones_carta').update({ estado: 'error', error: mensaje }).eq('id', fila.id);
+      res.status(e.publico ? 400 : 502).json({ error: mensaje, id: fila.id });
+    }
+  });
+
+// ── VER LO IMPORTADO ──────────────────────────────────────────
+app.get('/api/importaciones', auth, async (req, res) => {
+  const rid = req.query.restaurante_id;
+  if (!rid || !canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+  const { data, error } = await supabase.from('importaciones_carta')
+    .select('*').eq('restaurante_id', rid).order('creada_en', { ascending: false }).limit(20);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+app.get('/api/importaciones/:id', auth, async (req, res) => {
+  const { data } = await supabase.from('importaciones_carta').select('*').eq('id', req.params.id).maybeSingle();
+  if (!data || !canAccessRestaurante(req.user, data.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  res.json(data);
+});
+
+// ── GUARDAR LO QUE CORRIGIÓ LA PERSONA ────────────────────────
+// Pasa por la MISMA validación que lo que devuelve el modelo. No porque se
+// desconfíe de quien revisa, sino porque así solo hay una definición de qué es
+// un borrador válido: dos definiciones se separan, y la segunda se olvida.
+app.put('/api/importaciones/:id', auth, async (req, res) => {
+  const { data: fila } = await supabase.from('importaciones_carta')
+    .select('restaurante_id, estado').eq('id', req.params.id).maybeSingle();
+  if (!fila || !canAccessRestaurante(req.user, fila.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  if (fila.estado === 'aplicado') return res.status(409).json({ error: 'Esta importación ya se aplicó' });
+
+  const borrador = lectorcarta.borradorDeRespuesta(req.body && req.body.borrador);
+  const { data, error } = await supabase.from('importaciones_carta')
+    .update({ borrador, estado: 'listo' }).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// ── APLICARLO A LA CARTA DE VERDAD ────────────────────────────
+app.post('/api/importaciones/:id/aplicar', auth, async (req, res) => {
+  const { data: fila } = await supabase.from('importaciones_carta').select('*').eq('id', req.params.id).maybeSingle();
+  if (!fila || !canAccessRestaurante(req.user, fila.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+
+  // Aplicar dos veces duplicaría la carta entera. El estado es lo que lo
+  // impide, y se comprueba aquí y no solo en el panel: un doble clic con la
+  // red lenta llega igual dos veces.
+  if (fila.estado === 'aplicado') return res.status(409).json({ error: 'Esta importación ya se aplicó' });
+  if (fila.estado !== 'listo')    return res.status(409).json({ error: 'Esta importación todavía no está lista' });
+
+  const rid = fila.restaurante_id;
+  const { data: cats }  = await supabase.from('categorias').select('id, nombre, orden').eq('restaurante_id', rid);
+  const { data: prods } = await supabase.from('productos').select('categoria_id, orden').eq('restaurante_id', rid);
+
+  // El orden más alto que ya tiene cada categoría, para que lo nuevo entre
+  // DETRÁS de lo que había y no intercalado con ello.
+  const ordenPorCat = {};
+  for (const p of prods || [])
+    ordenPorCat[p.categoria_id] = Math.max(ordenPorCat[p.categoria_id] || 0, Number(p.orden) || 0);
+
+  const plan = importacion.planDeAplicacion(fila.borrador, cats || [], ordenPorCat);
+  if (!plan.totales.platos) return res.status(400).json({ error: 'El borrador no tiene ningún plato' });
+
+  // Primero las categorías, porque los platos necesitan su id.
+  const nuevas = plan.categorias.filter((c) => !c.existia);
+  if (nuevas.length) {
+    const { data: creadas, error } = await supabase.from('categorias').insert(
+      nuevas.map((c) => ({
+        restaurante_id: rid, nombre: c.nombre, slug: c.slug,
+        emoji: '', orden: c.orden, sin_fotos: false, atributos: {},
+      }))
+    ).select('id, nombre');
+    if (error) return res.status(500).json({ error: error.message });
+
+    const porNombre = new Map((creadas || []).map((c) => [importacion.normalizar(c.nombre), c.id]));
+    for (const c of nuevas) c.id = porNombre.get(importacion.normalizar(c.nombre)) || null;
+  }
+
+  const filas = [];
+  for (const c of plan.categorias) {
+    // Si una categoría no se pudo crear, sus platos se quedan fuera. Un plato
+    // sin categoría no existe: la columna es NOT NULL.
+    if (!c.id) continue;
+    for (const p of c.platos)
+      filas.push({
+        restaurante_id: rid, categoria_id: c.id,
+        nombre: p.nombre, descripcion: p.descripcion,
+        precio: formatoPrecio(p.precio_numerico), precio_numerico: p.precio_numerico,
+        // Las fotos NO se importan: se suben aparte, como siempre.
+        // docs/importar-carta.md §4.
+        imagen_url: null, disponible: true, orden: p.orden, atributos: {},
+      });
+  }
+
+  const { error: errProd } = await supabase.from('productos').insert(filas);
+  if (errProd) return res.status(500).json({ error: errProd.message });
+
+  await supabase.from('importaciones_carta').update({ estado: 'aplicado' }).eq('id', fila.id);
+  res.json({
+    ok: true,
+    categorias_creadas: plan.totales.categorias_nuevas,
+    categorias_reutilizadas: plan.totales.categorias_reutilizadas,
+    platos_creados: filas.length,
+  });
+});
+
+// ── DESCARTAR ─────────────────────────────────────────────────
+// Se marca, no se borra. La fila es lo que cuenta el cupo —el intento ya se
+// pagó— y además deja rastro de qué se subió y qué se decidió con ello.
+app.delete('/api/importaciones/:id', auth, async (req, res) => {
+  const { data: fila } = await supabase.from('importaciones_carta')
+    .select('restaurante_id, estado').eq('id', req.params.id).maybeSingle();
+  if (!fila || !canAccessRestaurante(req.user, fila.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  if (fila.estado === 'aplicado') return res.status(409).json({ error: 'Esta importación ya se aplicó' });
+  const { error } = await supabase.from('importaciones_carta').update({ estado: 'descartado' }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
 });
 
 // multer lanza cuando el archivo pasa del límite o la extensión no vale. Sin

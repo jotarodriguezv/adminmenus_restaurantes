@@ -2,21 +2,44 @@
 
 Documento de diseño. Escrito el 06/09/2026.
 
+Las cifras van marcadas como **medida** (sale de una ejecución real sobre un
+archivo de un restaurante nuestro) o **estimada**.
+
 **Estado, 07/09/2026** — construido de dentro hacia fuera:
 
 | pieza | dónde | estado |
 |---|---|---|
 | Sacar el texto de un PDF | `lectorpdf.js` | **hecho** |
-| La tabla del borrador | `sql/21` | **escrita**, pendiente de aplicar |
+| La tabla del borrador | `sql/21` | **aplicada** el 07/09/2026 |
 | Hablar con el modelo | `lectorcarta.js` | **hecho** |
-| Las rutas HTTP | `server.js` | pendiente |
+| Decidir qué se crearía | `importacion.js` | **hecho** |
+| Las rutas HTTP | `server.js` | **hecho** |
 | La pantalla de revisión | `public/index.html` | pendiente |
 
-Nada de esto está enchufado todavía: no hay ninguna ruta que lo llame, así que
-en el panel aún no se ve nada.
+La API ya funciona de punta a punta. Lo que falta es la pantalla: hasta que
+exista, en el panel no se ve nada.
 
-Las cifras van marcadas como **medida** (sale de una ejecución real sobre un
-archivo de un restaurante nuestro) o **estimada**.
+Falta también `ANTHROPIC_API_KEY` en las variables de entorno de Dokploy. El
+servidor **arranca sin ella** —solo la pide al importar—, así que ponerla no
+corre prisa y su ausencia no rompe nada más.
+
+### Lo que la vía de imagen sí y no hace hoy
+
+| entra | pasa |
+|---|---|
+| PDF con capa de texto | vía de texto ✅ |
+| JPG / PNG / WEBP | vía de imagen ✅ |
+| **PDF escaneado** | **se rechaza con un mensaje que ofrece la salida** |
+
+Convertir las páginas de un PDF a imágenes pide una herramienta nativa
+(`poppler`, `ImageMagick`) que este servidor no tiene y que habría que meter en
+la imagen de Docker. En vez de eso el servidor dice: *«Este PDF no lleva texto
+dentro: es un escaneo o una imagen. Sube una foto de cada página y se leen
+igual.»*
+
+Es la funcionalidad completa por un camino que el usuario entiende, sin
+dependencias nuevas. Si aparecen suficientes cartas escaneadas, se añade la
+herramienta y ese mensaje desaparece.
 
 ---
 
@@ -115,11 +138,20 @@ Dos avisos sobre esta medición:
 ### 2.3 Lo que apareció y no estaba en el plan: **las erratas del original**
 
 El archivo de ejemplo trae `MOZARELLA`, `NANCHOS`, `SIRLON` (tres veces),
-`RASBERRY`, `FUDGE SUNDAY`. Se transcribieron tal cual, que es lo correcto por
-defecto: **el importador copia, no opina**.
+`RASBERRY`, `FUDGE SUNDAY`. Se transcribieron tal cual.
 
-Pero abre una pregunta de producto que hay que contestar antes de construir la
-pantalla de revisión — está en §9.
+**Decidido el 06/09/2026: el importador copia, no corrige.** Se empieza por
+copiar literal, y más adelante se mira si merece la pena señalar lo que parece
+errata.
+
+El motivo de empezar así: una transcripción literal es **comprobable**. Quien
+revisa pone la carta al lado y compara, y cualquier diferencia es un fallo. Si
+el modelo corrige por su cuenta, revisar deja de ser comparar y pasa a ser
+adivinar cuáles de las diferencias son mejoras y cuáles son errores. Y algún día
+«corregiría» el nombre propio de un plato de la casa.
+
+Corregir se puede añadir después encima de esto. Al revés no: si el importador
+nace corrigiendo, no hay forma de saber qué decía el original.
 
 ---
 
@@ -293,32 +325,122 @@ real del archivo, no la extensión ni el `Content-Type`. Para PDF eso es el
 
 ---
 
-## 9. Lo que falta decidir
+## 9. Qué modelo y qué proveedor
+
+La plataforma ya tiene una cuenta de **Replicate** funcionando, con su token y
+su facturación, para la generación de video (`ia.js`, `docs/video-con-ia.md`).
+La pregunta natural es si se reutiliza. **La respuesta es no**, y conviene
+explicar por qué, porque no es obvio.
+
+### Por qué Replicate no es el sitio para esto
+
+Replicate **sí** aloja modelos capaces de leer un documento: la familia Qwen-VL,
+InternVL, Pixtral y compañía leen facturas y tablas razonablemente bien. Así que
+no es que sea imposible. Son tres cosas concretas:
+
+1. **Ni Claude ni GPT están en Replicate.** Replicate distribuye modelos de pesos
+   abiertos. Para el paso donde la exactitud manda —leer un precio de una foto—
+   estaríamos eligiendo a propósito un lector peor.
+
+2. **La forma de la API es la equivocada.** Replicate funciona con
+   *predicciones*: se crea una, devuelve un identificador, y se pregunta después
+   si ya está. Por eso `ia.js` no usa webhooks y la cola pregunta cada 15
+   segundos: **un video tarda 115 s y nadie lo está esperando delante**.
+
+   Leer una carta tarda segundos, y la persona que acaba de subir el PDF **está
+   ahí mirando la pantalla**. Ir por Replicate obligaría a montar una cola y un
+   estado de "espera un momento" para algo que debería ser una sola llamada de
+   ida y vuelta.
+
+3. **Arranque en frío.** Un modelo abierto en hardware compartido puede tardar
+   decenas de segundos solo en levantarse antes de empezar a trabajar. Para la
+   cola de video da igual. Para alguien esperando en el navegador, no.
+
+Replicate se queda donde está bien: **generar video a partir de una foto**. Es
+justo lo que hace bien y no hay nada que mover.
+
+### Qué se usa entonces
+
+La **API de Anthropic**, con el mismo modelo para las dos vías.
+
+Y esto no es una preferencia: **la medición de §2.2 ya se hizo con Claude**. Los
+28 platos, 28 precios y 6 categorías de la carta en imagen salieron por esta
+vía. La opción que se recomienda es la única de las dos que está medida.
+
+| | modelo | por qué |
+|---|---|---|
+| Arranque | **Claude Sonnet 5** en las dos vías | Un solo modelo, un solo prompt que mantener. La vía de imagen necesita el lector bueno y no se ahorra ahí. |
+| Después | **Claude Haiku 4.5** en la vía de texto | Estructurar texto ya limpio es trabajo fácil. Es la mitad de precio. Pero primero se mide, no se supone. |
+
+Como en `ia.js`, **el modelo va en una variable de entorno**, no incrustado en
+el código: cambiar de modelo no debería exigir un despliegue. Allí es
+`IA_MODELO`; aquí puede ser `LECTOR_MODELO`.
+
+### Lo que cuesta de verdad **(estimada, con precios consultados el 06/09/2026)**
+
+Sonnet 5 va a $2 por millón de tokens de entrada y $10 de salida. Sobre la carta
+medida —9 páginas, 170 fichas—:
+
+| vía | entrada | salida | **total por carta** |
+|---|---|---|---|
+| texto | ~4.000 tokens | ~8.000 tokens | **~$0,09** |
+| imagen | ~17.000 tokens | ~8.000 tokens | **~$0,11** |
+
+**Menos de once centavos de dólar por carta completa**, unos 450 pesos. Contra
+la tarde que hoy se pasa alguien tecleando 170 fichas, la discusión de coste se
+acaba aquí.
+
+Dos avisos para quien extrapole estos números:
+
+- **Lo que domina es la salida, no la entrada.** Las 170 fichas en JSON pesan
+  más que la carta de origen. Por eso la diferencia entre las dos vías es
+  pequeña, y por eso mirar solo el precio de entrada engaña.
+- Los modelos desde la versión 4.7 usan un tokenizador nuevo que produce **~30%
+  más tokens** para el mismo texto. Ya está metido en la tabla; hace falta
+  saberlo para no comparar peras con manzanas contra las cifras de `ia.js`.
+
+### Qué se reaprovecha del código que ya hay
+
+- **`cupo.js`, entero.** El cupo con reserva atómica antes de llamar a nadie no
+  depende del proveedor, y es la pieza que evita la factura sorpresa (§8).
+- **`ia.js`, nada** — y está bien así. Su propia cabecera lo dice: *"es lo único
+  que depende de un tercero: el día que cambie el proveedor o el modelo, se
+  reescribe esto y nada más"*. Un módulo hermano, con la misma frontera.
+
+Hace falta una variable nueva, `ANTHROPIC_API_KEY`, en el `.env` del servidor y
+apuntada en `docs/servidor.md`. Le aplica lo mismo que a `SUPABASE_SERVICE_KEY`:
+**solo el servidor la usa; jamás puede acabar en nada que se sirva al
+navegador.**
+
+---
+
+## 10. Lo que falta decidir
 
 Preguntas de producto, no técnicas. Van sin contestar a propósito.
 
-1. **Las erratas del original.** Si la carta dice `MOZARELLA`, ¿el importador
-   copia o corrige? Copiar es honesto y predecible. Corregir ahorra trabajo pero
-   hace que el modelo cambie un dato sin que nadie se lo pida, y algún día
-   «corregirá» el nombre propio de un plato de la casa. La opción intermedia:
-   copiar, y **señalar** lo que parece errata en la pantalla de revisión para
-   que decida la persona.
-
-2. **Las descripciones.** ¿Se importan tal cual, aunque muchas cartas impresas
+1. **Las descripciones.** ¿Se importan tal cual, aunque muchas cartas impresas
    las traigan en mayúsculas y abreviadas? ¿O se dejan vacías y las escribe el
    restaurante?
 
-3. **¿Quién importa?** ¿Es una herramienta del equipo, para el alta, o la ve el
-   restaurante en su panel? Cambia dónde va el botón y quién consume cupo.
+2. **¿Quién importa?** Sigue sin contestar, pero la API tomó una postura
+   **provisional** para no quedarse parada: las rutas dejan importar tanto al
+   equipo como al propio restaurante —con la misma comprobación de permiso que
+   cualquier otra ruta— y **el cupo de 5 solo se le aplica al restaurante**. El
+   equipo no tiene tope, porque para él esto es la herramienta del alta.
 
-4. **La foto torcida.** §2.2 midió una imagen limpia. Antes de prometer la vía
+   Quien decide de verdad es **la pantalla**: si el botón no se le enseña al
+   restaurante, en la práctica es una herramienta interna aunque la ruta esté
+   abierta. Por eso esta pregunta se puede contestar al construir el panel, y no
+   hacía falta contestarla antes.
+
+3. **La foto torcida.** §2.2 midió una imagen limpia. Antes de prometer la vía
    de imagen hay que probarla con **fotos de móvil reales** de cartas de
    verdad: pizarras, plastificadas con reflejo, hojas dobladas. Eso es material
    que el equipo tiene y yo no.
 
 ---
 
-## 10. Resumen para quien llegue nuevo
+## 11. Resumen para quien llegue nuevo
 
 - Se puede. Está **medido**, no supuesto.
 - Con capa de texto: exacto y prácticamente gratis, **si** se usan las tablas
