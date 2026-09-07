@@ -163,7 +163,7 @@ describe('02 · borrar un archivo comprueba de quién es', () => {
   test('no se puede borrar un archivo de otro restaurante', async () => {
     S.reiniciar();
     fs.mkdirSync(dir, { recursive: true });
-    const nombre = 'verif-ajeno.jpg';
+    const nombre = `verif-ajeno-${process.pid}-${Date.now()}.jpg`;
     fs.writeFileSync(path.join(dir, nombre), 'x');
     // La foto la referencia OTRO restaurante. Desde sql/17 quien lo determina
     // es la base, así que lo que se simula es su respuesta.
@@ -181,7 +181,7 @@ describe('02 · borrar un archivo comprueba de quién es', () => {
     // del archivo, y ninguna tabla recorrida a mano.
     S.reiniciar();
     fs.mkdirSync(dir, { recursive: true });
-    const nombre = 'verif-una-llamada.jpg';
+    const nombre = `verif-una-llamada-${process.pid}-${Date.now()}.jpg`;
     fs.writeFileSync(path.join(dir, nombre), 'x');
     S.conRpc(() => ({ data: null, error: null }));
 
@@ -202,7 +202,7 @@ describe('02 · borrar un archivo comprueba de quién es', () => {
     // en el borrado del archivo de otro restaurante.
     S.reiniciar();
     fs.mkdirSync(dir, { recursive: true });
-    const nombre = 'verif-sin-respuesta.jpg';
+    const nombre = `verif-sin-respuesta-${process.pid}-${Date.now()}.jpg`;
     fs.writeFileSync(path.join(dir, nombre), 'x');
     S.conRpc(() => ({ data: null, error: { message: 'la base no responde' } }));
 
@@ -218,9 +218,20 @@ describe('02 · borrar un archivo comprueba de quién es', () => {
   test('una subida que no ha guardado nadie sí se puede borrar', async () => {
     S.reiniciar();
     fs.mkdirSync(dir, { recursive: true });
-    const nombre = 'verif-huerfano.jpg';
+    // Un nombre distinto en cada ejecución. uploads/ lo comparten todos los
+    // ficheros de prueba, que corren en procesos paralelos, y un nombre fijo
+    // es lo que hace que dos ejecuciones se pisen.
+    const nombre = `verif-huerfano-${process.pid}-${Date.now()}.jpg`;
     fs.writeFileSync(path.join(dir, nombre), 'x');
     S.conRpc(() => ({ data: null, error: null }));   // nadie lo referencia
+
+    // El 07/09/2026 esto falló en CI con un 404 y costó entender por qué: el
+    // 404 de esta ruta significa "el archivo no está", así que no decía nada
+    // de la ruta sino del disco. Comprobarlo AQUÍ separa las dos causas en el
+    // mensaje, en vez de dejarlas mezcladas en un número.
+    assert.equal(fs.existsSync(path.join(dir, nombre)), true,
+      'el archivo tiene que seguir en el disco al llamar: si no, se lo llevó otra prueba');
+
     const r = await S.pedir('DELETE', `/api/upload/productos/${nombre}`, null, S.tokenCliente);
     assert.equal(r.status, 200);
     assert.equal(fs.existsSync(path.join(dir, nombre)), false);

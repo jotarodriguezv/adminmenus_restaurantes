@@ -172,6 +172,39 @@ y la ñ no son un problema**. Se probaron cinco familias, incluidas las más
 decorativas, y todas cubren el latín básico y el extendido. Lo que hay que
 mirar al añadir una fuente es la **legibilidad**, no la cobertura.
 
+### `uploads/` es una carpeta compartida entre ficheros de prueba
+
+**07/09/2026.** El ejecutor corre cada fichero en un proceso **aparte y en
+paralelo**, pero todos escriben en el mismo `uploads/`. Dos patrones que
+parecen inocentes y no lo son:
+
+- **contar** "los archivos que no estaban" mezcla los de otro fichero;
+- **borrar** todos los que aparecieron se lleva los de otro fichero.
+
+Ya había pasado con `uploads/originales` (anotado en `regresiones.test.js`), y
+volvió con `uploads/productos`: una ejecución de CI dio **404 al borrar
+`verif-huerfano.jpg`** porque el archivo dejó de estar en el disco entre que se
+escribió y que se pidió borrarlo. **Al relanzar el mismo commit pasó en verde.**
+
+**Lo que NO era**, y conviene no volver ahí: la ruta `DELETE /api/upload` está
+bien. Un archivo huérfano —el que no referencia ninguna fila— ya se borra: la
+comprobación es `if (dueno && dueno !== ...)`, así que `null` pasa. El 404 sale
+de `if (!fs.existsSync(fp))`, o sea que hablaba **del disco, no de la ruta**.
+Un análisis automático propuso cambiar la ruta para devolver 200 cuando el
+dueño es `null`; eso ya funcionaba, y aplicarlo habría roto el 404 legítimo de
+un archivo que no existe.
+
+**Lo que se hizo:** las pruebas ya no cuentan ni borran lo que no crearon —solo
+lo que nombró el servidor en esa subida, o el nombre exacto que devolvió— y las
+que escriben archivos a mano usan nombres únicos por ejecución.
+
+**Lo que queda sin demostrar:** no se consiguió reproducir el borrado en local,
+ni con ejecuciones repetidas ni forzando la carrera a propósito, así que **no
+está probado quién se llevó el archivo**. Lo de arriba quita el peligro y deja
+la próxima vez diagnosticable: la prueba ahora comprueba que el archivo sigue
+en el disco *antes* de llamar, y si falla dice cuál de las dos cosas pasó en
+vez de dejar un 404 ambiguo.
+
 ### `test/api.test.js` falla a veces en CI sin que nadie haya roto nada
 
 **Visto el 04/09/2026 en un pull request que solo cambiaba texto de HTML.**
