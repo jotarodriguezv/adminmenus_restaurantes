@@ -227,6 +227,41 @@
 			.upload-zone-text{font-size:12px;color:var(--text-muted);}
 			.upload-zone-text span{color:var(--accent);}
 
+			/* ── IMPORTAR LA CARTA ── */
+			/* Una fila por plato, con los tres campos que se importan. El precio
+			   va estrecho y a la derecha porque es lo que más se repasa: en una
+			   carta de 170 platos, leer una columna de precios alineada es lo
+			   que hace la revisión posible. */
+			.imp-cat{border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;background:var(--surface);}
+			.imp-cat-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+			.imp-cat-nombre{flex:1;min-width:0;background:transparent;border:none;border-bottom:1px solid var(--border2);
+			  color:var(--text);font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;padding:4px 0;}
+			.imp-cat-nombre:focus{outline:none;border-bottom-color:var(--accent);}
+			.imp-cat-estado{font-size:10px;font-family:var(--mono);white-space:nowrap;}
+			.imp-plato{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+			.imp-plato input{background:var(--panel);border:1px solid var(--border);border-radius:6px;
+			  color:var(--text);font-size:12px;padding:6px 8px;min-width:0;}
+			.imp-plato input:focus{outline:none;border-color:var(--accent);}
+			.imp-p-nombre{flex:2;}
+			.imp-p-desc{flex:3;color:var(--text-muted);}
+			.imp-p-precio{flex:0 0 90px;text-align:right;font-family:var(--mono);}
+			.imp-quitar{background:transparent;border:none;color:var(--text-dim);cursor:pointer;
+			  font-size:14px;line-height:1;padding:4px 6px;border-radius:4px;flex:0 0 auto;}
+			.imp-quitar:hover{color:var(--danger);background:var(--danger-dim);}
+			/* .btn-save trae flex:1 porque nació para el pie de un modal, donde
+			   ocupa todo el ancho. Aquí va acompañado de un texto que hay que
+			   leer, así que se queda del tamaño de lo que dice. */
+			.imp-acciones{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+			  margin-top:18px;padding-top:16px;border-top:1px solid var(--border);}
+			.imp-acciones .btn-save{flex:0 0 auto;padding:11px 18px;}
+			/* En un móvil los tres campos en fila dejan cada uno en nada. */
+			@media (max-width:640px){
+			  .imp-plato{flex-wrap:wrap;}
+			  .imp-p-nombre{flex:1 1 100%;}
+			  .imp-p-desc{flex:1 1 100%;}
+			  .imp-p-precio{flex:0 0 100px;}
+			}
+
 			/* ── MODAL ── */
 			.modal-bg{position:fixed;inset:0;background:var(--overlay);z-index:500;
 			  display:flex;align-items:center;justify-content:center;padding:16px;
@@ -670,6 +705,7 @@
 				<button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
 				<button class="tab-btn" id="tabBtnPedidos" onclick="switchTab('pedidos',this)" style="display:none">Pedidos</button>
 				<button class="tab-btn" id="tabBtnTv" onclick="switchTab('tv',this)" style="display:none">Pantalla TV</button>
+				<button class="tab-btn" id="tabBtnImportar" onclick="switchTab('importar',this)" style="display:none">Importar carta</button>
 				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
 				<button class="tab-btn" onclick="switchTab('estadisticas',this)">Estadísticas</button>
 			</div>
@@ -1625,6 +1661,49 @@
 					<div id="tvStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 				</div>
 
+				<div id="tabImportar" class="hidden">
+					<div class="section-card">
+						<div class="section-title">Importar la carta</div>
+						<p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:6px">
+							Sube el PDF o la foto de la carta y se sacan los nombres, los precios y las
+							categorías. Después se revisa aquí antes de crear nada.
+						</p>
+						<p style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:16px;font-family:var(--mono)">
+							Las fotos de los platos no se importan: se suben aparte, como siempre.
+						</p>
+
+						<label class="upload-zone" id="impZona">
+							<input type="file" accept=".pdf,image/*" onchange="impSubir(this)">
+							<div class="upload-zone-text">
+								<span>Haz clic para subir</span> la carta<span class="pista-arrastre"> o arrástrala aquí</span><br>
+								<span style="font-size:10px;color:var(--text-dim)">PDF · JPG · PNG · WEBP</span>
+							</div>
+						</label>
+						<div id="impEstado" style="margin-top:10px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+					</div>
+
+					<!-- El borrador. Nada de esto existe en la carta todavía: son filas
+					     PROPUESTAS, y se pueden corregir o quitar antes de crearlas. -->
+					<div class="section-card" id="impRevision" style="display:none">
+						<div class="section-header">
+							<div class="section-title" style="margin-bottom:0">Revisar antes de crear</div>
+							<span id="impOrigen" style="font-size:10px;font-family:var(--mono);color:var(--text-dim)"></span>
+						</div>
+						<p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:16px">
+							Esto es lo que se leyó. Corrige lo que haga falta y quita lo que sobre;
+							nada llega a tu carta hasta que le des al botón de abajo.
+						</p>
+
+						<div id="impCategorias"></div>
+
+						<div class="imp-acciones">
+							<button class="btn-save" id="impAplicarBtn" onclick="impAplicar()">Crear en mi carta</button>
+							<button class="btn-cancel" onclick="impDescartar()">Descartar</button>
+							<span id="impResumen" style="font-size:11px;font-family:var(--mono);color:var(--text-muted)"></span>
+						</div>
+					</div>
+				</div>
+
 				<div id="tabQr" class="hidden">
 					<div class="qr-layout">
 
@@ -2572,6 +2651,12 @@ async function loadData() {
     // Apariencia es solo para superadmin: el cliente no debe poder tocar
     // logo, colores, fuentes, modelo de página ni CSS personalizado.
     document.getElementById('tabBtnApariencia').style.display = state.rol === 'admin' ? 'block' : 'none';
+    // Importar la carta es HOY una herramienta del alta: la usa el equipo al
+    // dar de alta un restaurante, y por eso solo la ve el superadmin. Es la
+    // pregunta 2 de docs/importar-carta.md §10, y esta línea es la respuesta
+    // provisional: la ruta ya deja importar al restaurante, así que abrirlo
+    // es quitar la condición de aquí.
+    document.getElementById('tabBtnImportar').style.display = state.rol === 'admin' ? 'block' : 'none';
     if (state.rol === 'admin') { renderApariencia(); renderDatosResto(); }
     // Toppings y Pedidos son del modelo "carrito" (o si ya tenía toppings de antes)
     const attr = state.restaurante?.atributos || {};
@@ -2671,11 +2756,12 @@ function switchTab(tab, btn) {
   if (tab === 'apariencia' && state.rol !== 'admin') return;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabTv','tabQr','tabEstadisticas'].forEach(id=>{
+  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabTv','tabImportar','tabQr','tabEstadisticas'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
   if (tab === 'tv') renderTV();
+  if (tab === 'importar') renderImportar();
   if (tab === 'qr') renderQR();
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
 }
@@ -6170,6 +6256,231 @@ async function saveApariencia() {
     showToast('Apariencia guardada', 'success');
   } catch (e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; showToast('Error: ' + e.message, 'error'); }
 }
+
+// ── IMPORTAR LA CARTA ─────────────────────────────────────────
+// docs/importar-carta.md §7. Lo que se pinta aquí NO existe todavía en la
+// carta: son filas propuestas. Nada llega a 'categorias' ni a 'productos'
+// hasta que alguien le da al botón.
+//
+// Por eso esta pantalla es la funcionalidad, y no un adorno encima de ella: un
+// modelo puede colar un plato que no existe, y encontrarlo DESPUÉS —con la
+// carta publicada y el QR repartido— cuesta mucho más que mirarlo antes.
+
+let impActual = null;   // la fila de importaciones_carta que se está revisando
+
+// Espejo de importacion.js · normalizar(). Dos copias porque el panel no puede
+// importar un módulo del servidor, y las dos tienen que decidir igual: si el
+// servidor cree que 'POSTRES' es la categoría que ya existe y el panel cree que
+// es nueva, el número del botón miente.
+//
+// Lo que impide que se separen es una prueba que las compara con la misma
+// lista de nombres. Es el mismo trato que SLUGS_RESERVADOS.
+function impNormalizar(nombre) {
+  return String(nombre == null ? '' : nombre)
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const IMP_SIN_CATEGORIA = 'Otros';
+
+// Las cuentas que se le enseñan a la persona antes de pulsar. Tienen que
+// cuadrar con lo que hace el servidor, que es quien las repite de vuelta.
+function impTotales(borrador, existentes) {
+  const previas = new Set((existentes || []).filter(c => c && c.nombre).map(c => impNormalizar(c.nombre)));
+  const vistas = new Set();
+  let nuevas = 0, existen = 0, platos = 0;
+
+  for (const c of (borrador && borrador.categorias) || []) {
+    if (!c || typeof c !== 'object') continue;
+    const lista = (Array.isArray(c.platos) ? c.platos : [])
+      .filter(p => p && String(p.nombre == null ? '' : p.nombre).trim());
+    if (!lista.length) continue;   // una categoría sin platos no se crea
+
+    const clave = impNormalizar(String(c.nombre || '').trim() || IMP_SIN_CATEGORIA);
+    if (!vistas.has(clave)) {
+      vistas.add(clave);
+      if (previas.has(clave)) existen++; else nuevas++;
+    }
+    platos += lista.length;
+  }
+  return { nuevas, existen, platos };
+}
+
+// El borrador tal y como está AHORA en la pantalla, con las correcciones a
+// mano y sin lo que se quitó. Se lee del DOM y no de una copia en memoria: lo
+// que se ve es lo que se manda, sin un tercer sitio donde desincronizarse.
+//
+// 'precio' va como texto, igual que lo devuelve el modelo, para que el
+// servidor lo normalice con la MISMA regla en los dos casos.
+function impBorradorDelFormulario() {
+  const categorias = [];
+  for (const bloque of document.querySelectorAll('#impCategorias .imp-cat')) {
+    const platos = [];
+    for (const fila of bloque.querySelectorAll('.imp-plato')) {
+      platos.push({
+        nombre: fila.querySelector('.imp-p-nombre').value,
+        descripcion: fila.querySelector('.imp-p-desc').value,
+        precio: fila.querySelector('.imp-p-precio').value,
+      });
+    }
+    categorias.push({ nombre: bloque.querySelector('.imp-cat-nombre').value, platos });
+  }
+  return { categorias };
+}
+
+function impActualizarResumen() {
+  const t = impTotales(impBorradorDelFormulario(), state.categorias);
+  const partes = [];
+  if (t.nuevas) partes.push(`${t.nuevas} categoría${t.nuevas === 1 ? '' : 's'} nueva${t.nuevas === 1 ? '' : 's'}`);
+  if (t.existen) partes.push(`${t.existen} que ya tienes`);
+  document.getElementById('impResumen').textContent = partes.length ? partes.join(' · ') : '';
+
+  const btn = document.getElementById('impAplicarBtn');
+  // El número delante, para que se lea antes de pulsar y no después.
+  btn.textContent = t.platos ? `Crear ${t.platos} plato${t.platos === 1 ? '' : 's'} en mi carta` : 'No queda nada que crear';
+  btn.disabled = !t.platos;
+
+  // Las etiquetas de "nueva / ya existe" se recalculan porque el nombre de la
+  // categoría es editable: si alguien escribe POSTRES sobre una categoría que
+  // ya tiene, deja de ser nueva ahí mismo.
+  for (const bloque of document.querySelectorAll('#impCategorias .imp-cat')) {
+    const nombre = bloque.querySelector('.imp-cat-nombre').value.trim() || IMP_SIN_CATEGORIA;
+    const existe = (state.categorias || []).some(c => c && c.nombre && impNormalizar(c.nombre) === impNormalizar(nombre));
+    const etiqueta = bloque.querySelector('.imp-cat-estado');
+    etiqueta.textContent = existe ? 'se añadirá a la que ya tienes' : 'categoría nueva';
+    etiqueta.style.color = existe ? 'var(--text-dim)' : 'var(--accent)';
+  }
+}
+
+function impQuitarPlato(btn) {
+  btn.closest('.imp-plato').remove();
+  impActualizarResumen();
+}
+
+function impQuitarCategoria(btn) {
+  btn.closest('.imp-cat').remove();
+  impActualizarResumen();
+}
+
+function impEscapar(t) {
+  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function impPintarBorrador(fila) {
+  impActual = fila;
+  const cont = document.getElementById('impCategorias');
+  cont.innerHTML = '';
+
+  const cats = (fila && fila.borrador && fila.borrador.categorias) || [];
+  for (const cat of cats) {
+    const bloque = document.createElement('div');
+    bloque.className = 'imp-cat';
+    const platos = (cat.platos || []).map(p => `
+      <div class="imp-plato">
+        <input class="imp-p-nombre" value="${impEscapar(p.nombre)}" oninput="impActualizarResumen()" placeholder="Nombre del plato">
+        <input class="imp-p-desc" value="${impEscapar(p.descripcion)}" placeholder="Descripción (opcional)">
+        <input class="imp-p-precio" value="${impEscapar(p.precio)}" placeholder="Precio">
+        <button type="button" class="imp-quitar" onclick="impQuitarPlato(this)" title="Quitar este plato">✕</button>
+      </div>`).join('');
+
+    bloque.innerHTML = `
+      <div class="imp-cat-head">
+        <input class="imp-cat-nombre" value="${impEscapar(cat.nombre)}" oninput="impActualizarResumen()" placeholder="Categoría">
+        <span class="imp-cat-estado"></span>
+        <button type="button" class="imp-quitar" onclick="impQuitarCategoria(this)" title="Quitar la categoría entera">✕</button>
+      </div>
+      <div class="imp-platos">${platos}</div>`;
+    cont.appendChild(bloque);
+  }
+
+  // De dónde salió y qué costó. Sirve para contestar con números si la vía de
+  // texto puede bajar a un modelo más barato — ver docs/importar-carta.md §9.
+  const partes = [];
+  if (fila.via) partes.push(fila.via === 'texto' ? 'leído del texto del PDF' : 'leído de la imagen');
+  if (state.rol === 'admin' && fila.tokens_entrada)
+    partes.push(`${fila.tokens_entrada}+${fila.tokens_salida} tokens`);
+  document.getElementById('impOrigen').textContent = partes.join(' · ');
+
+  document.getElementById('impRevision').style.display = cats.length ? 'block' : 'none';
+  impActualizarResumen();
+}
+
+async function impSubir(input) {
+  const archivo = input.files && input.files[0];
+  if (!archivo) return;
+  input.value = '';   // para poder volver a subir el mismo archivo
+
+  const estado = document.getElementById('impEstado');
+  // Leer una carta larga tarda decenas de segundos. Sin decirlo, la pantalla
+  // parece colgada y la gente vuelve a pulsar — y cada intento se paga.
+  estado.textContent = 'Leyendo la carta… esto puede tardar medio minuto.';
+  document.getElementById('impRevision').style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('file', archivo);
+  try {
+    const fila = await apiFetch('POST', `/api/importaciones?restaurante_id=${state.restaurante.id}`, fd, true);
+    estado.textContent = '';
+    impPintarBorrador(fila);
+    if (!(fila.borrador && fila.borrador.categorias || []).length)
+      showToast('No se encontró ningún plato en ese archivo', 'error');
+  } catch (e) {
+    estado.textContent = e.message;
+    showToast(e.message, 'error');
+  }
+}
+
+async function impAplicar() {
+  if (!impActual) return;
+  const btn = document.getElementById('impAplicarBtn');
+  const borrador = impBorradorDelFormulario();
+  if (!impTotales(borrador, state.categorias).platos) return;
+
+  // Se bloquea mientras tanto: un segundo clic con la red lenta llega igual, y
+  // aunque el servidor lo rechaza por estado, aquí se ve mejor.
+  btn.disabled = true;
+  btn.textContent = 'Creando…';
+  try {
+    // Primero se guarda lo corregido y después se aplica, en dos pasos: así lo
+    // que se crea es exactamente lo que quedó guardado y revisable, y no algo
+    // que solo existió en el navegador.
+    await apiFetch('PUT', `/api/importaciones/${impActual.id}`, { borrador });
+    const r = await apiFetch('POST', `/api/importaciones/${impActual.id}/aplicar`, {});
+    showToast(`Listo: ${r.platos_creados} platos en ${r.categorias_creadas + r.categorias_reutilizadas} categorías`, 'success');
+    impActual = null;
+    document.getElementById('impRevision').style.display = 'none';
+    document.getElementById('impEstado').textContent = '';
+    await loadData();
+  } catch (e) {
+    showToast(e.message, 'error');
+    btn.disabled = false;
+    impActualizarResumen();
+  }
+}
+
+async function impDescartar() {
+  if (!impActual) return;
+  try { await apiFetch('DELETE', `/api/importaciones/${impActual.id}`); } catch (e) { /* da igual: se quita de la vista */ }
+  impActual = null;
+  document.getElementById('impRevision').style.display = 'none';
+  document.getElementById('impEstado').textContent = '';
+}
+
+// Al abrir la pestaña se recupera la última importación que quedó sin aplicar.
+// Sin esto, cerrar el navegador a mitad de una revisión de 170 platos obliga a
+// subir el archivo otra vez — y ese intento se paga.
+async function renderImportar() {
+  if (impActual) return;
+  try {
+    const filas = await apiFetch('GET', `/api/importaciones?restaurante_id=${state.restaurante.id}`);
+    const pendiente = (filas || []).find(f => f.estado === 'listo');
+    if (pendiente) impPintarBorrador(pendiente);
+  } catch (e) { /* la pestaña sirve igual para subir una nueva */ }
+}
+
 
 // ── DIRECCIÓN PÚBLICA DEL MENÚ ─────────────────────────────────
 // Cambia estas dos si tu dominio público cambia alguna vez.

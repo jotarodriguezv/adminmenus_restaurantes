@@ -14,10 +14,13 @@ archivo de un restaurante nuestro) o **estimada**.
 | Hablar con el modelo | `lectorcarta.js` | **hecho** |
 | Decidir qué se crearía | `importacion.js` | **hecho** |
 | Las rutas HTTP | `server.js` | **hecho** |
-| La pantalla de revisión | `public/index.html` | pendiente |
+| La pantalla de revisión | `public/index.html` | **hecha** |
 
-La API ya funciona de punta a punta. Lo que falta es la pantalla: hasta que
-exista, en el panel no se ve nada.
+**Completo.** Lo único que falta para usarlo es `ANTHROPIC_API_KEY` en Dokploy.
+
+La pestaña **«Importar carta» solo la ve el superadmin**, que es la respuesta
+provisional a la pregunta 2 de §10. La ruta ya deja importar al restaurante, así
+que abrirlo es quitar una condición en `loadData()`.
 
 Falta también `ANTHROPIC_API_KEY` en las variables de entorno de Dokploy. El
 servidor **arranca sin ella** —solo la pide al importar—, así que ponerla no
@@ -289,9 +292,23 @@ detectar eso *después*, con la carta ya publicada, es mucho más caro que
 mirarlo antes.
 
 La pantalla enseña el árbol propuesto —categorías con sus platos, nombre,
-descripción y precio— con todo editable en el sitio y una casilla por fila para
-descartar lo que sobre. El botón de aplicar dice cuántas categorías y cuántos
-platos va a crear, con el número delante.
+descripción y precio— con todo editable en el sitio y una ✕ por fila para
+descartar lo que sobre. El botón de aplicar dice cuántos platos va a crear, con
+el número delante.
+
+**Cada categoría dice si es nueva o si se añadirá a una que ya existe**, y esa
+etiqueta se recalcula al escribir: renombrar una categoría a `POSTRES` la
+convierte en «se añadirá a la que ya tienes» ahí mismo. Es lo que evita el
+duplicado que nadie ve hasta que la carta ya está publicada.
+
+Al construirlo (07/09/2026) salió una consecuencia: esa cuenta la hace el panel
+para pintar el botón, y el servidor la repite al aplicar. **Son dos copias de la
+misma regla** —el panel no puede importar `importacion.js`— así que si se
+separan, el botón miente. Lo que lo impide es una prueba que pasa los mismos
+borradores por las dos y compara los tres números. Esa prueba encontró de paso
+un fallo real: `planDeAplicacion` dejaba pasar un plato cuyo nombre eran solo
+espacios, y como escribe en `productos` sin pasar por la validación de la ruta,
+habría creado un producto sin nombre.
 
 Dos comportamientos que hay que decidir a conciencia:
 

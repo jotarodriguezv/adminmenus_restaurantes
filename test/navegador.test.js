@@ -3274,10 +3274,18 @@ describe('la pista "o arrástralo aquí" · sin prometer nada al teléfono', () 
 	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 	const pistas = [...src.matchAll(/class="pista-arrastre"[^>]*>([^<]*)</g)].map(m => m[1]);
 
-	test('las ocho zonas donde se puede soltar la anuncian', () => {
+	test('todas las zonas donde se puede soltar lo anuncian', () => {
 		// Media pantalla con pista y media sin ella enseña que la función no
 		// existe: se prueba donde no lo dice, no pasa nada, y no se reintenta.
-		assert.equal(pistas.length, 8);
+		//
+		// Se cuentan las zonas en vez de fijar un número: un número hay que
+		// subirlo cada vez que se añade una, y quien lo sube pensando "ya, es
+		// que hay una más" no comprueba si esa nueva trae su pista. La regla
+		// que importa es que haya tantas pistas como sitios donde soltar.
+		const zonas = (src.match(/class="upload-zone"/g) || []).length
+		            + (src.match(/data-zona="/g) || []).length;
+		assert.equal(pistas.length, zonas,
+			'hay una zona donde se puede soltar que no lo dice');
 	});
 
 	test('dentro de la pista solo va lo que sobra sin ratón', () => {
@@ -3470,5 +3478,137 @@ describe('compressImage · formato de salida y fallos que antes colgaban', () =>
 	test('y los de siempre siguen con la suya', async () => {
 		assert.match(await subir({ type: 'image/png' }),  /\.png$/);
 		assert.match(await subir({ type: 'image/jpeg' }), /\.jpg$/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('importar la carta · lo que se le enseña antes de crear nada', () => {
+	// El panel no puede importar importacion.js, así que la regla de "¿esta
+	// categoría ya existe?" está escrita DOS veces. Si se separan, el número
+	// del botón miente: el panel dice "3 categorías nuevas" y el servidor crea
+	// 2. Estas pruebas son lo único que lo impide.
+	const importacion = require('../importacion.js');
+
+	const panel = () => cargar('index.html',
+		[['// ── IMPORTAR LA CARTA ─', '// ── DIRECCIÓN PÚBLICA DEL MENÚ ─']], {});
+
+	const NOMBRES = [
+		'POSTRES', 'postres', '  Póstres  ', 'Café', 'CAFE', 'Bebidas   calientes',
+		'BEBIDAS CALIENTES', 'Ñoquis', 'nOqUiS', 'Patacón', '', '   ', 'Salchipapas',
+	];
+
+	test('las dos copias normalizan igual', () => {
+		const { impNormalizar } = panel();
+		for (const n of NOMBRES)
+			assert.equal(impNormalizar(n), importacion.normalizar(n), `discrepan en "${n}"`);
+	});
+
+	// Los mismos borradores por los dos caminos: el que pinta el botón y el que
+	// de verdad crea las filas.
+	const CASOS = [
+		{
+			nombre: 'una categoría que ya existe y otra que no',
+			existentes: [{ id: 'c1', nombre: 'POSTRES', orden: 2 }],
+			borrador: {
+				categorias: [
+					{ nombre: 'Postres', platos: [{ nombre: 'FLAN', precio_numerico: 5000 }] },
+					{ nombre: 'CALDOS', platos: [{ nombre: 'CALDO', precio_numerico: 8000 }] },
+				],
+			},
+		},
+		{
+			nombre: 'un título repetido en dos páginas',
+			existentes: [],
+			borrador: {
+				categorias: [
+					{ nombre: 'PATACONES', platos: [{ nombre: 'A' }] },
+					{ nombre: 'Patacones', platos: [{ nombre: 'B' }] },
+				],
+			},
+		},
+		{
+			nombre: 'una categoría sin platos no cuenta',
+			existentes: [],
+			borrador: {
+				categorias: [
+					{ nombre: 'VACIA', platos: [] },
+					{ nombre: 'CARNES', platos: [{ nombre: 'LOMO' }] },
+				],
+			},
+		},
+		{
+			nombre: 'platos sueltos, sin categoría',
+			existentes: [{ id: 'c9', nombre: 'Otros', orden: 1 }],
+			borrador: { categorias: [{ nombre: '', platos: [{ nombre: 'SOPA' }] }] },
+		},
+		{
+			nombre: 'platos sin nombre que no se crean',
+			existentes: [],
+			borrador: { categorias: [{ nombre: 'X', platos: [{ nombre: '  ' }, { nombre: 'SOPA' }] }] },
+		},
+		{
+			nombre: 'tildes de por medio',
+			existentes: [{ id: 'c2', nombre: 'Café', orden: 1 }],
+			borrador: { categorias: [{ nombre: 'CAFE', platos: [{ nombre: 'TINTO' }] }] },
+		},
+	];
+
+	for (const caso of CASOS) {
+		test(`las cuentas cuadran con el servidor · ${caso.nombre}`, () => {
+			const t = panel().impTotales(caso.borrador, caso.existentes);
+			const real = importacion.planDeAplicacion(caso.borrador, caso.existentes).totales;
+			assert.equal(t.nuevas, real.categorias_nuevas, 'categorías nuevas');
+			assert.equal(t.existen, real.categorias_reutilizadas, 'categorías reutilizadas');
+			assert.equal(t.platos, real.platos, 'platos');
+		});
+	}
+
+	test('sin nada que crear, las cuentas son cero', () => {
+		const { impTotales } = panel();
+		for (const b of [null, undefined, {}, { categorias: [] }, { categorias: [{ nombre: 'X', platos: [] }] }])
+			assert.deepEqual(JSON.stringify(impTotales(b, [])), JSON.stringify({ nuevas: 0, existen: 0, platos: 0 }));
+	});
+});
+
+describe('importar la carta · lo que se manda es lo que se ve', () => {
+	// impBorradorDelFormulario lee la pantalla, no una copia en memoria. Es lo
+	// que hace que quitar un plato de la vista lo quite de verdad, y que una
+	// corrección a mano llegue tal cual.
+	function pantalla(bloques) {
+		const campo = v => ({ value: v });
+		const platoFalso = ([nom, desc, pre]) => ({
+			querySelector: sel => ({ '.imp-p-nombre': campo(nom), '.imp-p-desc': campo(desc), '.imp-p-precio': campo(pre) }[sel]),
+		});
+		return {
+			querySelectorAll: () => bloques.map(([nombre, platos]) => ({
+				querySelector: sel => (sel === '.imp-cat-nombre' ? campo(nombre) : null),
+				querySelectorAll: () => platos.map(platoFalso),
+			})),
+		};
+	}
+
+	const leer = bloques => cargar('index.html',
+		[['// ── IMPORTAR LA CARTA ─', '// ── DIRECCIÓN PÚBLICA DEL MENÚ ─']],
+		{ document: pantalla(bloques) }).impBorradorDelFormulario();
+
+	test('recoge lo que hay en los campos', () => {
+		const b = leer([['CALDOS', [['CALDO DE COSTILLA', 'CON AREPA', '$ 10.000']]]]);
+		assert.equal(b.categorias[0].nombre, 'CALDOS');
+		assert.equal(b.categorias[0].platos[0].nombre, 'CALDO DE COSTILLA');
+		assert.equal(b.categorias[0].platos[0].descripcion, 'CON AREPA');
+		assert.equal(b.categorias[0].platos[0].precio, '$ 10.000');
+	});
+
+	test('el precio va como TEXTO, igual que lo devuelve el modelo', () => {
+		// Así el servidor lo normaliza con la misma regla en los dos casos, en
+		// vez de tener una para lo que llega del modelo y otra para lo
+		// corregido a mano.
+		assert.equal(typeof leer([['X', [['SOPA', '', '12.000']]]]).categorias[0].platos[0].precio, 'string');
+	});
+
+	test('lo que se quitó de la pantalla no se manda', () => {
+		const b = leer([['X', [['SOPA', '', '1000']]], ['Y', []]]);
+		assert.equal(b.categorias.length, 2);
+		assert.equal(b.categorias[1].platos.length, 0, 'la categoría vacía llega vacía y el servidor la descarta');
 	});
 });

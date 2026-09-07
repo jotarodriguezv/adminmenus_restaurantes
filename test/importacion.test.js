@@ -145,6 +145,25 @@ describe('lo que no vale se queda fuera', () => {
 		assert.deepEqual(plan.categorias[0].platos.map((p) => p.nombre), ['SOPA']);
 	});
 
+	test('ni uno cuyo nombre son solo espacios', () => {
+		// Se colaba: '   ' es truthy, así que pasaba el filtro y se creaba un
+		// producto sin nombre. Esto escribe en 'productos' directamente, sin
+		// pasar por la comprobación de la ruta, así que era la única red.
+		// Lo cazó la prueba que compara estas cuentas con las del panel.
+		const plan = importacion.planDeAplicacion({
+			categorias: [{ nombre: 'X', platos: [{ nombre: '   ' }, plato('SOPA', 200)] }],
+		});
+		assert.deepEqual(plan.categorias[0].platos.map((p) => p.nombre), ['SOPA']);
+		assert.equal(plan.totales.platos, 1);
+	});
+
+	test('una categoría cuyos platos son todos sin nombre no se crea', () => {
+		const plan = importacion.planDeAplicacion({
+			categorias: [{ nombre: 'FANTASMA', platos: [{ nombre: '  ' }, { nombre: '' }] }],
+		});
+		assert.deepEqual(plan.categorias, []);
+	});
+
 	test('una categoría sin platos no se crea', () => {
 		// Crear una categoría vacía deja un título suelto en la carta.
 		const plan = importacion.planDeAplicacion({ categorias: [{ nombre: 'VACIA', platos: [] }] });
