@@ -59,6 +59,12 @@ corregir el documento en la misma tarea.
   de aspecto correcto que no dice lo que dice la carta. No tocarlo sin leer su
   cabecera y sin pasarlo por un PDF de verdad, que es lo que cazó los dos
   fallos que las pruebas construidas a mano no vieron.
+- `lectorcarta.js` — convierte esa carta en categorías y platos hablando con la
+  API de Anthropic. Es a la importación lo que `ia.js` a los videos: lo único
+  que depende de un tercero. `ANTHROPIC_API_KEY` vive en Dokploy.
+- `precios.js` — la regla de precios, compartida por la API y el importador.
+  **Un precio se guarda dos veces** (`precio` y `precio_numerico`) y separarlos
+  hace que la carta muestre uno y el carrito cobre otro. Ya pasó.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.
 - `public/` — el panel (HTML + JS servidos tal cual).
 - `sql/` — migraciones numeradas.

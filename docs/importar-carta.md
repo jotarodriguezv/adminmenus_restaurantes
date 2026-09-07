@@ -1,6 +1,19 @@
 # Importar la carta desde un PDF o una imagen
 
-Documento de diseño. Estado: **nada construido**, 06/09/2026.
+Documento de diseño. Escrito el 06/09/2026.
+
+**Estado, 07/09/2026** — construido de dentro hacia fuera:
+
+| pieza | dónde | estado |
+|---|---|---|
+| Sacar el texto de un PDF | `lectorpdf.js` | **hecho** |
+| La tabla del borrador | `sql/21` | **escrita**, pendiente de aplicar |
+| Hablar con el modelo | `lectorcarta.js` | **hecho** |
+| Las rutas HTTP | `server.js` | pendiente |
+| La pantalla de revisión | `public/index.html` | pendiente |
+
+Nada de esto está enchufado todavía: no hay ninguna ruta que lo llame, así que
+en el panel aún no se ve nada.
 
 Las cifras van marcadas como **medida** (sale de una ejecución real sobre un
 archivo de un restaurante nuestro) o **estimada**.
@@ -214,12 +227,13 @@ El borrador se aplica a las tablas de verdad rellenando:
 
 Las dos columnas de precio, no una. `precio` es el texto que ve el comensal y
 `precio_numerico` es con lo que se ordena el menú y se suma el carrito. El
-importador tiene que dejar las dos coherentes, y eso ya lo hace
-`formatoPrecio()`: se le pasa el número y devuelve el texto.
+importador tiene que dejar las dos coherentes.
 
-Convertir `"$ 12.000"` a `12000` es quitar todo lo que no sea dígito, que es
-exactamente lo que la ruta de actualización de producto ya hace hoy. **No se
-escribe una segunda regla de precios.**
+**No se escribe una segunda regla de precios.** Al construirlo (07/09/2026) la
+que había estaba dentro de `server.js` y no se podía compartir, así que se sacó
+a **`precios.js`** y ahora la usan los dos. Dejar que el importador trajera su
+propia copia es exactamente cómo vuelve el fallo que documenta ese módulo: la
+carta mostrando $4.500 y el carrito cobrando 45.000.
 
 `imagen_url` se deja en `null` siempre. Ver §4.
 
