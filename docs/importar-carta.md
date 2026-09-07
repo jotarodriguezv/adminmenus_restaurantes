@@ -55,6 +55,21 @@ fuentes y **6 tablas**.
 Quede escrito, porque quien lo implemente con la primera librería que encuentre
 y no compruebe el resultado **se lleva mojibake a producción sin enterarse**.
 
+**Y hay una segunda trampa, que salió al construir `lectorpdf.js` (07/09/2026).**
+Las fuentes de esta carta son **compuestas**: gastan **dos bytes por carácter**.
+Leerlas de uno en uno mete un NUL entre cada letra y devuelve
+`C\0A\0L\0D\0O`. En un terminal se ve como `C A L D O`, y al pegarlo en
+cualquier sitio los NUL desaparecen y parece correcto — o sea que es de los
+fallos que llegan lejos antes de que alguien los vea.
+
+El ancho se saca del `codespacerange` de la propia tabla, o de cuántos dígitos
+ocupan sus códigos de origen. Y va **por fuente, no por página**: una carta
+mezcla una compuesta para el título con una normal para el precio.
+
+Lo que hay que aprender de esto, más que el detalle: **las pruebas construidas a
+mano no lo cazaron**, porque todas usaban fuentes de un byte. Lo cazó pasar el
+módulo por el archivo de verdad. Las dos cosas hacen falta.
+
 **Lo que queda sucio:** cortes de palabra por el espaciado del diseño —
 `PLÁT ANO`, `T OST ADAS`, `CA LD OS`. Vienen de que el PDF coloca cada glifo por
 separado. Se limpian en parte con una regla de espacios (uno solo se quita, dos

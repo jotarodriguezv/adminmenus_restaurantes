@@ -54,6 +54,11 @@ corregir el documento en la misma tarea.
   **Límite por presupuesto.**
 - `cupo.js` — cupo de generaciones. Reserva antes de llamar a Replicate, porque
   aquí el peor caso de un fallo no es lentitud, es una factura.
+- `lectorpdf.js` — saca el texto de un PDF y decide si el archivo trae capa de
+  texto o es un escaneo. **Aquí los fallos son silenciosos**: devuelven texto
+  de aspecto correcto que no dice lo que dice la carta. No tocarlo sin leer su
+  cabecera y sin pasarlo por un PDF de verdad, que es lo que cazó los dos
+  fallos que las pruebas construidas a mano no vieron.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.
 - `public/` — el panel (HTML + JS servidos tal cual).
 - `sql/` — migraciones numeradas.
