@@ -12,6 +12,8 @@ const video    = require('./video');
 const limpieza = require('./limpieza');
 const cupo     = require('./cupo');
 const colaia   = require('./colaia');
+const precios  = require('./precios');
+const { formatoPrecio } = precios;
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -1301,21 +1303,12 @@ app.delete('/api/categorias/:id', auth, async (req, res) => {
 });
 
 // ── PRECIO: UN SOLO DATO ESCRITO DOS VECES ────────────────────
-// 'precio' es lo que lee el cliente y 'precio_numerico' con lo que se ordena
-// el menú y se suma el carrito. Cuando se separan, la carta muestra un precio
-// y el carrito cobra otro: pasó con dos productos, uno con un cero de más
-// ($4.500 mostrados contra 45000 internos).
+// La regla vive en precios.js para que el importador de cartas la comparta en
+// vez de traer la suya. El porqué está allí.
 //
 // El panel ya deriva uno del otro, pero la API los aceptaba sueltos, así que
-// la garantía va aquí: vale para el panel, para un script de importación y
-// para cualquier llamada futura.
-//
-// El separador se arma a mano y no con toLocaleString: en Node depende de los
-// datos ICU que traiga la imagen, y si faltan devuelve "4,500" en vez de
-// "4.500", cambiando el formato de toda la carta sin avisar.
-function formatoPrecio(n) {
-  return '$ ' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
+// la garantía va aquí: vale para el panel, para el importador y para cualquier
+// llamada futura.
 
 // Normaliza los dos campos de 'body' para que no puedan contradecirse. Manda
 // el número si viene; si solo llega el texto, se saca el número de ahí.
@@ -1328,10 +1321,10 @@ function normalizarPrecio(body) {
     return null;
   }
   if (body.precio !== undefined && body.precio !== null) {
-    const digitos = String(body.precio).replace(/[^0-9]/g, '');
-    if (!digitos) return 'Precio inválido';
-    body.precio_numerico = Number(digitos);
-    body.precio = formatoPrecio(body.precio_numerico);
+    const n = precios.numeroDeTexto(body.precio);
+    if (n === null) return 'Precio inválido';
+    body.precio_numerico = n;
+    body.precio = formatoPrecio(n);
   }
   return null;
 }

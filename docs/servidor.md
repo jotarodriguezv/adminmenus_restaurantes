@@ -114,7 +114,15 @@ Ninguno está en el repositorio, y así debe seguir.
 | `B2_ACCOUNT_ID` / `B2_ACCOUNT_KEY` | `/root/.respaldo.env` | se generan otras en Backblaze |
 | `RESPALDO_PING` | `/root/.respaldo.env` | se regenera en healthchecks.io |
 | `PIN_ADMIN` | variables de entorno de Dokploy | se cambia en el panel de Dokploy |
+| `REPLICATE_API_TOKEN` | variables de entorno de Dokploy | se genera otro en Replicate |
+| `ANTHROPIC_API_KEY` | variables de entorno de Dokploy | se genera otra en la consola de Anthropic |
 | PIN de cada restaurante | tabla `restaurantes_privado`, como hash bcrypt | se reasigna desde el panel |
+
+Las dos claves de API van en las variables de entorno de la aplicación en
+Dokploy y **no** en un archivo del repositorio. `ANTHROPIC_API_KEY` la usa
+`lectorcarta.js` para transcribir cartas; le aplica lo mismo que a
+`SUPABASE_SERVICE_KEY`: solo la usa el servidor y jamás puede acabar en nada
+que se sirva al navegador.
 
 ### Sobre la clave del respaldo
 
