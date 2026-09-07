@@ -320,3 +320,51 @@ describe('corregir y descartar', () => {
 		assert.equal(r.status, 403);
 	});
 });
+
+describe('elegir el modelo desde el panel', () => {
+	test('la lista sale del servidor, que es donde está la lista blanca', async () => {
+		const r = await pedir('GET', '/api/importaciones/modelos', null, tokenAdmin);
+		assert.equal(r.status, 200);
+		assert.ok(r.body.modelos.length >= 2);
+		assert.ok(r.body.por_defecto.texto, 'dice cuál se usa si no eliges');
+		assert.ok(r.body.por_defecto.vision, 'y cuál para las imágenes');
+	});
+
+	test("'/modelos' no se confunde con el id de una importación", async () => {
+		// Express prueba las rutas en orden: si '/:id' se registrara antes, esta
+		// petición buscaría una importación llamada 'modelos' y daría 403.
+		const r = await pedir('GET', '/api/importaciones/modelos', null, tokenAdmin);
+		assert.notEqual(r.status, 403);
+		assert.ok(Array.isArray(r.body.modelos));
+	});
+
+	test('sin token no se lista', async () => {
+		assert.equal((await pedir('GET', '/api/importaciones/modelos', null, null)).status, 401);
+	});
+
+	test('el admin puede elegirlo al subir', async () => {
+		conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' });
+		const r = await pedirArchivo(`/api/importaciones?restaurante_id=${IDS.restaurante}`,
+			{ modelo: 'claude-opus-5' }, tokenAdmin, 'carta.pdf', CARTA_PDF);
+		// Falla igual por falta de clave, pero el modelo llegó a validarse: si
+		// no estuviera permitido, el mensaje sería otro.
+		assert.doesNotMatch(String(r.body && r.body.error), /no está permitido/);
+	});
+
+	test('un modelo que no está en la lista se rechaza', async () => {
+		conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' });
+		const r = await pedirArchivo(`/api/importaciones?restaurante_id=${IDS.restaurante}`,
+			{ modelo: 'claude-carisimo-9' }, tokenAdmin, 'carta.pdf', CARTA_PDF);
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /no está permitido/);
+	});
+
+	test('al restaurante no se le hace caso: elegir modelo cambia lo que se paga', async () => {
+		// No da error, simplemente se ignora. Un 400 obligaría al panel a saber
+		// quién puede y quién no, y esa regla vive en un solo sitio.
+		conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' });
+		const r = await pedirArchivo(`/api/importaciones?restaurante_id=${IDS.restaurante}`,
+			{ modelo: 'claude-carisimo-9' }, tokenCliente, 'carta.pdf', CARTA_PDF);
+		assert.doesNotMatch(String(r.body && r.body.error), /no está permitido/);
+	});
+});

@@ -22,11 +22,39 @@ const precios = require('./precios');
 
 const ANTHROPIC = 'https://api.anthropic.com/v1/messages';
 
-// Configurable por entorno para poder cambiar de modelo sin desplegar, igual
-// que IA_MODELO en ia.js. El valor por defecto es el decidido en
-// docs/importar-carta.md §9: se arranca con Sonnet en las dos vías y se mide
-// antes de bajar la de texto a un modelo más barato.
-const MODELO = process.env.LECTOR_MODELO || 'claude-sonnet-5';
+// ── QUÉ MODELO LEE LA CARTA ───────────────────────────────────
+// Dos variables y no una, porque las dos vías no piden lo mismo:
+//
+//   · por TEXTO el modelo solo ORDENA en filas un texto que ya es exacto. No
+//     puede equivocarse en un precio porque lo está copiando.
+//   · por IMAGEN el modelo LEE el precio de una foto, y ahí un dígito mal es
+//     un problema real del restaurante.
+//
+// Por eso la de imagen puede querer subir de modelo sin arrastrar a la otra.
+// Si no se pone, usa el mismo que la de texto y nada cambia.
+const MODELO        = process.env.LECTOR_MODELO || 'claude-sonnet-5';
+const MODELO_VISION = process.env.LECTOR_MODELO_VISION || MODELO;
+
+// Los que se pueden elegir desde el panel. La lista está cerrada A PROPÓSITO:
+// el modelo llega en la petición, y sin lista blanca cualquiera podría mandar
+// el nombre que quisiera —incluido uno que no existe, o el más caro— y la
+// factura la pagamos nosotros.
+//
+// El precio va aquí para que quien elige lo vea al elegir. Son dólares por
+// millón de tokens, consultados el 07/09/2026; si cambian, esto queda viejo y
+// solo lo arregla mirarlo.
+const MODELOS = [
+  { id: 'claude-haiku-4-5-20251001', nombre: 'Haiku 4.5', precio: '$1 / $5',   nota: 'el más barato; suficiente para ordenar texto ya exacto' },
+  { id: 'claude-sonnet-5',           nombre: 'Sonnet 5',  precio: '$2 / $10',  nota: 'el equilibrio; el que se usa por defecto' },
+  { id: 'claude-opus-5',             nombre: 'Opus 5',    precio: '$5 / $25',  nota: 'el que mejor lee una foto mala' },
+];
+
+// Con nueve restaurantes, leer la carta de todos cuesta menos de un dólar. Lo
+// que de verdad se paga cuando el modelo se equivoca no es la factura: es la
+// persona buscando el precio malo entre ciento setenta filas.
+function modeloValido(id) {
+  return MODELOS.some((m) => m.id === id);
+}
 
 // Una carta de 170 platos sale en unos 8.000 tokens. El doble deja sitio a una
 // carta grande sin dejar que una respuesta desbocada se cobre sola.
@@ -124,9 +152,9 @@ const HERRAMIENTA = {
 // Funciones puras y exportadas a propósito, igual que entradaDe() en ia.js: se
 // pueden comprobar sin llamar a nadie ni gastar un céntimo.
 
-function base(contenido) {
+function base(contenido, modelo) {
   return {
-    model: MODELO,
+    model: modelo,
     max_tokens: MAX_SALIDA,
     system: INSTRUCCIONES,
     tools: [HERRAMIENTA],
@@ -137,16 +165,16 @@ function base(contenido) {
   };
 }
 
-function cuerpoDeTexto(paginas) {
+function cuerpoDeTexto(paginas, modelo) {
   const trozos = (Array.isArray(paginas) ? paginas : [paginas]).slice(0, MAX_PAGINAS);
   const texto = trozos
     .map((p, i) => `--- PÁGINA ${i + 1} ---\n${String(p || '')}`)
     .join('\n\n');
-  return base([{ type: 'text', text: `Esta es la carta:\n\n${texto}` }]);
+  return base([{ type: 'text', text: `Esta es la carta:\n\n${texto}` }], modelo || MODELO);
 }
 
 // Cada imagen es { tipo: 'image/jpeg', datos: '<base64>' }.
-function cuerpoDeImagenes(imagenes) {
+function cuerpoDeImagenes(imagenes, modelo) {
   const lista = (Array.isArray(imagenes) ? imagenes : [imagenes]).slice(0, MAX_PAGINAS);
   const contenido = [];
   lista.forEach((img, i) => {
@@ -157,7 +185,7 @@ function cuerpoDeImagenes(imagenes) {
     });
   });
   contenido.push({ type: 'text', text: 'Transcribe la carta de estas páginas.' });
-  return base(contenido);
+  return base(contenido, modelo || MODELO_VISION);
 }
 
 // ── LO QUE VUELVE ─────────────────────────────────────────────
@@ -259,7 +287,16 @@ async function pedir(cuerpo) {
 // llegó la carta.
 async function extraer(entrada) {
   const porImagen = Array.isArray(entrada && entrada.imagenes) && entrada.imagenes.length > 0;
-  const cuerpo = porImagen ? cuerpoDeImagenes(entrada.imagenes) : cuerpoDeTexto(entrada.paginas || []);
+
+  // El modelo puede venir en la petición, para poder comparar dos sobre la
+  // misma carta sin volver a desplegar. Si viene y no está en la lista, se para
+  // aquí: lo que llega de fuera no elige a quién se le paga.
+  const pedido = entrada && entrada.modelo;
+  if (pedido && !modeloValido(pedido))
+    throw Object.assign(new Error('Ese modelo no está permitido'), { definitivo: true, publico: true });
+
+  const modelo = pedido || (porImagen ? MODELO_VISION : MODELO);
+  const cuerpo = porImagen ? cuerpoDeImagenes(entrada.imagenes, modelo) : cuerpoDeTexto(entrada.paginas || [], modelo);
 
   const respuesta = await pedir(cuerpo);
 
@@ -267,7 +304,7 @@ async function extraer(entrada) {
   // faltarán las últimas categorías y NADA lo dirá. Una carta a la que le falta
   // el final es justo el fallo silencioso que no puede pasar de aquí.
   if (respuesta && respuesta.stop_reason === 'max_tokens')
-    throw Object.assign(new Error('La carta es demasiado larga para leerla de una vez'), { definitivo: true });
+    throw Object.assign(new Error('La carta es demasiado larga para leerla de una vez'), { definitivo: true, publico: true });
 
   const bruto = respuestaDeHerramienta(respuesta);
   if (!bruto) throw new Error('El modelo no devolvió la carta');
@@ -284,6 +321,10 @@ async function extraer(entrada) {
 
 module.exports = {
   extraer,
+  MODELOS,
+  MODELO,
+  MODELO_VISION,
+  modeloValido,
   cuerpoDeTexto,
   cuerpoDeImagenes,
   borradorDeRespuesta,

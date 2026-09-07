@@ -248,6 +248,24 @@
 			.imp-quitar{background:transparent;border:none;color:var(--text-dim);cursor:pointer;
 			  font-size:14px;line-height:1;padding:4px 6px;border-radius:4px;flex:0 0 auto;}
 			.imp-quitar:hover{color:var(--danger);background:var(--danger-dim);}
+			/* Un plato que el restaurante YA TIENE. No se quita solo: se marca y
+			   se ofrece quitarlo, porque desaparecer sin que se vea es peor que
+			   duplicarse a la vista. */
+			.imp-plato.repetido{border-left:2px solid var(--warn);padding-left:6px;}
+			.imp-repe{font-size:9px;font-family:var(--mono);color:var(--warn);
+			  letter-spacing:1px;white-space:nowrap;flex:0 0 auto;}
+			.imp-banda{border:1px solid var(--warn);background:var(--warn-dim);
+			  border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;
+			  font-size:12px;color:var(--text-muted);line-height:1.5;}
+			.imp-banda button{margin-left:8px;padding:5px 10px;border-radius:6px;
+			  border:1px solid var(--warn);background:transparent;color:var(--warn);
+			  font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;}
+			.imp-modelo{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;}
+			.imp-modelo select{flex:1;min-width:200px;background:var(--panel);
+			  border:1px solid var(--border);border-radius:6px;color:var(--text);
+			  font-size:12px;padding:7px 8px;}
+			.imp-modelo label{font-size:10px;font-family:var(--mono);letter-spacing:1px;
+			  color:var(--text-muted);text-transform:uppercase;}
 			/* .btn-save trae flex:1 porque nació para el pie de un modal, donde
 			   ocupa todo el ancho. Aquí va acompañado de un texto que hay que
 			   leer, así que se queda del tamaño de lo que dice. */
@@ -1680,6 +1698,14 @@
 							</div>
 						</label>
 						<div id="impEstado" style="margin-top:10px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+
+						<!-- Cambiar el modelo por la variable de entorno obliga a volver a
+						     desplegar, que es demasiada ceremonia para comparar dos sobre la
+						     misma carta. Aquí se elige por importación. -->
+						<div class="imp-modelo">
+							<label for="impModelo">Modelo</label>
+							<select id="impModelo"><option value="">El configurado</option></select>
+						</div>
 					</div>
 
 					<!-- El borrador. Nada de esto existe en la carta todavía: son filas
@@ -1693,6 +1719,8 @@
 							Esto es lo que se leyó. Corrige lo que haga falta y quita lo que sobre;
 							nada llega a tu carta hasta que le des al botón de abajo.
 						</p>
+
+						<div class="imp-banda" id="impAvisoRepe" style="display:none"></div>
 
 						<div id="impCategorias"></div>
 
@@ -6342,6 +6370,8 @@ function impActualizarResumen() {
   btn.textContent = t.platos ? `Crear ${t.platos} plato${t.platos === 1 ? '' : 's'} en mi carta` : 'No queda nada que crear';
   btn.disabled = !t.platos;
 
+  impMarcarRepetidos();
+
   // Las etiquetas de "nueva / ya existe" se recalculan porque el nombre de la
   // categoría es editable: si alguien escribe POSTRES sobre una categoría que
   // ya tiene, deja de ser nueva ahí mismo.
@@ -6352,6 +6382,50 @@ function impActualizarResumen() {
     etiqueta.textContent = existe ? 'se añadirá a la que ya tienes' : 'categoría nueva';
     etiqueta.style.color = existe ? 'var(--text-dim)' : 'var(--accent)';
   }
+}
+
+// Los platos que el restaurante YA TIENE, por nombre. Importar AÑADE y no
+// reemplaza, así que sin esto una carta importada sobre un restaurante que ya
+// tiene menú lo duplica entero — y la pantalla no dice nada.
+//
+// Se compara con la misma regla que las categorías: sin tildes ni mayúsculas,
+// porque 'Hamburguesa clásica' y 'HAMBURGUESA CLASICA' son el mismo plato.
+function impNombresQueYaTiene() {
+  const previos = new Set();
+  for (const p of state.productos || []) if (p && p.nombre) previos.add(impNormalizar(p.nombre));
+  return previos;
+}
+
+// Marca y cuenta. NO los quita: que desaparezcan solos es peor que verlos
+// duplicados, porque nadie se entera de lo que decidió el programa.
+function impMarcarRepetidos() {
+  const previos = impNombresQueYaTiene();
+  let repetidos = 0;
+  for (const fila of document.querySelectorAll('#impCategorias .imp-plato')) {
+    const nombre = fila.querySelector('.imp-p-nombre').value;
+    const repe = !!String(nombre).trim() && previos.has(impNormalizar(nombre));
+    fila.classList.toggle('repetido', repe);
+    const chip = fila.querySelector('.imp-repe');
+    if (chip) chip.style.display = repe ? '' : 'none';
+    if (repe) repetidos++;
+  }
+
+  const banda = document.getElementById('impAvisoRepe');
+  const total = (state.productos || []).length;
+  if (!total) { banda.style.display = 'none'; return repetidos; }
+
+  banda.style.display = 'block';
+  banda.innerHTML = repetidos
+    ? `Este restaurante ya tiene <b>${total}</b> platos, y <b>${repetidos}</b> de los de aquí se llaman igual.
+       Importar <b>añade</b>, no reemplaza: si los dejas, quedarán dos veces.
+       <button type="button" onclick="impQuitarRepetidos()">Quitar los ${repetidos} repetidos</button>`
+    : `Este restaurante ya tiene <b>${total}</b> platos. Importar <b>añade</b>, no reemplaza; ninguno de los de aquí se llama igual que los que ya tienes.`;
+  return repetidos;
+}
+
+function impQuitarRepetidos() {
+  for (const fila of [...document.querySelectorAll('#impCategorias .imp-plato.repetido')]) fila.remove();
+  impActualizarResumen();
 }
 
 function impQuitarPlato(btn) {
@@ -6383,6 +6457,7 @@ function impPintarBorrador(fila) {
         <input class="imp-p-nombre" value="${impEscapar(p.nombre)}" oninput="impActualizarResumen()" placeholder="Nombre del plato">
         <input class="imp-p-desc" value="${impEscapar(p.descripcion)}" placeholder="Descripción (opcional)">
         <input class="imp-p-precio" value="${impEscapar(p.precio)}" placeholder="Precio">
+        <span class="imp-repe" style="display:none">ya lo tienes</span>
         <button type="button" class="imp-quitar" onclick="impQuitarPlato(this)" title="Quitar este plato">✕</button>
       </div>`).join('');
 
@@ -6421,6 +6496,8 @@ async function impSubir(input) {
 
   const fd = new FormData();
   fd.append('file', archivo);
+  const modelo = document.getElementById('impModelo').value;
+  if (modelo) fd.append('modelo', modelo);
   try {
     const fila = await apiFetch('POST', `/api/importaciones?restaurante_id=${state.restaurante.id}`, fd, true);
     estado.textContent = '';
@@ -6472,7 +6549,32 @@ async function impDescartar() {
 // Al abrir la pestaña se recupera la última importación que quedó sin aplicar.
 // Sin esto, cerrar el navegador a mitad de una revisión de 170 platos obliga a
 // subir el archivo otra vez — y ese intento se paga.
+// La lista de modelos la manda el servidor: es donde está la lista blanca, y
+// tenerla también aquí escrita a mano sería una segunda copia que se queda
+// vieja el día que se añada uno.
+async function impCargarModelos() {
+  const sel = document.getElementById('impModelo');
+  if (!sel || sel.dataset.listo) return;
+  try {
+    const r = await apiFetch('GET', '/api/importaciones/modelos');
+    for (const m of r.modelos || []) {
+      const o = document.createElement('option');
+      o.value = m.id;
+      o.textContent = `${m.nombre} · ${m.precio} por millón · ${m.nota}`;
+      sel.appendChild(o);
+    }
+    // La primera opción se queda seleccionada: sin elegir nada, cada vía usa el
+    // modelo que le toca, que no es el mismo para texto que para imagen.
+    const d = (r.por_defecto || {});
+    sel.options[0].textContent = d.texto === d.vision
+      ? `El configurado (${d.texto})`
+      : `El configurado (texto: ${d.texto} · imagen: ${d.vision})`;
+    sel.dataset.listo = '1';
+  } catch (e) { /* se puede importar igual con el de por defecto */ }
+}
+
 async function renderImportar() {
+  impCargarModelos();
   if (impActual) return;
   try {
     const filas = await apiFetch('GET', `/api/importaciones?restaurante_id=${state.restaurante.id}`);

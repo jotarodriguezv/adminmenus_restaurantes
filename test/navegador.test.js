@@ -3612,3 +3612,42 @@ describe('importar la carta · lo que se manda es lo que se ve', () => {
 		assert.equal(b.categorias[1].platos.length, 0, 'la categoría vacía llega vacía y el servidor la descarta');
 	});
 });
+
+describe('importar la carta · los platos que el restaurante ya tiene', () => {
+	// Importar AÑADE y no reemplaza. Sin avisar, meterle su propia carta a un
+	// restaurante que ya tiene menú se lo duplica entero — y la pantalla no
+	// diría nada. Bonzas son 97 platos: 97 duplicados que deshacer a mano.
+	const panel = extra => cargar('index.html',
+		[['// ── IMPORTAR LA CARTA ─', '// ── DIRECCIÓN PÚBLICA DEL MENÚ ─']],
+		Object.assign({ state: { productos: [] } }, extra));
+
+	const conProductos = nombres => panel({ state: { productos: nombres.map(n => ({ nombre: n })) } });
+
+	test('reconoce el mismo plato aunque esté escrito distinto', () => {
+		const ctx = conProductos(['Hamburguesa clásica', 'PATACÓN MIXTO']);
+		const previos = ctx.impNombresQueYaTiene();
+		for (const escrito of ['HAMBURGUESA CLASICA', 'hamburguesa clásica', '  Hamburguesa  Clasica '])
+			assert.equal(previos.has(ctx.impNormalizar(escrito)), true, escrito);
+	});
+
+	test('y no confunde dos platos distintos', () => {
+		const ctx = conProductos(['Hamburguesa clásica']);
+		assert.equal(ctx.impNombresQueYaTiene().has(ctx.impNormalizar('Hamburguesa doble')), false);
+	});
+
+	test('un restaurante sin platos no tiene ninguno repetido', () => {
+		assert.equal(panel().impNombresQueYaTiene().size, 0);
+	});
+
+	test('un producto sin nombre no cuenta', () => {
+		const ctx = panel({ state: { productos: [{ nombre: null }, {}, { nombre: 'SOPA' }] } });
+		assert.equal(ctx.impNombresQueYaTiene().size, 1);
+	});
+
+	test('usa la MISMA regla que las categorías', () => {
+		// Si comparara los platos de una forma y las categorías de otra, la
+		// pantalla diría dos cosas distintas sobre el mismo texto.
+		const ctx = conProductos(['Café con leche']);
+		assert.equal(ctx.impNombresQueYaTiene().has(ctx.impNormalizar('CAFE CON LECHE')), true);
+	});
+});

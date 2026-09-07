@@ -2401,11 +2401,11 @@ const TIPOS_MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image
 // la reserva liberada —la que nunca llegó a pedirse— no cuenta.
 const MAX_IMPORTACIONES = Number(process.env.LECTOR_MAX_IMPORTACIONES || 5);
 
-async function extraerDelArchivo(ruta, origen) {
+async function extraerDelArchivo(ruta, origen, modelo) {
   if (origen === 'imagen') {
     const datos = fs.readFileSync(ruta).toString('base64');
     const tipo = TIPOS_MIME[path.extname(ruta).toLowerCase()] || 'image/jpeg';
-    return lectorcarta.extraer({ imagenes: [{ tipo, datos }] });
+    return lectorcarta.extraer({ imagenes: [{ tipo, datos }], modelo });
   }
 
   const leido = lectorpdf.leerPdf(fs.readFileSync(ruta));
@@ -2420,7 +2420,7 @@ async function extraerDelArchivo(ruta, origen) {
   if (leido.escaneado)
     throw Object.assign(new Error('Este PDF no lleva texto dentro: es un escaneo o una imagen. Sube una foto de cada página y se leen igual.'), { publico: true });
 
-  return lectorcarta.extraer({ paginas: leido.paginas });
+  return lectorcarta.extraer({ paginas: leido.paginas, modelo });
 }
 
 // ── SUBIR Y EXTRAER ───────────────────────────────────────────
@@ -2459,6 +2459,20 @@ app.post('/api/importaciones', auth,
 
     const rid = req.query.restaurante_id;
 
+    // Solo el superadmin elige modelo. Para el restaurante no significa nada y
+    // sí cambia lo que se paga, así que ni se mira: se ignora en vez de dar
+    // error, para que el panel no tenga que saber quién puede y quién no.
+    const modelo = req.user.rol === 'admin' ? (req.body.modelo || null) : null;
+
+    // Se valida AQUÍ, antes de crear la fila. Dentro de la extracción también
+    // se rechaza, pero para entonces el intento ya está contado y una errata
+    // escribiendo el nombre del modelo habría costado una importación de las
+    // cinco.
+    if (modelo && !lectorcarta.modeloValido(modelo)) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+      return res.status(400).json({ error: 'Ese modelo no está permitido' });
+    }
+
     // La fila se crea ANTES de llamar al modelo, y esa es la reserva de cupo:
     // si la respuesta se pierde por el camino el intento ya está contado, y
     // nadie puede repetirlo gratis. Mismo razonamiento que cupo.js.
@@ -2468,7 +2482,10 @@ app.post('/api/importaciones', auth,
     if (errIns) return res.status(500).json({ error: errIns.message });
 
     try {
-      const r = await extraerDelArchivo(req.file.path, origen);
+      // Solo el superadmin puede elegir modelo. Para el restaurante no
+      // significa nada y sí cambia lo que se paga, así que ni se mira.
+      const modelo = req.user.rol === 'admin' ? req.body.modelo : null;
+      const r = await extraerDelArchivo(req.file.path, origen, modelo);
       const { data, error } = await supabase.from('importaciones_carta').update({
         estado: 'listo',
         via: r.via,
@@ -2481,10 +2498,14 @@ app.post('/api/importaciones', auth,
       res.json(data);
     } catch (e) {
       // Lo que se guarda y lo que se enseña tiene que poder leerlo alguien que
-      // no programa. Un mensaje escrito por nosotros sale tal cual; el de una
-      // excepción cualquiera no, que puede llevar rutas del disco o nombres de
-      // tablas. Misma regla que el manejador de errores del final.
-      const mensaje = (e.publico || e.definitivo) ? e.message : 'No se pudo leer la carta';
+      // no programa. SOLO sale tal cual un mensaje escrito por nosotros.
+      //
+      // Antes también salían los 'definitivos', que son los 4xx del proveedor.
+      // Parecía útil —"esa imagen es demasiado grande" ayuda— pero por ahí
+      // salía también un 401 por una clave mal puesta, que no es un problema
+      // del usuario sino nuestro y no tiene por qué contarse fuera. El mensaje
+      // de verdad va al registro, que es donde hay que mirarlo.
+      const mensaje = e.publico ? e.message : 'No se pudo leer la carta';
       console.error(`⚠️ importación ${fila.id}: ${e.message}`);
       await supabase.from('importaciones_carta').update({ estado: 'error', error: mensaje }).eq('id', fila.id);
       res.status(e.publico ? 400 : 502).json({ error: mensaje, id: fila.id });
@@ -2499,6 +2520,15 @@ app.get('/api/importaciones', auth, async (req, res) => {
     .select('*').eq('restaurante_id', rid).order('creada_en', { ascending: false }).limit(20);
   if (error) return res.status(500).json({ error: error.message });
   res.json(data || []);
+});
+
+// Va ANTES de '/:id' a propósito: Express prueba las rutas en el orden en que
+// se registran, y '/:id' casaría con 'modelos' tomándolo por un identificador.
+app.get('/api/importaciones/modelos', auth, (req, res) => {
+  res.json({
+    modelos: lectorcarta.MODELOS,
+    por_defecto: { texto: lectorcarta.MODELO, vision: lectorcarta.MODELO_VISION },
+  });
 });
 
 app.get('/api/importaciones/:id', auth, async (req, res) => {
