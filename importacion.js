@@ -63,7 +63,13 @@ function planDeAplicacion(borrador, existentes = [], ordenPorCat = {}) {
 
   for (const cruda of entrada) {
     if (!cruda || typeof cruda !== 'object') continue;
-    const lista = Array.isArray(cruda.platos) ? cruda.platos.filter((p) => p && p.nombre) : [];
+    // Se recorta ANTES de decidir: un nombre de solo espacios es truthy y se
+    // colaba, creando un producto sin nombre. Aquí importa más que en la ruta
+    // de crear un plato, porque esto escribe en 'productos' directamente y no
+    // pasa por errorDeNombre().
+    const lista = Array.isArray(cruda.platos)
+      ? cruda.platos.filter((p) => p && String(p.nombre == null ? '' : p.nombre).trim())
+      : [];
     if (!lista.length) continue;
 
     const nombre = String(cruda.nombre || '').trim() || SIN_CATEGORIA;
