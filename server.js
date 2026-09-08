@@ -2516,7 +2516,17 @@ app.post('/api/importaciones', auth,
       const { error: errEstado } = await supabase.from('importaciones_carta')
         .update({ estado: 'error', error: mensaje }).eq('id', fila.id);
       if (errEstado) console.error(`⚠️ importación ${fila.id}: además no se pudo marcar el error: ${errEstado.message}`);
-      res.status(e.publico ? 400 : 502).json({ error: mensaje, id: fila.id });
+
+      // Al SUPERADMIN se le da el motivo de verdad, y solo en la respuesta:
+      // no se guarda en la fila, que la puede leer el restaurante.
+      //
+      // Sin esto, un fallo de configuración —una clave sin workspace, un modelo
+      // retirado— le llega como "No se pudo leer la carta", y el único que
+      // puede arreglarlo se queda sin saber qué. Pasó el 07/09/2026: hubo que
+      // entrar por SSH a leer el registro del contenedor para descubrir que la
+      // clave no estaba atada a un workspace.
+      const detalle = req.user.rol === 'admin' ? e.message : null;
+      res.status(e.publico ? 400 : 502).json({ error: mensaje, detalle, id: fila.id });
     }
   });
 

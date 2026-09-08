@@ -129,6 +129,18 @@ inyecta el entorno al arrancar el contenedor, así que guardarla sin redesplegar
 no la mete. El servidor **arranca igual sin ella** —solo se pide al importar una
 carta—, así que su ausencia no rompe nada más.
 
+**Ojo con el tipo de clave.** Hay dos: una atada a un **workspace** y una de
+**organización**. La segunda sirve para varios workspaces y por eso la API
+exige que se le diga cuál, o responde:
+
+> This API key is not scoped to a workspace, so this request must include the
+> `anthropic-workspace-id` header…
+
+Pasó en el primer intento real, el 07/09/2026. Lo que se recomienda es usar una
+clave **atada a un workspace**, que no necesita nada más. Si hace falta
+conservar una de organización, se pone `ANTHROPIC_WORKSPACE_ID` y el servidor
+manda la cabecera.
+
 Opcionales, todas con valor por defecto razonable: `LECTOR_MODELO` y
 `LECTOR_MODELO_VISION` (qué modelo lee la carta por cada vía),
 `LECTOR_MAX_IMPORTACIONES` (cupo por restaurante, 5) y `CARTA_MAX_MB` (30). El

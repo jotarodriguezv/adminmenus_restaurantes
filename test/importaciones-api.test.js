@@ -368,3 +368,32 @@ describe('elegir el modelo desde el panel', () => {
 		assert.doesNotMatch(String(r.body && r.body.error), /no está permitido/);
 	});
 });
+
+describe('el motivo de verdad, solo para quien puede arreglarlo', () => {
+	// Un fallo de configuración —una clave sin workspace, un modelo retirado—
+	// le llegaba al superadmin como "No se pudo leer la carta", y hubo que
+	// entrar por SSH al servidor para saber qué pasaba. El 07/09/2026.
+	test('el superadmin recibe el motivo técnico', async () => {
+		conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' });
+		const r = await subir(CARTA_PDF, 'carta.pdf', tokenAdmin);
+		assert.equal(r.body.error, 'No se pudo leer la carta');
+		assert.match(r.body.detalle, /ANTHROPIC_API_KEY/, 'el motivo real, para poder arreglarlo');
+	});
+
+	test('el restaurante no', async () => {
+		conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' });
+		const r = await subir(CARTA_PDF, 'carta.pdf', tokenCliente);
+		assert.equal(r.body.error, 'No se pudo leer la carta');
+		assert.equal(r.body.detalle, null);
+	});
+
+	test('lo que se GUARDA sigue siendo el mensaje de siempre', async () => {
+		// La fila la puede leer el restaurante por GET, así que el motivo
+		// técnico no puede quedarse ahí.
+		conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' });
+		await subir(CARTA_PDF, 'carta.pdf', tokenAdmin);
+		const guardado = ultimaEscritura('importaciones_carta');
+		assert.equal(guardado.error, 'No se pudo leer la carta');
+		assert.doesNotMatch(JSON.stringify(guardado), /ANTHROPIC/);
+	});
+});

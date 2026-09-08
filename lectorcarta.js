@@ -252,11 +252,27 @@ function cabeceras() {
   // El mensaje nombra la variable y NO dice nada de su valor: este texto acaba
   // en el registro, y un registro es un sitio del que la gente copia y pega.
   if (!clave) throw new Error('Falta ANTHROPIC_API_KEY');
-  return {
+
+  const cab = {
     'x-api-key': clave,
     'anthropic-version': '2023-06-01',
     'content-type': 'application/json',
   };
+
+  // Hay dos tipos de clave. Una atada a un workspace ya sabe dónde trabajar;
+  // una de ORGANIZACIÓN sirve para varios y hay que decírselo, o la API
+  // responde:
+  //
+  //   This API key is not scoped to a workspace, so this request must include
+  //   the anthropic-workspace-id header...
+  //
+  // Pasó en producción el 07/09/2026, en el primer intento real. Lo normal es
+  // usar una clave atada a un workspace y no poner esta variable; está para no
+  // obligar a cambiar de clave a quien ya tiene una de organización.
+  if (process.env.ANTHROPIC_WORKSPACE_ID)
+    cab['anthropic-workspace-id'] = process.env.ANTHROPIC_WORKSPACE_ID;
+
+  return cab;
 }
 
 async function pedir(cuerpo) {
