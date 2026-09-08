@@ -6526,7 +6526,11 @@ async function impAplicar() {
     // que solo existió en el navegador.
     await apiFetch('PUT', `/api/importaciones/${impActual.id}`, { borrador });
     const r = await apiFetch('POST', `/api/importaciones/${impActual.id}/aplicar`, {});
-    showToast(`Listo: ${r.platos_creados} platos en ${r.categorias_creadas + r.categorias_reutilizadas} categorías`, 'success');
+    // El aviso solo llega cuando los platos SÍ se crearon pero la importación
+    // no quedó marcada. Se enseña como error a propósito: es lo único que
+    // impide que alguien vuelva a pulsar y duplique la carta entera.
+    if (r.aviso) showToast(r.aviso, 'error');
+    else showToast(`Listo: ${r.platos_creados} platos en ${r.categorias_creadas + r.categorias_reutilizadas} categorías`, 'success');
     impActual = null;
     document.getElementById('impRevision').style.display = 'none';
     document.getElementById('impEstado').textContent = '';

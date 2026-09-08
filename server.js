@@ -2507,7 +2507,15 @@ app.post('/api/importaciones', auth,
       // de verdad va al registro, que es donde hay que mirarlo.
       const mensaje = e.publico ? e.message : 'No se pudo leer la carta';
       console.error(`⚠️ importación ${fila.id}: ${e.message}`);
-      await supabase.from('importaciones_carta').update({ estado: 'error', error: mensaje }).eq('id', fila.id);
+
+      // Se mira el error de ESTE update aunque no cambie lo que se responde.
+      // Sin mirarlo, un fallo aquí deja la fila en 'pendiente' con 'error' en
+      // null —un estado imposible— y encima tapa el motivo original. Pasó: el
+      // trigger de la tabla escribía en una columna que no existía (sql/22) y
+      // durante una tarde pareció que lo roto era la extracción.
+      const { error: errEstado } = await supabase.from('importaciones_carta')
+        .update({ estado: 'error', error: mensaje }).eq('id', fila.id);
+      if (errEstado) console.error(`⚠️ importación ${fila.id}: además no se pudo marcar el error: ${errEstado.message}`);
       res.status(e.publico ? 400 : 502).json({ error: mensaje, id: fila.id });
     }
   });
@@ -2612,12 +2620,20 @@ app.post('/api/importaciones/:id/aplicar', auth, async (req, res) => {
   const { error: errProd } = await supabase.from('productos').insert(filas);
   if (errProd) return res.status(500).json({ error: errProd.message });
 
-  await supabase.from('importaciones_carta').update({ estado: 'aplicado' }).eq('id', fila.id);
+  // Marcarla es lo ÚNICO que impide aplicarla dos veces, así que si esto falla
+  // hay que decirlo. Y hay que decirlo SIN dar el 500 que pediría reintentar:
+  // los platos ya están creados, y reintentar los duplicaría, que es
+  // exactamente el desastre del que protege el estado.
+  const { error: errEstado } = await supabase.from('importaciones_carta')
+    .update({ estado: 'aplicado' }).eq('id', fila.id);
+  if (errEstado) console.error(`⚠️ importación ${fila.id}: se creó todo pero no se pudo marcar como aplicada: ${errEstado.message}`);
+
   res.json({
     ok: true,
     categorias_creadas: plan.totales.categorias_nuevas,
     categorias_reutilizadas: plan.totales.categorias_reutilizadas,
     platos_creados: filas.length,
+    aviso: errEstado ? 'Los platos se crearon, pero esta importación no quedó marcada. NO la apliques otra vez: se duplicaría todo.' : null,
   });
 });
 
