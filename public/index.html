@@ -6318,6 +6318,25 @@ function impNormalizar(nombre) {
 
 const IMP_SIN_CATEGORIA = 'Otros';
 
+// Para reconocer que 'Hamburguesas' y 'HAMBURGUESA' son lo mismo. Se quita la
+// -s o las -es del final de cada palabra.
+//
+// Esto NO se usa para juntar nada por su cuenta: solo para preguntar. Un
+// restaurante puede tener a propósito 'POSTRE DEL DÍA' y 'POSTRES', y juntarlas
+// sin avisar le mueve la carta de sitio.
+// En español el plural es '+s' tras vocal (postre → postres) y '+es' tras
+// consonante (raviol → ravioles). Quitar 'es' a secas deja 'postr' de un lado
+// y 'postre' del otro, que es justo lo que no se quería.
+//
+// Así que se quita la 's' y después la 'e', a TODAS por igual: 'postres' y
+// 'postre' acaban los dos en 'postr', y 'ravioles' y 'raviol' en 'raviol'. La
+// raíz no tiene que ser una palabra, solo tiene que coincidir.
+function impRaiz(nombre) {
+  return impNormalizar(nombre).split(' ')
+    .map(p => p.replace(/s$/, '').replace(/e$/, ''))
+    .join(' ');
+}
+
 // Las cuentas que se le enseñan a la persona antes de pulsar. Tienen que
 // cuadrar con lo que hace el servidor, que es quien las repite de vuelta.
 function impTotales(borrador, existentes) {
@@ -6381,11 +6400,43 @@ function impActualizarResumen() {
   // categoría es editable: si alguien escribe POSTRES sobre una categoría que
   // ya tiene, deja de ser nueva ahí mismo.
   for (const bloque of document.querySelectorAll('#impCategorias .imp-cat')) {
-    const nombre = bloque.querySelector('.imp-cat-nombre').value.trim() || IMP_SIN_CATEGORIA;
-    const existe = (state.categorias || []).some(c => c && c.nombre && impNormalizar(c.nombre) === impNormalizar(nombre));
+    const campo = bloque.querySelector('.imp-cat-nombre');
+    const nombre = campo.value.trim() || IMP_SIN_CATEGORIA;
+    const previas = (state.categorias || []).filter(c => c && c.nombre);
+    const existe = previas.some(c => impNormalizar(c.nombre) === impNormalizar(nombre));
     const etiqueta = bloque.querySelector('.imp-cat-estado');
-    etiqueta.textContent = existe ? 'se añadirá a la que ya tienes' : 'categoría nueva';
-    etiqueta.style.color = existe ? 'var(--text-dim)' : 'var(--accent)';
+
+    // Una que se PARECE a la que ya tiene, pero no es igual. Pasó de verdad:
+    // el restaurante tenía 'Hamburguesas' y el PDF decía 'HAMBURGUESA', así
+    // que se crearon las dos y la carta acabó con dos secciones de lo mismo.
+    //
+    // No se juntan solas: singular y plural casi siempre son lo mismo, pero
+    // "casi" no basta para mover platos sin que nadie lo vea. Se ofrece.
+    const parecida = existe ? null : previas.find(c => impRaiz(c.nombre) === impRaiz(nombre));
+
+    // Los platos que el modelo no pudo colgar de ningún título. Se dice, en vez
+    // de dejar que salgan bajo un 'Otros' que parece una categoría de la carta:
+    // en la primera importación real cayeron ahí varias ENTRADAS y hubo que
+    // recolocarlas a mano DESPUÉS de crearlas.
+    if (!campo.value.trim()) {
+      etiqueta.textContent = 'sin título en la carta · escribe cuál es';
+      etiqueta.style.color = 'var(--warn)';
+      etiqueta.style.cursor = '';
+      etiqueta.title = `Si lo dejas en blanco irán a "${IMP_SIN_CATEGORIA}"`;
+      etiqueta.onclick = null;
+    } else if (parecida) {
+      etiqueta.textContent = `¿es la misma que "${parecida.nombre}"?`;
+      etiqueta.style.color = 'var(--warn)';
+      etiqueta.style.cursor = 'pointer';
+      etiqueta.title = `Usar "${parecida.nombre}" y añadir estos platos ahí`;
+      etiqueta.onclick = () => { campo.value = parecida.nombre; impActualizarResumen(); };
+    } else {
+      etiqueta.textContent = existe ? 'se añadirá a la que ya tienes' : 'categoría nueva';
+      etiqueta.style.color = existe ? 'var(--text-dim)' : 'var(--accent)';
+      etiqueta.style.cursor = '';
+      etiqueta.title = '';
+      etiqueta.onclick = null;
+    }
   }
 }
 

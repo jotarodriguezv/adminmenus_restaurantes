@@ -353,3 +353,29 @@ describe('la cabecera del workspace', () => {
 		delete process.env.ANTHROPIC_WORKSPACE_ID;
 	});
 });
+
+describe('lo que se aprendió de la primera carta real', () => {
+	// 08/09/2026, A Ojo Cerrado: 98 platos y dos defectos concretos.
+	const s = () => carta.cuerpoDeTexto(['x']).system;
+
+	test('un aviso de sección no es un plato', () => {
+		// Salieron 'TODAS LAS HAMBURGUESAS VAN ACOMPAÑADAS DE PAPAS' y
+		// 'TODOS LOS PERROS...' como productos a $0.
+		assert.match(s(), /aviso que vale para una sección entera/i);
+		assert.match(s(), /NO es un/i);
+	});
+
+	test('cada plato va bajo su título de sección', () => {
+		// Varias ENTRADAS cayeron en la categoría sin nombre y hubo que
+		// recolocarlas a mano después de crearlas.
+		assert.match(s(), /bajo el título de sección/i);
+		assert.match(s(), /SOLO si de verdad no hay ningún/i);
+	});
+
+	test('las reglas van numeradas y sin saltos', () => {
+		// Se numeraron mal al añadir una, y una lista con un 10 antes del 9 es
+		// justo la clase de descuido que hace dudar del resto del texto.
+		const numeros = [...s().matchAll(/^(d+). /gm)].map(m => Number(m[1]));
+		assert.deepEqual(numeros, numeros.map((_, i) => i + 1));
+	});
+});

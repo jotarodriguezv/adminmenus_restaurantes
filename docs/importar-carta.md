@@ -115,6 +115,45 @@ separado. Se limpian en parte con una regla de espacios (uno solo se quita, dos
 o más separan palabras de verdad), y lo que sobreviva lo arregla el modelo al
 estructurar.
 
+### 2.1.bis La primera importación de verdad **(medida, 08/09/2026)**
+
+El mismo PDF, ya en producción y de punta a punta: subir, revisar y crear.
+
+| | |
+|---|---|
+| Vía | texto |
+| Modelo | `claude-sonnet-5` |
+| Categorías creadas | **19** |
+| Platos creados | **98** |
+| Tokens | 6.601 entrada · 7.194 salida |
+| **Coste** | **$0,085** |
+
+La estimación de §9 decía ~$0,09. **Salió a ocho centavos y medio.**
+
+**`PLÁT ANO` sale entero.** Era la última predicción que quedaba sin comprobar:
+el modelo junta los cortes del interletraje mientras estructura, y en la carta
+quedaron `CANASTICO DE PLÁTANO`, `TOSTADAS CHERRY` y `PATACÓN SANTANDEREANO`,
+con sus tildes.
+
+Y se ve funcionando lo de **copiar y no corregir**: quedaron `QUESO MOZARELLA`
+y un `CHORIZO,,` con doble coma, porque así están impresos.
+
+**Los dos defectos que salieron**, los dos ya corregidos:
+
+1. **Avisos convertidos en platos a $0.** «TODAS LAS HAMBURGUESAS VAN
+   ACOMPAÑADAS DE PAPAS» es una nota sobre una sección, no un plato, y entró
+   como producto sin precio. Regla 9 de las instrucciones.
+2. **Platos sin categoría.** Varias ENTRADAS cayeron en la categoría sin
+   nombre, y desde el borrador eso parecía un `Otros` cualquiera. Ahora la
+   pantalla lo dice —*«sin título en la carta»*— y la regla 7 le pide al modelo
+   que use el título de la sección salvo que de verdad no haya ninguno.
+
+Y una tercera cosa, que no es del modelo sino de la comparación: el restaurante
+tenía `Hamburguesas` y el PDF decía `HAMBURGUESA`. Se crearon las dos. La
+pantalla ahora **pregunta** —*«¿es la misma que Hamburguesas?»*, con un clic
+para usar la que ya existe— y no las junta sola: singular y plural casi siempre
+son lo mismo, pero «casi» no basta para mover platos sin que nadie lo vea.
+
 ### 2.2 Imagen — carta de plantilla, en inglés **(medida)**
 
 Un JPG de una sola página, seis columnas, precios a la derecha del plato.
@@ -495,7 +534,24 @@ Preguntas de producto, no técnicas. Van sin contestar a propósito.
    abierta. Por eso esta pregunta se puede contestar al construir el panel, y no
    hacía falta contestarla antes.
 
-3. **La foto torcida.** §2.2 midió una imagen limpia. Antes de prometer la vía
+3. **¿Se cierra la puerta cuando el restaurante ya tiene carta?** La levantó el
+   usuario el 08/09/2026, y va a discutirla con su equipo. La idea: esto es una
+   herramienta del **alta**, así que un restaurante con su carta ya montada no
+   necesita la opción. Se barajaron un tope de un escaneo por semana, o cerrarla
+   cuando ya haya productos.
+
+   **Lo que se recomienda desde aquí:** no un candado. Un restaurante que
+   escribió tres platos a mano y quiere importar el resto se quedaría fuera, y
+   «ya tiene todos sus productos» no es algo que el servidor pueda saber. El
+   coste ya está acotado por el cupo, y el riesgo real —duplicar— ya lo cubre el
+   aviso de §7.
+
+   Si aun así se quiere marcar la diferencia, lo natural es **cambiar el énfasis,
+   no el permiso**: ofrecerla de entrada cuando el restaurante no tiene nada, y
+   dejarla disponible pero discreta cuando ya tiene carta. Eso es una decisión
+   de pantalla y no hace falta tocar la ruta.
+
+4. **La foto torcida.** §2.2 midió una imagen limpia. Antes de prometer la vía
    de imagen hay que probarla con **fotos de móvil reales** de cartas de
    verdad: pizarras, plastificadas con reflejo, hojas dobladas. Eso es material
    que el equipo tiene y yo no.
