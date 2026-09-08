@@ -324,3 +324,32 @@ describe('qué modelo lee la carta', () => {
 		}
 	});
 });
+
+describe('la cabecera del workspace', () => {
+	// Hay dos tipos de clave. Una atada a un workspace ya sabe dónde trabajar;
+	// una de ORGANIZACIÓN sirve para varios y hay que decírselo. Pasó en
+	// producción en el primer intento real, el 07/09/2026.
+	test('no se manda si no está configurada', async () => {
+		responder(conCarta([]));
+		await carta.extraer({ paginas: ['x'] });
+		assert.equal('anthropic-workspace-id' in peticiones[0].headers, false,
+			'una clave atada a un workspace no la necesita, y mandarla vacía sería peor');
+	});
+
+	test('se manda cuando lo está', async () => {
+		process.env.ANTHROPIC_WORKSPACE_ID = 'wrkspc_de_pruebas';
+		responder(conCarta([]));
+		await carta.extraer({ paginas: ['x'] });
+		assert.equal(peticiones[0].headers['anthropic-workspace-id'], 'wrkspc_de_pruebas');
+		delete process.env.ANTHROPIC_WORKSPACE_ID;
+	});
+
+	test('va en la cabecera, no en la URL ni en el cuerpo', async () => {
+		process.env.ANTHROPIC_WORKSPACE_ID = 'wrkspc_de_pruebas';
+		responder(conCarta([]));
+		await carta.extraer({ paginas: ['x'] });
+		assert.doesNotMatch(peticiones[0].url, /wrkspc/);
+		assert.doesNotMatch(JSON.stringify(peticiones[0].cuerpo), /wrkspc/);
+		delete process.env.ANTHROPIC_WORKSPACE_ID;
+	});
+});

@@ -2590,7 +2590,12 @@ async function apiFetch(method, endpoint, body=null, isForm=false) {
   // el mensaje.
   if (!res.ok) {
     const e = await res.json().catch(() => null);
-    throw new Error(e?.error || `El servidor respondió ${res.status} sin explicación`);
+    const err = new Error(e?.error || `El servidor respondió ${res.status} sin explicación`);
+    // El cuerpo entero, para lo que la ruta añada además del mensaje. Hoy lo
+    // usa la importación de cartas, que al superadmin le manda el motivo
+    // técnico en 'detalle'.
+    err.cuerpo = e;
+    throw err;
   }
   return res.json();
 }
@@ -6505,7 +6510,18 @@ async function impSubir(input) {
     if (!(fila.borrador && fila.borrador.categorias || []).length)
       showToast('No se encontró ningún plato en ese archivo', 'error');
   } catch (e) {
+    // 'detalle' solo llega al superadmin, y es lo que evita tener que ir al
+    // registro del servidor por un fallo de configuración. Va debajo del
+    // mensaje, no en el aviso flotante: es texto técnico y hay que poder
+    // copiarlo.
+    const detalle = e.cuerpo && e.cuerpo.detalle;
     estado.textContent = e.message;
+    if (detalle && detalle !== e.message) {
+      const linea = document.createElement('div');
+      linea.style.cssText = 'margin-top:6px;color:var(--text-dim);font-size:10px;line-height:1.5;user-select:text';
+      linea.textContent = detalle;
+      estado.appendChild(linea);
+    }
     showToast(e.message, 'error');
   }
 }
