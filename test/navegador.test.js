@@ -3651,3 +3651,38 @@ describe('importar la carta · los platos que el restaurante ya tiene', () => {
 		assert.equal(ctx.impNombresQueYaTiene().has(ctx.impNormalizar('CAFE CON LECHE')), true);
 	});
 });
+
+describe('importar la carta · una categoría que se parece a otra que ya existe', () => {
+	// Pasó en la primera importación real: el restaurante tenía 'Hamburguesas'
+	// y el PDF decía 'HAMBURGUESA'. Se crearon las dos y la carta acabó con dos
+	// secciones de lo mismo.
+	const panel = () => cargar('index.html',
+		[['// ── IMPORTAR LA CARTA ─', '// ── DIRECCIÓN PÚBLICA DEL MENÚ ─']],
+		{ state: { productos: [], categorias: [] } });
+
+	test('singular y plural comparten raíz', () => {
+		const { impRaiz } = panel();
+		for (const [a, b] of [['Hamburguesas', 'HAMBURGUESA'], ['POSTRES', 'Postre'],
+			['Bebidas calientes', 'BEBIDA CALIENTE'], ['Raviol', 'Ravioles']])
+			assert.equal(impRaiz(a), impRaiz(b), `${a} / ${b}`);
+	});
+
+	test('dos categorías distintas NO comparten raíz', () => {
+		const { impRaiz } = panel();
+		for (const [a, b] of [['CARNES', 'PESCADOS'], ['POSTRES', 'PASTAS'], ['CALDOS', 'ENSALADAS']])
+			assert.notEqual(impRaiz(a), impRaiz(b), `${a} / ${b}`);
+	});
+
+	test('la raíz no se usa para juntar, solo para preguntar', () => {
+		// impTotales sigue comparando por el nombre completo: 'HAMBURGUESA'
+		// cuenta como nueva aunque exista 'Hamburguesas'. Juntarlas sin que
+		// nadie lo vea movería platos de sitio.
+		const ctx = cargar('index.html',
+			[['// ── IMPORTAR LA CARTA ─', '// ── DIRECCIÓN PÚBLICA DEL MENÚ ─']],
+			{ state: { productos: [], categorias: [{ id: 'c1', nombre: 'Hamburguesas' }] } });
+		const t = ctx.impTotales({ categorias: [{ nombre: 'HAMBURGUESA', platos: [{ nombre: 'DOBLE' }] }] },
+			[{ id: 'c1', nombre: 'Hamburguesas' }]);
+		assert.equal(t.nuevas, 1);
+		assert.equal(t.existen, 0);
+	});
+});
