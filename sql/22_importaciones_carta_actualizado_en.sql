@@ -1,0 +1,53 @@
+-- ═══════════════════════════════════════════════════════════════
+-- RENOMBRAR importaciones_carta.actualizada_en — SIN APLICAR
+-- ═══════════════════════════════════════════════════════════════
+-- Arregla un fallo introducido por sql/21 que dejaba la funcionalidad de
+-- importar cartas COMPLETAMENTE inservible.
+--
+-- ── QUÉ PASABA ────────────────────────────────────────────────
+-- La tabla se creó con la columna en femenino, 'actualizada_en', porque
+-- concuerda con "importación". El trigger que la actualiza es el compartido,
+-- 'tocar_actualizado_en()', y ese hace:
+--
+--     new.actualizado_en := now();
+--
+-- Como esa columna no existía en esta tabla, PostgreSQL levantaba
+-- 'record "new" has no field "actualizado_en"' en CADA update. Y por esta
+-- tabla pasa todo: guardar el borrador extraído, marcar un error, guardar las
+-- correcciones, aplicar y descartar. Ninguna de las cinco cosas funcionaba.
+--
+-- ── CÓMO SE VIO ───────────────────────────────────────────────
+-- Una importación real quedó en estado 'pendiente' con 'error' en null después
+-- de que el panel enseñara un error. Ese estado es imposible si el update del
+-- manejador hubiera funcionado — y esa contradicción es lo que llevó al
+-- trigger. El servidor no lo dijo porque no miraba el error de ese update:
+-- eso se arregla en el mismo cambio, en server.js.
+--
+-- ── POR QUÉ RENOMBRAR Y NO HACER OTRO TRIGGER ─────────────────
+-- Las otras dos tablas con esta marca de tiempo —'generaciones_ia' y
+-- 'trabajos_video'— usan 'actualizado_en'. La rara era esta. Un segundo
+-- trigger solo para conservar el género correcto sería una función más que
+-- mantener para siempre a cambio de nada.
+--
+-- Es seguro: NINGÚN código lee esa columna por su nombre. Se comprobó buscando
+-- 'actualizada_en' en todo el repositorio y solo aparecía en sql/21.
+
+alter table public.importaciones_carta
+  rename column actualizada_en to actualizado_en;
+
+-- ── COMPROBAR DESPUÉS DE APLICAR ──────────────────────────────
+-- Que el update funciona de verdad, que es lo que estaba roto. Esto tiene que
+-- terminar sin error y devolver la fila:
+--
+--   update public.importaciones_carta
+--      set estado = estado
+--    where id = (select id from public.importaciones_carta limit 1)
+--   returning id, estado, actualizado_en;
+--
+-- Y que no queda ninguna tabla con la columna en femenino:
+--
+--   select c.relname, a.attname
+--     from pg_attribute a
+--     join pg_class c on c.oid = a.attrelid
+--     join pg_namespace n on n.oid = c.relnamespace
+--    where n.nspname = 'public' and a.attname = 'actualizada_en';

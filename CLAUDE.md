@@ -172,6 +172,35 @@ y la ñ no son un problema**. Se probaron cinco familias, incluidas las más
 decorativas, y todas cubren el latín básico y el extendido. Lo que hay que
 mirar al añadir una fuente es la **legibilidad**, no la cobertura.
 
+### El Supabase simulado no ejecuta triggers ni restricciones
+
+**07/09/2026.** `sql/21` creó `importaciones_carta` con la columna
+`actualizada_en` —en femenino, que concuerda con "importación"— y le colgó el
+trigger compartido `tocar_actualizado_en()`, que escribe en `actualizado_en`.
+Esa columna no existía, así que **cada `update` sobre la tabla reventaba** con
+`record "new" has no field "actualizado_en"`.
+
+Por esa tabla pasa todo lo que hace la importación de cartas: guardar el
+borrador, marcar un error, guardar correcciones, aplicar y descartar. La
+funcionalidad **no podía funcionar** y las 772 pruebas estaban en verde.
+
+**Por qué ninguna lo vio:** el arnés de `test/helpers/servidor.js` sustituye
+Supabase por un objeto que devuelve lo que se le diga. No hay PostgreSQL, así
+que no hay triggers, ni `check`, ni claves foráneas, ni `not null`. Toda esa
+familia de fallos es invisible para la suite por construcción.
+
+Lo que se hizo: `sql/22` renombra la columna, y `test/migraciones.test.js`
+comprueba las convenciones **leyendo los archivos de `sql/`** —que es lo único
+que se puede comprobar sin una base de datos—. Al escribirlo hay que mirar el
+conjunto y no cada archivo: una migración aplicada no se edita, lo que estaba
+mal se arregla en la siguiente, y `sql/19` cierra lo que abre `sql/18`.
+
+**Lo segundo que hay que aprender de esto:** el servidor no miraba el error del
+`update` que marca el estado, así que la fila quedó en `pendiente` con `error`
+en `null` —un estado imposible— y durante una tarde pareció que lo roto era la
+extracción. Un `update` cuyo resultado no se mira puede esconder el motivo del
+fallo que sí se ve.
+
 ### `uploads/` es una carpeta compartida entre ficheros de prueba
 
 **07/09/2026.** El ejecutor corre cada fichero en un proceso **aparte y en
