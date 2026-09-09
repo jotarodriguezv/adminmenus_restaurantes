@@ -2401,6 +2401,34 @@ const TIPOS_MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image
 // la reserva liberada —la que nunca llegó a pedirse— no cuenta.
 const MAX_IMPORTACIONES = Number(process.env.LECTOR_MAX_IMPORTACIONES || 5);
 
+// Hasta cuántos productos puede tener un restaurante para que la importación
+// le siga apareciendo. Es lo que acota el ALCANCE: esto es una herramienta del
+// ALTA, y a quien ya tiene su carta montada no hay que ofrecerle que la
+// escanee otra vez.
+//
+// No es "cero" a propósito, y el motivo salió de mirar los datos el
+// 09/09/2026: de los diez restaurantes de entonces, NINGUNO tenía cero
+// productos. Con la regla estricta la función no le habría aparecido a nadie.
+// Y los que más la necesitan eran justo los de 1, 2, 5 y 6 platos: los que
+// empezaron a teclear y lo dejaron a medias, que es el momento exacto en el
+// que esto sirve para algo.
+//
+// El número sale de que los datos se partían solos: 1, 2, 5, 5, 6 · 11, 37,
+// 96, 97, 100. Diez cae en ese hueco. El día que deje de encajar se cambia por
+// entorno, sin desplegar código.
+//
+// El superadmin no tiene tope: para el equipo esto ES la herramienta del alta.
+const MAX_PRODUCTOS_PARA_IMPORTAR = Number(process.env.LECTOR_MAX_PRODUCTOS || 10);
+
+// Una sola definición de "¿este restaurante puede importar?", que usan la ruta
+// y la pantalla. Separarlas es cómo se consigue que el panel ofrezca un botón
+// que el servidor luego rechaza.
+async function puedeImportar(rid) {
+  const { count } = await supabase.from('productos')
+    .select('id', { count: 'exact', head: true }).eq('restaurante_id', rid);
+  return (count || 0) < MAX_PRODUCTOS_PARA_IMPORTAR;
+}
+
 async function extraerDelArchivo(ruta, origen, modelo) {
   if (origen === 'imagen') {
     const datos = fs.readFileSync(ruta).toString('base64');
@@ -2442,6 +2470,14 @@ app.post('/api/importaciones', auth,
         .select('id', { count: 'exact', head: true }).eq('restaurante_id', rid);
       if ((count || 0) >= MAX_IMPORTACIONES)
         return res.status(409).json({ error: `Ya se hicieron ${MAX_IMPORTACIONES} importaciones para este restaurante` });
+
+      // Y aquí, no solo en el panel. Esconder una pestaña no impide una
+      // llamada directa a la API: es la misma razón por la que las banderas de
+      // plan se comprueban también en el servidor.
+      if (!await puedeImportar(rid))
+        return res.status(409).json({
+          error: 'Esta carta ya tiene platos. Importar sirve para montarla de cero; para añadir algo suelto, créalo desde Productos.',
+        });
     }
     next();
   },
@@ -2541,11 +2577,23 @@ app.get('/api/importaciones', auth, async (req, res) => {
 });
 
 // Va ANTES de '/:id' a propósito: Express prueba las rutas en el orden en que
-// se registran, y '/:id' casaría con 'modelos' tomándolo por un identificador.
-app.get('/api/importaciones/modelos', auth, (req, res) => {
+// se registran, y '/:id' casaría con 'opciones' tomándolo por un identificador.
+//
+// La lista de modelos solo se le manda al superadmin. Al restaurante no le
+// significa nada, cambia lo que se paga, y el servidor ya ignora el campo si
+// llega de él: mandársela sería enseñar un mando que no acciona nada.
+app.get('/api/importaciones/opciones', auth, async (req, res) => {
+  const rid = req.query.restaurante_id;
+  if (!rid || !canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+
+  const esAdmin = req.user.rol === 'admin';
   res.json({
-    modelos: lectorcarta.MODELOS,
-    por_defecto: { texto: lectorcarta.MODELO, vision: lectorcarta.MODELO_VISION },
+    puede_importar: esAdmin || await puedeImportar(rid),
+    max_productos: MAX_PRODUCTOS_PARA_IMPORTAR,
+    modelos: esAdmin ? lectorcarta.MODELOS : [],
+    por_defecto: esAdmin
+      ? { texto: lectorcarta.MODELO, vision: lectorcarta.MODELO_VISION }
+      : null,
   });
 });
 

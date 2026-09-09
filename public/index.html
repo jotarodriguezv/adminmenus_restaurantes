@@ -2684,18 +2684,32 @@ async function loadData() {
     // Apariencia es solo para superadmin: el cliente no debe poder tocar
     // logo, colores, fuentes, modelo de página ni CSS personalizado.
     document.getElementById('tabBtnApariencia').style.display = state.rol === 'admin' ? 'block' : 'none';
-    // Importar la carta es HOY una herramienta del alta: la usa el equipo al
-    // dar de alta un restaurante, y por eso solo la ve el superadmin. Es la
-    // pregunta 2 de docs/importar-carta.md §10, y esta línea es la respuesta
-    // provisional: la ruta ya deja importar al restaurante, así que abrirlo
-    // es quitar la condición de aquí.
-    document.getElementById('tabBtnImportar').style.display = state.rol === 'admin' ? 'block' : 'none';
+    // Importar la carta es una herramienta del ALTA, y ese es su alcance: el
+    // superadmin la ve siempre —para el equipo es con lo que da de alta a un
+    // restaurante— y el restaurante solo mientras su carta esté a medias.
+    //
+    // A quien ya tiene la carta montada no se le ofrece: no le sirve de nada y
+    // sí puede duplicársela. Quién puede lo decide el SERVIDOR y no esta
+    // línea, que es lo que evita ofrecer un botón que luego se rechaza.
+    await ajustarPestanaImportar();
     if (state.rol === 'admin') { renderApariencia(); renderDatosResto(); }
     // Toppings y Pedidos son del modelo "carrito" (o si ya tenía toppings de antes)
     const attr = state.restaurante?.atributos || {};
     ajustarPestanasAlModelo();
     aplicarPlanAlPanel();
   } catch(e) { showToast('Error cargando datos','error'); }
+}
+
+// Le pregunta al servidor si este restaurante puede importar y esconde la
+// pestaña si no. Se guarda la respuesta entera porque de ahí salen también los
+// modelos, que solo llegan si eres superadmin.
+async function ajustarPestanaImportar() {
+  const boton = document.getElementById('tabBtnImportar');
+  state.importar = null;
+  try {
+    state.importar = await apiFetch('GET', `/api/importaciones/opciones?restaurante_id=${state.restaurante.id}`);
+  } catch (e) { /* si no se sabe, no se ofrece */ }
+  boton.style.display = state.importar && state.importar.puede_importar ? 'block' : 'none';
 }
 
 // ── PLANES ────────────────────────────────────────────────────
@@ -6623,12 +6637,20 @@ async function impDescartar() {
 // La lista de modelos la manda el servidor: es donde está la lista blanca, y
 // tenerla también aquí escrita a mano sería una segunda copia que se queda
 // vieja el día que se añada uno.
-async function impCargarModelos() {
+//
+// Al restaurante le llega vacía a propósito, y entonces el selector no se
+// pinta: elegir modelo no le significa nada y sí cambia lo que se paga. El
+// servidor ya ignora el campo si llega de él, así que esconderlo no es la
+// protección — es no enseñar un mando que no acciona nada.
+function impCargarModelos() {
   const sel = document.getElementById('impModelo');
-  if (!sel || sel.dataset.listo) return;
-  try {
-    const r = await apiFetch('GET', '/api/importaciones/modelos');
-    for (const m of r.modelos || []) {
+  const r = state.importar;
+  const modelos = (r && r.modelos) || [];
+  const caja = sel && sel.closest('.imp-modelo');
+  if (caja) caja.style.display = modelos.length ? '' : 'none';
+  if (!sel || sel.dataset.listo || !modelos.length) return;
+  {
+    for (const m of modelos) {
       const o = document.createElement('option');
       o.value = m.id;
       o.textContent = `${m.nombre} · ${m.precio} por millón · ${m.nota}`;
@@ -6641,7 +6663,7 @@ async function impCargarModelos() {
       ? `El configurado (${d.texto})`
       : `El configurado (texto: ${d.texto} · imagen: ${d.vision})`;
     sel.dataset.listo = '1';
-  } catch (e) { /* se puede importar igual con el de por defecto */ }
+  }
 }
 
 async function renderImportar() {

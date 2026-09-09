@@ -16,15 +16,14 @@ archivo de un restaurante nuestro) o **estimada**.
 | Las rutas HTTP | `server.js` | **hecho** |
 | La pantalla de revisión | `public/index.html` | **hecha** |
 
-**Completo.** Lo único que falta para usarlo es `ANTHROPIC_API_KEY` en Dokploy.
+**En producción y usado.** La primera carta real se importó el 08/09/2026 —98
+platos, §2.1.bis— y el **alcance** quedó decidido el 09/09/2026: el superadmin
+ve la pestaña siempre; el restaurante, solo mientras su carta esté a medias
+(§7.bis).
 
-La pestaña **«Importar carta» solo la ve el superadmin**, que es la respuesta
-provisional a la pregunta 2 de §10. La ruta ya deja importar al restaurante, así
-que abrirlo es quitar una condición en `loadData()`.
-
-Falta también `ANTHROPIC_API_KEY` en las variables de entorno de Dokploy. El
-servidor **arranca sin ella** —solo la pide al importar—, así que ponerla no
-corre prisa y su ausencia no rompe nada más.
+Sobre `ANTHROPIC_API_KEY`: el servidor **arranca sin ella** y solo la pide al
+importar. Tiene que estar **atada a un workspace**; una de organización obliga a
+poner además `ANTHROPIC_WORKSPACE_ID`. Los detalles, en `docs/servidor.md`.
 
 ### Lo que la vía de imagen sí y no hace hoy
 
@@ -375,6 +374,54 @@ Dos comportamientos que hay que decidir a conciencia:
 
 ---
 
+## 7.bis A quién se le ofrece **(decidido el 09/09/2026)**
+
+Esto es una herramienta del **alta**. A un restaurante con la carta ya montada no
+se le ofrece: no le sirve de nada y sí puede duplicársela.
+
+| quién | cuándo ve la pestaña |
+|---|---|
+| superadmin | **siempre** — para el equipo esto ES la herramienta del alta |
+| restaurante | mientras tenga **menos de 10 productos** |
+
+### Por qué no es «cero productos»
+
+Era la regla que pedía el negocio, y **los datos la tumbaron**. El 09/09/2026,
+de los diez restaurantes que había:
+
+```
+juanmar 1 · pierrot 2 · sanjavier 5 · perroscriollos 5 · voro 6
+indigo 11 · malparados 37 · gale 96 · bonzas 97 · aojocerrado 100
+```
+
+**Ninguno tenía cero.** Con la regla estricta la función no le habría aparecido
+a nadie — y los que más la necesitaban eran justo los de 1, 2, 5 y 6 platos: los
+que empezaron a teclear y lo dejaron a medias, que es el momento exacto en el
+que esto sirve para algo.
+
+El número sale de que los datos se parten solos: **de 6 salta a 11**. Diez cae
+en ese hueco. Va en `LECTOR_MAX_PRODUCTOS`, así que el día que deje de encajar
+se cambia sin desplegar.
+
+### Se comprueba en el servidor, no solo en la pantalla
+
+Esconder una pestaña no impide una llamada directa a la API — la misma razón por
+la que las banderas de plan se comprueban en los dos sitios. La ruta rechaza la
+subida con un 409 **antes de crear la fila**, así que un intento bloqueado
+tampoco gasta cupo.
+
+Quién puede lo decide **una sola función** (`puedeImportar`) que usan la ruta y
+la pantalla. Dos definiciones separadas es cómo se consigue ofrecer un botón que
+el servidor luego rechaza.
+
+### Elegir modelo es cosa del superadmin
+
+Al restaurante **no se le manda la lista de modelos**, y sin lista el selector no
+se pinta. El servidor ya ignoraba el campo si llegaba de él; no enseñárselo es no
+poner un mando que no acciona nada.
+
+Por defecto, las dos vías van con **Sonnet 5**.
+
 ## 8. Control de coste y de abuso
 
 Ya hay un patrón resuelto para esto en este repositorio y no hace falta inventar
@@ -534,22 +581,9 @@ Preguntas de producto, no técnicas. Van sin contestar a propósito.
    abierta. Por eso esta pregunta se puede contestar al construir el panel, y no
    hacía falta contestarla antes.
 
-3. **¿Se cierra la puerta cuando el restaurante ya tiene carta?** La levantó el
-   usuario el 08/09/2026, y va a discutirla con su equipo. La idea: esto es una
-   herramienta del **alta**, así que un restaurante con su carta ya montada no
-   necesita la opción. Se barajaron un tope de un escaneo por semana, o cerrarla
-   cuando ya haya productos.
-
-   **Lo que se recomienda desde aquí:** no un candado. Un restaurante que
-   escribió tres platos a mano y quiere importar el resto se quedaría fuera, y
-   «ya tiene todos sus productos» no es algo que el servidor pueda saber. El
-   coste ya está acotado por el cupo, y el riesgo real —duplicar— ya lo cubre el
-   aviso de §7.
-
-   Si aun así se quiere marcar la diferencia, lo natural es **cambiar el énfasis,
-   no el permiso**: ofrecerla de entrada cuando el restaurante no tiene nada, y
-   dejarla disponible pero discreta cuando ya tiene carta. Eso es una decisión
-   de pantalla y no hace falta tocar la ruta.
+3. **¿Se cierra la puerta cuando el restaurante ya tiene carta?**
+   **Contestada el 09/09/2026.** Sí, y con un umbral en vez de con un cero.
+   El detalle está en §7.bis.
 
 4. **La foto torcida.** §2.2 midió una imagen limpia. Antes de prometer la vía
    de imagen hay que probarla con **fotos de móvil reales** de cartas de
