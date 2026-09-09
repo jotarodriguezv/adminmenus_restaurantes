@@ -227,6 +227,15 @@
 			.upload-zone-text{font-size:12px;color:var(--text-muted);}
 			.upload-zone-text span{color:var(--accent);}
 
+			/* El atajo desde Productos. Una pestaña más en la barra es fácil de
+			   no ver nunca; esto está donde la persona ya se dio cuenta de que
+			   le falta trabajo por hacer. */
+			.imp-atajo{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+			  border:1px dashed var(--border2);border-radius:var(--r-lg);
+			  padding:12px 14px;margin-bottom:16px;}
+			.imp-atajo p{margin:0;flex:1;min-width:220px;font-size:12.5px;
+			  color:var(--text-muted);line-height:1.6;}
+
 			/* ── IMPORTAR LA CARTA ── */
 			/* Una fila por plato, con los tres campos que se importan. El precio
 			   va estrecho y a la derecha porque es lo que más se repasa: en una
@@ -731,6 +740,11 @@
 
 				<!-- TAB PRODUCTOS -->
 				<div id="tabProductos">
+					<div class="imp-atajo" id="impAtajo" style="display:none">
+						<p><b>¿Tienes tu carta en PDF o en foto?</b> Súbela y se crean los
+						productos de una vez, en vez de escribirlos uno por uno.</p>
+						<button class="btn-sm accent" onclick="irAImportar()">Importar carta</button>
+					</div>
 					<div class="products-controls">
 						<button class="btn-sm accent" onclick="openNewProductModal()">+ Nuevo producto</button>
 						<input
@@ -1026,6 +1040,20 @@
 						<div style="margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">
 							El plan se guarda junto con el resto de Apariencia. Solo tú puedes cambiarlo:
 							el restaurante no lo ve ni lo puede tocar por su cuenta.
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Importar la carta</div>
+						<div class="form-check" style="margin-bottom:10px">
+							<label class="toggle"><input type="checkbox" id="apImportar"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Dejar que este restaurante escanee su carta</span>
+						</div>
+						<div style="font-size:11px;color:var(--text-dim);line-height:1.6;">
+							Le aparece una pestaña para subir el PDF o la foto de su carta y crear
+							sus productos de una vez. Enciéndelo al dar el alta y apágalo cuando ya
+							la tenga montada: no le sirve de nada y sí puede duplicársela.
+							Solo tú lo ves y solo tú lo puedes cambiar.
 						</div>
 					</div>
 
@@ -2709,7 +2737,21 @@ async function ajustarPestanaImportar() {
   try {
     state.importar = await apiFetch('GET', `/api/importaciones/opciones?restaurante_id=${state.restaurante.id}`);
   } catch (e) { /* si no se sabe, no se ofrece */ }
-  boton.style.display = state.importar && state.importar.puede_importar ? 'block' : 'none';
+
+  const puede = !!(state.importar && state.importar.puede_importar);
+  boton.style.display = puede ? 'block' : 'none';
+  // El atajo desde Productos aparece y desaparece con la pestaña: son la misma
+  // capacidad, y que uno se quedara sin el otro es cómo se llega a un botón
+  // que lleva a una pantalla que ya no está.
+  document.getElementById('impAtajo').style.display = puede ? 'flex' : 'none';
+}
+
+// Lleva a la pestaña de importar desde donde sea. Necesita el BOTÓN de la
+// pestaña, no solo su nombre: switchTab marca cuál queda activa, y sin
+// pasárselo la barra se queda con la anterior encendida.
+function irAImportar() {
+  const boton = document.getElementById('tabBtnImportar');
+  if (boton) switchTab('importar', boton);
 }
 
 // ── PLANES ────────────────────────────────────────────────────
@@ -6269,6 +6311,9 @@ function recolectarApariencia() {
       nav: navElegido(),
       estilo: estiloElegido(),
       plan: document.getElementById('apPlan').value,
+      // Va aquí y no en su propio botón porque es una capacidad del
+      // restaurante, como el plan, y se concede en el mismo sitio.
+      importar_carta: document.getElementById('apImportar').checked,
       url_modo: document.getElementById('apUrlModo').value,
       zona_horaria: document.getElementById('apZonaHoraria').value,
       subtitulo: document.getElementById('apSubtitulo').value.trim(),
@@ -6300,6 +6345,10 @@ async function saveApariencia() {
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     aplicarPlanAlPanel();
     ajustarPestanasAlModelo();
+    // Sin esto hay que recargar para ver el efecto de haberlo encendido, y
+    // quien lo enciende no sabe si funcionó. Mismo motivo que
+    // ajustarPestanasAlModelo, que está aquí por lo mismo.
+    await ajustarPestanaImportar();
     showToast('Apariencia guardada', 'success');
   } catch (e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; showToast('Error: ' + e.message, 'error'); }
 }
@@ -6735,6 +6784,11 @@ function renderPlan() {
     .map(([id, p]) => `<option value="${id}">${p.nombre}</option>`).join('');
   sel.value = idPlanActual();
   renderPlanResumen();
+
+  // El interruptor de importar vive en la misma zona y se decide igual: lo
+  // concede el superadmin, restaurante por restaurante.
+  const imp = document.getElementById('apImportar');
+  if (imp) imp.checked = !!state.restaurante?.atributos?.importar_carta;
 }
 
 // Qué pestañas tienen sentido con la configuración de ahora mismo.
