@@ -323,23 +323,23 @@ describe('corregir y descartar', () => {
 
 describe('elegir el modelo desde el panel', () => {
 	test('la lista sale del servidor, que es donde está la lista blanca', async () => {
-		const r = await pedir('GET', '/api/importaciones/modelos', null, tokenAdmin);
+		const r = await pedir('GET', `/api/importaciones/opciones?restaurante_id=${IDS.restaurante}`, null, tokenAdmin);
 		assert.equal(r.status, 200);
 		assert.ok(r.body.modelos.length >= 2);
 		assert.ok(r.body.por_defecto.texto, 'dice cuál se usa si no eliges');
 		assert.ok(r.body.por_defecto.vision, 'y cuál para las imágenes');
 	});
 
-	test("'/modelos' no se confunde con el id de una importación", async () => {
+	test("'/opciones' no se confunde con el id de una importación", async () => {
 		// Express prueba las rutas en orden: si '/:id' se registrara antes, esta
-		// petición buscaría una importación llamada 'modelos' y daría 403.
-		const r = await pedir('GET', '/api/importaciones/modelos', null, tokenAdmin);
+		// petición buscaría una importación llamada 'opciones' y daría 403.
+		const r = await pedir('GET', `/api/importaciones/opciones?restaurante_id=${IDS.restaurante}`, null, tokenAdmin);
 		assert.notEqual(r.status, 403);
 		assert.ok(Array.isArray(r.body.modelos));
 	});
 
 	test('sin token no se lista', async () => {
-		assert.equal((await pedir('GET', '/api/importaciones/modelos', null, null)).status, 401);
+		assert.equal((await pedir('GET', `/api/importaciones/opciones?restaurante_id=${IDS.restaurante}`, null, null)).status, 401);
 	});
 
 	test('el admin puede elegirlo al subir', async () => {
@@ -395,5 +395,95 @@ describe('el motivo de verdad, solo para quien puede arreglarlo', () => {
 		const guardado = ultimaEscritura('importaciones_carta');
 		assert.equal(guardado.error, 'No se pudo leer la carta');
 		assert.doesNotMatch(JSON.stringify(guardado), /ANTHROPIC/);
+	});
+});
+
+describe('a quién se le ofrece importar', () => {
+	// Es una herramienta del ALTA. A quien ya tiene la carta montada no se le
+	// ofrece: no le sirve y sí puede duplicársela.
+	//
+	// El umbral NO es cero, y el motivo salió de los datos el 09/09/2026: de
+	// los diez restaurantes de entonces ninguno tenía cero productos, así que
+	// con la regla estricta la función no le habría aparecido a nadie. Los que
+	// más la necesitaban eran los de 1, 2, 5 y 6 platos.
+	const conProductos = (n) => conTabla((st) => {
+		if (st.tabla === 'productos' && st.opciones && st.opciones.head) return { data: null, count: n, error: null };
+		if (st.tabla === 'importaciones_carta') {
+			if (st.opciones && st.opciones.head) return { data: null, count: 0, error: null };
+			return { data: { id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' }, error: null };
+		}
+		return { data: [], error: null };
+	});
+
+	const opciones = (token) => pedir('GET', `/api/importaciones/opciones?restaurante_id=${IDS.restaurante}`, null, token);
+
+	test('con la carta a medias, sí', async () => {
+		conProductos(6);
+		assert.equal((await opciones(tokenCliente)).body.puede_importar, true);
+	});
+
+	test('con la carta montada, no', async () => {
+		conProductos(97);
+		assert.equal((await opciones(tokenCliente)).body.puede_importar, false);
+	});
+
+	test('justo en el umbral, no', async () => {
+		// El tope es "menos de", no "hasta".
+		const r = await opciones(tokenAdmin);
+		const tope = r.body.max_productos;
+		conProductos(tope);
+		assert.equal((await opciones(tokenCliente)).body.puede_importar, false);
+		conProductos(tope - 1);
+		assert.equal((await opciones(tokenCliente)).body.puede_importar, true);
+	});
+
+	test('el superadmin siempre, tenga la carta que tenga', async () => {
+		// Para el equipo esto ES la herramienta del alta.
+		conProductos(500);
+		assert.equal((await opciones(tokenAdmin)).body.puede_importar, true);
+	});
+
+	test('y el servidor lo rechaza, no solo el panel', async () => {
+		// Esconder una pestaña no impide una llamada directa a la API.
+		conProductos(97);
+		const r = await subir(CARTA_PDF, 'carta.pdf', tokenCliente);
+		assert.equal(r.status, 409);
+		assert.match(r.body.error, /ya tiene platos/);
+		assert.equal(llamadas.filter((l) => l.tabla === 'importaciones_carta' && l.op === 'insert').length, 0,
+			'ni se crea la fila: no gasta cupo');
+	});
+
+	test('el superadmin sube igual con la carta llena', async () => {
+		conProductos(500);
+		const r = await subir(CARTA_PDF, 'carta.pdf', tokenAdmin);
+		assert.notEqual(r.status, 409);
+	});
+
+	test('sin restaurante_id no se contesta', async () => {
+		assert.equal((await pedir('GET', '/api/importaciones/opciones', null, tokenCliente)).status, 403);
+	});
+
+	test('no se preguntan las opciones de otro restaurante', async () => {
+		const r = await pedir('GET', `/api/importaciones/opciones?restaurante_id=${AJENO}`, null, tokenCliente);
+		assert.equal(r.status, 403);
+	});
+});
+
+describe('elegir modelo es cosa del superadmin', () => {
+	const opciones = (token) => pedir('GET', `/api/importaciones/opciones?restaurante_id=${IDS.restaurante}`, null, token);
+
+	test('al restaurante no se le manda la lista', async () => {
+		// El servidor ya ignora el campo si llega de él; no mandarle la lista es
+		// no enseñarle un mando que no acciona nada.
+		const r = await opciones(tokenCliente);
+		assert.deepEqual(r.body.modelos, []);
+		assert.equal(r.body.por_defecto, null);
+	});
+
+	test('al superadmin sí, y con su precio', async () => {
+		const r = await opciones(tokenAdmin);
+		assert.ok(r.body.modelos.length >= 2);
+		assert.ok(r.body.por_defecto.texto);
+		for (const m of r.body.modelos) assert.ok(m.precio, `${m.id} sin precio`);
 	});
 });
