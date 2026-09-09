@@ -297,6 +297,45 @@ Sigue apareciendo bajo carga —las dos veces que se vio en local fue con el
 equipo ocupado— así que la siguiente pista razonable es la contención, no el
 código.
 
+### 09/09/2026 — dejó de ser intermitente, y eso lo hizo diagnosticable
+
+Pasó de aparecer de vez en cuando a fallar **en todas las ejecuciones de main**,
+y el reintento dejó de recuperarlo. Tres merges seguidos en rojo con la misma
+firma, mientras las ramas de esos mismos pull requests pasaban en verde.
+
+**La correlación que lo explica:** esa semana el repositorio pasó de 8 a **13
+ficheros de prueba**. El ejecutor lanza un proceso hijo por fichero y los corre
+en paralelo, y el error vive en `node:internal/test_runner/runner` — justamente
+quien coordina esos hijos y junta lo que le mandan. Más hijos a la vez, más
+probabilidad, hasta volverse constante.
+
+Encaja con todo lo que ya se sabía: el recuento baja (767 de 805) porque
+`api.test.js` se muere a mitad, el mensaje es el del deserializador de V8
+leyendo un encabezado que no reconoce —o sea, un flujo desalineado— y la
+sospecha que quedó anotada era «contención, no código».
+
+**Lo que se hizo:** `npm test` corre con `--test-concurrency=1`. Un hijo cada
+vez, sin coordinación que corromper.
+
+Va en `package.json` y **no solo en el workflow**, a propósito: si local y CI
+corrieran con concurrencias distintas volveríamos a tener algo que pasa aquí y
+falla allí. Es el mismo motivo por el que las dos usan Node 22.
+
+Cuesta **diez segundos** (9 s → 19 s). No es precio para nadie.
+
+**Lo que sigue sin saberse:** por qué exactamente se corrompe el flujo. Esto
+quita la condición que lo provoca; no arregla el ejecutor. Si vuelve a aparecer
+con un solo hijo, la hipótesis era falsa y hay que volver aquí.
+
+**Lo que NO se hizo, y conviene no hacer:**
+
+- **Más reintentos.** Lo propuso un análisis automático. Esconde más un fallo
+  que ya estaba escondido, y lo que se paga es que un rojo deje de significar
+  algo.
+- **Bajar a Node 20.** También lo propuso, y contradice una decisión ya tomada:
+  producción es `node:22-alpine`. Probar sobre otra versión es exactamente cómo
+  se consigue que algo pase en las pruebas y falle en el servidor.
+
 ### Mientras tanto: un reintento acotado en CI
 
 El coste real de esto no es el fallo, es **el correo**: una falsa alarma acaba
