@@ -17,9 +17,8 @@ archivo de un restaurante nuestro) o **estimada**.
 | La pantalla de revisión | `public/index.html` | **hecha** |
 
 **En producción y usado.** La primera carta real se importó el 08/09/2026 —98
-platos, §2.1.bis— y el **alcance** quedó decidido el 09/09/2026: el superadmin
-ve la pestaña siempre; el restaurante, solo mientras su carta esté a medias
-(§7.bis).
+platos, §2.1.bis— y el **alcance** quedó decidido el 09/09/2026: lo
+enciende el superadmin restaurante por restaurante (§7.bis).
 
 Sobre `ANTHROPIC_API_KEY`: el servidor **arranca sin ella** y solo la pide al
 importar. Tiene que estar **atada a un workspace**; una de organización obliga a
@@ -376,43 +375,55 @@ Dos comportamientos que hay que decidir a conciencia:
 
 ## 7.bis A quién se le ofrece **(decidido el 09/09/2026)**
 
-Esto es una herramienta del **alta**. A un restaurante con la carta ya montada no
-se le ofrece: no le sirve de nada y sí puede duplicársela.
+Lo enciende **el superadmin, restaurante por restaurante**, con un interruptor
+en Apariencia. Se guarda en `atributos.importar_carta`.
 
 | quién | cuándo ve la pestaña |
 |---|---|
 | superadmin | **siempre** — para el equipo esto ES la herramienta del alta |
-| restaurante | mientras tenga **menos de 10 productos** |
+| restaurante | cuando el superadmin le ha dado la llave |
 
-### Por qué no es «cero productos»
+### Por qué a mano y no por una regla
 
-Era la regla que pedía el negocio, y **los datos la tumbaron**. El 09/09/2026,
-de los diez restaurantes que había:
+La primera versión lo decidía sola: escondía la opción cuando el restaurante
+pasaba de diez productos. Duró unas horas, y el negocio la corrigió con el
+argumento correcto:
 
-```
-juanmar 1 · pierrot 2 · sanjavier 5 · perroscriollos 5 · voro 6
-indigo 11 · malparados 37 · gale 96 · bonzas 97 · aojocerrado 100
-```
+> **«Ya tiene todos sus productos» no es algo que el servidor pueda saber.**
 
-**Ninguno tenía cero.** Con la regla estricta la función no le habría aparecido
-a nadie — y los que más la necesitaban eran justo los de 1, 2, 5 y 6 platos: los
-que empezaron a teclear y lo dejaron a medias, que es el momento exacto en el
-que esto sirve para algo.
+Nueve platos pueden ser una carta completa o una a medias, y no hay dato que los
+distinga. Quien sí lo sabe es **quien habló con el restaurante**. Al dar el alta
+se dice «ustedes pueden montar la carta escaneándola», se enciende, y cuando ya
+está montada se apaga.
 
-El número sale de que los datos se parten solos: **de 6 salta a 11**. Diez cae
-en ese hueco. Va en `LECTOR_MAX_PRODUCTOS`, así que el día que deje de encajar
-se cambia sin desplegar.
+Queda además el motivo por el que la regla automática no servía ni en sus
+propios términos: el 09/09/2026 **ninguno de los diez restaurantes tenía cero
+productos** —los más pequeños tenían 1, 2, 5, 5 y 6—, así que la versión
+estricta que pedía el negocio no le habría aparecido a nadie.
+
+### Un restaurante no puede concedérsela
+
+`importar_carta` **no está en `ATRIBUTOS_CLIENTE_PERMITIDOS`**, así que un
+`PATCH` desde una sesión de restaurante no la escribe. Eso es lo único que
+sostiene todo lo demás, y por eso hay una prueba dedicada: se comprobó
+metiéndola en la lista a propósito y viendo la prueba ponerse roja.
 
 ### Se comprueba en el servidor, no solo en la pantalla
 
 Esconder una pestaña no impide una llamada directa a la API — la misma razón por
-la que las banderas de plan se comprueban en los dos sitios. La ruta rechaza la
-subida con un 409 **antes de crear la fila**, así que un intento bloqueado
-tampoco gasta cupo.
+la que las banderas de plan se comprueban en los dos sitios. La ruta rechaza con
+un 403 **antes de crear la fila**, así que un intento bloqueado tampoco gasta
+cupo.
 
 Quién puede lo decide **una sola función** (`puedeImportar`) que usan la ruta y
 la pantalla. Dos definiciones separadas es cómo se consigue ofrecer un botón que
 el servidor luego rechaza.
+
+### Dos sitios por donde se entra
+
+La pestaña **y un atajo en Productos**, que aparece y desaparece con ella. Una
+pestaña más en la barra es fácil de no ver nunca; el atajo está donde la persona
+ya se dio cuenta de que le falta trabajo por hacer.
 
 ### Elegir modelo es cosa del superadmin
 

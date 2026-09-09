@@ -31,9 +31,15 @@ const IMAGEN = Buffer.concat([
 const subir = (contenido, nombre, token = tokenCliente, rid = IDS.restaurante) =>
 	pedirArchivo(`/api/importaciones?restaurante_id=${rid}`, {}, token, nombre, contenido);
 
+// La llave que concede el superadmin, restaurante por restaurante. Va en el
+// arnés porque casi todas las pruebas la dan por puesta: lo que prueban es lo
+// que pasa DESPUÉS de tenerla.
+const CON_LLAVE = { atributos: { importar_carta: true } };
+
 // Una fila de importación en el estado que pida cada prueba.
-function conFila(fila) {
+function conFila(fila, resto = CON_LLAVE) {
 	conTabla((st) => {
+		if (st.tabla === 'restaurantes') return { data: resto, error: null };
 		if (st.tabla === 'importaciones_carta') {
 			if (st.op === 'select' && st.opciones && st.opciones.head) return { data: null, count: 0, error: null };
 			if (st.op === 'select') return { data: fila, error: null };
@@ -89,9 +95,11 @@ describe('quién puede importar', () => {
 
 describe('el cupo', () => {
 	test('al llegar al tope se rechaza y no se llama al modelo', async () => {
-		conTabla((st) => (st.tabla === 'importaciones_carta' && st.opciones && st.opciones.head)
-			? { data: null, count: 5, error: null }
-			: { data: null, error: null });
+		conTabla((st) => {
+			if (st.tabla === 'restaurantes') return { data: CON_LLAVE, error: null };
+			if (st.tabla === 'importaciones_carta' && st.opciones && st.opciones.head) return { data: null, count: 5, error: null };
+			return { data: null, error: null };
+		});
 		const r = await subir(CARTA_PDF, 'carta.pdf');
 		assert.equal(r.status, 409);
 		assert.match(r.body.error, /5 importaciones/);
@@ -99,9 +107,11 @@ describe('el cupo', () => {
 
 	test('el admin no tiene tope', async () => {
 		// Es la herramienta con la que el equipo da de alta un restaurante.
-		conTabla((st) => (st.tabla === 'importaciones_carta' && st.opciones && st.opciones.head)
-			? { data: null, count: 999, error: null }
-			: { data: { id: IMPORTACION }, error: null });
+		conTabla((st) => {
+			if (st.tabla === 'restaurantes') return { data: CON_LLAVE, error: null };
+			if (st.tabla === 'importaciones_carta' && st.opciones && st.opciones.head) return { data: null, count: 999, error: null };
+			return { data: { id: IMPORTACION }, error: null };
+		});
 		const r = await subir(CARTA_PDF, 'carta.pdf', tokenAdmin);
 		assert.notEqual(r.status, 409);
 	});
@@ -121,12 +131,14 @@ describe('el cupo', () => {
 describe('qué archivos se aceptan', () => {
 	test('un .pdf que por dentro no es un PDF se rechaza', async () => {
 		// La extensión la elige quien sube; lo que vale es el contenido.
+		conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' });
 		const r = await subir(Buffer.from('esto es texto plano, no un PDF'), 'carta.pdf');
 		assert.equal(r.status, 400);
 		assert.match(r.body.error, /no es un PDF ni una imagen/);
 	});
 
 	test('una extensión que no está en la lista no pasa', async () => {
+		conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' });
 		const r = await subir(CARTA_PDF, 'carta.exe');
 		assert.equal(r.status, 400);
 	});
@@ -399,15 +411,13 @@ describe('el motivo de verdad, solo para quien puede arreglarlo', () => {
 });
 
 describe('a quién se le ofrece importar', () => {
-	// Es una herramienta del ALTA. A quien ya tiene la carta montada no se le
-	// ofrece: no le sirve y sí puede duplicársela.
-	//
-	// El umbral NO es cero, y el motivo salió de los datos el 09/09/2026: de
-	// los diez restaurantes de entonces ninguno tenía cero productos, así que
-	// con la regla estricta la función no le habría aparecido a nadie. Los que
-	// más la necesitaban eran los de 1, 2, 5 y 6 platos.
-	const conProductos = (n) => conTabla((st) => {
-		if (st.tabla === 'productos' && st.opciones && st.opciones.head) return { data: null, count: n, error: null };
+	// La llave la concede el superadmin restaurante por restaurante, en
+	// 'atributos.importar_carta'. NO es una regla automática: se probó a que lo
+	// fuera —esconderla al pasar de diez productos— y el negocio lo corrigió el
+	// 09/09/2026, porque "ya tiene todos sus productos" no es algo que el
+	// servidor pueda saber y quien sí lo sabe es quien habló con el cliente.
+	const conLlave = (puesta) => conTabla((st) => {
+		if (st.tabla === 'restaurantes') return { data: { atributos: puesta ? { importar_carta: true } : {} }, error: null };
 		if (st.tabla === 'importaciones_carta') {
 			if (st.opciones && st.opciones.head) return { data: null, count: 0, error: null };
 			return { data: { id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' }, error: null };
@@ -417,46 +427,55 @@ describe('a quién se le ofrece importar', () => {
 
 	const opciones = (token) => pedir('GET', `/api/importaciones/opciones?restaurante_id=${IDS.restaurante}`, null, token);
 
-	test('con la carta a medias, sí', async () => {
-		conProductos(6);
+	test('con la llave puesta, sí', async () => {
+		conLlave(true);
 		assert.equal((await opciones(tokenCliente)).body.puede_importar, true);
 	});
 
-	test('con la carta montada, no', async () => {
-		conProductos(97);
+	test('sin la llave, no', async () => {
+		conLlave(false);
 		assert.equal((await opciones(tokenCliente)).body.puede_importar, false);
 	});
 
-	test('justo en el umbral, no', async () => {
-		// El tope es "menos de", no "hasta".
-		const r = await opciones(tokenAdmin);
-		const tope = r.body.max_productos;
-		conProductos(tope);
-		assert.equal((await opciones(tokenCliente)).body.puede_importar, false);
-		conProductos(tope - 1);
-		assert.equal((await opciones(tokenCliente)).body.puede_importar, true);
-	});
-
-	test('el superadmin siempre, tenga la carta que tenga', async () => {
+	test('el superadmin siempre, tenga llave el restaurante o no', async () => {
 		// Para el equipo esto ES la herramienta del alta.
-		conProductos(500);
+		conLlave(false);
 		assert.equal((await opciones(tokenAdmin)).body.puede_importar, true);
 	});
 
-	test('y el servidor lo rechaza, no solo el panel', async () => {
+	test('sin llave, el servidor rechaza la subida', async () => {
 		// Esconder una pestaña no impide una llamada directa a la API.
-		conProductos(97);
+		conLlave(false);
 		const r = await subir(CARTA_PDF, 'carta.pdf', tokenCliente);
-		assert.equal(r.status, 409);
-		assert.match(r.body.error, /ya tiene platos/);
+		assert.equal(r.status, 403);
+		assert.match(r.body.error, /no está activada/);
 		assert.equal(llamadas.filter((l) => l.tabla === 'importaciones_carta' && l.op === 'insert').length, 0,
 			'ni se crea la fila: no gasta cupo');
 	});
 
-	test('el superadmin sube igual con la carta llena', async () => {
-		conProductos(500);
+	test('el superadmin sube aunque el restaurante no tenga llave', async () => {
+		conLlave(false);
 		const r = await subir(CARTA_PDF, 'carta.pdf', tokenAdmin);
-		assert.notEqual(r.status, 409);
+		assert.notEqual(r.status, 403);
+	});
+
+	test('un restaurante NO puede darse la llave a sí mismo', async () => {
+		// Es lo único que sostiene todo lo de arriba: si 'importar_carta'
+		// estuviera entre los atributos que el cliente puede escribir, un PATCH
+		// se la concedería y el resto sobra.
+		conTabla(() => ({ data: { id: IDS.restaurante, atributos: {} }, error: null }));
+		await pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`,
+			{ atributos: { importar_carta: true } }, tokenCliente);
+		const escrito = ultimaEscritura('restaurantes');
+		assert.equal(escrito && escrito.atributos && escrito.atributos.importar_carta, undefined,
+			'la clave no puede llegar a guardarse desde una sesión de restaurante');
+	});
+
+	test('el superadmin sí se la puede conceder', async () => {
+		conTabla(() => ({ data: { id: IDS.restaurante, atributos: {} }, error: null }));
+		await pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`,
+			{ atributos: { importar_carta: true } }, tokenAdmin);
+		assert.equal(ultimaEscritura('restaurantes').atributos.importar_carta, true);
 	});
 
 	test('sin restaurante_id no se contesta', async () => {

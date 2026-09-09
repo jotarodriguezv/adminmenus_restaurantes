@@ -645,6 +645,9 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // Dentro de "atributos" (JSON libre), el cliente solo puede tocar estas claves
 // (toppings, WhatsApp de pedidos, métodos de pago y diseño del QR). nav,
 // fuentes, redes, css_custom, etc. quedan fuera.
+// 'importar_carta' NO está aquí a conciencia: es la llave que abre el escaneo
+// de la carta, la concede el superadmin restaurante por restaurante, y si
+// estuviera en esta lista cualquiera podría dársela a sí mismo con un PATCH.
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv'];
 
 // Claves de "atributos" que además dependen del plan. El panel ya las
@@ -2401,32 +2404,27 @@ const TIPOS_MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image
 // la reserva liberada —la que nunca llegó a pedirse— no cuenta.
 const MAX_IMPORTACIONES = Number(process.env.LECTOR_MAX_IMPORTACIONES || 5);
 
-// Hasta cuántos productos puede tener un restaurante para que la importación
-// le siga apareciendo. Es lo que acota el ALCANCE: esto es una herramienta del
-// ALTA, y a quien ya tiene su carta montada no hay que ofrecerle que la
-// escanee otra vez.
+// ¿Este restaurante puede importar su carta?
 //
-// No es "cero" a propósito, y el motivo salió de mirar los datos el
-// 09/09/2026: de los diez restaurantes de entonces, NINGUNO tenía cero
-// productos. Con la regla estricta la función no le habría aparecido a nadie.
-// Y los que más la necesitan eran justo los de 1, 2, 5 y 6 platos: los que
-// empezaron a teclear y lo dejaron a medias, que es el momento exacto en el
-// que esto sirve para algo.
+// Lo concede el superadmin a mano, restaurante por restaurante, en
+// 'atributos.importar_carta'. No es una regla automática, y se probó a que lo
+// fuera: la primera versión miraba cuántos productos tenía y lo escondía al
+// pasar de diez. El negocio lo corrigió el 09/09/2026 y tenía razón —
+// "ya tiene todos sus productos" no es algo que el servidor pueda saber, y
+// quien SÍ lo sabe es quien habló con el restaurante.
 //
-// El número sale de que los datos se partían solos: 1, 2, 5, 5, 6 · 11, 37,
-// 96, 97, 100. Diez cae en ese hueco. El día que deje de encajar se cambia por
-// entorno, sin desplegar código.
+// Así que funciona como el plan: una capacidad que se enciende al dar el alta
+// —"ustedes pueden montar la carta escaneándola"— y se apaga cuando ya está
+// montada. 'importar_carta' NO está en ATRIBUTOS_CLIENTE_PERMITIDOS, así que
+// un restaurante no puede concedérsela a sí mismo ni por API.
 //
-// El superadmin no tiene tope: para el equipo esto ES la herramienta del alta.
-const MAX_PRODUCTOS_PARA_IMPORTAR = Number(process.env.LECTOR_MAX_PRODUCTOS || 10);
-
-// Una sola definición de "¿este restaurante puede importar?", que usan la ruta
-// y la pantalla. Separarlas es cómo se consigue que el panel ofrezca un botón
-// que el servidor luego rechaza.
+// Vive en una función y no repetida en cada sitio porque la contestan la ruta
+// y la pantalla, y dos copias de una regla de permiso acaban discrepando:
+// cuando eso pasa, el panel ofrece un botón que el servidor rechaza.
 async function puedeImportar(rid) {
-  const { count } = await supabase.from('productos')
-    .select('id', { count: 'exact', head: true }).eq('restaurante_id', rid);
-  return (count || 0) < MAX_PRODUCTOS_PARA_IMPORTAR;
+  const { data } = await supabase.from('restaurantes')
+    .select('atributos').eq('id', rid).maybeSingle();
+  return !!(data && data.atributos && data.atributos.importar_carta);
 }
 
 async function extraerDelArchivo(ruta, origen, modelo) {
@@ -2475,9 +2473,7 @@ app.post('/api/importaciones', auth,
       // llamada directa a la API: es la misma razón por la que las banderas de
       // plan se comprueban también en el servidor.
       if (!await puedeImportar(rid))
-        return res.status(409).json({
-          error: 'Esta carta ya tiene platos. Importar sirve para montarla de cero; para añadir algo suelto, créalo desde Productos.',
-        });
+        return res.status(403).json({ error: 'La importación de carta no está activada para este restaurante' });
     }
     next();
   },
@@ -2589,7 +2585,6 @@ app.get('/api/importaciones/opciones', auth, async (req, res) => {
   const esAdmin = req.user.rol === 'admin';
   res.json({
     puede_importar: esAdmin || await puedeImportar(rid),
-    max_productos: MAX_PRODUCTOS_PARA_IMPORTAR,
     modelos: esAdmin ? lectorcarta.MODELOS : [],
     por_defecto: esAdmin
       ? { texto: lectorcarta.MODELO, vision: lectorcarta.MODELO_VISION }
