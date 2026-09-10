@@ -679,7 +679,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**63 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
+**64 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
 el orden que yo seguiría:
 
 | # | Hallazgo | Por qué primero |
@@ -1607,16 +1607,85 @@ Se anotan porque los dos llevaban a conclusiones falsas y podrían repetirse:
 ---
 ---
 
+# Octava pasada: la cartelera del televisor (`tv.html`)
+
+Revisada a 1280 × 720 sobre `menu.vmenus.co/bonzas/tv`, con la configuración
+real de Bonzas: 3 platos por pantalla, 59 platos, 20 pantallas más 6
+intercaladas.
+
+Es la última superficie que quedaba sin mirar, y **sale con un solo hallazgo**.
+Para funcionar sola durante horas es lo más robusto de los dos repositorios.
+
+## TV1 · Nada impide que la pantalla se apague sola · **Media**
+
+- [ ] Pendiente
+
+No hay ninguna llamada a la **Wake Lock API** en `tv.html` —ni
+`navigator.wakeLock`, ni ninguna alternativa—, así que la página no pide
+mantener la pantalla encendida.
+
+**Por qué importa justo aquí:** el panel recomienda, como primera opción y
+textualmente «lo más seguro», **«Cable HDMI desde un computador»**. Y un
+computador apaga la pantalla por ahorro de energía a los diez o quince minutos
+de fábrica. O sea que el método que se recomienda como el más estable es
+precisamente el que se queda en negro solo — y el dueño no tiene forma de
+relacionar una cosa con la otra.
+
+Comprobado además que **no está documentado como paso manual**:
+`docs/pantalla-tv.md` no menciona el salvapantallas, ni el apagado de pantalla,
+ni los ajustes de energía. Su única línea al respecto da por hecho que «el
+televisor se enciende al abrir el local y se apaga al cerrar».
+
+**Arreglo:** pedir `navigator.wakeLock.request('screen')` al arrancar y volver
+a pedirlo en `visibilitychange` —el bloqueo se suelta solo al cambiar de
+pestaña—. Donde no exista la API no pasa nada, se ignora. Y añadir a
+`docs/pantalla-tv.md` la nota de desactivar el apagado de pantalla en el
+computador, para los navegadores que no la soportan.
+
+## Lo que está bien, que es casi todo
+
+Esta página está pensada para quedarse sola, y se nota:
+
+**El sondeo no reinicia el ciclo.** Pregunta por cambios cada 5 minutos, pero
+`sondear()` (`tv.html:1340`) compara antes de aplicar y **solo reconstruye si
+algo cambió de verdad** — porque rehacer los slides en cada sondeo reiniciaría
+la vuelta cada cinco minutos y «el cliente vería siempre los mismos primeros
+platos». Es un detalle que solo se ve pensando en la pantalla, no en el código.
+
+**La recarga de seguridad no interrumpe.** A las 18 horas recarga, pero
+**dentro de `avanzar()`, en la transición entre pantallas y nunca a media
+animación** (`tv.html:1191`). El comentario explica el porqué: el televisor se
+apaga al cerrar el local, pero un computador por HDMI puede quedarse encendido
+días, y ahí se acumulan las fugas.
+
+**Arranca sin internet.** Pinta primero la caché de lo último conocido, «para
+que un arranque sin internet —el local abre y el router todavía no levantó—
+enseñe algo igualmente».
+
+**No se queda en blanco nunca.** Si falla la carga conserva lo que había, con
+el comentario que lo resume mejor que yo: «una pantalla que sigue enseñando la
+carta de hace diez minutos es infinitamente mejor que una pantalla en blanco en
+la pared de un local». Y si la cartelera está apagada o no hay platos, muestra
+el logo y el nombre del restaurante, no un vacío.
+
+**El aviso de fallo está calibrado para el personal, no para el comensal.**
+`#sinRed` va en la esquina a 1,8 vmin con 45 % de opacidad, y sus textos son
+cortos y en español: «sin conexión», «respuesta ilegible», «error 400».
+
+**El tamaño de letra no es un hallazgo.** El nombre del plato ocupa el 2,9 %
+del alto de la pantalla y el precio el 2,67 %, que se queda corto para leer
+desde el fondo de un local — pero es consecuencia directa del ajuste «platos a
+la vez», que el panel ya explica sin adornos: «4 — caben más, se ven pequeños».
+Bonzas eligió 3. Es una decisión del restaurante, no un defecto.
+
+---
+---
+
 # Qué queda por revisar
 
-Actualizado tras la séptima pasada. Nada de esto está mirado.
+Actualizado tras la octava pasada. Nada de esto está mirado.
 
 ## Lo que se puede hacer sin interacción
-
-**`tv.html`, la cartelera del televisor.** 1.377 líneas, y es lo único que
-queda encendido horas seguidas en un local. Se revisó la pestaña que la
-configura, nunca la página. **Es la que mejor encaja hoy**: se pasa sola, así
-que no necesita clics — justo lo que está roto en el navegador de la revisión.
 
 **La vista clara del resto del panel.** Solo se midió Productos (CL4). Las
 demás pantallas se recorrieron en oscuro.
@@ -1658,6 +1727,9 @@ alguien con un archivo enorme y otro renombrado.
 **Los caminos que cuestan dinero**, excluidos a propósito: importar una carta
 (gasta cupo de la API de Anthropic) y generar video con IA (se paga en
 Replicate). Se revisó su interfaz sin lanzar el proceso.
+
+---
+---
 
 ---
 ---
