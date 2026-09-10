@@ -679,7 +679,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**65 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
+**66 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
 el orden que yo seguiría:
 
 | # | Hallazgo | Por qué primero |
@@ -1684,7 +1684,8 @@ Bonzas eligió 3. Es una decisión del restaurante, no un defecto.
 # Novena pasada: las subidas de archivo (probadas a mano)
 
 Las hizo el usuario el 10 de septiembre de 2026, porque el navegador de la
-revisión no puede seleccionar archivos. Se probaron dos de los cuatro casos.
+revisión no puede seleccionar archivos. **Los cuatro casos probados:** dos
+salieron correctos y se cierran, dos son hallazgo.
 
 ## Comprobado: el archivo renombrado ya no cuelga la ficha · **cerrado**
 
@@ -1734,18 +1735,51 @@ iPhone. Ábrela y guárdala como JPG, o mándatela por WhatsApp a ti mismo y sub
 la que llega». Es un `if` y una frase, y convierte un callejón sin salida en
 una instrucción.
 
-## Sin probar todavía
+## SU2 · Una foto corrupta se acepta, se sube y se anuncia en verde · **Media**
 
-Los dos casos que faltan **ya están fabricados**, en el Escritorio, carpeta
-`pruebas-subida`:
+- [ ] Pendiente
 
-| Archivo | Qué prueba | Qué debería pasar |
-|---|---|---|
-| `2-truncado.jpg` | Una foto real cortada a la mitad: empieza como JPEG válido y se acaba a medias | Mensaje rojo, o «No se pudo procesar la imagen» |
-| `3-enorme.png` | 5000 × 3500 — 2,4 MB en disco pero **67 MB al decodificar**, que es lo que tumba un móvil | Tarda unos segundos y acaba en «✓ Lista para guardar» |
+Probado con `2-truncado.jpg`. **Resultado: «✓ Lista para guardar», en verde** —
+no el error que se esperaba.
 
-El segundo conviene hacerlo **desde el teléfono**: en escritorio sobra memoria
-y no prueba nada.
+Qué es ese archivo, medido: JPEG **baseline (SOF0)**, 800 × 1203 declarados,
+con **9.000 de 86.173 bytes — el 10,4 %**, y sin marca de fin (`FFD9`). Un JPEG
+baseline se decodifica de arriba abajo, así que sobrevive **la décima parte
+superior** de la foto y el resto queda en blanco.
+
+El navegador no falla al abrirlo: decodifica lo que puede, `img.onload`
+dispara, el lienzo pinta esa décima parte y `toBlob` devuelve un archivo
+perfectamente válido… de una foto rota. `compressImage` solo se protege de los
+archivos que **no** decodifican (SU1, el renombrado); un decodificado **parcial**
+le parece un éxito.
+
+**Lo que agrava el caso:** `handleProductImgUpload` (`index.html:4021`) llama a
+`uploadImg` **antes** de que nadie pulse Guardar. «Lista para guardar» quiere
+decir que el archivo roto **ya está subido al servidor**; lo único que falta es
+apuntarlo en el producto. Si se cierra la ficha, queda un huérfano en
+`uploads/` hasta que pase `limpieza.js`.
+
+**Lo que lo modera:** la vista previa enseña el resultado, y una foto que es
+90 % blanco se ve rota a simple vista. La información está delante de quien
+sube. Lo que está mal es que **el panel afirme lo contrario en verde**: «✓
+Lista para guardar» es una aserción de que el archivo está bien, justo encima
+de la prueba de que no lo está.
+
+**Arreglo:** después de dibujar en el lienzo, comprobar que la imagen trae
+datos hasta abajo —muestrear las últimas filas de píxeles y ver si son todas
+del mismo valor vacío— y avisar en ámbar: «Esta foto parece incompleta, se ve
+cortada. Súbela otra vez». No hace falta bloquearla; basta con no cantar
+victoria.
+
+## Comprobado: una imagen enorme no tumba el navegador · **cerrado**
+
+- [x] Verificado en producción · 2026-09-10
+
+Probado con `3-enorme.png`: 5000 × 3500, 2,4 MB en disco pero **67 MB al
+decodificar**, que es lo que agota la memoria de un teléfono.
+
+**Resultado: «✓ Lista para guardar».** Ni cuelgue, ni pestaña cerrada. La
+reducción a 800 px de `compressImage` aguanta el caso.
 
 ---
 ---
@@ -1787,10 +1821,8 @@ entrar como superadmin.
 
 ## Lo que necesita a una persona
 
-**Las subidas de archivo: dos de cuatro casos hechos** (ver la novena pasada).
-Falta el archivo truncado y el de dimensiones enormes; los dos ya están
-fabricados en el Escritorio, carpeta `pruebas-subida`, y el segundo conviene
-hacerlo desde un teléfono.
+**Las subidas de archivo: los cuatro casos hechos** (novena pasada). Dos
+cerrados como correctos, dos convertidos en hallazgo (SU1 y SU2).
 
 **Los caminos que cuestan dinero**, excluidos a propósito: importar una carta
 (gasta cupo de la API de Anthropic) y generar video con IA (se paga en
