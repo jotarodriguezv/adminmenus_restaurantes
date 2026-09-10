@@ -679,7 +679,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**61 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
+**64 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
 el orden que yo seguiría:
 
 | # | Hallazgo | Por qué primero |
@@ -1504,56 +1504,232 @@ Eso necesita la sesión de un cliente real o volver a entrar como superadmin.
 ---
 ---
 
+# Séptima pasada: los cuatro modelos de carta que faltaban
+
+Revisados en móvil (375 px) sobre las cartas reales: **Sidebar** (Galé),
+**Explorar** (San Javier), **Video** (Voro) y **Vertical** (Pizzería Pierrot).
+
+**El resultado, dicho de frente: los modelos están mejor construidos que el
+panel.** Solo salen dos hallazgos nuevos. El resto de lo que se fue a buscar
+—contraste sobre fotos, vídeos comiéndose los datos, barras fijas tapando
+contenido, botones flotantes pisándose— estaba resuelto, y en varios casos
+mejor de lo que se suele ver.
+
+> **Limitación de esta pasada:** los clics del navegador dejaron de responder,
+> así que se revisó **el primer render de cada modelo** más el fuente de su
+> tema. No se pudieron abrir el menú lateral, la ficha de un plato, el panel de
+> filtros ni el buscador. Lo que dependa de esos estados sigue sin mirar.
+
+## MD1 · El botón del menú lateral no tiene nombre accesible · **Media**
+
+- [ ] Pendiente
+
+Modelo **Sidebar**. El marcado (`vmenus-app/index.html:1669`) es:
+
+```html
+<button class="menu-toggle" id="menuToggle">
+  <span></span><span></span><span></span>
+</button>
+```
+
+Tres `<span>` vacíos dibujados como barras con CSS. **El botón no contiene
+texto, ni `aria-label`, ni `title`**, así que su nombre accesible está vacío:
+un lector de pantalla anuncia «botón» y nada más.
+
+Las categorías siguen alcanzables bajando por la página —los títulos están en
+el texto—, así que no se pierde la carta; lo que queda tras un botón sin nombre
+es **el salto rápido entre categorías**, que en una carta larga es la razón de
+ser de este modelo.
+
+Mide además **40 × 33**, por debajo de los 44 × 44 de referencia.
+
+**Y el patrón ya está en la casa:** el botón del carrito lleva
+`aria-label="Ver el pedido"` (`index.html:1702`) y `temas/explorar.js` tiene
+cinco etiquetas más. Esta se quedó fuera.
+
+## MD2 · El botón de limpiar la búsqueda mide 16 × 16 · **Media**
+
+- [ ] Pendiente
+
+Modelo **Explorar**, `temas/explorar.js:109`. Es el **control más pequeño de
+toda la aplicación**: por debajo incluso del mínimo AA de 24 × 24, y menos de
+la mitad de los 44 recomendados.
+
+Está bien hecho en lo demás —es un `<button>` de verdad con
+`aria-label="Limpiar"`— pero es una diana de 16 px para un pulgar, dentro de un
+campo de búsqueda que se usa con el teclado abierto y media pantalla ocupada.
+
+## Lo que se fue a buscar y estaba bien
+
+**Vídeo sobre datos móviles (modelo Video).** Es lo mejor construido de los dos
+repositorios. Cuatro vídeos en el DOM y **una sola petición**: cada `<video>`
+lleva `preload="none"`, `poster`, `muted`, `loop` y `playsinline`, y
+`core/reproduccion.js` usa **dos** `IntersectionObserver` — uno que solo asigna
+el `src` cuando el plato está a dos pantallas de distancia
+(`rootMargin: '200% 0px'`) y otro que reparte la reproducción al más visible.
+Y pausa con la pestaña en segundo plano, «no tiene sentido gastar batería».
+
+**Texto sobre foto (modelo Vertical).** Dos mecanismos a la vez: un velo
+`.ver-velo` con degradado negro al 40 % y `text-shadow` en el nombre del plato.
+Además solo hay **2 diapositivas en el DOM** —no se pinta la carta entera— y el
+desplazamiento usa `scroll-snap-type: y mandatory` con
+**`scroll-snap-stop: always`**, comentado como «no se saltan platos de un
+manotazo».
+
+**Contraste (Sidebar y Explorar).** Medido: nombre 13,3 · precio 10,8 ·
+categoría 13,9 en Sidebar, y descripción 9,1 en Explorar. Muy por encima del
+mínimo. Ninguno de los dos desborda en horizontal.
+
+**Botones flotantes (modelo Video).** Los tres —carrito, WhatsApp y subir— están
+colocados sin pisarse, comprobado por rectángulos, y el contenido lleva
+`padding-bottom: 100px` para que no los tape.
+
+## Lo que esta pasada confirma de hallazgos ya anotados
+
+**V2 vale para los cuatro.** La tarjeta de plato de Explorar también es
+`div.onclick` (`temas/explorar.js:337`). Ningún modelo aporta teclado.
+
+**V3 vale para los cuatro.** Los controles pequeños —`close-checkout` 18 × 30,
+`close-cart` 20 × 32, `custom-qty-btn` 34 × 34— viven en `index.html`, que es
+común a todos los temas, así que aparecen igual en los cuatro modelos.
+
+## Dos errores de medición de esta pasada, corregidos
+
+Se anotan porque los dos llevaban a conclusiones falsas y podrían repetirse:
+
+1. **«San Javier no tiene elementos fijos».** Falso. El filtro exigía
+   `offsetParent !== null`, y `offsetParent` **es `null` justamente para los
+   elementos `position: fixed`**. Con el filtro corregido aparecen once.
+2. **«El modelo Vertical no usa scroll-snap».** Falso. Se midió
+   `document.scrollingElement`, y el snap está en un contenedor interno
+   (`index.html:1198`).
+
+---
+---
+
+# Octava pasada: la cartelera del televisor (`tv.html`)
+
+Revisada a 1280 × 720 sobre `menu.vmenus.co/bonzas/tv`, con la configuración
+real de Bonzas: 3 platos por pantalla, 59 platos, 20 pantallas más 6
+intercaladas.
+
+Es la última superficie que quedaba sin mirar, y **sale con un solo hallazgo**.
+Para funcionar sola durante horas es lo más robusto de los dos repositorios.
+
+## TV1 · Nada impide que la pantalla se apague sola · **Media**
+
+- [ ] Pendiente
+
+No hay ninguna llamada a la **Wake Lock API** en `tv.html` —ni
+`navigator.wakeLock`, ni ninguna alternativa—, así que la página no pide
+mantener la pantalla encendida.
+
+**Por qué importa justo aquí:** el panel recomienda, como primera opción y
+textualmente «lo más seguro», **«Cable HDMI desde un computador»**. Y un
+computador apaga la pantalla por ahorro de energía a los diez o quince minutos
+de fábrica. O sea que el método que se recomienda como el más estable es
+precisamente el que se queda en negro solo — y el dueño no tiene forma de
+relacionar una cosa con la otra.
+
+Comprobado además que **no está documentado como paso manual**:
+`docs/pantalla-tv.md` no menciona el salvapantallas, ni el apagado de pantalla,
+ni los ajustes de energía. Su única línea al respecto da por hecho que «el
+televisor se enciende al abrir el local y se apaga al cerrar».
+
+**Arreglo:** pedir `navigator.wakeLock.request('screen')` al arrancar y volver
+a pedirlo en `visibilitychange` —el bloqueo se suelta solo al cambiar de
+pestaña—. Donde no exista la API no pasa nada, se ignora. Y añadir a
+`docs/pantalla-tv.md` la nota de desactivar el apagado de pantalla en el
+computador, para los navegadores que no la soportan.
+
+## Lo que está bien, que es casi todo
+
+Esta página está pensada para quedarse sola, y se nota:
+
+**El sondeo no reinicia el ciclo.** Pregunta por cambios cada 5 minutos, pero
+`sondear()` (`tv.html:1340`) compara antes de aplicar y **solo reconstruye si
+algo cambió de verdad** — porque rehacer los slides en cada sondeo reiniciaría
+la vuelta cada cinco minutos y «el cliente vería siempre los mismos primeros
+platos». Es un detalle que solo se ve pensando en la pantalla, no en el código.
+
+**La recarga de seguridad no interrumpe.** A las 18 horas recarga, pero
+**dentro de `avanzar()`, en la transición entre pantallas y nunca a media
+animación** (`tv.html:1191`). El comentario explica el porqué: el televisor se
+apaga al cerrar el local, pero un computador por HDMI puede quedarse encendido
+días, y ahí se acumulan las fugas.
+
+**Arranca sin internet.** Pinta primero la caché de lo último conocido, «para
+que un arranque sin internet —el local abre y el router todavía no levantó—
+enseñe algo igualmente».
+
+**No se queda en blanco nunca.** Si falla la carga conserva lo que había, con
+el comentario que lo resume mejor que yo: «una pantalla que sigue enseñando la
+carta de hace diez minutos es infinitamente mejor que una pantalla en blanco en
+la pared de un local». Y si la cartelera está apagada o no hay platos, muestra
+el logo y el nombre del restaurante, no un vacío.
+
+**El aviso de fallo está calibrado para el personal, no para el comensal.**
+`#sinRed` va en la esquina a 1,8 vmin con 45 % de opacidad, y sus textos son
+cortos y en español: «sin conexión», «respuesta ilegible», «error 400».
+
+**El tamaño de letra no es un hallazgo.** El nombre del plato ocupa el 2,9 %
+del alto de la pantalla y el precio el 2,67 %, que se queda corto para leer
+desde el fondo de un local — pero es consecuencia directa del ajuste «platos a
+la vez», que el panel ya explica sin adornos: «4 — caben más, se ven pequeños».
+Bonzas eligió 3. Es una decisión del restaurante, no un defecto.
+
+---
+---
+
 # Qué queda por revisar
 
-Nada de esto está mirado. Se deja escrito para que la próxima sesión —o la
-próxima persona— sepa dónde está el borde de lo revisado.
+Actualizado tras la octava pasada. Nada de esto está mirado.
 
-## De la carta del comensal
+## Lo que se puede hacer sin interacción
 
-**Cuatro de los seis modelos de página, sin ver.** Solo se revisó `topnav`
-(sobre Bonzas) y el checkout de `carrito` por código. Cada modelo es un archivo
-de tema con su propia interfaz:
+**La vista clara del resto del panel.** Solo se midió Productos (CL4). Las
+demás pantallas se recorrieron en oscuro.
 
-| Modelo | Dónde verlo |
-|---|---|
-| Sidebar | Galé |
-| Explorar | San Javier — el que trae búsqueda y filtros |
-| Video | Voro |
-| Vertical | Pizzería Pierrot — se desliza como reels |
+## Lo que necesita clics
 
-**`tv.html`**, la cartelera del televisor: 1.377 líneas, y es lo que queda
-encendido horas en un local. Se revisó la pestaña que la configura, nunca la
-página en sí.
+Los clics del navegador dejaron de responder a mitad de la revisión, así que
+todo lo que sigue quedó fuera:
+
+**Los estados interactivos de los cuatro modelos**: abrir el menú lateral
+(Sidebar), la ficha de un plato, el panel de filtros y el buscador (Explorar).
+De la séptima pasada solo se pudo ver el primer render de cada uno.
 
 **El flujo de pedido completo** sobre un restaurante que sí tenga número de
-WhatsApp, con toppings y personalización. Lo revisado del carrito es el código
-(V4, V5) y el checkout, no un pedido de principio a fin.
-
-## Del panel
-
-**La densidad en móvil.** Las cinco pestañas del cliente se recorrieron sobre
-`zz-pruebas-ux`, que tiene 1 producto y 1 categoría. Falta verlas con una carta
-real —97 productos, 21 categorías—, que es donde M1 y M3 deberían ponerse
-peores.
+WhatsApp, con toppings y personalización. Lo revisado es el código (V4, V5,
+PE1), no un pedido de principio a fin.
 
 **Las promociones con horario**: el interruptor «Solo en ciertos días u horas»,
-y cómo se ve el bloque «AHORA MISMO» cuando ninguna promoción está vigente.
+y cómo queda el bloque «AHORA MISMO» cuando ninguna está vigente.
 
 **Los horarios por categoría** y su estado «oculta ahora».
 
-**La vista clara del resto de pantallas.** Solo se midió Productos (CL4). Las
-demás se recorrieron en oscuro.
+## Lo que necesita otra sesión
 
-## Lo que no se pudo hacer
+**La densidad del panel en móvil.** Las cinco pestañas del cliente se
+recorrieron sobre `zz-pruebas-ux`, que tiene 1 producto y 1 categoría. Falta
+verlas con una carta real —97 productos, 21 categorías—, que es donde M1 y M3
+deberían ponerse peores. Hace falta la sesión de un cliente real o volver a
+entrar como superadmin.
 
-**Las subidas de archivo.** El navegador usado en la revisión no tiene acción
-para seleccionar un archivo, así que no se pudo provocar ningún error de
-tamaño ni de formato. La revisión de esa parte es solo de código, y de ahí
-salió que está entre lo mejor hecho del panel (ver la nota al final de la
-tercera pasada). Para probarlo de verdad hace falta una persona con un archivo
-enorme y otro renombrado.
+## Lo que necesita a una persona
 
-**Los caminos que cuestan dinero**, excluidos a propósito por el usuario:
-importar una carta (gasta cupo de la API de Anthropic) y generar video con IA
-(se paga en Replicate). Se revisó su interfaz sin llegar a lanzar el proceso.
+**Las subidas de archivo.** El navegador usado no tiene acción para seleccionar
+un archivo, así que no se pudo provocar ningún error de tamaño ni de formato.
+Esa parte se revisó solo por código, y salió que está entre lo mejor hecho del
+panel (ver el final de la tercera pasada). Para probarlo de verdad hace falta
+alguien con un archivo enorme y otro renombrado.
+
+**Los caminos que cuestan dinero**, excluidos a propósito: importar una carta
+(gasta cupo de la API de Anthropic) y generar video con IA (se paga en
+Replicate). Se revisó su interfaz sin lanzar el proceso.
+
+---
+---
+
+---
+---
