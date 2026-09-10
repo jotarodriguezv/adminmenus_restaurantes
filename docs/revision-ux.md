@@ -679,7 +679,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**61 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
+**63 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
 el orden que yo seguiría:
 
 | # | Hallazgo | Por qué primero |
@@ -1557,3 +1557,106 @@ enorme y otro renombrado.
 **Los caminos que cuestan dinero**, excluidos a propósito por el usuario:
 importar una carta (gasta cupo de la API de Anthropic) y generar video con IA
 (se paga en Replicate). Se revisó su interfaz sin llegar a lanzar el proceso.
+
+---
+---
+
+# Séptima pasada: los cuatro modelos de carta que faltaban
+
+Revisados en móvil (375 px) sobre las cartas reales: **Sidebar** (Galé),
+**Explorar** (San Javier), **Video** (Voro) y **Vertical** (Pizzería Pierrot).
+
+**El resultado, dicho de frente: los modelos están mejor construidos que el
+panel.** Solo salen dos hallazgos nuevos. El resto de lo que se fue a buscar
+—contraste sobre fotos, vídeos comiéndose los datos, barras fijas tapando
+contenido, botones flotantes pisándose— estaba resuelto, y en varios casos
+mejor de lo que se suele ver.
+
+> **Limitación de esta pasada:** los clics del navegador dejaron de responder,
+> así que se revisó **el primer render de cada modelo** más el fuente de su
+> tema. No se pudieron abrir el menú lateral, la ficha de un plato, el panel de
+> filtros ni el buscador. Lo que dependa de esos estados sigue sin mirar.
+
+## MD1 · El botón del menú lateral no tiene nombre accesible · **Media**
+
+- [ ] Pendiente
+
+Modelo **Sidebar**. El marcado (`vmenus-app/index.html:1669`) es:
+
+```html
+<button class="menu-toggle" id="menuToggle">
+  <span></span><span></span><span></span>
+</button>
+```
+
+Tres `<span>` vacíos dibujados como barras con CSS. **El botón no contiene
+texto, ni `aria-label`, ni `title`**, así que su nombre accesible está vacío:
+un lector de pantalla anuncia «botón» y nada más.
+
+Las categorías siguen alcanzables bajando por la página —los títulos están en
+el texto—, así que no se pierde la carta; lo que queda tras un botón sin nombre
+es **el salto rápido entre categorías**, que en una carta larga es la razón de
+ser de este modelo.
+
+Mide además **40 × 33**, por debajo de los 44 × 44 de referencia.
+
+**Y el patrón ya está en la casa:** el botón del carrito lleva
+`aria-label="Ver el pedido"` (`index.html:1702`) y `temas/explorar.js` tiene
+cinco etiquetas más. Esta se quedó fuera.
+
+## MD2 · El botón de limpiar la búsqueda mide 16 × 16 · **Media**
+
+- [ ] Pendiente
+
+Modelo **Explorar**, `temas/explorar.js:109`. Es el **control más pequeño de
+toda la aplicación**: por debajo incluso del mínimo AA de 24 × 24, y menos de
+la mitad de los 44 recomendados.
+
+Está bien hecho en lo demás —es un `<button>` de verdad con
+`aria-label="Limpiar"`— pero es una diana de 16 px para un pulgar, dentro de un
+campo de búsqueda que se usa con el teclado abierto y media pantalla ocupada.
+
+## Lo que se fue a buscar y estaba bien
+
+**Vídeo sobre datos móviles (modelo Video).** Es lo mejor construido de los dos
+repositorios. Cuatro vídeos en el DOM y **una sola petición**: cada `<video>`
+lleva `preload="none"`, `poster`, `muted`, `loop` y `playsinline`, y
+`core/reproduccion.js` usa **dos** `IntersectionObserver` — uno que solo asigna
+el `src` cuando el plato está a dos pantallas de distancia
+(`rootMargin: '200% 0px'`) y otro que reparte la reproducción al más visible.
+Y pausa con la pestaña en segundo plano, «no tiene sentido gastar batería».
+
+**Texto sobre foto (modelo Vertical).** Dos mecanismos a la vez: un velo
+`.ver-velo` con degradado negro al 40 % y `text-shadow` en el nombre del plato.
+Además solo hay **2 diapositivas en el DOM** —no se pinta la carta entera— y el
+desplazamiento usa `scroll-snap-type: y mandatory` con
+**`scroll-snap-stop: always`**, comentado como «no se saltan platos de un
+manotazo».
+
+**Contraste (Sidebar y Explorar).** Medido: nombre 13,3 · precio 10,8 ·
+categoría 13,9 en Sidebar, y descripción 9,1 en Explorar. Muy por encima del
+mínimo. Ninguno de los dos desborda en horizontal.
+
+**Botones flotantes (modelo Video).** Los tres —carrito, WhatsApp y subir— están
+colocados sin pisarse, comprobado por rectángulos, y el contenido lleva
+`padding-bottom: 100px` para que no los tape.
+
+## Lo que esta pasada confirma de hallazgos ya anotados
+
+**V2 vale para los cuatro.** La tarjeta de plato de Explorar también es
+`div.onclick` (`temas/explorar.js:337`). Ningún modelo aporta teclado.
+
+**V3 vale para los cuatro.** Los controles pequeños —`close-checkout` 18 × 30,
+`close-cart` 20 × 32, `custom-qty-btn` 34 × 34— viven en `index.html`, que es
+común a todos los temas, así que aparecen igual en los cuatro modelos.
+
+## Dos errores de medición de esta pasada, corregidos
+
+Se anotan porque los dos llevaban a conclusiones falsas y podrían repetirse:
+
+1. **«San Javier no tiene elementos fijos».** Falso. El filtro exigía
+   `offsetParent !== null`, y `offsetParent` **es `null` justamente para los
+   elementos `position: fixed`**. Con el filtro corregido aparecen once.
+2. **«El modelo Vertical no usa scroll-snap».** Falso. Se midió
+   `document.scrollingElement`, y el snap está en un contenedor interno
+   (`index.html:1198`).
