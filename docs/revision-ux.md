@@ -1504,63 +1504,6 @@ Eso necesita la sesión de un cliente real o volver a entrar como superadmin.
 ---
 ---
 
-# Qué queda por revisar
-
-Nada de esto está mirado. Se deja escrito para que la próxima sesión —o la
-próxima persona— sepa dónde está el borde de lo revisado.
-
-## De la carta del comensal
-
-**Cuatro de los seis modelos de página, sin ver.** Solo se revisó `topnav`
-(sobre Bonzas) y el checkout de `carrito` por código. Cada modelo es un archivo
-de tema con su propia interfaz:
-
-| Modelo | Dónde verlo |
-|---|---|
-| Sidebar | Galé |
-| Explorar | San Javier — el que trae búsqueda y filtros |
-| Video | Voro |
-| Vertical | Pizzería Pierrot — se desliza como reels |
-
-**`tv.html`**, la cartelera del televisor: 1.377 líneas, y es lo que queda
-encendido horas en un local. Se revisó la pestaña que la configura, nunca la
-página en sí.
-
-**El flujo de pedido completo** sobre un restaurante que sí tenga número de
-WhatsApp, con toppings y personalización. Lo revisado del carrito es el código
-(V4, V5) y el checkout, no un pedido de principio a fin.
-
-## Del panel
-
-**La densidad en móvil.** Las cinco pestañas del cliente se recorrieron sobre
-`zz-pruebas-ux`, que tiene 1 producto y 1 categoría. Falta verlas con una carta
-real —97 productos, 21 categorías—, que es donde M1 y M3 deberían ponerse
-peores.
-
-**Las promociones con horario**: el interruptor «Solo en ciertos días u horas»,
-y cómo se ve el bloque «AHORA MISMO» cuando ninguna promoción está vigente.
-
-**Los horarios por categoría** y su estado «oculta ahora».
-
-**La vista clara del resto de pantallas.** Solo se midió Productos (CL4). Las
-demás se recorrieron en oscuro.
-
-## Lo que no se pudo hacer
-
-**Las subidas de archivo.** El navegador usado en la revisión no tiene acción
-para seleccionar un archivo, así que no se pudo provocar ningún error de
-tamaño ni de formato. La revisión de esa parte es solo de código, y de ahí
-salió que está entre lo mejor hecho del panel (ver la nota al final de la
-tercera pasada). Para probarlo de verdad hace falta una persona con un archivo
-enorme y otro renombrado.
-
-**Los caminos que cuestan dinero**, excluidos a propósito por el usuario:
-importar una carta (gasta cupo de la API de Anthropic) y generar video con IA
-(se paga en Replicate). Se revisó su interfaz sin llegar a lanzar el proceso.
-
----
----
-
 # Séptima pasada: los cuatro modelos de carta que faltaban
 
 Revisados en móvil (375 px) sobre las cartas reales: **Sidebar** (Galé),
@@ -1660,3 +1603,61 @@ Se anotan porque los dos llevaban a conclusiones falsas y podrían repetirse:
 2. **«El modelo Vertical no usa scroll-snap».** Falso. Se midió
    `document.scrollingElement`, y el snap está en un contenedor interno
    (`index.html:1198`).
+
+---
+---
+
+# Qué queda por revisar
+
+Actualizado tras la séptima pasada. Nada de esto está mirado.
+
+## Lo que se puede hacer sin interacción
+
+**`tv.html`, la cartelera del televisor.** 1.377 líneas, y es lo único que
+queda encendido horas seguidas en un local. Se revisó la pestaña que la
+configura, nunca la página. **Es la que mejor encaja hoy**: se pasa sola, así
+que no necesita clics — justo lo que está roto en el navegador de la revisión.
+
+**La vista clara del resto del panel.** Solo se midió Productos (CL4). Las
+demás pantallas se recorrieron en oscuro.
+
+## Lo que necesita clics
+
+Los clics del navegador dejaron de responder a mitad de la revisión, así que
+todo lo que sigue quedó fuera:
+
+**Los estados interactivos de los cuatro modelos**: abrir el menú lateral
+(Sidebar), la ficha de un plato, el panel de filtros y el buscador (Explorar).
+De la séptima pasada solo se pudo ver el primer render de cada uno.
+
+**El flujo de pedido completo** sobre un restaurante que sí tenga número de
+WhatsApp, con toppings y personalización. Lo revisado es el código (V4, V5,
+PE1), no un pedido de principio a fin.
+
+**Las promociones con horario**: el interruptor «Solo en ciertos días u horas»,
+y cómo queda el bloque «AHORA MISMO» cuando ninguna está vigente.
+
+**Los horarios por categoría** y su estado «oculta ahora».
+
+## Lo que necesita otra sesión
+
+**La densidad del panel en móvil.** Las cinco pestañas del cliente se
+recorrieron sobre `zz-pruebas-ux`, que tiene 1 producto y 1 categoría. Falta
+verlas con una carta real —97 productos, 21 categorías—, que es donde M1 y M3
+deberían ponerse peores. Hace falta la sesión de un cliente real o volver a
+entrar como superadmin.
+
+## Lo que necesita a una persona
+
+**Las subidas de archivo.** El navegador usado no tiene acción para seleccionar
+un archivo, así que no se pudo provocar ningún error de tamaño ni de formato.
+Esa parte se revisó solo por código, y salió que está entre lo mejor hecho del
+panel (ver el final de la tercera pasada). Para probarlo de verdad hace falta
+alguien con un archivo enorme y otro renombrado.
+
+**Los caminos que cuestan dinero**, excluidos a propósito: importar una carta
+(gasta cupo de la API de Anthropic) y generar video con IA (se paga en
+Replicate). Se revisó su interfaz sin lanzar el proceso.
+
+---
+---
