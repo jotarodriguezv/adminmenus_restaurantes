@@ -679,7 +679,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**64 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
+**65 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
 el orden que yo seguiría:
 
 | # | Hallazgo | Por qué primero |
@@ -1681,9 +1681,78 @@ Bonzas eligió 3. Es una decisión del restaurante, no un defecto.
 ---
 ---
 
+# Novena pasada: las subidas de archivo (probadas a mano)
+
+Las hizo el usuario el 10 de septiembre de 2026, porque el navegador de la
+revisión no puede seleccionar archivos. Se probaron dos de los cuatro casos.
+
+## Comprobado: el archivo renombrado ya no cuelga la ficha · **cerrado**
+
+- [x] Verificado en producción · 2026-09-10
+
+Se subió un PDF renombrado a `.jpg` al recuadro de imagen de un producto.
+`accept="image/*"` lo deja pasar porque mira el nombre y no el contenido.
+
+**Resultado: el mensaje esperado, en rojo** — «Ese archivo no es una imagen que
+el navegador pueda abrir».
+
+Esto importa más de lo que parece: el comentario de `compressImage`
+(`index.html:6958`) cuenta que **antes la promesa no se resolvía nunca**, el
+estado se quedaba en «Subiendo…» para siempre y no había más salida que
+recargar la página entera. **Queda verificado en producción que ese fallo está
+arreglado**, no solo leído en el código.
+
+## SU1 · Una foto de iPhone en HEIC muere en un mensaje sin salida · **Media**
+
+- [ ] Pendiente
+
+Probado: una foto **sin convertir, en `.heic`**, devuelve «Ese archivo no es una
+imagen que el navegador pueda abrir».
+
+El rechazo en sí está bien —el navegador no puede decodificarlo, y colgarse
+sería mucho peor—. **El problema es el mensaje.** A quien tiene el teléfono en
+la mano le dice que su foto no es una foto, cuando la ve perfectamente en su
+carrete y la ha mandado por WhatsApp mil veces. No le dice qué formato es, ni
+qué hacer, ni que tiene arreglo en diez segundos. La conclusión razonable desde
+el otro lado es «el panel está roto» o «la foto está dañada», y la llamada cae
+en soporte.
+
+**Con qué frecuencia pasa de verdad**, para no exagerarlo: cuando el iPhone
+abre el selector de **fotos**, transcodifica a JPG él solo, así que el camino
+más común no falla. El HEIC llega cuando se elige desde **Archivos**, cuando la
+foto se pasó antes a un computador y se sube desde ahí, o cuando llegó como
+documento por correo o WhatsApp. No es el caso mayoritario, pero está a un paso
+del mayoritario y es el formato por defecto de todos los iPhone desde 2017.
+
+**Comprobado además que no está contemplado en ninguna parte:** «heic» y
+«heif» no aparecen ni una vez en `public/index.html`, ni en `server.js`, ni en
+ningún documento de `docs/`.
+
+**Arreglo:** mirar la extensión o el tipo antes de rendirse y dar el mensaje
+que corresponde. Algo como: «Esa foto está en formato HEIC, el que usan los
+iPhone. Ábrela y guárdala como JPG, o mándatela por WhatsApp a ti mismo y sube
+la que llega». Es un `if` y una frase, y convierte un callejón sin salida en
+una instrucción.
+
+## Sin probar todavía
+
+Los dos casos que faltan **ya están fabricados**, en el Escritorio, carpeta
+`pruebas-subida`:
+
+| Archivo | Qué prueba | Qué debería pasar |
+|---|---|---|
+| `2-truncado.jpg` | Una foto real cortada a la mitad: empieza como JPEG válido y se acaba a medias | Mensaje rojo, o «No se pudo procesar la imagen» |
+| `3-enorme.png` | 5000 × 3500 — 2,4 MB en disco pero **67 MB al decodificar**, que es lo que tumba un móvil | Tarda unos segundos y acaba en «✓ Lista para guardar» |
+
+El segundo conviene hacerlo **desde el teléfono**: en escritorio sobra memoria
+y no prueba nada.
+
+---
+---
+
 # Qué queda por revisar
 
-Actualizado tras la octava pasada. Nada de esto está mirado.
+Actualizado tras la novena pasada. Nada de esto está mirado.
 
 ## Lo que se puede hacer sin interacción
 
@@ -1718,15 +1787,17 @@ entrar como superadmin.
 
 ## Lo que necesita a una persona
 
-**Las subidas de archivo.** El navegador usado no tiene acción para seleccionar
-un archivo, así que no se pudo provocar ningún error de tamaño ni de formato.
-Esa parte se revisó solo por código, y salió que está entre lo mejor hecho del
-panel (ver el final de la tercera pasada). Para probarlo de verdad hace falta
-alguien con un archivo enorme y otro renombrado.
+**Las subidas de archivo: dos de cuatro casos hechos** (ver la novena pasada).
+Falta el archivo truncado y el de dimensiones enormes; los dos ya están
+fabricados en el Escritorio, carpeta `pruebas-subida`, y el segundo conviene
+hacerlo desde un teléfono.
 
 **Los caminos que cuestan dinero**, excluidos a propósito: importar una carta
 (gasta cupo de la API de Anthropic) y generar video con IA (se paga en
 Replicate). Se revisó su interfaz sin lanzar el proceso.
+
+---
+---
 
 ---
 ---
