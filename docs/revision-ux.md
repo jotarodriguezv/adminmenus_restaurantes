@@ -679,7 +679,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**66 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
+**68 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
 el orden que yo seguiría:
 
 | # | Hallazgo | Por qué primero |
@@ -1784,9 +1784,56 @@ reducción a 800 px de `compressImage` aguanta el caso.
 ---
 ---
 
+# Décima pasada: los estados interactivos (los clics volvieron)
+
+El navegador recuperó los clics, así que se pudo abrir por fin el menú lateral
+del modelo **Sidebar**, que en la séptima pasada quedó pendiente.
+
+## MD3 · Escape cierra tres capas pero no el menú lateral · **Media**
+
+- [ ] Pendiente
+
+Probado en la carta de Galé: con el lateral abierto se pulsa Escape y **sigue
+abierto** (`class="sidebar open"`).
+
+El manejador global (`core/menu.js:325`) sí atiende Escape, y cierra tres
+cosas: el modal del plato, la lupa de la foto y la promoción. **El lateral es
+la única capa que se queda fuera de esa lista** — y es una capa que tapa la
+pantalla entera en móvil.
+
+Cerrarlo sí se puede: con la ✕ o tocando el velo. Lo que falla es que la tecla
+que ya cierra todo lo demás aquí no haga nada, que es peor que si no
+funcionara en ningún sitio: enseña una regla y luego la rompe.
+
+**Arreglo:** añadir `closeSidebar()` a esa misma línea.
+
+## MD4 · Al abrir el lateral, el foco se queda fuera · **Baja**
+
+- [ ] Pendiente
+
+Con el panel abierto, `document.activeElement` sigue siendo el botón
+`menu-toggle`, **fuera del lateral**. No se mueve el foco al panel ni se
+retiene dentro: tabulando se sale del menú mientras sigue cubriendo la página.
+
+Y su botón de cerrar (`#closeMenu`) mide **20 × 32** y no tiene `aria-label`;
+su único contenido es «✕». Es el mismo problema que MD1 en el botón de abrir, y
+del mismo tamaño que los cierres globales de V3.
+
+**Arreglo:** llevar el foco al panel al abrirlo, devolverlo al botón al
+cerrarlo, y ponerle nombre a la ✕.
+
+## Lo que está bien
+
+**Los 21 elementos del menú son `<button>` de verdad**, así que esta parte sí
+se recorre con teclado — bastante mejor que las tarjetas de plato de V2, que
+son `div` con `onclick`. Y hay velo que cierra al tocarlo.
+
+---
+---
+
 # Qué queda por revisar
 
-Actualizado tras la novena pasada. Nada de esto está mirado.
+Actualizado tras la décima pasada. Nada de esto está mirado.
 
 ## Lo que se puede hacer sin interacción
 
@@ -1798,9 +1845,10 @@ demás pantallas se recorrieron en oscuro.
 Los clics del navegador dejaron de responder a mitad de la revisión, así que
 todo lo que sigue quedó fuera:
 
-**Los estados interactivos de los cuatro modelos**: abrir el menú lateral
-(Sidebar), la ficha de un plato, el panel de filtros y el buscador (Explorar).
-De la séptima pasada solo se pudo ver el primer render de cada uno.
+**Los estados interactivos que faltan**: la ficha de un plato, el panel de
+filtros y el buscador (Explorar). El menú lateral ya está hecho — ver la
+décima pasada. Los clics del navegador volvieron a funcionar, así que esto ya
+no está bloqueado.
 
 **El flujo de pedido completo** sobre un restaurante que sí tenga número de
 WhatsApp, con toppings y personalización. Lo revisado es el código (V4, V5,
@@ -1827,6 +1875,9 @@ cerrados como correctos, dos convertidos en hallazgo (SU1 y SU2).
 **Los caminos que cuestan dinero**, excluidos a propósito: importar una carta
 (gasta cupo de la API de Anthropic) y generar video con IA (se paga en
 Replicate). Se revisó su interfaz sin lanzar el proceso.
+
+---
+---
 
 ---
 ---
