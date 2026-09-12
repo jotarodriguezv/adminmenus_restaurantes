@@ -1559,3 +1559,42 @@ describe('/api/promociones · varias promociones por restaurante', () => {
 		assert.equal(S.llamadas.some(l => l.tipo === 'rpc' && l.nombre === 'restaurante_del_archivo'), false);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('GET / · el panel se manda comprimido', () => {
+  // El panel es un index.html de casi medio mega y este dominio está fuera de
+  // Cloudflare a propósito, así que nadie lo comprime por el camino: si el
+  // middleware se cae del server.js, el restaurantero se lo vuelve a descargar
+  // entero y no hay ningún error que lo delate. Por eso se prueba.
+
+  test('con Accept-Encoding: gzip llega comprimido de verdad', async () => {
+    const r = await S.pedirCrudo('/', { 'Accept-Encoding': 'gzip' });
+    assert.equal(r.status, 200);
+    assert.equal(r.codificacion, 'gzip', 'la respuesta tendría que venir en gzip');
+    // La cabecera se puede poner sin comprimir nada; los dos primeros bytes de
+    // un gzip son siempre 1f 8b, y eso no se puede fingir.
+    assert.equal(r.bytes[0], 0x1f);
+    assert.equal(r.bytes[1], 0x8b);
+  });
+
+  test('sin Accept-Encoding se manda tal cual, no a medias', async () => {
+    // Un cliente viejo que no anuncia gzip tiene que seguir recibiendo HTML
+    // legible, no un cuerpo comprimido que no sabe abrir.
+    const r = await S.pedirCrudo('/', {});
+    assert.equal(r.status, 200);
+    assert.equal(r.codificacion, null);
+    assert.match(r.bytes.slice(0, 200).toString('utf8'), /<!DOCTYPE html>|<html/i);
+  });
+
+  test('y comprimido pesa una fracción de lo que pesa crudo', async () => {
+    // Sin esta comprobación la prueba pasaría igual con un gzip que no
+    // encoge nada, que es justo lo que no sirve de nada.
+    const crudo = await S.pedirCrudo('/', {});
+    const comprimido = await S.pedirCrudo('/', { 'Accept-Encoding': 'gzip' });
+    assert.ok(
+      comprimido.bytes.length < crudo.bytes.length / 3,
+      `comprimido ${comprimido.bytes.length} B contra ${crudo.bytes.length} B crudo: ` +
+      'se esperaba al menos una reducción a un tercio',
+    );
+  });
+});

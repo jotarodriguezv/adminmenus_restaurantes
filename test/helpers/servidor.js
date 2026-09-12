@@ -169,6 +169,30 @@ async function pedirTexto(ruta) {
            html: await res.text() };
 }
 
+// Una petición cruda, sin pasar por fetch(). Hace falta porque fetch()
+// descomprime solo y devuelve el cuerpo ya expandido: con él no se puede
+// distinguir "vino comprimido" de "vino tal cual", que es justo lo que
+// comprueba la prueba de compresión. Aquí se leen los bytes como llegan.
+function pedirCrudo(ruta, cabeceras = {}) {
+  return puertoListo().then(p => new Promise((res, rej) => {
+    const req = http.request(
+      { host: '127.0.0.1', port: p, path: ruta, method: 'GET', headers: cabeceras },
+      r => {
+        const trozos = [];
+        r.on('data', t => trozos.push(t));
+        r.on('end', () => res({
+          status: r.statusCode,
+          codificacion: r.headers['content-encoding'] || null,
+          tipo: r.headers['content-type'] || null,
+          vary: r.headers['vary'] || null,
+          bytes: Buffer.concat(trozos),
+        }));
+      });
+    req.on('error', rej);
+    req.end();
+  }));
+}
+
 // Una petición SIN Content-Type, que es lo que manda un cliente mal escrito o
 // un curl al que se le olvidó la cabecera.
 //
@@ -236,7 +260,7 @@ function reiniciar() {
 
 module.exports = {
   servidor: () => servidorHttp,
-  pedir, pedirSinTipo, pedirArchivo, pedirTexto, subirYCortar, llamadas, ultimaEscritura, reiniciar, IDS, tokenCliente, tokenAdmin,
+  pedir, pedirSinTipo, pedirArchivo, pedirTexto, pedirCrudo, subirYCortar, llamadas, ultimaEscritura, reiniciar, IDS, tokenCliente, tokenAdmin,
   conTabla: fn => { responderTabla = fn; },
   conRpc: fn => { responderRpc = fn; },
 };
