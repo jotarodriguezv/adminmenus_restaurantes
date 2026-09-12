@@ -739,11 +739,15 @@ Medido en producción sobre Bonzas:
 | Tamaño en que se pintan | **66 × 66 px** |
 | Tamaño real de los archivos | hasta **800 × 1203 px** |
 | Imágenes con `loading="lazy"` | **0 de 59** |
-| Imágenes con `width`/`height` | **0 de 59** |
 
 Se descarga la foto entera de cada plato para pintar un cuadradito de 66 px, y
-las 59 a la vez al entrar en la pestaña. Sin medidas declaradas, además, la
-tabla da saltos según van llegando.
+las 59 a la vez al entrar en la pestaña.
+
+> **Corregido al aplicarlo (11/09/2026):** aquí se decía además que «la tabla
+> da saltos según van llegando» por no declarar `width`/`height`. **Es falso.**
+> El CSS ya fija `.prod-img` en 68 px —54 en móvil—, así que la caja está
+> reservada antes de que llegue la imagen y no hay ningún salto. Declarar los
+> atributos no habría servido de nada, y en móvil habrían contradicho al CSS.
 
 Y esto viaja por el dominio **sin CDN**: `docs/servidor.md` dice que
 `adminvmenus.verificame.click` sirve «fotos y videos — los megabytes» desde el
@@ -766,9 +770,9 @@ O sea que 131 KB por foto de 800 px es un tamaño razonable. **El problema no es
 el peso de cada archivo: es pedir las 59 de golpe para pintarlas a 66 px.**
 
 **Arreglo, por orden:**
-1. **Una línea** en `index.html:2943`: `im.loading='lazy'`, más `im.width=68`
-   y `im.height=68`. Esto se lleva el grueso del problema y el salto de la
-   tabla. Con esto basta.
+1. **Una línea** en `index.html:2943`: `im.loading='lazy'`, puesta **antes**
+   del `src` —después no surte efecto, el navegador ya arrancó la descarga—.
+   Con esto basta.
 2. Solo si después sigue molestando: generar miniaturas al subir. No hay
    dependencia de imagen en `package.json` —`uploads/miniaturas/` es solo para
    los fotogramas de portada de los vídeos— así que es trabajo de verdad, y

@@ -3686,3 +3686,36 @@ describe('importar la carta · una categoría que se parece a otra que ya existe
 		assert.equal(t.existen, 0);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('la miniatura de la lista de productos se pide en diferido', () => {
+	// Es una línea y se cae sola en cualquier refactor de esa función, sin que
+	// nada se rompa a la vista: la lista sigue pintándose igual. Lo único que
+	// cambia es que una carta de 97 platos vuelve a descargar sus 61 fotos de
+	// golpe, y eso no lo nota nadie desde un escritorio con fibra.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	// El trozo que va desde que se crea el <img> hasta que se cuelga del DOM.
+	const bloque = src.match(/const im\s*=\s*document\.createElement\('img'\);[\s\S]{0,1200}?imgDiv\.appendChild\(im\);/);
+
+	test('el bloque que crea la miniatura sigue existiendo', () => {
+		// Si esto falla, la función se reescribió y las dos comprobaciones de
+		// abajo estarían midiendo el vacío en vez de la miniatura.
+		assert.ok(bloque, 'no se encontró dónde se crea la miniatura del producto');
+	});
+
+	test('lleva loading="lazy"', () => {
+		assert.match(bloque[0], /\bim\.loading\s*=\s*'lazy'/,
+			'la miniatura tiene que pedirse en diferido');
+	});
+
+	test('y se pone ANTES del src', () => {
+		// Después del src no sirve de nada: el navegador ya arrancó la descarga
+		// y el atributo llega tarde. Es el error fácil de cometer al reordenar.
+		const posLoading = bloque[0].indexOf('im.loading');
+		const posSrc     = bloque[0].indexOf('im.src');
+		assert.ok(posLoading >= 0 && posSrc >= 0);
+		assert.ok(posLoading < posSrc,
+			'loading se asigna después del src, así que no surte efecto');
+	});
+});

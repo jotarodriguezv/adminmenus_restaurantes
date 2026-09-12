@@ -2940,6 +2940,21 @@ function renderProducts() {
     const miniatura=vid?.portada||p.imagen_url;
     if(miniatura){
       const im=document.createElement('img');
+      // Sin esto, abrir Productos pide las fotos de TODOS los platos de golpe.
+      // Medido en la carta de Bonzas: 61 peticiones y 7,8 MB para pintar
+      // cuadraditos de 68 px. Y este dominio va sin CDN (docs/servidor.md), así
+      // que los megabytes salen del VPS.
+      //
+      // Va ANTES del src a propósito: puesto después, el navegador ya empezó a
+      // descargar y el atributo llega tarde.
+      //
+      // No hace falta declarar width/height: el CSS ya fija .prod-img en 68 px
+      // —54 en móvil— así que la caja está reservada de antemano y la imagen no
+      // mueve nada al llegar.
+      //
+      // La carta del comensal ya lo hace en sus cinco sitios; esto es lo mismo
+      // en el panel, que era donde faltaba.
+      im.loading='lazy';
       im.className='prod-img'; im.src=miniatura; im.alt='';
       imgDiv.appendChild(im);
     } else {
