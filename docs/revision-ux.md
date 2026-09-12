@@ -89,9 +89,14 @@ línea 152 lo sirve tal cual— y ese dominio está fuera de Cloudflare a
 propósito (`docs/servidor.md`), así que no hay nada que lo comprima por el
 camino.
 
-**Por qué importa:** con gzip esos 465 KB quedan en unos 60-70. Hay `ETag`, así
-que abrir el panel dos veces seguidas sale barato; lo que se paga entero es la
-primera carga del día y **cada carga después de un despliegue**.
+**Por qué importa:** hay `ETag`, así que abrir el panel dos veces seguidas sale
+barato; lo que se paga entero es la primera carga del día y **cada carga
+después de un despliegue**.
+
+> **Corregido al aplicarlo (11/09/2026):** aquí se estimaron «unos 60-70 KB»
+> comprimidos. Medido sobre el archivo real son **474 KB → 126 KB, un 73 %
+> menos**. La mejora es grande igualmente, pero el número que había era
+> optimista.
 
 **Arreglo:** `app.use(compression())`. Es la mejor relación esfuerzo/efecto de
 toda la revisión.

@@ -4,6 +4,7 @@ const multer  = require('multer');
 const jwt     = require('jsonwebtoken');
 const bcrypt  = require('bcryptjs');
 const cors    = require('cors');
+const compression = require('compression');
 const path    = require('path');
 const fs      = require('fs');
 const crypto  = require('crypto');
@@ -148,6 +149,29 @@ app.use((req, _res, next) => {
   if (req.body === undefined) req.body = {};
   next();
 });
+
+// ── COMPRESIÓN ────────────────────────────────────────────────
+// El panel es un solo index.html de 474 KB, y sin esto se manda tal cual: la
+// respuesta salía sin 'content-encoding'. Medido sobre el archivo real, con
+// gzip se queda en 126 KB — un 73 % menos.
+//
+// Importa más aquí que en la carta porque este dominio está FUERA de
+// Cloudflare a propósito (ver docs/servidor.md): no hay ningún CDN por el
+// camino que lo comprima por nosotros. Lo paga entero el restaurantero en la
+// primera carga del día y en cada carga después de un despliegue.
+//
+// Va en Express y no en Traefik pudiendo: la configuración de Traefik vive en
+// /etc/dokploy/traefik/traefik.yml, un archivo del servidor editado a mano y
+// sin versionar, que es exactamente el tipo de estado que se pierde al
+// reconstruir la máquina. Aquí viaja con el código y se despliega con él.
+//
+// Queda por debajo de /salud a propósito: es el healthcheck de Docker, un
+// JSON diminuto que no gana nada y se consulta cada 30 segundos.
+//
+// No hay respuestas en streaming en toda la aplicación —ni SSE, ni res.write,
+// ni pipe— así que no hace falta el res.flush() que esas obligan a repartir.
+// Si algún día se añade una, hay que acordarse.
+app.use(compression());
 
 app.use(express.static(path.join(__dirname, 'public')));
 // Lo subido nunca se modifica: cada archivo lleva un nombre irrepetible
