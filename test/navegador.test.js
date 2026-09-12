@@ -3719,3 +3719,39 @@ describe('la miniatura de la lista de productos se pide en diferido', () => {
 			'loading se asigna después del src, así que no surte efecto');
 	});
 });
+
+
+// ═══════════════════════════════════════════════════════════════
+describe('el login recibe el foco al llegar a él', () => {
+	// Hay DOS caminos que acaban en el login y arreglar uno solo deja el otro
+	// roto, así que se prueban por separado.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('el arranque sin sesión lo enfoca', () => {
+		const arranque = src.match(/\} else \{[^}]*loginScreen'\)\.style\.display='flex';[^}]*\}/);
+		assert.ok(arranque, 'no se encontró la rama de arranque que enseña el login');
+		assert.match(arranque[0], /enfocarLogin\(\)/,
+			'al arrancar sin sesión el foco no llega al identificador');
+	});
+
+	test('y salir devuelve el foco al campo', () => {
+		// logout() no recarga la página: esconde unas pantallas y enseña otra.
+		// Sin esto, salir para entrar como otro restaurante deja el foco en
+		// ninguna parte y hay que ir al campo con el ratón.
+		const cuerpo = src.match(/function logout\(\)\s*\{[\s\S]*?\n\}/);
+		assert.ok(cuerpo, 'no se encontró logout()');
+		assert.match(cuerpo[0], /enfocarLogin\(\)/,
+			'logout() no devuelve el foco al identificador');
+	});
+
+	test('no se usa el atributo autofocus', () => {
+		// Sería lo obvio y está descartado a propósito: dispara al cargar la
+		// página, y ahí todavía no se sabe si el login es el destino. Con
+		// sesión guardada el arranque enseña el panel, y el foco habría
+		// quedado en un campo ya invisible.
+		const campo = src.match(/<input[^>]*id="slugInput"[\s\S]*?>/);
+		assert.ok(campo, 'no se encontró el campo del identificador');
+		assert.doesNotMatch(campo[0], /\bautofocus\b/,
+			'el foco se pone desde los dos puntos de entrada, no con el atributo');
+	});
+});
