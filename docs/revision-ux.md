@@ -81,7 +81,7 @@ aparecen con contenido real, y afinó E1.
 
 ## T1 · El panel se descarga sin comprimir: 465 KB · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-11 · PR #73
 
 `content-encoding` vacío y `content-length: 475938` en la respuesta de
 producción. No hay `compression` en `server.js` —`express.static` en la
@@ -133,12 +133,26 @@ con el enlace, y quitar el `autocomplete="off"`.
 
 ## L2 · El campo no recibe el foco al abrir · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #75
 
 `document.activeElement` es `BODY`. Lo llamativo es que la cadena de teclado ya
 está montada y bien pensada —Enter en el identificador salta al PIN
 (`index.html:636`), Enter en el PIN entra (`index.html:640`)—; falta solo el
 `autofocus` para que el login se haga entero sin tocar el ratón.
+
+> **Corregido al aplicarlo (13/09/2026):** el atributo `autofocus` **era la
+> forma equivocada**, por dos motivos:
+>
+> 1. Dispara **al cargar la página**, y ahí todavía no se sabe si el login es
+>    el destino: con sesión guardada el arranque enseña el panel, y el foco
+>    habría acabado en un campo ya invisible.
+> 2. **No sirve al volver desde `logout()`**, que no recarga nada: solo cambia
+>    qué pantalla se enseña.
+>
+> Se hizo con una llamada explícita en las dos ramas que de verdad deciden
+> enseñar el login. Y se comprobó en un navegador: en un contexto con el
+> documento sin foco, **el atributo se lo saltó y la llamada no** — la
+> diferencia entre los dos enfoques, en pequeño.
 
 > Nota: se comprobó expresamente que **Enter sí funciona**. El formulario no es
 > un `<form>`, que es la señal habitual de que Enter no envía, pero aquí está
@@ -684,21 +698,38 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**68 hallazgos** en las tres superficies. Si hay que empezar por algo, este es
-el orden que yo seguiría:
+**68 hallazgos** en las tres superficies · **6 aplicados** · **62 pendientes**.
+
+## Aplicados
+
+La tanda de arreglos cortos, del 11 al 13 de septiembre de 2026:
+
+| Hallazgo | PR | |
+|---|---|---|
+| **LP1** · la landing en borrador | vmenus-landing#3 | |
+| **T1** · compresión | #73 | receta corregida: 126 KB, no 60-70 |
+| **B1** · fotos en diferido | #74 | receta corregida: no había saltos de tabla |
+| **MD3** · Escape en el lateral | vmenus-app#18 | receta corregida: va en el tema, no en el núcleo |
+| **L2** · foco en el login | #75 | receta corregida: llamada explícita, no `autofocus` |
+| **SU1** · mensaje del HEIC | #76 | y decisión de no añadir soporte, anotada en el hallazgo |
+
+**Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
+en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
+mirando y midiendo, no tocando el código. Al aplicar el resto conviene leer
+cada «Arreglo» como una hipótesis, no como una instrucción.
+
+## Lo que queda, por orden
 
 | # | Hallazgo | Por qué primero |
 |---|---|---|
-| 0 | **LP1** · la landing publicada en borrador, con los dos WhatsApp rotos | Está por encima de todo lo demás: se lleva por delante a cada posible cliente que llegue, y ni te enteras de que llegó. |
-| 1 | **T1 + B1** · gzip y las fotos sin `lazy` | Las dos son de una línea y las nota todo el mundo. Juntas son 8,3 MB por apertura. |
-| 2 | **S1** · `✓ Pagó` sin confirmar ni deshacer | Es el único que corrompe un dato sin dejar rastro ni forma de arreglarlo desde el panel. |
-| 3 | **PE1** · carrito sin WhatsApp | Es el único que le rompe la experiencia a un **comensal**, y en el último paso. |
-| 4 | **A1 + A2** · los dos guardados de Apariencia | Se pierde trabajo tuyo en silencio, y van juntos. |
-| 5 | **F1 + F3 + CL2** · el primer día de un restaurante | Los tres son el mismo momento: «Sin productos», sin poder crear uno hasta descubrir las categorías, y sin que se le ofrezca importar la carta — que es lo que la landing le prometió. |
-| 6 | **L1** · sin salida si se olvida el PIN | Cada caso es una llamada a soporte. |
-| 7 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
-| 8 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
-| 9 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
+| 1 | **S1** · `✓ Pagó` sin confirmar ni deshacer | Es el único que corrompe un dato sin dejar rastro ni forma de arreglarlo desde el panel. |
+| 2 | **PE1** · carrito sin WhatsApp | Es el único que le rompe la experiencia a un **comensal**, y en el último paso. |
+| 3 | **A1 + A2** · los dos guardados de Apariencia | Se pierde trabajo tuyo en silencio, y van juntos. |
+| 4 | **F1 + F3 + CL2** · el primer día de un restaurante | Los tres son el mismo momento: «Sin productos», sin poder crear uno hasta descubrir las categorías, y sin que se le ofrezca importar la carta — que es lo que la landing le prometió. |
+| 5 | **L1** · sin salida si se olvida el PIN | Cada caso es una llamada a soporte. |
+| 6 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
+| 7 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
+| 8 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
 
 Lo demás es acabado y se puede ir tachando sin prisa.
 
@@ -726,7 +757,7 @@ cosas que la otra no podía enseñar.
 
 ## B1 · Abrir la pestaña Productos descarga 7,8 MB de fotos · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-11 · PR #74
 
 Medido en producción sobre Bonzas:
 
@@ -1014,7 +1045,7 @@ El problema no es cómo está hecha. Es que está publicada a medio terminar.
 
 ## LP1 · La página de venta está en producción en estado de borrador, con los dos botones de contacto rotos · **Alta — lo más urgente de toda la revisión**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-11 · PR jotarodriguezv/vmenus-landing#3
 
 Ahora mismo, entrando a `vmenus.co`:
 
@@ -1714,7 +1745,7 @@ arreglado**, no solo leído en el código.
 
 ## SU1 · Una foto de iPhone en HEIC muere en un mensaje sin salida · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #76
 
 Probado: una foto **sin convertir, en `.heic`**, devuelve «Ese archivo no es una
 imagen que el navegador pueda abrir».
@@ -1743,6 +1774,52 @@ que corresponde. Algo como: «Esa foto está en formato HEIC, el que usan los
 iPhone. Ábrela y guárdala como JPG, o mándatela por WhatsApp a ti mismo y sube
 la que llega». Es un `if` y una frase, y convierte un callejón sin salida en
 una instrucción.
+
+## Decisión: no se añade soporte para abrir HEIC · **tomada el 13/09/2026**
+
+Aplicado SU1, quedó la pregunta obvia: si Chrome no abre HEIC, ¿por qué no
+hacer que el panel lo abra? Se estudió y **se decide que no, por ahora**. Se
+escribe aquí para que no se proponga de nuevo sin este contexto —ni «añadir
+soporte» ni lo contrario, «bloquear el HEIC».
+
+**Primero, lo que NO se hizo:** no se restringió ningún formato. SU1 solo
+cambió el **mensaje**. Conviene tenerlo claro porque es fácil leerlo al revés.
+
+**Cómo funciona la subida, que es lo que explica todo.** El panel no manda la
+foto tal cual: la abre en el navegador, la redibuja reducida y **la vuelve a
+guardar como WebP** (o JPG). El servidor solo acepta JPG, PNG o WebP, y lo
+comprueba por los primeros bytes (`server.js:230`) — pero nunca le llega otra
+cosa, porque la conversión ocurre antes. El único requisito es que el
+**navegador** sepa abrir la foto.
+
+| Navegador | ¿Abre HEIC? | Qué pasa |
+|---|---|---|
+| **Safari** (iPhone, iPad, Mac) | Sí | Se convierte a WebP y se sube normal |
+| **Chrome, Firefox, Edge** | No | Sale el mensaje de SU1 |
+
+Chrome y Firefox no lo incluyen porque HEIC usa el códec HEVC, sujeto a
+licencias de patentes.
+
+**Las dos formas de soportarlo, y por qué no compensan hoy:**
+
+1. **Decodificarlo en el navegador con una librería.** Funciona, pero pesan del
+   orden de 1 a 2 MB — más que el panel entero comprimido, que T1 dejó en
+   126 KB. Habría que cargarla solo al detectar un HEIC, y el panel no tiene
+   empaquetador para hacerlo con comodidad. Además arrastran las condiciones de
+   licencia del códec, que habría que revisar para un uso comercial.
+2. **Convertirlo en el servidor.** La subida está diseñada para recibir la
+   imagen ya convertida, así que haría falta un camino aparte. Y el VPS tiene
+   **un solo núcleo compartido con ffmpeg**: cada HEIC competiría con la
+   conversión de vídeo.
+
+**Por qué el caso no lo justifica:** lo que falla es una foto HEIC **cruda**
+subida desde **Chrome o Firefox** — casi siempre alguien que pasó las fotos al
+computador. Safari ya funciona, el selector de **Fotos** del iPhone ya entrega
+JPG, y desde el #76 quien caiga en el caso recibe una salida de dos segundos.
+
+**Cuándo se retoma:** si llegan consultas de clientes que no pueden subir fotos
+del iPhone. Ahí la opción razonable es la **1**, con la librería cargada solo
+bajo demanda.
 
 ## SU2 · Una foto corrupta se acepta, se sube y se anuncia en verde · **Media**
 
@@ -1800,7 +1877,7 @@ del modelo **Sidebar**, que en la séptima pasada quedó pendiente.
 
 ## MD3 · Escape cierra tres capas pero no el menú lateral · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-11 · PR jotarodriguezv/vmenus-app#18
 
 Probado en la carta de Galé: con el lateral abierto se pulsa Escape y **sigue
 abierto** (`class="sidebar open"`).
@@ -1815,6 +1892,20 @@ que ya cierra todo lo demás aquí no haga nada, que es peor que si no
 funcionara en ningún sitio: enseña una regla y luego la rompe.
 
 **Arreglo:** añadir `closeSidebar()` a esa misma línea.
+
+> **Corregido al aplicarlo (11/09/2026):** esa receta **no se puede aplicar sin
+> romper la arquitectura**. `closeSidebar` es privada de `temas/sidebar.js`, y
+> `core/` no importa nunca de `temas/` —el loader los trae con un `import`
+> dinámico—. Ponerlo en esa línea ataría el núcleo a uno de los seis temas y lo
+> arrastraría a los cinco que no tienen lateral.
+>
+> Se hizo como oyente propio del tema, junto a los otros tres que ya registra, y
+> **comprobando que el lateral esté abierto** antes de actuar: `closeSidebar`
+> limpia `body.style.overflow`, y hacerlo con el lateral cerrado le devolvería
+> el scroll a la página por debajo de otra capa que lo tenía bloqueado.
+>
+> Y alcanza a **dos modelos**, no a uno: `temas/carrito.js` reutiliza ese
+> mismo `buildNav`.
 
 ## MD4 · Al abrir el lateral, el foco se queda fuera · **Baja**
 
