@@ -6062,8 +6062,129 @@ async function asegurarFacturacion() {
   } catch { state.facturacion = []; }   // sigue en false: no se guardará a ciegas
 }
 
+// ── CAMBIOS SIN GUARDAR EN APARIENCIA ─────────────────────────
+// La pestaña tiene dos guardados independientes a casi cuatro mil píxeles uno
+// del otro: «Guardar» arriba se lleva nombre, slug, día de cobro y «es de
+// prueba»; «Guardar apariencia» abajo, los otros treinta y cinco campos. Nada
+// decía de cuál era cada campo, ni que hubiera algo pendiente. Cambiar el nombre
+// y pulsar el botón grande del final guardaba el color y dejaba el nombre sin
+// guardar, sin decir nada. Ver A1 y A2 en docs/revision-ux.md.
+//
+// Lo pendiente se calcula con LA MISMA función que construye lo que se guarda
+// (recolectarApariencia), comparada contra una foto tomada al pintar. Así no hay
+// que mantener una lista de treinta y cinco campos, y no puede desincronizarse
+// de lo que de verdad se manda: un campo que no se guarda nunca marca pendiente.
+// Por eso las imágenes no cuentan —se guardan al subirlas— y los filtros sí.
+//
+// Lo que NO se hace aquí: avisar o impedir SALIR con cambios pendientes (volver
+// a la lista, cerrar sesión, recargar). Es la misma pregunta que el equipo tiene
+// abierta para los videos a medias (CLAUDE.md, «¿avisar o impedir salir…?»), y
+// resolverla aquí sería adelantarse a esa decisión.
+let fotoApariencia = null;
+let fotoDatosResto = null;
+
+function aparienciaActual() { return JSON.stringify(recolectarApariencia()); }
+function datosRestoActuales() {
+  return JSON.stringify({
+    nombre: document.getElementById('apNombreResto').value.trim(),
+    slug: document.getElementById('apSlugResto').value.trim(),
+    dia_pago: document.getElementById('apDiaPago').value,
+    es_prueba: document.getElementById('apEsPrueba').checked,
+  });
+}
+function hayCambiosApariencia() { return fotoApariencia !== null && aparienciaActual() !== fotoApariencia; }
+function hayCambiosDatosResto() { return fotoDatosResto !== null && datosRestoActuales() !== fotoDatosResto; }
+
+// Cada línea de estado solo la toca esta maquinaria cuando ella misma la pintó.
+// Un «Error al guardar» o un «Slug inválido» que puso otra función se respetan.
+function limpiarEstado(id) {
+  const st = document.getElementById(id);
+  st.textContent = ''; delete st.dataset.estado;
+}
+function pintarEstado(id, propia, otra) {
+  const st = document.getElementById(id);
+  if (propia) {
+    st.textContent = '● Cambios sin guardar'; st.style.color = 'var(--warn)';
+    st.dataset.estado = 'pendiente';
+    return;
+  }
+  if (st.dataset.estado === 'pendiente') limpiarEstado(id);
+  // Se guardó esta sección con la otra pendiente, y luego se guardó la otra: el
+  // aviso de «la otra sigue sin guardar» ya es falso y hay que quitarlo.
+  else if (st.dataset.estado === 'guardado-parcial' && !otra) {
+    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)'; st.dataset.estado = 'guardado';
+  }
+}
+function marcarPendientes() {
+  const ap = hayCambiosApariencia(), dr = hayCambiosDatosResto();
+  pintarEstado('apArienciaStatus', ap, dr);
+  pintarEstado('apDatosRestoStatus', dr, ap);
+}
+
+// Lo que se pinta junto al botón pulsado. Si la OTRA sección tiene cambios, se
+// dice ahí mismo: es el caso de A1, y el aviso de la otra sección queda a casi
+// cuatro mil píxeles, donde no se ve.
+function pintarGuardado(id, otraPendiente, otra, donde) {
+  const st = document.getElementById(id);
+  if (otraPendiente) {
+    st.textContent = `✓ Guardado · ⚠ «${otra}» (${donde}) sigue sin guardar`;
+    st.style.color = 'var(--warn)'; st.dataset.estado = 'guardado-parcial';
+  } else {
+    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)'; st.dataset.estado = 'guardado';
+  }
+}
+
+// ── LAS IMÁGENES, SIN TOCAR EL RESTO DEL FORMULARIO ───────────
+// Antes, subir o quitar el logo, el fondo o la portada llamaba a
+// renderApariencia(), que vuelve a rellenar TODOS los campos desde lo guardado.
+// Cambiar un color, subir el logo y ver cómo el color volvía solo a su valor
+// anterior: el trabajo sin guardar se perdía sin aviso. Las imágenes se guardan
+// al subirlas, así que lo único que hay que refrescar son sus vistas previas.
+function pintarImagenesApariencia() {
+  const r = state.restaurante;
+  const at = r.atributos || {};
+  const pinta = (url, prev, none, borrar) => {
+    const p = document.getElementById(prev), n = document.getElementById(none);
+    if (url) { p.src = url; p.style.display = 'block'; n.style.display = 'none'; }
+    else { p.style.display = 'none'; n.style.display = 'block'; }
+    document.getElementById(borrar).style.display = url ? 'inline-block' : 'none';
+  };
+  pinta(r.logo_url, 'apLogoPreview', 'apLogoNone', 'apLogoDelBtn');
+  pinta(r.fondo_url, 'apFondoPreview', 'apFondoNone', 'apFondoDelBtn');
+  pinta(at.portada_url, 'apPortadaPreview', 'apPortadaNone', 'apPortadaDelBtn');
+}
+
+// Subir la portada la enciende en el servidor, y quitarla la apaga. Ese
+// interruptor SÍ va en lo que se guarda, así que se sincroniza el campo y
+// también la foto de referencia: si no, marcaría un cambio que no hizo nadie.
+function sincronizarPortadaActiva() {
+  const activa = !!state.restaurante?.atributos?.portada_activa;
+  document.getElementById('apPortadaActiva').checked = activa;
+  if (fotoApariencia !== null) {
+    const foto = JSON.parse(fotoApariencia);
+    foto.atributos.portada_activa = activa;
+    fotoApariencia = JSON.stringify(foto);
+  }
+  marcarPendientes();
+}
+
+// Un solo oyente para toda la pestaña. En diferido porque algunos cambios los
+// hace el propio botón pulsado —añadir un filtro, elegir un modelo— y hay que
+// medir después de él, no antes.
+//
+// Es una función y se llama desde ARRANQUE, no tres líneas sueltas aquí: entre
+// las declaraciones de este archivo no se ejecuta nada, porque las pruebas
+// evalúan tramos enteros del fuente y un efecto suelto las revienta.
+function vigilarCambiosApariencia() {
+  const tab = document.getElementById('tabApariencia');
+  for (const ev of ['input', 'change', 'click']) tab.addEventListener(ev, () => setTimeout(marcarPendientes, 0));
+}
+
 async function renderDatosResto() {
   const r = state.restaurante;
+  // Mientras llega la facturación, estos campos todavía enseñan el restaurante
+  // anterior. Sin foto no hay comparación, y sin comparación no hay aviso falso.
+  fotoDatosResto = null;
   document.getElementById('apNombreResto').value = r.nombre || '';
   document.getElementById('apSlugResto').value = r.slug || '';
   document.getElementById('apDatosRestoStatus').textContent = '';
@@ -6072,6 +6193,8 @@ async function renderDatosResto() {
   await asegurarFacturacion();
   document.getElementById('apDiaPago').value = facturacionDe(r.id)?.dia_pago ?? '';
   document.getElementById('apEsPrueba').checked = !!facturacionDe(r.id)?.es_prueba;
+  fotoDatosResto = datosRestoActuales();
+  marcarPendientes();
 }
 
 async function guardarDatosResto() {
@@ -6119,8 +6242,12 @@ async function guardarDatosResto() {
       state.restauranteSlug = data.slug;
       sessionStorage.setItem('menuAdminSlug', data.slug);
     }
-    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
-    showToast('Datos actualizados', 'success');
+    fotoDatosResto = datosRestoActuales();
+    const aparienciaPendiente = hayCambiosApariencia();
+    pintarGuardado('apDatosRestoStatus', aparienciaPendiente, 'Apariencia', 'abajo');
+    marcarPendientes();
+    showToast(aparienciaPendiente ? 'Datos guardados · la apariencia sigue sin guardar' : 'Datos actualizados',
+              aparienciaPendiente ? 'info' : 'success');
   } catch (e) {
     st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)';
     showToast('Error: ' + e.message, 'error');
@@ -6142,17 +6269,8 @@ function renderApariencia() {
   document.getElementById('apColorCard').value = at.color_card || '';
   document.getElementById('apPrevColorCard').value = hex6(at.color_card, '#1a1825');
 
-  const logoPrev = document.getElementById('apLogoPreview');
-  const logoNone = document.getElementById('apLogoNone');
-  if (r.logo_url) { logoPrev.src = r.logo_url; logoPrev.style.display = 'block'; logoNone.style.display = 'none'; }
-  else { logoPrev.style.display = 'none'; logoNone.style.display = 'block'; }
-  document.getElementById('apLogoDelBtn').style.display = r.logo_url ? 'inline-block' : 'none';
+  pintarImagenesApariencia();
 
-  const fondoPrev = document.getElementById('apFondoPreview');
-  const fondoNone = document.getElementById('apFondoNone');
-  if (r.fondo_url) { fondoPrev.src = r.fondo_url; fondoPrev.style.display = 'block'; fondoNone.style.display = 'none'; }
-  else { fondoPrev.style.display = 'none'; fondoNone.style.display = 'block'; }
-  document.getElementById('apFondoDelBtn').style.display = r.fondo_url ? 'inline-block' : 'none';
   document.getElementById('apFondoTipo').value = at.fondo_tipo || 'cover-fixed';
   document.getElementById('apFondoColor').value = at.fondo_color || '#0a0a0f';
   document.getElementById('apPrevFondoColor').value = hex6(at.fondo_color, '#0a0a0f');
@@ -6160,11 +6278,6 @@ function renderApariencia() {
 
   // Portada (modelo explorar)
   document.getElementById('apPortadaActiva').checked = !!at.portada_activa;
-  const portadaPrev = document.getElementById('apPortadaPreview');
-  const portadaNone = document.getElementById('apPortadaNone');
-  if (at.portada_url) { portadaPrev.src = at.portada_url; portadaPrev.style.display = 'block'; portadaNone.style.display = 'none'; }
-  else { portadaPrev.style.display = 'none'; portadaNone.style.display = 'block'; }
-  document.getElementById('apPortadaDelBtn').style.display = at.portada_url ? 'inline-block' : 'none';
 
   // 'ruta' por defecto: los restaurantes que ya existían no cambian de dirección
   document.getElementById('apUrlModo').value = at.url_modo || 'ruta';
@@ -6202,6 +6315,11 @@ function renderApariencia() {
   document.getElementById('apCssCustom').value = at.css_custom || '';
 
   renderPlan();   // después del modelo de nav: el resumen lo consulta
+
+  // Al final de todo, con el formulario ya igual a lo guardado.
+  fotoApariencia = aparienciaActual();
+  limpiarEstado('apArienciaStatus');
+  marcarPendientes();
 }
 
 // ── FILTROS (catálogo del restaurante, modelo explorar) ────────
@@ -6302,7 +6420,7 @@ async function handleLogoUpload(input) {
     const blob = await compressImage(file, 500, .9, { conservarTransparencia: true });
     const url = await uploadImg(blob, 'logos');
     await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: url });
-    state.restaurante.logo_url = url; renderApariencia();
+    state.restaurante.logo_url = url; pintarImagenesApariencia();
     st.textContent = '✓ Logo actualizado'; st.style.color = 'var(--success)';
     showToast('Logo guardado', 'success');
   } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
@@ -6316,7 +6434,7 @@ async function handleFondoUpload(input) {
     const blob = await compressImage(file, 1600, .85);
     const url = await uploadImg(blob, 'fondos');
     await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { fondo_url: url });
-    state.restaurante.fondo_url = url; renderApariencia();
+    state.restaurante.fondo_url = url; pintarImagenesApariencia();
     st.textContent = '✓ Fondo actualizado'; st.style.color = 'var(--success)';
     showToast('Fondo guardado', 'success');
   } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
@@ -6335,7 +6453,8 @@ async function handlePortadaUpload(input) {
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`,
       { atributos: { portada_url: url, portada_activa: true } });
     if (data) state.restaurante = data;
-    renderApariencia();
+    sincronizarPortadaActiva();
+    pintarImagenesApariencia();
     st.textContent = '✓ Portada actualizada'; st.style.color = 'var(--success)';
     showToast('Portada guardada · activada', 'success');
   } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
@@ -6359,7 +6478,8 @@ async function eliminarImagen(tipo) {
         { atributos: { portada_url: null, portada_activa: false } });
       if (data) state.restaurante = data;
     }
-    renderApariencia();
+    pintarImagenesApariencia();
+    if (tipo === 'portada') sincronizarPortadaActiva();
     showToast('Imagen eliminada', 'success');
   } catch (e) { showToast('Error al eliminar: ' + e.message, 'error'); }
 }
@@ -6417,14 +6537,18 @@ async function saveApariencia() {
   try {
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { color_primario, color_secundario, atributos });
     state.restaurante = data;
-    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    fotoApariencia = aparienciaActual();
+    const datosPendientes = hayCambiosDatosResto();
+    pintarGuardado('apArienciaStatus', datosPendientes, 'Datos del restaurante', 'arriba');
+    marcarPendientes();
     aplicarPlanAlPanel();
     ajustarPestanasAlModelo();
     // Sin esto hay que recargar para ver el efecto de haberlo encendido, y
     // quien lo enciende no sabe si funcionó. Mismo motivo que
     // ajustarPestanasAlModelo, que está aquí por lo mismo.
     await ajustarPestanaImportar();
-    showToast('Apariencia guardada', 'success');
+    showToast(datosPendientes ? 'Apariencia guardada · los datos del restaurante siguen sin guardar' : 'Apariencia guardada',
+              datosPendientes ? 'info' : 'success');
   } catch (e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; showToast('Error: ' + e.message, 'error'); }
 }
 
@@ -9400,6 +9524,7 @@ function habilitarArrastre() {
 
 // ── ARRANQUE ──────────────────────────────────────────────────
 habilitarArrastre();
+vigilarCambiosApariencia();
 
 if(token && state.rol && state.restauranteSlug) {
   if(state.rol==='admin' && !sessionStorage.getItem('menuAdminEditingResto')) {
