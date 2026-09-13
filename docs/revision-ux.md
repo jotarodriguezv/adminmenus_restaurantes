@@ -821,7 +821,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **22 aplicados** · **2 descartados** · **45 pendientes**.
+**69 hallazgos** en las tres superficies · **23 aplicados** · **2 descartados** · **44 pendientes**.
 
 ## Aplicados
 
@@ -847,6 +847,7 @@ Del 11 al 13 de septiembre de 2026:
 | **SU2** · foto cortada anunciada en verde | #88 | por la marca de fin del archivo, no por los píxeles; se rechaza antes de subir |
 | **TV1** · la pantalla del televisor se apagaba | vmenus-app#23 y #89 | también en cada vuelta, sin insistir tras una denegación; y la nota en el panel |
 | **CL1** · avisos que mandan al cliente a pestañas que no ve | #90 | texto según quién mira; y la personalización tenía todavía la regla de carrito que PE3 quitó de las pestañas |
+| **B2** · «Activa» manda y se veía igual que los destinos | #91 | atenuados y no deshabilitados, para poder preparar la promoción antes de encenderla |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -869,7 +870,7 @@ decisión antes de escribir código.
 | 1 | ~~**SU2**~~ | Publicaba una foto rota anunciándola en verde. Hecho. |
 | 2 | ~~**TV1**~~ | Hecho. La pantalla del televisor —algo que se cobra— se apaga sola con el método que el panel recomienda como el más seguro. |
 | 3 | ~~**CL1**~~ | Hecho. Tres mensajes mandan al cliente a pestañas que no ve. Se cambia el texto, no la decisión de Apariencia. |
-| 4 | **B2** | Con «Activa» apagada, la pantalla afirma «En la carta: sí». |
+| 4 | ~~**B2**~~ | Hecho. Con «Activa» apagada, la pantalla afirma «En la carta: sí». |
 | 5 | **E1 + E2 + E3 + M6 + B3** | Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
 | 6 | **V3 + MD2**, luego **MD1 + MD4** | La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
 
@@ -970,7 +971,7 @@ el peso de cada archivo: es pedir las 59 de golpe para pintarlas a 66 px.**
 
 ## B2 · «Activa» manda sobre los otros dos y tiene exactamente su misma pinta · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #91
 
 Cada promoción trae tres interruptores en fila: `Activa`, `En la carta`,
 `En el televisor`. Comprobado en el DOM: los tres son independientes, ninguno
@@ -984,6 +985,13 @@ no es verdad.
 
 **Arreglo:** que los dos destinos dependan visualmente del maestro —atenuados o
 deshabilitados cuando `Activa` está apagada.
+
+> **Aplicado (13/09/2026): atenuados, no deshabilitados.** Dejar marcados los
+> destinos antes de encender la promoción es una forma normal de prepararla, y
+> deshabilitarlos obligaría a encender primero. Con «Activa» apagada, «En la carta»
+> y «En el televisor» bajan al 40 % con el motivo al pasar el ratón, junto a la nota
+> que ya existía («Apagada: no sale en ningún sitio»). Se comprobó con clics reales
+> en la tarjeta del panel.
 
 ## B3 · «Platos que nadie abrió» mezcla el problema con lo normal · **Media**
 
