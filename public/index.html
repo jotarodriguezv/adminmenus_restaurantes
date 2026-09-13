@@ -1899,6 +1899,8 @@
 									<label class="toggle"><input type="checkbox" id="qrUsarLogo" onchange="qrActualizar()"><span class="toggle-slider"></span></label>
 									<span style="font-size:13px;color:var(--text-muted)">Poner el logo del restaurante</span>
 								</div>
+								<!-- El texto lo pone pintarAyudaSegunQuienMira(): depende de si quien
+								     mira tiene la pestaña Apariencia. Ver CL1. -->
 								<div id="qrSinLogo" style="display:none;font-size:12px;color:var(--text-muted);font-family:var(--mono);">
 									Este restaurante no tiene logo. Súbelo en la pestaña Apariencia.
 								</div>
@@ -2777,6 +2779,7 @@ async function loadData() {
     // Apariencia es solo para superadmin: el cliente no debe poder tocar
     // logo, colores, fuentes, modelo de página ni CSS personalizado.
     document.getElementById('tabBtnApariencia').style.display = state.rol === 'admin' ? 'block' : 'none';
+    pintarAyudaSegunQuienMira(state.rol === 'admin');
     // Importar la carta es una herramienta del ALTA, y ese es su alcance: el
     // superadmin la ve siempre —para el equipo es con lo que da de alta a un
     // restaurante— y el restaurante solo mientras su carta esté a medias.
@@ -2913,6 +2916,46 @@ function cartaTieneCarrito(atributos, plan) {
   if (nav === 'carrito') return true;
   return MODELOS_CARRITO_OPCIONAL.includes(nav) && !!(plan?.carrito && atributos?.carrito);
 }
+// ── AYUDA QUE DEPENDE DE QUIÉN MIRA ───────────────────────────
+// CL1 en docs/revision-ux.md. Dos avisos del panel mandaban a la pestaña
+// Apariencia —«Súbelo en la pestaña Apariencia», «Actívalos en Apariencia»—, y
+// el restaurante no la ve: está cerrada a propósito, porque controla cosas que
+// solo debe tocar el equipo. Eran buenos mensajes que llevaban a una puerta que
+// para él no existe, así que se quedaba buscándola y acababa escribiendo.
+//
+// No se le abre Apariencia: se le dice lo que SÍ puede hacer, que es pedirlo.
+// Si algún día se le abre, es aquí donde se quita la rama del cliente.
+const WHATSAPP_SOPORTE = '573151182283';   // el mismo del login y de la landing
+
+const AYUDA_SEGUN_QUIEN_MIRA = {
+  qrSinLogo: {
+    admin: 'Este restaurante no tiene logo. Súbelo en la pestaña Apariencia.',
+    cliente: 'Todavía no tienes logo en tu carta. Envíanoslo y lo subimos por ti:',
+    pedido: 'Hola, quiero poner el logo de mi restaurante en la carta',
+  },
+  editFiltrosVacio: {
+    admin: 'Sin filtros activados. Actívalos en Apariencia → Filtros y etiquetas.',
+    cliente: 'Tu carta todavía no tiene filtros (vegano, picante…). Los activamos nosotros:',
+    pedido: 'Hola, quiero activar filtros en mi carta',
+  },
+};
+
+function pintarAyudaSegunQuienMira(esAdmin) {
+  for (const [id, textos] of Object.entries(AYUDA_SEGUN_QUIEN_MIRA)) {
+    const nodo = document.getElementById(id);
+    if (!nodo) continue;
+    nodo.textContent = esAdmin ? textos.admin : textos.cliente;
+    if (esAdmin) continue;
+    const enlace = document.createElement('a');
+    enlace.href = `https://wa.me/${WHATSAPP_SOPORTE}?text=${encodeURIComponent(textos.pedido)}`;
+    enlace.target = '_blank';
+    enlace.rel = 'noopener';
+    enlace.textContent = ' escríbenos por WhatsApp';
+    enlace.style.color = 'var(--accent)';
+    nodo.appendChild(enlace);
+  }
+}
+
 // Mismo criterio que la carta (soloDigitos): «+57 300…» cuenta como número, y
 // un campo de espacios o guiones cuenta como vacío.
 function recibePedidos(atributos) {
@@ -3397,8 +3440,12 @@ function renderPersonalizacion() {
 
 	// Se enseña donde tiene sentido: negocios con carrito, o que ya arrastren
 	// catálogo de antes. Al resto no le dice nada.
-	const attr = state.restaurante?.atributos || {};
-	const conCarrito = attr.nav === 'carrito' || !!(planActual().carrito && attr.carrito);
+	//
+	// Con la regla de la carta, la misma que decide si sale la pestaña Toppings
+	// (PE3). Esta tenía la suya propia, la vieja, y desde que la pestaña cambió de
+	// regla un Topnav con el interruptor puesto veía «Créalos en la pestaña
+	// Toppings» con esa pestaña escondida. Ver CL1.
+	const conCarrito = cartaTieneCarrito(state.restaurante?.atributos, planActual());
 	if (!conCarrito && !hayCatalogo) { grupo.style.display = 'none'; return; }
 	grupo.style.display = 'block';
 	document.getElementById('persVacio').style.display = hayCatalogo ? 'none' : 'block';

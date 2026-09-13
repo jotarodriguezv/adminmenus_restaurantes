@@ -4537,3 +4537,66 @@ describe('una foto cortada no se sube ni se anuncia en verde', () => {
 		assert.equal(decodificada, false, 'se intentó abrir la foto rota en vez de rechazarla antes');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('los avisos no mandan al cliente a pestañas que no ve', () => {
+	// CL1 en docs/revision-ux.md. «Súbelo en la pestaña Apariencia» y «Actívalos en
+	// Apariencia» se le enseñaban al restaurante, que no tiene esa pestaña.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	function montar() {
+		const nodos = {};
+		const nodo = () => ({
+			_t: '', hijos: [], style: {},
+			// textContent borra los hijos, como en un navegador
+			set textContent(v) { this._t = v; this.hijos = []; }, get textContent() { return this._t; },
+			appendChild(h) { this.hijos.push(h); return h; },
+		});
+		const ctx = cargar('index.html', '// ── AYUDA QUE DEPENDE DE QUIÉN MIRA', '// Mismo criterio que la carta (soloDigitos)', {
+			Object, encodeURIComponent,
+			document: {
+				getElementById: id => (nodos[id] ||= nodo()),
+				createElement: () => nodo(),
+			},
+		});
+		return { ctx, nodos };
+	}
+
+	test('al cliente no se le nombra Apariencia, y se le da el WhatsApp', () => {
+		const { ctx, nodos } = montar();
+		ctx.pintarAyudaSegunQuienMira(false);
+		for (const id of ['qrSinLogo', 'editFiltrosVacio']) {
+			assert.doesNotMatch(nodos[id].textContent, /Apariencia/, `${id} manda al cliente a Apariencia`);
+			const enlace = nodos[id].hijos[0];
+			assert.ok(enlace, `${id} no ofrece a quién pedirlo`);
+			assert.match(enlace.href, /^https:\/\/wa\.me\/573151182283\?text=/);
+			assert.equal(enlace.rel, 'noopener');
+		}
+	});
+
+	test('al superadmin sí se le dice dónde está, sin enlace', () => {
+		const { ctx, nodos } = montar();
+		ctx.pintarAyudaSegunQuienMira(false);   // aunque antes se pintara para un cliente
+		ctx.pintarAyudaSegunQuienMira(true);
+		assert.match(nodos.qrSinLogo.textContent, /pestaña Apariencia/);
+		assert.match(nodos.editFiltrosVacio.textContent, /Apariencia → Filtros/);
+		assert.equal(nodos.qrSinLogo.hijos.length, 0);
+	});
+
+	test('se pinta donde se decide si se ve Apariencia', () => {
+		const i = src.indexOf("document.getElementById('tabBtnApariencia').style.display = state.rol === 'admin'");
+		assert.ok(i > 0);
+		assert.match(src.slice(i, i + 250), /pintarAyudaSegunQuienMira\(state\.rol === 'admin'\)/);
+	});
+
+	test('la personalización usa la misma regla que la pestaña Toppings', () => {
+		// «Créalos en la pestaña Toppings» solo es verdad si la pestaña está. Con
+		// reglas distintas, desde PE3 un Topnav con el interruptor puesto veía el
+		// aviso con la pestaña escondida.
+		const pers = src.match(/function renderPersonalizacion\(\) \{[\s\S]*?\n\}/)[0];
+		const pestanas = src.match(/function ajustarPestanasAlModelo\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(pers, /cartaTieneCarrito\(/);
+		assert.match(pestanas, /cartaTieneCarrito\(/);
+		assert.doesNotMatch(pers, /attr\.nav === 'carrito'/);
+	});
+});
