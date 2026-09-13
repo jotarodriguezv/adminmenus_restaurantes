@@ -6988,6 +6988,41 @@ function navegadorHaceWebp() {
   return _haceWebp;
 }
 
+// ── UNA FOTO QUE EL NAVEGADOR NO ABRE ─────────────────────────
+// El formato HEIC es el que usan todos los iPhone por defecto desde 2017, y
+// Chrome y Firefox no lo decodifican. Antes se contestaba lo mismo que a un PDF
+// renombrado: «Ese archivo no es una imagen que el navegador pueda abrir».
+// Cierto, e inútil para quien tiene la foto en la mano y la ve perfecta en su
+// carrete: no dice qué le pasa ni qué hacer. Desde el otro lado se lee como
+// «el panel está roto», y la consulta acaba en soporte.
+//
+// NO se rechaza el HEIC de entrada, mirando la extensión antes de intentar
+// nada. Safari sí lo abre, así que eso rompería una subida que hoy funciona.
+// Solo se mira cuando la decodificación YA falló, para elegir qué decir.
+//
+// Se mira la extensión además del tipo porque en Windows el tipo llega vacío:
+// el sistema no tiene registrado HEIC, así que el navegador no sabe qué poner.
+function esHeic(file) {
+  const tipo = String(file?.type || '').toLowerCase();
+  const nombre = String(file?.name || '').toLowerCase();
+  return /^image\/hei[cf](-sequence)?$/.test(tipo) || /\.(heic|heif|hif)$/.test(nombre);
+}
+
+// El mensaje de cuando la imagen no decodifica. El genérico se conserva tal
+// cual para todo lo demás —un PDF renombrado, un archivo corrupto—, que es el
+// caso que ya está verificado en producción y para el que ese texto es justo.
+//
+// La primera instrucción es la que lo resuelve en dos segundos en el caso
+// común: el selector de Fotos del iPhone convierte a JPG solo, y el HEIC llega
+// cuando se elige desde Archivos.
+function mensajeImagenIlegible(file) {
+  if (esHeic(file)) {
+    return 'Esa foto está en HEIC, el formato del iPhone, y este navegador no la abre. ' +
+           'Súbela desde Fotos en vez de Archivos, o guárdala como JPG.';
+  }
+  return 'Ese archivo no es una imagen que el navegador pueda abrir';
+}
+
 function compressImage(file, maxW, q, { conservarTransparencia = false } = {}) {
   // WebP cuando se pueda: la misma foto pesa entre un 30% y un 40% menos, y
   // eso lo paga el comensal en datos móviles cada vez que abre una carta.
@@ -7008,7 +7043,7 @@ function compressImage(file, maxW, q, { conservarTransparencia = false } = {}) {
     r.onerror = () => rej(new Error('No se pudo leer el archivo'));
     r.onload = e => {
       const img = new Image();
-      img.onerror = () => rej(new Error('Ese archivo no es una imagen que el navegador pueda abrir'));
+      img.onerror = () => rej(new Error(mensajeImagenIlegible(file)));
       img.onload = () => {
         try {
           const c = document.createElement('canvas');

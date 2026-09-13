@@ -3755,3 +3755,66 @@ describe('el login recibe el foco al llegar a él', () => {
 			'el foco se pone desde los dos puntos de entrada, no con el atributo');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('una foto HEIC que el navegador no abre dice qué hacer', () => {
+	// Probado a mano el 10/09/2026 con una foto de iPhone sin convertir: salía el
+	// mismo mensaje que para un PDF renombrado, que no dice qué pasa ni cómo
+	// arreglarlo. Ver SU1 en docs/revision-ux.md.
+	const f = () => cargar('index.html', 'function esHeic', 'function compressImage',
+		{ String, RegExp });
+	const archivo = (name, type = '') => ({ name, type });
+
+	test('.heic con el tipo vacío, que es lo que llega en Windows', () => {
+		// El sistema no tiene registrado HEIC, así que el navegador deja el tipo
+		// en blanco. Si solo se mirara el tipo, este caso —el de quien pasó la
+		// foto al computador— se quedaría con el mensaje genérico.
+		assert.equal(f().esHeic(archivo('IMG_4021.heic', '')), true);
+	});
+
+	test('el tipo image/heic, aunque el nombre no lo diga', () => {
+		assert.equal(f().esHeic(archivo('foto', 'image/heic')), true);
+		assert.equal(f().esHeic(archivo('foto', 'image/heif-sequence')), true);
+	});
+
+	test('sin distinguir mayúsculas, que es como las nombra el iPhone', () => {
+		assert.equal(f().esHeic(archivo('IMG_4021.HEIC')), true);
+		assert.equal(f().esHeic(archivo('captura.HEIF')), true);
+	});
+
+	test('un JPEG normal no es HEIC', () => {
+		assert.equal(f().esHeic(archivo('plato.jpg', 'image/jpeg')), false);
+	});
+
+	test('que "heic" aparezca en el nombre no basta: tiene que ser la extensión', () => {
+		// Un includes('heic') a secas lo confundiría, y le daría las instrucciones
+		// del iPhone a quien subió un JPEG corrupto con un nombre desafortunado.
+		assert.equal(f().esHeic(archivo('heic-receta-final.jpg', 'image/jpeg')), false);
+	});
+
+	test('el mensaje del HEIC nombra el formato y dice qué hacer', () => {
+		// Que no se «simplifique» de vuelta a algo que no ayuda: tiene que decir
+		// qué es y dar una salida.
+		const m = f().mensajeImagenIlegible(archivo('IMG_4021.heic'));
+		assert.match(m, /HEIC/);
+		assert.match(m, /Fotos/, 'falta la instrucción que lo resuelve en el iPhone');
+		assert.match(m, /JPG/, 'falta la salida para quien no sube desde el iPhone');
+	});
+
+	test('lo que no es HEIC conserva el mensaje de siempre', () => {
+		// Es el texto del caso del PDF renombrado, verificado en producción el
+		// 10/09/2026. Para ese caso es el mensaje justo y no se toca.
+		assert.equal(f().mensajeImagenIlegible(archivo('documento.jpg', 'image/jpeg')),
+			'Ese archivo no es una imagen que el navegador pueda abrir');
+	});
+
+	test('compressImage usa este mensaje cuando la imagen no decodifica', () => {
+		// Las funciones pueden estar perfectas y no servir de nada si el
+		// onerror vuelve a escribir el texto a mano.
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const cuerpo = src.match(/function compressImage\([\s\S]*?\n\}/);
+		assert.ok(cuerpo, 'no se encontró compressImage');
+		assert.match(cuerpo[0], /img\.onerror\s*=\s*\(\)\s*=>\s*rej\(new Error\(mensajeImagenIlegible\(file\)\)\)/,
+			'el onerror ya no pasa por mensajeImagenIlegible');
+	});
+});
