@@ -295,7 +295,7 @@ juguete.
 
 ## P1 · Dos desplegables casi idénticos: uno es privado, el otro publica al instante · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #83
 
 A 29 px de distancia hay dos selectores de orden:
 
@@ -315,6 +315,17 @@ nada distingue lo privado de lo público.
 
 **Arreglo:** que el de la carta diga a quién afecta («Cómo lo ven tus
 clientes») y que el del panel diga que es solo tuyo («Ver aquí ordenado por»).
+
+> **Cómo se aplicó (13/09/2026).** Una etiqueta al lado no bastaba para el de la
+> lista: un `<select>` enseña solo la opción elegida, y al desplegarlo no se ve
+> nada más. Por eso **cada opción** empieza por «Ver aquí:». El de la carta se
+> titula «Orden en tu carta» y lleva debajo, siempre a la vista, «Así ven tus
+> clientes los platos. Se guarda y se publica en cuanto lo cambias».
+>
+> Y se añadió lo que la receta no pedía: al cambiarlo sale un aviso que dice qué
+> ven ya los clientes, **con Deshacer**, igual que al marcar un pago (S1). Al
+> aplicarlo apareció un fallo pequeño: si el guardado fallaba, el desplegable
+> seguía enseñando la opción no guardada. Ahora vuelve a la publicada.
 
 ## P2 · Cien productos pintados de una sola vez · **Media**
 
@@ -800,7 +811,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **13 aplicados** · **1 descartado** · **55 pendientes**.
+**69 hallazgos** en las tres superficies · **14 aplicados** · **1 descartado** · **54 pendientes**.
 
 ## Aplicados
 
@@ -819,6 +830,7 @@ Del 11 al 13 de septiembre de 2026:
 | **A1 + A2** · los dos guardados de Apariencia | #80 | y apareció algo peor: subir una imagen borraba los cambios sin guardar |
 | **F1 + F3** · el primer día de un restaurante | #81 | «Sin productos» valía también para una búsqueda sin resultados; CL2 se descartó |
 | **L1** · sin salida si se olvida el PIN | #82 | los atributos del gestor de contraseñas, además de quitar `off` |
+| **P1** · los dos desplegables de orden | #83 | «Ver aquí» en cada opción, no en una etiqueta; y Deshacer al publicar |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -829,9 +841,8 @@ cada «Arreglo» como una hipótesis, no como una instrucción.
 
 | # | Hallazgo | Por qué primero |
 |---|---|---|
-| 1 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
-| 2 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
-| 3 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
+| 1 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
+| 2 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
 
 Lo demás es acabado y se puede ir tachando sin prisa.
 

@@ -4373,3 +4373,63 @@ describe('el primer día de un restaurante', () => {
 		assert.deepEqual(abiertos, []);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('los dos desplegables de orden no se confunden', () => {
+	// P1 en docs/revision-ux.md. A 29 px uno del otro, uno ordenaba la lista del
+	// panel y el otro publicaba el orden de la carta; las etiquetas se
+	// diferenciaban en la palabra «de».
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('cada opción del de la lista dice que es solo para ver aquí', () => {
+		const sel = src.match(/<select[^>]*id="sortSelect"[\s\S]*?<\/select>/)[0];
+		const opciones = [...sel.matchAll(/<option[^>]*>([^<]*)</g)].map(m => m[1]);
+		assert.ok(opciones.length >= 5);
+		for (const o of opciones) assert.match(o, /^Ver aquí:/, `«${o}» no dice que es solo una vista`);
+	});
+
+	test('el de la carta avisa de que publica', () => {
+		const tarjeta = src.match(/id="ordenProductos"[\s\S]*?id="ordenProductosAyuda"/)[0];
+		assert.match(tarjeta, /aria-describedby="ordenProductosAviso"/);
+		assert.match(tarjeta, /id="ordenProductosAviso"[^>]*>\s*Así ven tus clientes/);
+		assert.match(src, /Orden en tu carta/);
+	});
+
+	function montar({ guardado = 'precio_asc', elegido = 'nombre_az', falla = false } = {}) {
+		const campos = {};
+		const $ = k => (campos[k] ||= { value: '', textContent: '', style: {} });
+		$('ordenProductos').value = elegido;
+		const llamadas = [], avisos = [];
+		const state = { restaurante: { id: 'r1', atributos: { orden_productos: guardado } }, productos: [], categorias: [], catFiltro: 'all' };
+		const ctx = cargar('index.html', 'function ordenProductosModo', '// Reasigna 0,1,2', {
+			document: { getElementById: $ }, state, setTimeout() {},
+			apiFetch: async (metodo, url, body) => {
+				llamadas.push(body);
+				if (falla) throw new Error('sin red');
+				return { id: 'r1', atributos: { orden_productos: body.atributos.orden_productos } };
+			},
+			renderProducts() {}, enTandas: async () => {},
+			showToast: (msg, tipo, accion) => avisos.push({ msg, tipo, accion }),
+		});
+		return { ctx, $, llamadas, avisos, state };
+	}
+
+	test('al publicar un orden se dice, con Deshacer, y Deshacer vuelve al anterior', async () => {
+		const { ctx, $, llamadas, avisos } = montar();
+		await ctx.guardarOrdenProductos();
+		assert.equal(avisos.length, 1);
+		assert.match(avisos[0].msg, /clientes/);
+		assert.ok(avisos[0].accion, 'el aviso no ofrece deshacer');
+		avisos[0].accion.alPulsar();
+		await new Promise(r => setImmediate(r));
+		assert.deepEqual(llamadas.map(b => b.atributos.orden_productos), ['nombre_az', 'precio_asc']);
+		assert.equal($('ordenProductos').value, 'precio_asc');
+		assert.equal(avisos[1].accion, undefined, 'deshacer no debe ofrecer otro deshacer');
+	});
+
+	test('si no se guarda, el desplegable vuelve a lo que de verdad está publicado', async () => {
+		const { ctx, $ } = montar({ falla: true });
+		await ctx.guardarOrdenProductos();
+		assert.equal($('ordenProductos').value, 'precio_asc');
+	});
+});

@@ -774,24 +774,33 @@
 							placeholder="Buscar por nombre, categoría o precio…"
 							oninput="renderProducts()"
 						>
-						<select class="sort-select" id="sortSelect" onchange="renderProducts()">
-							<option value="precio_asc">Precio: menor a mayor</option>
-							<option value="precio_desc">Precio: mayor a menor</option>
-							<option value="nombre_az">Nombre: A → Z</option>
-							<option value="nombre_za">Nombre: Z → A</option>
-							<option value="categoria">Por categoría</option>
+						<!-- Solo ordena esta lista. Cada opción empieza por «Ver aquí» porque un
+						     select enseña solo la opción elegida: una etiqueta al lado no se lee
+						     al desplegarlo, y el de «Orden en tu carta», justo debajo, sí publica.
+						     Ver P1 en docs/revision-ux.md. -->
+						<select class="sort-select" id="sortSelect" onchange="renderProducts()"
+						aria-label="Ordenar esta lista (tus clientes no lo ven)" title="Solo ordena esta lista. Tus clientes no lo ven.">
+							<option value="precio_asc">Ver aquí: precio, menor a mayor</option>
+							<option value="precio_desc">Ver aquí: precio, mayor a menor</option>
+							<option value="nombre_az">Ver aquí: nombre, A → Z</option>
+							<option value="nombre_za">Ver aquí: nombre, Z → A</option>
+							<option value="categoria">Ver aquí: por categoría</option>
 						</select>
 					</div>
 					<div class="section-card" style="padding:14px 16px;margin-bottom:14px;">
 						<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-							<div class="section-title" style="margin-bottom:0;white-space:nowrap;">Orden en el menú</div>
-							<select class="sort-select" id="ordenProductos" onchange="guardarOrdenProductos()" style="flex:1;min-width:220px;">
+							<div class="section-title" style="margin-bottom:0;white-space:nowrap;">Orden en tu carta</div>
+							<select class="sort-select" id="ordenProductos" onchange="guardarOrdenProductos()" style="flex:1;min-width:220px;"
+							aria-describedby="ordenProductosAviso">
 								<option value="precio_asc">Precio: de menor a mayor</option>
 								<option value="precio_desc">Precio: de mayor a menor</option>
 								<option value="nombre_az">Nombre: A → Z</option>
 								<option value="personalizado">Personalizado — yo decido el orden</option>
 							</select>
 							<span id="ordenProductosStatus" style="font-size:11px;font-family:var(--mono);color:var(--text-muted);"></span>
+						</div>
+						<div id="ordenProductosAviso" style="margin-top:8px;font-size:11px;color:var(--text-muted);line-height:1.6;">
+							Así ven tus clientes los platos. Se guarda y se publica en cuanto lo cambias.
 						</div>
 						<div id="ordenProductosAyuda" style="display:none;margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.6;"></div>
 					</div>
@@ -5579,21 +5588,47 @@ async function sembrarOrdenManual(modoAnterior) {
   await enTandas(cambios, p => apiFetch('PATCH', `/api/productos/${p.id}`, { orden: p.orden }));
 }
 
-async function guardarOrdenProductos() {
+const NOMBRE_ORDEN = {
+  precio_asc: 'precio, de menor a mayor',
+  precio_desc: 'precio, de mayor a menor',
+  nombre_az: 'nombre, de la A a la Z',
+  personalizado: 'el orden que tú decides',
+};
+
+// `deshaciendo` es la vuelta atrás del propio aviso: esa no ofrece otra.
+async function guardarOrdenProductos({ deshaciendo = false } = {}) {
   const modo = document.getElementById('ordenProductos').value;
   const modoAnterior = ordenProductosModo();
   const st = document.getElementById('ordenProductosStatus');
+  if (modo === modoAnterior) return;
   try {
     if (modo === 'personalizado' && modoAnterior !== 'personalizado') await sembrarOrdenManual(modoAnterior);
     // Solo su clave: el servidor funde. Ver el comentario de saveToppings.
     const atributos = { orden_productos: modo };
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
     if (data) state.restaurante = data;
-    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    st.textContent = '✓ Publicado'; st.style.color = 'var(--success)';
     setTimeout(() => { st.textContent = ''; }, 2500);
     renderOrdenProductos(); renderProducts();
+    // Este desplegable cambia la carta pública al instante, y era fácil tocarlo
+    // creyendo que ordenaba solo la lista (P1). Se dice en voz alta qué cambió,
+    // con la vuelta atrás a mano, igual que al marcar un pago.
+    if (deshaciendo) {
+      showToast(`Tu carta vuelve a ordenarse por ${NOMBRE_ORDEN[modo] || modo}`, 'info');
+    } else {
+      showToast(`Tus clientes ya ven la carta ordenada por ${NOMBRE_ORDEN[modo] || modo}`, 'success', {
+        texto: 'Deshacer',
+        alPulsar: () => {
+          document.getElementById('ordenProductos').value = modoAnterior;
+          guardarOrdenProductos({ deshaciendo: true });
+        },
+      });
+    }
   } catch (e) {
     st.textContent = 'Error'; st.style.color = 'var(--danger)';
+    // Sin esto el desplegable seguía enseñando la opción que no se guardó, y
+    // la pantalla afirmaba un orden que los clientes no están viendo.
+    renderOrdenProductos();
     showToast('Error: ' + e.message, 'error');
   }
 }
