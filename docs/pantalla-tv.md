@@ -225,6 +225,15 @@ lo elimina: un computador conectado por HDMI puede quedarse encendido días.
 - **Recarga de seguridad** si la página lleva más de 18 horas viva, en la
   siguiente transición. Cubre el caso del PC que nadie apaga sin necesidad de
   programar nada a una hora fija.
+- **Pide que la pantalla no se apague** (Wake Lock), desde el 13/09/2026
+  (vmenus-app#23). Un computador por HDMI —el método que el panel recomienda como el
+  más estable— apaga la pantalla a los 10-15 minutos de fábrica. Se pide al
+  arrancar, al volver a verse la página (el navegador lo suelta al cambiar de
+  pestaña) y en cada vuelta del carrusel; tras una denegación, el carrusel
+  reintenta como mucho cada 5 minutos. **No todos los navegadores lo conceden**:
+  por eso el panel dice además que se ponga el apagado de pantalla del computador
+  en «Nunca». En un televisor con navegador propio, lo que manda es el ahorro de
+  energía del televisor, que esto no toca.
 - **Sin elementos fijos y brillantes.** Los paneles OLED marcan lo que no se
   mueve. El fondo y las zonas de texto tienen que cambiar entre slides.
 

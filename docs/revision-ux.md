@@ -821,7 +821,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **20 aplicados** · **2 descartados** · **47 pendientes**.
+**69 hallazgos** en las tres superficies · **21 aplicados** · **2 descartados** · **46 pendientes**.
 
 ## Aplicados
 
@@ -845,6 +845,7 @@ Del 11 al 13 de septiembre de 2026:
 | **V4 + V5** · el formulario del pedido y el carrito que se vaciaba | vmenus-app#21 | con la pregunta «¿Enviaste el pedido?»; y el zoom de iOS que volvió al quitar `maximum-scale` en V1 |
 | **PE3** · Pedidos en modelos sin carrito | #86 | la regla de la carta en el panel; hoy no cambia la pestaña de nadie |
 | **SU2** · foto cortada anunciada en verde | #88 | por la marca de fin del archivo, no por los píxeles; se rechaza antes de subir |
+| **TV1** · la pantalla del televisor se apagaba | vmenus-app#23 y #NUMERO_PR | también en cada vuelta, sin insistir tras una denegación; y la nota en el panel |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -865,7 +866,7 @@ decisión antes de escribir código.
 | # | Hallazgos | Por qué |
 |---|---|---|
 | 1 | ~~**SU2**~~ | Publicaba una foto rota anunciándola en verde. Hecho. |
-| 2 | **TV1** | La pantalla del televisor —algo que se cobra— se apaga sola con el método que el panel recomienda como el más seguro. |
+| 2 | ~~**TV1**~~ | Hecho. La pantalla del televisor —algo que se cobra— se apaga sola con el método que el panel recomienda como el más seguro. |
 | 3 | **CL1** | Tres mensajes mandan al cliente a pestañas que no ve. Se cambia el texto, no la decisión de Apariencia. |
 | 4 | **B2** | Con «Activa» apagada, la pantalla afirma «En la carta: sí». |
 | 5 | **E1 + E2 + E3 + M6 + B3** | Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
@@ -1907,7 +1908,7 @@ Para funcionar sola durante horas es lo más robusto de los dos repositorios.
 
 ## TV1 · Nada impide que la pantalla se apague sola · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · vmenus-app#23 y PR #NUMERO_PR
 
 No hay ninguna llamada a la **Wake Lock API** en `tv.html` —ni
 `navigator.wakeLock`, ni ninguna alternativa—, así que la página no pide
@@ -1930,6 +1931,19 @@ a pedirlo en `visibilitychange` —el bloqueo se suelta solo al cambiar de
 pestaña—. Donde no exista la API no pasa nada, se ignora. Y añadir a
 `docs/pantalla-tv.md` la nota de desactivar el apagado de pantalla en el
 computador, para los navegadores que no la soportan.
+
+> **Aplicado (13/09/2026)** en vmenus-app#23 y #NUMERO_PR, con dos añadidos a la receta:
+>
+> 1. **También en cada vuelta del carrusel**, por si el navegador lo soltó sin
+>    avisar, porque solo pide si no hay uno vivo. Y al probarlo en un navegador que
+>    **deniega** el permiso salió el reverso: reintentaba cada ocho segundos para
+>    siempre. Ahora, tras un rechazo, el carrusel espera cinco minutos.
+> 2. **La nota va en el panel, no solo en `docs/pantalla-tv.md`.** Quien monta la
+>    pantalla lee el panel. Bajo «Cable HDMI» dice ahora que se ponga el apagado de
+>    pantalla del computador en «Nunca».
+>
+> No se pudo comprobar con el permiso concedido en un Chrome normal; sí con la
+> página real y un `wakeLock` que concede, y con uno real que deniega.
 
 ## Lo que está bien, que es casi todo
 
