@@ -1965,6 +1965,10 @@
 						</div>
 					</div>
 
+					<!-- E3: con pocas visitas todo se pintaba igual que con mil. Ver avisoPocosDatos(). -->
+					<div id="estPocosDatos" style="display:none;margin-bottom:14px;padding:10px 12px;border-radius:var(--radius);
+						border:1px solid var(--border);background:var(--card);font-size:12px;line-height:1.6;color:var(--text-muted);"></div>
+
 					<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;" id="estKpis"></div>
 
 					<div class="section-card">
@@ -7665,12 +7669,13 @@ async function cargarEstadisticas() {
   try {
     const data = await apiFetch('GET', `/api/estadisticas?restaurante_id=${state.restaurante.id}&desde=${estadoRango.desde}&hasta=${estadoRango.hasta}`);
     ultimaEstadistica = data;
+    avisoPocosDatos(data.totalVisitas);
     renderKpis(data);
     renderGraficaVisitas(data.visitasPorDia, estadoRango.desde, estadoRango.hasta);
     renderRanking(data.rankingProductos);
     renderHoras(data.porHora || []);
     renderCategorias(data.porCategoria || []);
-    renderIgnorados(data.nuncaAbiertos || []);
+    renderIgnorados(data.nuncaAbiertos || [], data.totalVisitas, platosDisponibles());
     renderCarrito(data);
   } catch (e) { showToast('Error cargando estadísticas', 'error'); }
 }
@@ -7691,13 +7696,19 @@ function renderCarrito(data) {
 
   // La tasa se calcula sobre CLICS, no sobre visitas: una visita es una
   // carga de página y no una persona.
-  resumen.textContent = `${data.totalAgregados} en total · ${data.tasaAnadido}% de las fichas abiertas`;
+  //
+  // Y solo con muestra (E2): con cinco fichas abiertas salía «100 %», un número
+  // redondo que invita a concluir algo que cinco eventos no sostienen. Por
+  // debajo se enseña el número absoluto y se calla el porcentaje.
+  resumen.textContent = data.totalClics >= MIN_EVENTOS_PORCENTAJE
+    ? `${data.totalAgregados} en total · ${data.tasaAnadido}% de las fichas abiertas`
+    : `${data.totalAgregados} en total`;
 
   const max = lista[0]?.agregados || 1;
   cont.innerHTML = lista.slice(0, 10).map(p => {
     // Cuántas de las veces que se abrió acabó en el carrito. Un número bajo
     // con muchos clics señala un plato que llama la atención y no convence.
-    const conversion = p.clics ? Math.round(p.agregados / p.clics * 100) : null;
+    const conversion = p.clics >= MIN_EVENTOS_PORCENTAJE ? Math.round(p.agregados / p.clics * 100) : null;
     return `
     <div style="margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;gap:8px;">
@@ -7769,10 +7780,33 @@ function renderCategorias(porCategoria) {
 // El dato más accionable de todos: dice qué sobra de la carta o qué está
 // mal presentado. Solo cuenta lo que el cliente podía ver, así que un
 // producto marcado como no disponible no aparece aquí.
-function renderIgnorados(lista) {
+//
+// Pero se calcula por AUSENCIA, y eso necesita muestra. Con cero visitas «nadie
+// lo abrió» es verdad para toda la carta (M6: a un restaurante recién creado le
+// decía que su único plato era ignorado), y con 27 visitas sobre 97 platos que 86
+// no se abran es aritmética, no una señal (B3). La regla: al menos una visita por
+// plato disponible, y nunca menos de MIN_VISITAS_FIABLE.
+function visitasParaIgnorados(platos) {
+  return Math.max(MIN_VISITAS_FIABLE, platos);
+}
+
+function renderIgnorados(lista, totalVisitas = 0, platos = 0) {
   const cont = document.getElementById('estIgnorados');
   const resumen = document.getElementById('estIgnoradosResumen');
   if (!cont) return;
+
+  const hacenFalta = visitasParaIgnorados(platos);
+  if (totalVisitas < hacenFalta) {
+    resumen.textContent = '';
+    cont.innerHTML = '';
+    const vacio = document.createElement('div');
+    vacio.className = 'empty-state';
+    vacio.textContent = totalVisitas
+      ? `Todavía no hay visitas suficientes para saberlo: hacen falta al menos ${hacenFalta} en el rango y hay ${totalVisitas}. Prueba con un rango más largo.`
+      : 'Sin visitas en este rango.';
+    cont.appendChild(vacio);
+    return;
+  }
 
   if (!lista.length) {
     resumen.textContent = '';
@@ -7795,6 +7829,39 @@ function renderIgnorados(lista) {
     </div>`).join('');
 }
 
+// ── CUÁNTO SE PUEDE CONCLUIR ───────────────────────────────────
+// Los números de abajo salen de datos reales del 13/09/2026: el restaurante con
+// más tráfico tenía 31 visitas en 7 días y 96 en 30, con 97 platos; el resto,
+// entre 0 y 41 al mes. Por debajo de estos mínimos, un solo comensal curioso
+// mueve los porcentajes lo que quiere.
+const MIN_VISITAS_FIABLE = 30;
+const MIN_EVENTOS_PORCENTAJE = 20;
+
+function platosDisponibles() {
+  return (state.productos || []).filter(p => p.disponible !== false).length;
+}
+
+// E3. No se esconde nada: se dice cuánto pesa lo que se ve.
+function avisoPocosDatos(totalVisitas) {
+  const el = document.getElementById('estPocosDatos');
+  if (!el) return;
+  if (totalVisitas >= MIN_VISITAS_FIABLE) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.textContent = totalVisitas
+    ? `En este rango hay ${totalVisitas} visita${totalVisitas === 1 ? '' : 's'}. Con tan pocas, un solo cliente cambia mucho los números: tómalos como una pista, no como una conclusión. Un rango más largo da más datos.`
+    : 'Tu carta todavía no tiene visitas en este rango. Las estadísticas se llenan a medida que tus clientes escanean el QR.';
+}
+
+// E1. Era «Tasa de interacción: 125 %»: una tasa con signo de porcentaje promete
+// una proporción que no pasa de 100, y esto sí pasa en cuanto alguien mira dos
+// platos. Peor aún cuando parece sano: «70 %» se leía como «el 70 % de mis
+// clientes interactuó», y eran 0,7 clics por visita. Es el mismo dato, dicho
+// como lo que es. Sin visitas no hay cociente que enseñar.
+function clicsPorVisita(clics, visitas) {
+  if (!visitas) return '—';
+  return (clics / visitas).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
 function renderKpis(data) {
   const tile = (label, valor, color) => `
     <div class="section-card" style="text-align:center;padding:18px;">
@@ -7804,7 +7871,7 @@ function renderKpis(data) {
   document.getElementById('estKpis').innerHTML =
     tile('Visitas', data.totalVisitas.toLocaleString('es-CO'), 'var(--text)') +
     tile('Clics en productos', data.totalClics.toLocaleString('es-CO'), 'var(--text)') +
-    tile('Tasa de interacción', data.tasaInteraccion + '%', 'var(--accent)');
+    tile('Clics por visita', clicsPorVisita(data.totalClics, data.totalVisitas), 'var(--accent)');
 }
 
 // Cuántas barras caben antes de que la gráfica deje de decir nada. Con una
@@ -7855,7 +7922,8 @@ function renderGraficaVisitas(visitasPorDia, desde, hasta) {
     cont.innerHTML = '<div class="empty-state">La fecha de inicio es posterior a la de fin.</div>';
     return;
   }
-  if (!barras.length) { cont.innerHTML = '<div class="empty-state">Sin datos</div>'; return; }
+  // Sin una sola visita eran barras mínimas de 3 px que parecían datos (E3).
+  if (!barras.length || barras.every(b => !b.visitas)) { cont.innerHTML = '<div class="empty-state">Sin visitas en este rango</div>'; return; }
 
   const max = Math.max(1, ...barras.map(b => b.visitas));
   // Se formatea en UTC porque las fechas van ancladas al mediodía UTC: leerlas

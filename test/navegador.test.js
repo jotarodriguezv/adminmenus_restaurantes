@@ -4656,3 +4656,125 @@ describe('con «Activa» apagada, los destinos de la promoción se ven sin efect
 		assert.doesNotMatch(cuerpo, /disabled/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('las estadísticas no concluyen más de lo que los datos permiten', () => {
+	// E1, E2, E3, M6 y B3 en docs/revision-ux.md: «Tasa de interacción: 125 %»,
+	// porcentajes redondos sobre cinco eventos, y «Platos que nadie abrió» con
+	// cero visitas o con 27 visitas sobre 97 platos.
+	const nodo = () => ({
+		style: {}, textContent: '', innerHTML: '', className: '', hijos: [],
+		appendChild(h) { this.hijos.push(h); return h; },
+	});
+	function montar(productos = []) {
+		const nodos = {};
+		const ctx = cargar('index.html', [
+			['// ── MÁS AGREGADOS AL CARRITO', '// ── HORAS DE MAYOR TRÁFICO'],
+			['// ── PLATOS QUE NADIE ABRIÓ', 'function renderKpis'],
+		], {
+			Object, String, Math,
+			state: { productos },
+			esc: s => String(s),
+			document: { getElementById: id => (nodos[id] ||= nodo()), createElement: () => nodo() },
+		});
+		return { ctx, nodos };
+	}
+	const texto = n => n.textContent + n.innerHTML + n.hijos.map(h => h.textContent).join('');
+
+	// ── E1 ──────────────────────────────────────────────────────
+	test('clics por visita en vez de un porcentaje que pasa de 100', () => {
+		const { ctx } = montar();
+		assert.equal(ctx.clicsPorVisita(5, 4), '1,3');
+		assert.equal(ctx.clicsPorVisita(19, 27), '0,7');
+		assert.doesNotMatch(ctx.clicsPorVisita(5, 4), /%/);
+	});
+
+	test('sin visitas no se inventa un 0 rotundo', () => {
+		assert.equal(montar().ctx.clicsPorVisita(0, 0), '—');
+	});
+
+	test('el indicador ya no se llama tasa ni lleva %', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const kpis = src.match(/function renderKpis\(data\) \{[\s\S]*?\n\}/)[0];
+		assert.doesNotMatch(kpis, /tasaInteraccion|Tasa de interacción/);
+		assert.match(kpis, /Clics por visita/);
+	});
+
+	// ── E2 ──────────────────────────────────────────────────────
+	const datosCarrito = (totalClics, clicsPlato) => ({
+		totalAgregados: 5, totalClics, tasaAnadido: 100,
+		masAgregados: [{ nombre: 'SUPREMA', agregados: 5, clics: clicsPlato }],
+	});
+
+	test('con pocas fichas abiertas se da el número y se calla el porcentaje', () => {
+		const { ctx, nodos } = montar();
+		ctx.renderCarrito(datosCarrito(5, 5));
+		assert.equal(nodos.estCarritoResumen.textContent, '5 en total');
+		// «% de» y no «%» a secas: la barra lleva width:100% en su estilo.
+		assert.doesNotMatch(nodos.estCarrito.innerHTML, /\d+% de/, 'la fila del plato sigue dando «100 % de 5»');
+	});
+
+	test('con muestra suficiente, el porcentaje vuelve', () => {
+		const { ctx, nodos } = montar();
+		ctx.renderCarrito(datosCarrito(40, 25));
+		assert.match(nodos.estCarritoResumen.textContent, /100% de las fichas abiertas/);
+		assert.match(nodos.estCarrito.innerHTML, /20% de 25/);
+	});
+
+	// ── E3 ──────────────────────────────────────────────────────
+	test('con pocas visitas se avisa de cuánto pesan los números', () => {
+		const { ctx, nodos } = montar();
+		ctx.avisoPocosDatos(4);
+		assert.equal(nodos.estPocosDatos.style.display, 'block');
+		assert.match(nodos.estPocosDatos.textContent, /4 visitas/);
+		ctx.avisoPocosDatos(0);
+		assert.match(nodos.estPocosDatos.textContent, /todavía no tiene visitas/);
+		ctx.avisoPocosDatos(30);
+		assert.equal(nodos.estPocosDatos.style.display, 'none');
+	});
+
+	// ── M6 y B3 ─────────────────────────────────────────────────
+	const plato = (disponible = true) => ({ disponible });
+	const ignorados = [{ categoria: 'ENTRADAS', nombre: 'Papas a la francesa' }];
+
+	test('con cero visitas no acusa a la carta', () => {
+		// M6: zz-pruebas-ux, recién creado, con su único plato «ignorado».
+		const { ctx, nodos } = montar([plato()]);
+		ctx.renderIgnorados(ignorados, 0, 1);
+		assert.doesNotMatch(texto(nodos.estIgnorados), /Papas/);
+		assert.match(texto(nodos.estIgnorados), /Sin visitas/);
+		assert.equal(nodos.estIgnoradosResumen.textContent, '');
+	});
+
+	test('con menos visitas que platos, lo dice en vez de listar', () => {
+		// B3: Bonzas, 27 visitas y 97 platos, «86 en total».
+		const { ctx, nodos } = montar();
+		ctx.renderIgnorados(ignorados, 27, 97);
+		assert.doesNotMatch(texto(nodos.estIgnorados), /Papas/);
+		assert.match(texto(nodos.estIgnorados), /al menos 97 en el rango y hay 27/);
+	});
+
+	test('una carta pequeña necesita igualmente un mínimo de visitas', () => {
+		const { ctx } = montar();
+		assert.equal(ctx.visitasParaIgnorados(3), 30);
+		assert.equal(ctx.visitasParaIgnorados(97), 97);
+	});
+
+	test('con visitas suficientes, la lista sale como siempre', () => {
+		const { ctx, nodos } = montar();
+		ctx.renderIgnorados(ignorados, 257, 97);
+		assert.match(nodos.estIgnorados.innerHTML, /Papas a la francesa/);
+		assert.equal(nodos.estIgnoradosResumen.textContent, '1 en total');
+	});
+
+	test('los platos que cuentan son los disponibles', () => {
+		const { ctx } = montar([plato(), plato(), plato(false)]);
+		assert.equal(ctx.platosDisponibles(), 2);
+	});
+
+	test('cargarEstadisticas pasa las visitas y los platos a la sección', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.match(src, /renderIgnorados\(data\.nuncaAbiertos \|\| \[\], data\.totalVisitas, platosDisponibles\(\)\)/);
+		assert.match(src, /avisoPocosDatos\(data\.totalVisitas\);/);
+	});
+});

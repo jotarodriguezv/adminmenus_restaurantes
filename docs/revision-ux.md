@@ -724,7 +724,7 @@ así que el QR no apunta a nada roto.
 
 ## E1 · «Tasa de interacción: 125%» · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #92
 
 Es `totalClics / totalVisitas * 100` (`server.js:2123`). En esta carta: 5 clics
 entre 4 visitas = 125%.
@@ -743,9 +743,13 @@ indicador engaña **también cuando parece correcto**, que es la forma peor.
 **Arreglo:** enseñarlo como lo que es, «1,25 clics por visita». Mismo dato, sin
 el signo de porcentaje que lo desmiente.
 
+> **Aplicado (13/09/2026)** tal cual: el indicador se llama «Clics por visita» y
+> enseña «0,5» en vez de «45,2 %». Sin visitas, «—». La API sigue mandando
+> `tasaInteraccion` para no romper nada; el panel ya no la usa.
+
 ## E2 · Porcentajes calculados sobre cuatro visitas · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #92
 
 «MÁS AGREGADOS AL CARRITO» dice «5 en total · 100% de las fichas abiertas» y
 pinta a SUPREMA con una barra llena al «100% de 5». No hay mínimo de muestra:
@@ -755,13 +759,24 @@ cosas.
 **Arreglo:** por debajo de un umbral, enseñar el número absoluto y callar el
 porcentaje.
 
+> **Aplicado (13/09/2026).** El umbral es **20 fichas abiertas**, en total para el
+> resumen y por plato para su fila; por debajo se da el número y se calla el
+> porcentaje. Sale de los datos reales de ese día: perroscriollos, el que más
+> agrega, tenía 34 clics en 30 días; aojocerrado, 12.
+
 ## E3 · No hay estado de «todavía no hay datos» · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #92
 
 Con 4 visitas, «VISITAS POR DÍA» es una barra alta y cinco rayas, sin escala ni
 valores, y «PRODUCTOS CON MÁS CLICS» es una lista de un elemento con su
 alternador Gráfica/Lista. Todo se pinta igual que si hubiera mil visitas.
+
+> **Aplicado (13/09/2026)** sin esconder nada: por debajo de **30 visitas** en el
+> rango sale un aviso que dice cuántas hay y que un solo cliente mueve mucho los
+> números. Con cero, dice que la carta todavía no tiene visitas. Y la gráfica de
+> visitas por día, sin ninguna, dice «Sin visitas en este rango» en vez de pintar
+> barras de 3 px que parecían datos.
 
 ## Lo que está bien
 
@@ -821,7 +836,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **23 aplicados** · **2 descartados** · **44 pendientes**.
+**69 hallazgos** en las tres superficies · **28 aplicados** · **2 descartados** · **39 pendientes**.
 
 ## Aplicados
 
@@ -848,6 +863,7 @@ Del 11 al 13 de septiembre de 2026:
 | **TV1** · la pantalla del televisor se apagaba | vmenus-app#23 y #89 | también en cada vuelta, sin insistir tras una denegación; y la nota en el panel |
 | **CL1** · avisos que mandan al cliente a pestañas que no ve | #90 | texto según quién mira; y la personalización tenía todavía la regla de carrito que PE3 quitó de las pestañas |
 | **B2** · «Activa» manda y se veía igual que los destinos | #91 | atenuados y no deshabilitados, para poder preparar la promoción antes de encenderla |
+| **E1 + E2 + E3 + M6 + B3** · estadísticas | #92 | umbrales sacados del tráfico real; B3 sin la exclusión de categorías, que necesita decisión |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -871,7 +887,7 @@ decisión antes de escribir código.
 | 2 | ~~**TV1**~~ | Hecho. La pantalla del televisor —algo que se cobra— se apaga sola con el método que el panel recomienda como el más seguro. |
 | 3 | ~~**CL1**~~ | Hecho. Tres mensajes mandan al cliente a pestañas que no ve. Se cambia el texto, no la decisión de Apariencia. |
 | 4 | ~~**B2**~~ | Hecho. Con «Activa» apagada, la pantalla afirma «En la carta: sí». |
-| 5 | **E1 + E2 + E3 + M6 + B3** | Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
+| 5 | ~~**E1 + E2 + E3 + M6 + B3**~~ | Hecho. Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
 | 6 | **V3 + MD2**, luego **MD1 + MD4** | La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
 
 **Grupo 2 · el panel del cliente en móvil:** M1, M3, M4 + M5, CL4, M7. Juntos
@@ -887,6 +903,8 @@ A5, PE2, P5, M2.
 - **P4** — una «nota en la carta» es una función nueva: base, panel y carta.
 - **P3** — ¿avisar al crear una categoría casi idéntica, o arreglar Bonzas a mano?
 - **C1** — ¿arrastrar y soltar, o un campo de posición?
+- **B3, segunda mitad** — ¿se marca por categoría que «no se abre» (bebidas,
+  cervezas, adicionales) para que no llene «Platos que nadie abrió»? Es un campo nuevo.
 - **A3 + A4 + S4 + S6** — reorganizar Apariencia y la lista del superadmin. Grande,
   y en pantallas que usa solo el equipo.
 
@@ -995,7 +1013,7 @@ deshabilitados cuando `Activa` está apagada.
 
 ## B3 · «Platos que nadie abrió» mezcla el problema con lo normal · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #92 · salvo dejar fuera las categorías que no se abren, que pasa al grupo 4
 
 Con 27 visitas en 7 días dice «86 en total» sobre 97 productos. Dos cosas lo
 hacen poco accionable:
@@ -1014,6 +1032,17 @@ no tiene nada que revisar.
 **Arreglo:** exigir un mínimo de visitas antes de enseñar la sección, y dejar
 fuera las categorías que el propio dueño marque como «no se abren» (o las que
 van en modo lista, que ya declaran que no tienen ficha con foto).
+
+> **Aplicado (13/09/2026), la mitad de la muestra.** La regla es **al menos una
+> visita por plato disponible, y nunca menos de 30**: una carta de 97 platos
+> necesita 97 visitas en el rango. Por debajo, la sección dice cuántas hacen falta y
+> cuántas hay, y sugiere un rango más largo. Con los datos del 13/09/2026, Bonzas
+> (97 platos) ve la lista con «Todo» (257 visitas) y no con 7 o 30 días (31 y 96).
+>
+> **Lo que no se hizo: dejar fuera bebidas, cervezas y adicionales.** La receta
+> proponía las categorías en modo lista, pero esas **también** abren ficha al
+> pulsarlas, así que el criterio no se sostiene. Hace falta que el dueño marque qué
+> categorías «no se abren», y eso es un campo nuevo: pasa al grupo 4, a decidir.
 
 ## Lo que está bien, y es mucho
 
@@ -1770,7 +1799,7 @@ comprobación pensada para proteger al móvil.
 
 ## M6 · Con cero visitas, «Platos que nadie abrió» acusa a toda la carta · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #92
 
 Visto en `zz-pruebas-ux` recién creado: **0 visitas, 0 clics, 1 plato**. La
 sección dice:
@@ -1795,6 +1824,8 @@ datos» (ver E1 y E2 — este es el tercer caso de la misma familia).
 
 **Arreglo:** darle a esta sección la misma guardia que ya tienen sus vecinas.
 Por debajo de un mínimo de visitas, «Sin datos en este rango» y nada más.
+
+> **Aplicado (13/09/2026)** junto con B3, con una sola regla para los dos casos.
 
 ## M7 · El rango libre de fechas se parte en dos filas · **Baja**
 
