@@ -821,7 +821,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **21 aplicados** · **2 descartados** · **46 pendientes**.
+**69 hallazgos** en las tres superficies · **22 aplicados** · **2 descartados** · **45 pendientes**.
 
 ## Aplicados
 
@@ -846,6 +846,7 @@ Del 11 al 13 de septiembre de 2026:
 | **PE3** · Pedidos en modelos sin carrito | #86 | la regla de la carta en el panel; hoy no cambia la pestaña de nadie |
 | **SU2** · foto cortada anunciada en verde | #88 | por la marca de fin del archivo, no por los píxeles; se rechaza antes de subir |
 | **TV1** · la pantalla del televisor se apagaba | vmenus-app#23 y #89 | también en cada vuelta, sin insistir tras una denegación; y la nota en el panel |
+| **CL1** · avisos que mandan al cliente a pestañas que no ve | #90 | texto según quién mira; y la personalización tenía todavía la regla de carrito que PE3 quitó de las pestañas |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -867,7 +868,7 @@ decisión antes de escribir código.
 |---|---|---|
 | 1 | ~~**SU2**~~ | Publicaba una foto rota anunciándola en verde. Hecho. |
 | 2 | ~~**TV1**~~ | Hecho. La pantalla del televisor —algo que se cobra— se apaga sola con el método que el panel recomienda como el más seguro. |
-| 3 | **CL1** | Tres mensajes mandan al cliente a pestañas que no ve. Se cambia el texto, no la decisión de Apariencia. |
+| 3 | ~~**CL1**~~ | Hecho. Tres mensajes mandan al cliente a pestañas que no ve. Se cambia el texto, no la decisión de Apariencia. |
 | 4 | **B2** | Con «Activa» apagada, la pantalla afirma «En la carta: sí». |
 | 5 | **E1 + E2 + E3 + M6 + B3** | Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
 | 6 | **V3 + MD2**, luego **MD1 + MD4** | La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
@@ -1457,7 +1458,7 @@ no aparece el botón «← Restaurantes», y el reparto de pestañas funciona:
 
 ## CL1 · Tres mensajes mandan al cliente a pestañas que no existen para él · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #90
 
 Recorriendo la sesión del cliente y cruzando cada mensaje con las pestañas que
 tiene ocultas:
@@ -1481,6 +1482,20 @@ enlace de WhatsApp de soporte.
 (ver la nota de la sección Apariencia). Por eso este hallazgo es de **texto**,
 no de permisos: si el destino nunca va a estar disponible, la frase que lleva
 a él está mal escrita, y lo estará siempre.
+
+> **Aplicado (13/09/2026).** Los dos avisos que mandan a **Apariencia** cambian
+> según quién mire (`pintarAyudaSegunQuienMira`): el superadmin sigue leyendo dónde
+> está; el restaurante lee que se lo hacemos nosotros y tiene el enlace de WhatsApp
+> con el mensaje ya escrito.
+>
+> **Corregido al aplicarlo: la fila de Toppings no era de texto.** La pestaña
+> Toppings **no** es solo del superadmin: sale a cualquiera con carrito. El aviso
+> «Créalos en la pestaña Toppings» era verdad… hasta PE3 (#86), que cambió la regla
+> de la pestaña y no la de la sección de personalización, que tenía su propia copia
+> de la regla vieja. Desde entonces, un Topnav con el interruptor puesto habría
+> visto el aviso con la pestaña escondida. Hoy no le pasaba a nadie (ver PE3), pero
+> era el mismo fallo de dos reglas que PE3 venía a quitar. Ahora las dos usan
+> `cartaTieneCarrito()`.
 
 ## CL2 · Al restaurante nuevo no se le ofrece importar su carta · **Alta**
 
