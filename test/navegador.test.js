@@ -4188,3 +4188,165 @@ describe('Apariencia no pierde cambios en silencio', () => {
 		}
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('el primer día de un restaurante', () => {
+	// F1 y F3 en docs/revision-ux.md. Un restaurante recién creado aterrizaba en
+	// «Sin productos»; «+ Nuevo producto» abría una ficha que no se podía guardar
+	// porque no había categorías, y nada decía dónde crearlas.
+
+	const primerDia = ['// ── EL PRIMER DÍA', 'function renderProducts() {'];
+
+	// ── Qué dice la lista vacía ─────────────────────────────────
+	const vacio = () => cargar('index.html', ...primerDia, { String });
+
+	test('sin platos ni categorías: se empieza por la categoría', () => {
+		const v = vacio().vacioDeProductos({ total: 0, categorias: 0, busqueda: '', enCategoria: false });
+		assert.equal(v.accion, 'categoria');
+		assert.match(v.boton, /primera categoría/);
+	});
+
+	test('con categorías y sin platos: se añade el primero', () => {
+		const v = vacio().vacioDeProductos({ total: 0, categorias: 3, busqueda: '', enCategoria: false });
+		assert.equal(v.accion, 'plato');
+	});
+
+	test('con cien platos y una búsqueda sin resultados NO manda a crear categorías', () => {
+		// La trampa de este cambio. «Sin productos» salía también aquí, y la guía
+		// del primer día le diría a Bonzas que cree su primera categoría porque
+		// buscó «pizza».
+		const v = vacio().vacioDeProductos({ total: 97, categorias: 21, busqueda: 'pizza', enCategoria: false });
+		assert.equal(v.accion, null);
+		assert.equal(v.boton, null);
+		assert.match(v.texto, /pizza/);
+	});
+
+	test('una categoría sin platos lo dice así, sin guía de primer día', () => {
+		const v = vacio().vacioDeProductos({ total: 97, categorias: 21, busqueda: '', enCategoria: true });
+		assert.equal(v.accion, null);
+		assert.match(v.titulo, /categoría está vacía/);
+	});
+
+	// ── Cómo se pinta ───────────────────────────────────────────
+	function domMinimo() {
+		const nodo = tag => ({
+			tag, children: [], className: '', textContent: '', type: '', onclick: null, style: {},
+			set innerHTML(v) { this.children = []; this._html = v; },
+			get innerHTML() { return this._html ?? ''; },
+			appendChild(c) { this.children.push(c); return c; },
+		});
+		return { document: { createElement: nodo, getElementById: () => nodo('div') }, nodo };
+	}
+
+	test('lo que se buscó se pinta como texto, nunca como HTML', () => {
+		// La búsqueda la escribe quien usa el panel. Pintarla con innerHTML
+		// convertiría un «<img onerror=…>» en un elemento.
+		const { document, nodo } = domMinimo();
+		const lista = nodo('div');
+		const ctx = cargar('index.html', ...primerDia, {
+			String, document,
+			state: { productos: [{}], categorias: [{}], catFiltro: 'all' },
+			abrirPrimeraCategoria() {}, openNewProductModal() {},
+		});
+		ctx.pintarVacioProductos(lista, '<img src=x onerror=alert(1)>');
+		const caja = lista.children[0];
+		const p = caja.children.find(c => c.tag === 'p');
+		assert.match(p.textContent, /<img src=x onerror=alert\(1\)>/, 'la búsqueda tendría que verse literal');
+		assert.equal(caja.children.some(c => c.tag === 'img'), false);
+	});
+
+	test('el botón del primer día abre la categoría con su nota', () => {
+		// Corre el abrirPrimeraCategoria real: se comprueba lo que deja hecho —la
+		// nota visible y la bandera puesta— y no que alguien lo haya llamado.
+		const { document, nodo } = domMinimo();
+		const lista = nodo('div');
+		const nota = { style: { display: 'none' } };
+		let catAbierta = false;
+		const ctx = cargar('index.html', ...primerDia, {
+			String,
+			document: { createElement: document.createElement, getElementById: id => (id === 'catPrimeraNota' ? nota : nodo('div')) },
+			state: { productos: [], categorias: [], catFiltro: 'all' },
+			openNewCatModal() { catAbierta = true; }, openNewProductModal() {},
+		});
+		ctx.pintarVacioProductos(lista, '');
+		const boton = lista.children[0].children.find(c => c.tag === 'button');
+		assert.ok(boton, 'no hay botón en el vacío del primer día');
+		boton.onclick();
+		assert.equal(catAbierta, true, 'no se abrió la categoría');
+		assert.equal(nota.style.display, 'block', 'la nota de «antes del primer plato» no se enseña');
+		assert.equal(vm.runInContext('seguirConPlato', ctx), true, 'no quedó marcado que hay que volver al plato');
+	});
+
+	// ── «+ Nuevo producto» sin categorías ───────────────────────
+	test('sin categorías, «+ Nuevo producto» no abre una ficha que no se puede guardar', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const cuerpo = src.match(/function openNewProductModal\(\)\s*\{[\s\S]*?\n\}/);
+		assert.ok(cuerpo);
+		// La comprobación va ANTES de tocar la ficha: si se hiciera después, ya
+		// se habría abierto y limpiado.
+		const posGuarda = cuerpo[0].indexOf('abrirPrimeraCategoria()');
+		const posAbrir = cuerpo[0].indexOf("openModal('productModal')");
+		assert.ok(posGuarda > 0, 'openNewProductModal no comprueba si hay categorías');
+		assert.ok(posGuarda < posAbrir);
+	});
+
+	test('esconder buscador y orden depende del total, no de la lista filtrada', () => {
+		// Si dependiera de la lista filtrada, una búsqueda sin resultados haría
+		// desaparecer el buscador justo cuando hay que borrarla.
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.match(src, /const sinPlatos = !state\.productos\.length;/);
+	});
+
+	test('abrir una categoría por el camino normal baja la bandera', () => {
+		// Si alguien cancela la primera categoría y días después crea otra desde
+		// «+ Nueva categoría», no debe abrírsele un plato que nunca pidió.
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const cuerpo = src.match(/function openNewCatModal\(\)\s*\{[\s\S]*?\n\}/);
+		assert.ok(cuerpo);
+		assert.match(cuerpo[0], /seguirConPlato = false/);
+		assert.match(cuerpo[0], /catPrimeraNota'\)\.style\.display='none'/);
+	});
+
+	// ── Guardar la primera categoría vuelve al plato ────────────
+	function montarGuardado({ id = '', seguir = false } = {}) {
+		const campos = {};
+		const $ = k => (campos[k] ||= { value: '', checked: false, disabled: false, textContent: '', style: {}, focus() {} });
+		$('editCatId').value = id;
+		$('editCatNombre').value = 'Entradas';
+		const abiertos = [];
+		const estado = {
+			restaurante: { id: 'r1' }, pendingCatImgUrl: null,
+			categorias: id ? [{ id, nombre: 'Vieja', orden: 0 }] : [],
+		};
+		const ctx = cargar('index.html',
+			[primerDia, ['async function saveCat', '// ── MOVER CATEGORÍA']],
+			{
+				String, parseInt, document: { getElementById: $ }, state: estado,
+				apiFetch: async (metodo) => (metodo === 'POST' ? { id: 'c-nueva', nombre: 'Entradas', orden: 0 } : { nombre: 'Entradas' }),
+				renderCatList() {}, renderCatFilter() {}, renderProducts() {}, closeModal() {}, showToast() {},
+				openNewProductModal() { abiertos.push('producto'); },
+			});
+		if (seguir) vm.runInContext('seguirConPlato = true;', ctx);
+		return { ctx, $, abiertos };
+	}
+
+	test('crear la primera categoría desde «+ Nuevo producto» abre el plato con ella elegida', async () => {
+		const { ctx, $, abiertos } = montarGuardado({ seguir: true });
+		await ctx.saveCat();
+		assert.deepEqual(abiertos, ['producto'], 'no se volvió a la ficha del plato');
+		assert.equal($('editCategoria').value, 'c-nueva', 'la categoría recién creada no quedó elegida');
+		assert.equal(vm.runInContext('seguirConPlato', ctx), false, 'la bandera no se consumió');
+	});
+
+	test('crear una categoría por el camino normal no abre ningún plato', async () => {
+		const { ctx, abiertos } = montarGuardado({ seguir: false });
+		await ctx.saveCat();
+		assert.deepEqual(abiertos, []);
+	});
+
+	test('editar una categoría nunca encadena el plato, aunque la bandera esté puesta', async () => {
+		const { ctx, abiertos } = montarGuardado({ id: 'c1', seguir: true });
+		await ctx.saveCat();
+		assert.deepEqual(abiertos, []);
+	});
+});

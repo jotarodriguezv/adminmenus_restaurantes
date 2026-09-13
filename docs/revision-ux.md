@@ -448,7 +448,7 @@ tal: aquí el usuario eres tú.
 
 ## A1 · Dos botones de guardar a 3.928 px, y nada dice qué campo es de cuál · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #80
 
 Medido en producción: la pestaña son **4.328 px de alto (4,7 pantallas) con 39
 campos**, y tiene dos guardados independientes:
@@ -465,7 +465,7 @@ campos**, y tiene dos guardados independientes:
 pulsas «Guardar apariencia» —el botón grande del final de la página—. El color
 se guarda y el nombre se descarta sin decir nada.
 
-> **Cómo se arregló (14/09/2026).** Se mantienen los dos botones: no se fundieron
+> **Cómo se arregló (13/09/2026).** Se mantienen los dos botones: no se fundieron
 > en uno. «Guardar» de arriba escribe en dos tablas —la de cobranza incluida— y
 > tiene su propio aviso de cambio de slug, así que juntarlos obligaría a gestionar
 > fallos a medias sin que eso añada nada.
@@ -481,7 +481,7 @@ se guarda y el nombre se descarta sin decir nada.
 
 ## A2 · No hay control de cambios sin guardar, y cambiar de pestaña disimula · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #80 · salvo avisar al salir, que espera la decisión del equipo
 
 No hay `beforeunload` ni marca de «sucio» en toda la pestaña. Y `switchTab`
 (`index.html:2844`) solo alterna la clase `hidden`: **no vuelve a pintar
@@ -493,7 +493,7 @@ estuviera guardado. Se pierde en silencio al recargar.
 `cambiosModal` con «Hiciste cambios en este producto que todavía no has
 guardado. Si sales ahora se pierden». Aquí no.
 
-> **Corregido al aplicarlo (14/09/2026): era peor de lo que decía.** Además de no
+> **Corregido al aplicarlo (13/09/2026): era peor de lo que decía.** Además de no
 > avisar, **subir o quitar el logo, el fondo o la portada llamaba a
 > `renderApariencia()`, que vuelve a rellenar todos los campos desde lo guardado**.
 > Cambiar un color, subir el logo y ver cómo el color volvía solo a su valor
@@ -603,7 +603,7 @@ ningún camino hacia adelante.
 2. Que la carta esconda el botón de enviar —o el carrito entero— cuando no hay
    número, en vez de fallar en el último paso.
 
-> **Corregido al aplicarlo (14/09/2026).** Dos cosas de esta receta no valían:
+> **Corregido al aplicarlo (13/09/2026).** Dos cosas de esta receta no valían:
 >
 > - **Esconder el carrito rompería el modelo Carrito.** Ahí tocar un plato *es*
 >   añadirlo al pedido —no hay ficha—, así que sin carrito tocar un plato no haría
@@ -789,7 +789,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **8 aplicados** · **61 pendientes**.
+**69 hallazgos** en las tres superficies · **10 aplicados** · **1 descartado** · **58 pendientes**.
 
 ## Aplicados
 
@@ -805,6 +805,7 @@ Del 11 al 13 de septiembre de 2026:
 | **SU1** · mensaje del HEIC | #76 | y decisión de no añadir soporte, anotada en el hallazgo |
 | **S1** · `✓ Pagó` sin vuelta atrás | #78 | con Deshacer, no con confirmación: los diálogos esperan decisión del equipo |
 | **PE1** · carrito sin WhatsApp | #79 y vmenus-app#19 | receta corregida: no se esconde el carrito, se avisa antes de pedir datos; y abrió PE3 |
+| **A1 + A2** · los dos guardados de Apariencia | #80 | y apareció algo peor: subir una imagen borraba los cambios sin guardar |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -815,12 +816,11 @@ cada «Arreglo» como una hipótesis, no como una instrucción.
 
 | # | Hallazgo | Por qué primero |
 |---|---|---|
-| 1 | **A1 + A2** · los dos guardados de Apariencia | Se pierde trabajo tuyo en silencio, y van juntos. |
-| 2 | **F1 + F3 + CL2** · el primer día de un restaurante | Los tres son el mismo momento: «Sin productos», sin poder crear uno hasta descubrir las categorías, y sin que se le ofrezca importar la carta — que es lo que la landing le prometió. |
-| 3 | **L1** · sin salida si se olvida el PIN | Cada caso es una llamada a soporte. |
-| 4 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
-| 5 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
-| 6 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
+| 1 | **F1 + F3 + CL2** · el primer día de un restaurante | Los tres son el mismo momento: «Sin productos», sin poder crear uno hasta descubrir las categorías, y sin que se le ofrezca importar la carta — que es lo que la landing le prometió. |
+| 2 | **L1** · sin salida si se olvida el PIN | Cada caso es una llamada a soporte. |
+| 3 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
+| 4 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
+| 5 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
 
 Lo demás es acabado y se puede ir tachando sin prisa.
 
@@ -1218,6 +1218,15 @@ obligatoria y la única que bloquea el guardado, no lo tiene.
 **Arreglo:** la misma frase, para el caso que sí importa. Y mejor aún, dejar
 crear la categoría desde el propio desplegable.
 
+> **Cómo se arregló (13/09/2026).** No se añadió la frase al desplegable: se corta
+> **antes**. Sin categorías, «+ Nuevo producto» ya no abre una ficha que no se
+> puede guardar; abre la de categoría con una nota —«Antes del primer plato, una
+> categoría»— y **al guardarla se vuelve a la ficha del plato con esa categoría ya
+> elegida**. Quien quería añadir un plato acaba añadiéndolo, sin perder nada.
+>
+> El encadenamiento solo ocurre al **crear** desde ese camino: editar una categoría,
+> o crear una desde «+ Nueva categoría», no abre ningún plato.
+
 ## F2 · El error de categoría no lleva el foco al campo; los otros dos sí · **Media**
 
 - [ ] Pendiente
@@ -1255,6 +1264,18 @@ Es justo la pantalla donde **Promoción** sí explica qué es una promoción, d�
 sale y qué pasa si hay varias. El mejor estado vacío del panel está en la
 pestaña que se usa de vez en cuando; el peor, en la primera pantalla que ve un
 restaurante nuevo.
+
+> **Corregido al aplicarlo (13/09/2026): «Sin productos» decía lo mismo en tres
+> situaciones distintas.** El vacío salía cuando la lista **ya filtrada** quedaba
+> vacía, así que valía igual para un restaurante recién creado y para Bonzas
+> buscando «pizza». Poner ahí la guía del primer día le habría dicho a un
+> restaurante con 97 platos que creara su primera categoría.
+>
+> Ahora distingue: sin platos ni categorías, empezar por una categoría; con
+> categorías y sin platos, añadir el primero; con platos y una búsqueda sin
+> resultados, «ningún plato coincide». El buscador y el orden se esconden mirando
+> el **total**, no la lista filtrada: con una búsqueda vacía siguen ahí para poder
+> borrarla. Verificado en el navegador en las tres situaciones.
 
 ## F4 · Crear un restaurante no lleva a ninguna parte · **Baja**
 
@@ -1339,7 +1360,7 @@ a él está mal escrita, y lo estará siempre.
 
 ## CL2 · Al restaurante nuevo no se le ofrece importar su carta · **Alta**
 
-- [ ] Pendiente
+- [~] Descartado · 2026-09-13 · contradice una decisión tomada: importar es una llave que el superadmin entrega a mano (docs/importar-carta.md §7.bis)
 
 La pestaña «Importar carta» y el atajo de Productos dependen los dos de
 `puede_importar`, que el servidor calcula a partir del interruptor «Dejar que
@@ -1361,6 +1382,20 @@ acuerdes de encendérselo.
 **Arreglo:** encenderlo por defecto en los planes que lo incluyen. Si tiene que
 seguir siendo manual, que al menos forme parte de la lista de cosas que haces
 al dar de alta a un cliente.
+
+> **Descartado (13/09/2026): el hallazgo estaba mal planteado.** Que un restaurante
+> nuevo no tenga la importación activada **no es un olvido, es la decisión**,
+> tomada el 09/09/2026 —el mismo día que empezó esta revisión— y escrita en
+> `docs/importar-carta.md` §7.bis. La primera versión lo decidía sola y el negocio la
+> corrigió: «ya tiene todos sus productos» no es algo que el servidor pueda saber;
+> lo sabe quien habló con el restaurante. Por eso la enciende el superadmin, a mano,
+> y la apaga cuando la carta está montada. Encenderla por defecto la desharía, y
+> además cada importación gasta cupo de la API.
+>
+> **Y el argumento de la landing era flojo.** Su sección «Cómo empieza» dice «Nos
+> pasas tu carta… **La montamos contigo**», que encaja con que el equipo haga la
+> primera importación. Para el superadmin la pestaña está siempre: «para el equipo
+> esto ES la herramienta del alta».
 
 ## CL3 · El cliente no puede cambiar su propio PIN · **Media**
 

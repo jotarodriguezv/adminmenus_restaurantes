@@ -359,6 +359,12 @@
 			.toast.info{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);}
 
 			.empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);font-family:var(--mono);font-size:11px;letter-spacing:1px;}
+			/* El vacío que explica qué hacer. El de siempre —mayúsculas de máquina,
+			   11 px— sirve para decir «no hay nada»; para decir POR DÓNDE empezar hace
+			   falta texto que se lea como una frase. */
+			.empty-state.vacio-guia strong{display:block;color:var(--text);font-size:12px;margin-bottom:8px;}
+			.empty-state.vacio-guia p{font-family:var(--sans);font-size:13px;letter-spacing:0;line-height:1.6;
+			  max-width:420px;margin:0 auto 16px;color:var(--text-muted);}
 			.topping-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;
 			  border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;}
 			.topping-chip .chip-nombre{background:none;border:none;color:inherit;font:inherit;padding:0;
@@ -2290,6 +2296,13 @@
       <button class="modal-close" onclick="closeModal('catModal')">✕</button>
     </div>
     <div class="modal-body">
+      <!-- Solo se enseña cuando se llega aquí desde «+ Nuevo producto» sin tener
+           ninguna categoría. Ver abrirPrimeraCategoria(). -->
+      <div id="catPrimeraNota" style="display:none;margin-bottom:14px;padding:10px 12px;border-radius:var(--radius);
+        background:var(--accent-dim);border:1px solid var(--accent);color:var(--text);font-size:12px;line-height:1.6;">
+        <strong>Antes del primer plato, una categoría.</strong> Son las secciones de tu carta:
+        «Entradas», «Hamburguesas», «Bebidas»… Crea esta y justo después se abre el plato, ya dentro de ella.
+      </div>
       <input type="hidden" id="editCatId">
       <div class="form-row">
         <div class="form-group">
@@ -2941,8 +2954,78 @@ function setFilter(catId,btn) {
 }
 
 // ── PRODUCTOS ─────────────────────────────────────────────────
+// ── EL PRIMER DÍA ─────────────────────────────────────────────
+// «Sin productos» salía igual en tres situaciones que no se parecen en nada: un
+// restaurante recién creado sin categorías, uno con categorías y sin platos, y
+// uno con cien platos cuya búsqueda no encontró ninguno. Al primero había que
+// decirle por dónde empezar, y era justo al que peor se le decía. Ver F3.
+//
+// Devuelve texto plano, no HTML: la búsqueda es lo que escribió quien usa el
+// panel, y se pinta con textContent.
+function vacioDeProductos({ total, categorias, busqueda, enCategoria }) {
+  if (total === 0 && categorias === 0) return {
+    titulo: 'Tu carta todavía está vacía',
+    texto: 'Los platos van dentro de categorías —«Entradas», «Hamburguesas», «Bebidas»…—, así que se empieza por una.',
+    boton: 'Crear la primera categoría', accion: 'categoria',
+  };
+  if (total === 0) return {
+    titulo: 'Todavía no hay platos',
+    texto: 'Ya tienes categorías. Añade el primer plato y elige en cuál va.',
+    boton: 'Añadir el primer plato', accion: 'plato',
+  };
+  if (busqueda) return {
+    titulo: 'Ningún plato coincide',
+    texto: `No hay ningún plato que coincida con «${busqueda}».`,
+    boton: null, accion: null,
+  };
+  if (enCategoria) return {
+    titulo: 'Esta categoría está vacía',
+    texto: 'Todavía no tiene platos.',
+    boton: null, accion: null,
+  };
+  return { titulo: 'Sin platos', texto: '', boton: null, accion: null };
+}
+
+function pintarVacioProductos(list, busqueda) {
+  const v = vacioDeProductos({
+    total: state.productos.length,
+    categorias: state.categorias.length,
+    busqueda,
+    enCategoria: state.catFiltro !== 'all',
+  });
+  list.innerHTML = '';
+  const caja = document.createElement('div');
+  caja.className = 'empty-state vacio-guia';
+  const t = document.createElement('strong'); t.textContent = v.titulo; caja.appendChild(t);
+  if (v.texto) { const p = document.createElement('p'); p.textContent = v.texto; caja.appendChild(p); }
+  if (v.boton) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn-sm accent'; b.textContent = v.boton;
+    b.onclick = v.accion === 'categoria' ? abrirPrimeraCategoria : openNewProductModal;
+    caja.appendChild(b);
+  }
+  list.appendChild(caja);
+}
+
+let seguirConPlato = false;
+function abrirPrimeraCategoria() {
+  openNewCatModal();   // deja la nota escondida y la bandera abajo…
+  document.getElementById('catPrimeraNota').style.display = 'block';
+  seguirConPlato = true;   // …y aquí se encienden las dos
+}
+
 function renderProducts() {
   const list = document.getElementById('productList');
+
+  // Sin un solo plato, buscar y ordenar no tienen sobre qué actuar: eran tres
+  // controles encima de una lista vacía. Se esconden SOLO en ese caso, mirando
+  // el total y no la lista filtrada: si alguien busca algo que no existe, el
+  // buscador tiene que seguir ahí para poder borrar la búsqueda.
+  const sinPlatos = !state.productos.length;
+  document.getElementById('searchInput').style.display = sinPlatos ? 'none' : '';
+  document.getElementById('sortSelect').style.display = sinPlatos ? 'none' : '';
+  const tarjetaOrden = document.getElementById('ordenProductos')?.closest('.section-card');
+  if (tarjetaOrden) tarjetaOrden.style.display = sinPlatos ? 'none' : '';
   const filtered = state.catFiltro === 'all'
     ? state.productos
     : state.productos.filter(p => p.categoria_id === state.catFiltro);
@@ -2983,7 +3066,7 @@ function renderProducts() {
       return od!==0?od:a.nombre.localeCompare(b.nombre,'es');
     });
   }
-  if(!prods.length){list.innerHTML='<div class="empty-state">Sin productos</div>';return;}
+  if(!prods.length){ pintarVacioProductos(list, q); return; }
   list.innerHTML='';
   prods.forEach((p,idx)=>{
     const cat=state.categorias.find(c=>c.id===p.categoria_id);
@@ -3110,6 +3193,14 @@ function fillCatSelect(selectedId=null) {
 }
 
 function openNewProductModal() {
+	// Sin categorías no se puede guardar un plato: saveProduct lo rechaza. Antes
+	// se abría la ficha igual, se rellenaba entera y al guardar salía «Selecciona
+	// una categoría» con el desplegable vacío y nada que dijera dónde crearlas. Ir
+	// a crearla obligaba a salir de la ficha perdiendo lo escrito. Ver F1.
+	//
+	// Se corta aquí, antes de pedir nada: se abre la categoría con una nota, y al
+	// guardarla se vuelve a esta ficha con ella ya elegida.
+	if (!state.categorias.length) { abrirPrimeraCategoria(); return; }
 	state.pendingImgUrl=null;
 	document.getElementById('productModalTitle').textContent='Nuevo producto';
 	document.getElementById('editProductId').value='';
@@ -5210,7 +5301,13 @@ function cargarCatHorario(cat) {
 
 function renderCatList() {
   const list=document.getElementById('catList');
-  if(!state.categorias.length){list.innerHTML='<div class="empty-state">Sin categorías</div>';return;}
+  if(!state.categorias.length){
+    // Sin texto de usuario dentro, así que innerHTML es seguro aquí.
+    list.innerHTML='<div class="empty-state vacio-guia"><strong>Todavía no hay categorías</strong>'
+      + '<p>Son las secciones de tu carta: «Entradas», «Hamburguesas», «Bebidas»… Crea la primera y después añade sus platos.</p>'
+      + '<button type="button" class="btn-sm accent" onclick="openNewCatModal()">Crear la primera categoría</button></div>';
+    return;
+  }
   list.innerHTML='';
   const total=state.categorias.length;
   state.categorias.forEach((cat,idx)=>{
@@ -5284,6 +5381,10 @@ function renderCatImgField(imgUrl) {
 }
 
 function openNewCatModal() {
+  // El camino normal nunca enseña la nota ni encadena el plato: eso lo decide
+  // abrirPrimeraCategoria(), y solo para la categoría que se abre desde ahí.
+  document.getElementById('catPrimeraNota').style.display='none';
+  seguirConPlato = false;
   document.getElementById('catModalTitle').textContent='Nueva categoría';
   document.getElementById('editCatId').value='';
   document.getElementById('editCatNombre').value='';
@@ -5373,6 +5474,7 @@ async function saveCat() {
     delete atributos.horario;
   }
   body.atributos = atributos;
+  let creada = null;
   try {
     if(id) {
       const updated=await apiFetch('PATCH',`/api/categorias/${id}`,body);
@@ -5381,6 +5483,7 @@ async function saveCat() {
     } else {
       body.restaurante_id=state.restaurante.id;
       const nueva=await apiFetch('POST','/api/categorias',body);
+      creada = nueva;
       state.categorias.push(nueva);
       state.categorias.sort((a,b)=>a.orden-b.orden);
     }
@@ -5390,6 +5493,14 @@ async function saveCat() {
     renderProducts();
     closeModal('catModal');
     showToast(id?'Categoría actualizada':'Categoría creada','success');
+    // Se llegó aquí queriendo añadir un plato: se vuelve a eso, con la categoría
+    // recién creada ya elegida. Solo al CREAR —editar una no encadena nada— y
+    // solo una vez: la bandera se consume.
+    if (!id && creada && seguirConPlato) {
+      seguirConPlato = false;
+      openNewProductModal();
+      document.getElementById('editCategoria').value = creada.id;
+    }
   } catch(e) { showToast('Error: '+e.message,'error'); }
   finally { btn.disabled=false; btn.textContent='Guardar'; }
 }
