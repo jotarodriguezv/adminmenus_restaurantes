@@ -811,7 +811,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **16 aplicados** · **1 descartado** · **52 pendientes**.
+**69 hallazgos** en las tres superficies · **18 aplicados** · **1 descartado** · **50 pendientes**.
 
 ## Aplicados
 
@@ -832,6 +832,7 @@ Del 11 al 13 de septiembre de 2026:
 | **L1** · sin salida si se olvida el PIN | #82 | los atributos del gestor de contraseñas, además de quitar `off` |
 | **P1** · los dos desplegables de orden | #83 | «Ver aquí» en cada opción, no en una etiqueta; y Deshacer al publicar |
 | **V1 + V2** · zoom y teclado en la carta | vmenus-app#20 | el foco entra y vuelve; y la carta del modelo Carrito dejaba de cargar, cazado en el navegador |
+| **V4 + V5** · el formulario del pedido y el carrito que se vaciaba | vmenus-app#21 | con la pregunta «¿Enviaste el pedido?»; y el zoom de iOS que volvió al quitar `maximum-scale` en V1 |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -840,11 +841,12 @@ cada «Arreglo» como una hipótesis, no como una instrucción.
 
 ## Lo que queda, por orden
 
-| # | Hallazgo | Por qué primero |
-|---|---|---|
-| 1 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
+**Las cinco prioridades de esta lista están aplicadas** (13/09/2026). Lo demás
+es acabado y se puede ir tachando sin prisa. Hay dos cabos que salieron al
+aplicar y no estaban en la lista:
 
-Lo demás es acabado y se puede ir tachando sin prisa.
+- **PE3**: la pestaña Pedidos sale en modelos sin carrito.
+- **V2**: con la ficha del plato abierta, el Tab no se queda dentro.
 
 ## Una observación sobre el código, no sobre la UX
 
@@ -1017,6 +1019,13 @@ que menos probablemente lo tenga configurado.
 **Arreglo:** quitar `maximum-scale` y `user-scalable`. Se dejó de usar hace
 años; hoy no hace falta para evitar el zoom al enfocar un campo.
 
+> **Corregido (13/09/2026): lo último era falso.** En iPhone, `maximum-scale=1`
+> **sí** evitaba que la página se ampliara sola al tocar un campo de menos de
+> 16 px, y los del pedido iban a 13. Al quitarlo (vmenus-app#20) volvió ese zoom.
+> Lo que evita el zoom sin quitarle a nadie el pellizco es que los campos midan
+> 16 px: se hizo en vmenus-app#21, con V4, en los tres campos del pedido y en el
+> buscador de Explorar.
+
 `tv.html` no lo lleva, y ahí está bien: en un televisor no hay pellizco.
 
 > **Aplicado (13/09/2026)** tal cual la receta, junto con V2.
@@ -1099,7 +1108,7 @@ también (52 × 56).
 
 ## V4 · El único formulario que llena un comensal no tiene etiquetas asociadas ni autocompletado · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · vmenus-app#21
 
 En todo `index.html` (1.921 líneas):
 
@@ -1128,9 +1137,12 @@ Lo que sí está bien: es un `<form>` de verdad con `onsubmit`, los tres campos
 son `required` y no se pide teléfono —viene del propio WhatsApp—, que es la
 decisión correcta.
 
+> **Aplicado (13/09/2026)** tal cual la receta, y además el emoji de cada etiqueta
+> va oculto al lector de pantalla. Los campos pasaron a 16 px por lo anotado en V1.
+
 ## V5 · El carrito se vacía al abrir WhatsApp, no al enviar el pedido · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · vmenus-app#21
 
 En `core/carrito.js:698`, el camino normal es: se abre `wa.me` en otra pestaña
 y **acto seguido** se vacía el carrito, se cierra el checkout y se borran el
@@ -1152,6 +1164,15 @@ abrir la pestaña se está tratando como si fuera haber enviado.
 **Arreglo:** no vaciar al abrir. Dejar el carrito y enseñar «¿Enviaste tu
 pedido?» con «Sí, listo» (vacía) y «Todavía no» (lo deja), o simplemente
 conservarlo hasta que la persona vuelva y lo vacíe ella.
+
+> **Aplicado (13/09/2026) con la pregunta**, no conservándolo sin más: sin ella,
+> quien sí envió el pedido vuelve a una carta con el pedido lleno y puede mandarlo
+> dos veces. Al abrir WhatsApp el formulario se cambia por «¿Enviaste el pedido en
+> WhatsApp?», con «Sí, ya lo envié» y «Todavía no».
+>
+> **Y el camino del emergente bloqueado tenía el mismo fallo, un paso después.**
+> Conservaba el pedido al bloquearse, pero lo vaciaba al pulsar el enlace manual, que
+> tampoco envía nada. Ahora pregunta igual.
 
 ## Lo que está bien, y es de lo mejor de los dos repos
 
