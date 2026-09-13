@@ -836,7 +836,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **32 aplicados** · **2 descartados** · **36 pendientes**.
+**70 hallazgos** en las tres superficies · **33 aplicados** · **2 descartados** · **35 pendientes**.
 
 ## Aplicados
 
@@ -866,6 +866,7 @@ Del 11 al 13 de septiembre de 2026:
 | **E1 + E2 + E3 + M6 + B3** · estadísticas | #92 | umbrales sacados del tráfico real; B3 sin la exclusión de categorías, que necesita decisión |
 | **V3 + MD2** · controles por debajo de 44 px | vmenus-app#24 | se agranda lo que se toca, no lo que se ve; el borde de 1 px dejaba dos en 42 |
 | **MD1 + MD4** · el lateral sin nombre y con el foco fuera | vmenus-app#25 | el foco vuelve a SU botón, porque tras un toque no es lo enfocado; y apareció V6 |
+| **M1** · las pestañas se salían sin avisar | #95 | barra visible, borde difuminado y la pestaña activa a la vista |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -892,7 +893,7 @@ decisión antes de escribir código.
 | 5 | ~~**E1 + E2 + E3 + M6 + B3**~~ | Hecho. Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
 | 6 | ~~**V3 + MD2**~~, ~~**MD1 + MD4**~~ | Hecho. La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
 
-**Grupo 2 · el panel del cliente en móvil:** M1, M3, M4 + M5, CL4, M7. Juntos
+**Grupo 2 · el panel del cliente en móvil:** ~~M1~~, M3, M4 + M5, CL4, M7. Juntos
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
@@ -1626,7 +1627,7 @@ densidad no está probada**: haría falta una carta real.
 
 ## M1 · La navegación principal se sale de la pantalla y esconde su barra de desplazamiento · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #95
 
 Medido a 375 px con la sesión del cliente:
 
@@ -1653,6 +1654,12 @@ El carril secundario avisa de que scrollea; el principal no. Y esto es con
 cinco pestañas: **un cliente de Plan Completo tiene ocho** —se le suman
 Toppings, Pedidos y Pantalla TV— así que se le queda fuera casi la mitad del
 panel sin nada que lo insinúe.
+
+> **Aplicado (13/09/2026)** con las tres cosas que faltaban: la barra fina y
+> visible, como la del carril de categorías; el borde por el que queda contenido se
+> **difumina** (a la derecha al empezar, a los dos lados a mitad, a la izquierda al
+> final); y la pestaña pulsada se trae a la vista. Visto a 375 px con las ocho
+> pestañas de un Plan Completo: 812 px de carril en 375.
 
 ## M2 · El cliente no puede leer la dirección de su propia carta · **Baja**
 
