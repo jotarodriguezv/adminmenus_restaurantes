@@ -206,6 +206,25 @@ debe. Arreglarlo es SQL contra producción.
 `confirm()` que nombra el restaurante y enumera lo que se pierde. Eso se queda
 como está.
 
+> **Cómo se arregló, y por qué no con una confirmación.** El título dice «sin
+> confirmar», y la tentación es añadir el `confirm()` que falta. **Se descartó**
+> por dos motivos:
+>
+> 1. `✓ Pagó` se pulsa **nueve veces al mes**. Una confirmación en algo rutinario
+>    se acaba aceptando sin leer, y entonces no protege de nada.
+> 2. Los diálogos del panel están **pendientes de una decisión del equipo**
+>    (`CLAUDE.md`, «Ocho diálogos del navegador sin unificar»). Añadir un noveno
+>    sería meterse en ese frente antes de tiempo.
+>
+> Se hizo con **Deshacer** en el propio aviso, que restaura el valor exacto de
+> antes —también cuando no había ningún pago, enviando `null`— y con **la fecha
+> del último pago visible en la ficha**, que antes no aparecía en ningún sitio.
+> Así un pago marcado por error sigue a la vista cuando ya caducó el Deshacer.
+>
+> Lo que **no** cubre: corregir un pago mal marcado que se descubre días después.
+> Ahora se ve —«pagó el 13 sep» en un cliente que no ha pagado salta a la vista—,
+> pero corregirlo sigue sin tener pantalla. Si pasa, es el siguiente paso.
+
 ## S2 · El rojo significa dos cosas distintas en la misma fila · **Media**
 
 - [ ] Pendiente
