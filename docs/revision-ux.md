@@ -811,7 +811,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **14 aplicados** · **1 descartado** · **54 pendientes**.
+**69 hallazgos** en las tres superficies · **16 aplicados** · **1 descartado** · **52 pendientes**.
 
 ## Aplicados
 
@@ -831,6 +831,7 @@ Del 11 al 13 de septiembre de 2026:
 | **F1 + F3** · el primer día de un restaurante | #81 | «Sin productos» valía también para una búsqueda sin resultados; CL2 se descartó |
 | **L1** · sin salida si se olvida el PIN | #82 | los atributos del gestor de contraseñas, además de quitar `off` |
 | **P1** · los dos desplegables de orden | #83 | «Ver aquí» en cada opción, no en una etiqueta; y Deshacer al publicar |
+| **V1 + V2** · zoom y teclado en la carta | vmenus-app#20 | el foco entra y vuelve; y la carta del modelo Carrito dejaba de cargar, cazado en el navegador |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -841,8 +842,7 @@ cada «Arreglo» como una hipótesis, no como una instrucción.
 
 | # | Hallazgo | Por qué primero |
 |---|---|---|
-| 1 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
-| 2 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
+| 1 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
 
 Lo demás es acabado y se puede ir tachando sin prisa.
 
@@ -993,7 +993,7 @@ que escanee un QR en una mesa, con el móvil que tenga y la vista que tenga.
 
 ## V1 · El `meta viewport` desactiva el pellizco para ampliar · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · vmenus-app#20
 
 `index.html:5`:
 
@@ -1019,9 +1019,11 @@ años; hoy no hace falta para evitar el zoom al enfocar un campo.
 
 `tv.html` no lo lleva, y ahí está bien: en un televisor no hay pellizco.
 
+> **Aplicado (13/09/2026)** tal cual la receta, junto con V2.
+
 ## V2 · No se puede recorrer la carta con el teclado · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · vmenus-app#20 · salvo encerrar el Tab dentro de la ficha, anotado abajo
 
 La tarjeta de cada plato es un `<div>` con `card.onclick`
 (`core/menu.js:113`). En **todo el repositorio** —`index.html`, `core/` y los
@@ -1046,6 +1048,30 @@ el ratón.
 
 **Arreglo:** que la tarjeta sea un `<button>` (o `tabindex="0"` +
 `role="button"` + Enter/Espacio). Con eso se desbloquea lo que ya existe.
+
+> **Cómo se aplicó (13/09/2026).** La segunda opción, no el `<button>`: dentro de
+> las tarjetas hay bloques que un botón no admite, y el CSS de los seis temas
+> depende de esas etiquetas. Vive en `core/teclado.js`, compartido.
+>
+> **La receta se quedaba corta en dos cosas.** Abrir la ficha no bastaba: el foco
+> tiene que **entrar** en ella —si no, sigue detrás del fondo oscuro— y al cerrarla
+> tiene que **volver a la tarjeta**, o quien cierra con Escape recorre la carta
+> entera otra vez. Y la ficha de Explorar es otra distinta de la de `core/menu.js`
+> y **no tenía Escape**: ahora lo tiene, solo con la ficha abierta (lo aprendido en
+> MD3). Vertical y Video no cambian: sus platos ya usan botones de verdad.
+>
+> **Al probarlo en un navegador salió un fallo grave que las pruebas no vieron:**
+> `temas/carrito.js` llamaba a la función nueva sin importarla, y **la carta del
+> modelo Carrito no cargaba**. Las pruebas leían el texto del archivo y estaban en
+> verde. Se arregló antes de abrir el PR, con una prueba de importaciones. Como en
+> A2: un cambio de interfaz no está probado hasta que se abre
+> la carta.
+>
+> **Lo que queda:** el Tab no se **encierra** dentro de la ficha abierta. Desde el
+> botón de cerrar se llega a las flechas y después a la carta de detrás. Escape
+> funciona siempre, así que no deja a nadie atrapado, pero un lector de pantalla
+> puede salirse del diálogo. Es un cambio aparte, que toca las dos fichas y la
+> personalización del carrito.
 
 ## V3 · Ocho controles por debajo del tamaño mínimo de toque, y los peores son los de cerrar · **Media**
 
