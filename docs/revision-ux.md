@@ -836,7 +836,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **30 aplicados** · **2 descartados** · **37 pendientes**.
+**70 hallazgos** en las tres superficies · **32 aplicados** · **2 descartados** · **36 pendientes**.
 
 ## Aplicados
 
@@ -865,6 +865,7 @@ Del 11 al 13 de septiembre de 2026:
 | **B2** · «Activa» manda y se veía igual que los destinos | #91 | atenuados y no deshabilitados, para poder preparar la promoción antes de encenderla |
 | **E1 + E2 + E3 + M6 + B3** · estadísticas | #92 | umbrales sacados del tráfico real; B3 sin la exclusión de categorías, que necesita decisión |
 | **V3 + MD2** · controles por debajo de 44 px | vmenus-app#24 | se agranda lo que se toca, no lo que se ve; el borde de 1 px dejaba dos en 42 |
+| **MD1 + MD4** · el lateral sin nombre y con el foco fuera | vmenus-app#25 | el foco vuelve a SU botón, porque tras un toque no es lo enfocado; y apareció V6 |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -880,7 +881,7 @@ PE3 y el Tab dentro de la ficha— quedó aplicada el 13/09/2026.
 que hoy enseña algo falso o hace daño de verdad; al final, lo que necesita una
 decisión antes de escribir código.
 
-**Grupo 1 · lo que hoy engaña o hace daño**, en este orden, un PR cada uno:
+**Grupo 1 · lo que hoy engaña o hace daño**, en este orden, un PR cada uno. **Terminado el 13/09/2026.**
 
 | # | Hallazgos | Por qué |
 |---|---|---|
@@ -889,14 +890,14 @@ decisión antes de escribir código.
 | 3 | ~~**CL1**~~ | Hecho. Tres mensajes mandan al cliente a pestañas que no ve. Se cambia el texto, no la decisión de Apariencia. |
 | 4 | ~~**B2**~~ | Hecho. Con «Activa» apagada, la pantalla afirma «En la carta: sí». |
 | 5 | ~~**E1 + E2 + E3 + M6 + B3**~~ | Hecho. Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
-| 6 | ~~**V3 + MD2**~~ (hecho), luego **MD1 + MD4** | La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
+| 6 | ~~**V3 + MD2**~~, ~~**MD1 + MD4**~~ | Hecho. La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
 
 **Grupo 2 · el panel del cliente en móvil:** M1, M3, M4 + M5, CL4, M7. Juntos
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
 del panel: F2, P6 · C2, C3 · TP1 + TP2 · L3 + L4 + L5 · S2 + S3, S5, F4, X1, X2 ·
-A5, PE2, P5, M2.
+A5, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
 
@@ -1274,6 +1275,22 @@ conservarlo hasta que la persona vuelva y lo vacíe ella.
 > **Y el camino del emergente bloqueado tenía el mismo fallo, un paso después.**
 > Conservaba el pedido al bloquearse, pero lo vaciaba al pulsar el enlace manual, que
 > tampoco envía nada. Ahora pregunta igual.
+
+## V6 · Las capas cerradas siguen en el orden del Tab · **Baja**
+
+- [ ] Pendiente
+
+**Encontrado el 13/09/2026 al probar MD4** en Malparados. Con Mayús+Tab desde el
+botón del lateral, el foco pasó por la ✕ de la **promoción** (`promo-close`) y por
+la de la **lupa** (`lightbox-close`) con esas dos capas **cerradas**. Se esconden
+con `opacity: 0` y `pointer-events: none`, que las hacen invisibles y no pulsables,
+pero no las sacan del recorrido del teclado: quien tabula aterriza en botones que
+no ve y que no hacen nada.
+
+**Arreglo:** `visibility: hidden` en la capa cerrada (y `visible` al abrirla, con
+la transición retrasada para que el fundido siga funcionando), o el atributo
+`inert`. Hay que revisar todas las capas que se esconden por opacidad, no solo
+estas dos.
 
 ## Lo que está bien, y es de lo mejor de los dos repos
 
@@ -1877,7 +1894,7 @@ mejor de lo que se suele ver.
 
 ## MD1 · El botón del menú lateral no tiene nombre accesible · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · vmenus-app#25
 
 Modelo **Sidebar**. El marcado (`vmenus-app/index.html:1669`) es:
 
@@ -1901,6 +1918,10 @@ Mide además **40 × 33**, por debajo de los 44 × 44 de referencia.
 **Y el patrón ya está en la casa:** el botón del carrito lleva
 `aria-label="Ver el pedido"` (`index.html:1702`) y `temas/explorar.js` tiene
 cinco etiquetas más. Esta se quedó fuera.
+
+> **Aplicado (13/09/2026)** con MD4: `aria-label`, `aria-controls` y `aria-expanded`
+> en el botón, y de 40 × 33 a 44 × 44 de toque. La ✕ del lateral también tiene
+> nombre y entra en la regla de tamaño de V3.
 
 ## MD2 · El botón de limpiar la búsqueda mide 16 × 16 · **Media**
 
@@ -2260,7 +2281,7 @@ funcionara en ningún sitio: enseña una regla y luego la rompe.
 
 ## MD4 · Al abrir el lateral, el foco se queda fuera · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · vmenus-app#25
 
 Con el panel abierto, `document.activeElement` sigue siendo el botón
 `menu-toggle`, **fuera del lateral**. No se mueve el foco al panel ni se
@@ -2272,6 +2293,14 @@ del mismo tamaño que los cierres globales de V3.
 
 **Arreglo:** llevar el foco al panel al abrirlo, devolverlo al botón al
 cerrarlo, y ponerle nombre a la ✕.
+
+> **Aplicado (13/09/2026)** con `core/teclado.js`: el foco entra en la primera
+> categoría, el Tab no sale y al cerrar vuelve al botón. Probado en Malparados con
+> teclas reales (Tab, Mayús+Tab, Escape).
+>
+> **Corregido al probarlo:** devolver el foco «a lo que estuviera enfocado» no
+> sirve aquí. Tras un toque, Safari no enfoca el botón, y en el navegador el foco
+> acababa en otra parte al cerrar. El lateral enfoca su botón antes de entrar.
 
 ## Lo que está bien
 
