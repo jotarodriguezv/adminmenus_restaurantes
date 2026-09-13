@@ -836,7 +836,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **28 aplicados** · **2 descartados** · **39 pendientes**.
+**69 hallazgos** en las tres superficies · **30 aplicados** · **2 descartados** · **37 pendientes**.
 
 ## Aplicados
 
@@ -864,6 +864,7 @@ Del 11 al 13 de septiembre de 2026:
 | **CL1** · avisos que mandan al cliente a pestañas que no ve | #90 | texto según quién mira; y la personalización tenía todavía la regla de carrito que PE3 quitó de las pestañas |
 | **B2** · «Activa» manda y se veía igual que los destinos | #91 | atenuados y no deshabilitados, para poder preparar la promoción antes de encenderla |
 | **E1 + E2 + E3 + M6 + B3** · estadísticas | #92 | umbrales sacados del tráfico real; B3 sin la exclusión de categorías, que necesita decisión |
+| **V3 + MD2** · controles por debajo de 44 px | vmenus-app#24 | se agranda lo que se toca, no lo que se ve; el borde de 1 px dejaba dos en 42 |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -888,7 +889,7 @@ decisión antes de escribir código.
 | 3 | ~~**CL1**~~ | Hecho. Tres mensajes mandan al cliente a pestañas que no ve. Se cambia el texto, no la decisión de Apariencia. |
 | 4 | ~~**B2**~~ | Hecho. Con «Activa» apagada, la pantalla afirma «En la carta: sí». |
 | 5 | ~~**E1 + E2 + E3 + M6 + B3**~~ | Hecho. Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
-| 6 | **V3 + MD2**, luego **MD1 + MD4** | La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
+| 6 | ~~**V3 + MD2**~~ (hecho), luego **MD1 + MD4** | La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
 
 **Grupo 2 · el panel del cliente en móvil:** M1, M3, M4 + M5, CL4, M7. Juntos
 porque se prueban igual, a 375 px.
@@ -1174,7 +1175,7 @@ el ratón.
 
 ## V3 · Ocho controles por debajo del tamaño mínimo de toque, y los peores son los de cerrar · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · vmenus-app#24
 
 Medido en la carta real, a 375 px:
 
@@ -1195,6 +1196,16 @@ comensal ya está a punto de mandar un pedido.
 
 Las tarjetas de plato, en cambio, están holgadas (231 × 171) y la barra social
 también (52 × 56).
+
+> **Aplicado (13/09/2026)** agrandando lo que se **toca** y no lo que se **ve**: un
+> borde invisible (`::before`) en los redondos, y tamaño mínimo con margen negativo
+> en las ✕ de texto, para que las cabeceras no se muevan. Los ocho, medidos después
+> en la carta con `elementFromPoint`: todos se tocan en 44 × 44.
+>
+> **Medir cazó un error del primer intento:** las flechas ‹ › y la ✕ de la
+> promoción llevan borde de 1 px, y el `inset` del `::before` se cuenta desde
+> dentro del borde. Con `-4px` se quedaban en 42. La prueba nueva calcula el tamaño
+> con el borde descontado.
 
 ## V4 · El único formulario que llena un comensal no tiene etiquetas asociadas ni autocompletado · **Media**
 
@@ -1893,7 +1904,7 @@ cinco etiquetas más. Esta se quedó fuera.
 
 ## MD2 · El botón de limpiar la búsqueda mide 16 × 16 · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · vmenus-app#24
 
 Modelo **Explorar**, `temas/explorar.js:109`. Es el **control más pequeño de
 toda la aplicación**: por debajo incluso del mínimo AA de 24 × 24, y menos de
@@ -1902,6 +1913,9 @@ la mitad de los 44 recomendados.
 Está bien hecho en lo demás —es un `<button>` de verdad con
 `aria-label="Limpiar"`— pero es una diana de 16 px para un pulgar, dentro de un
 campo de búsqueda que se usa con el teclado abierto y media pantalla ocupada.
+
+> **Aplicado (13/09/2026)** con V3: se toca en 44 × 44 y la barra de búsqueda sigue
+> midiendo 48 px de alto.
 
 ## Lo que se fue a buscar y estaba bien
 
