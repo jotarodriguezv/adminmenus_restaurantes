@@ -110,8 +110,22 @@
 			.btn-sm.accent:hover{opacity:.85;}
 
 			/* ── TABS ── */
-			.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 20px;background:var(--surface);overflow-x:auto;scrollbar-width:none;}
-			.tabs::-webkit-scrollbar{display:none;}
+			/* M1: en un móvil las pestañas miden más que la pantalla (519 px en 375 con
+			   cinco; un Plan Completo tiene ocho) y la barra estaba escondida a mano,
+			   así que nada decía que había más. Ahora se ve fina, como la del carril de
+			   categorías, y el borde por el que queda contenido se difumina. */
+			.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 20px;background:var(--surface);overflow-x:auto;
+			  scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+			.tabs::-webkit-scrollbar{height:3px;}
+			.tabs::-webkit-scrollbar-track{background:transparent;}
+			.tabs::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+			.tabs.hay-mas-derecha{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent);
+			  mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent);}
+			.tabs.hay-mas-izquierda{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 48px),transparent);
+			  mask-image:linear-gradient(to left,#000 calc(100% - 48px),transparent);}
+			.tabs.hay-mas-izquierda.hay-mas-derecha{
+			  -webkit-mask-image:linear-gradient(to right,transparent,#000 48px,#000 calc(100% - 48px),transparent);
+			  mask-image:linear-gradient(to right,transparent,#000 48px,#000 calc(100% - 48px),transparent);}
 			.tab-btn{padding:13px 18px;border:none;border-bottom:2px solid transparent;background:transparent;
 			  color:var(--text-muted);font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
 			  cursor:pointer;white-space:nowrap;transition:all .18s;margin-bottom:-1px;}
@@ -2986,6 +3000,9 @@ function switchTab(tab, btn) {
   if (tab === 'apariencia' && state.rol !== 'admin') return;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  // En un móvil la pestaña pulsada puede estar medio fuera; se trae a la vista
+  // para que se vea cuál está activa. 'nearest' no mueve la página en vertical.
+  btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
   ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabTv','tabImportar','tabQr','tabEstadisticas'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
@@ -2994,6 +3011,33 @@ function switchTab(tab, btn) {
   if (tab === 'importar') renderImportar();
   if (tab === 'qr') renderQR();
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
+}
+
+// ── ¿HAY MÁS PESTAÑAS FUERA? ──────────────────────────────────
+// M1. Devuelve por qué lado queda contenido fuera de la vista. El pixel de
+// margen es por el redondeo: con zoom del navegador, scrollLeft sale con
+// decimales y un final exacto se leería como «queda medio píxel».
+function bordesConContenido({ scrollLeft, clientWidth, scrollWidth }) {
+  return {
+    izquierda: scrollLeft > 1,
+    derecha: scrollLeft + clientWidth < scrollWidth - 1,
+  };
+}
+
+function marcarBordesDeTabs() {
+  const tabs = document.querySelector('.tabs');
+  if (!tabs) return;
+  const b = bordesConContenido(tabs);
+  tabs.classList.toggle('hay-mas-izquierda', b.izquierda);
+  tabs.classList.toggle('hay-mas-derecha', b.derecha);
+}
+
+function vigilarBordesDeTabs() {
+  const tabs = document.querySelector('.tabs');
+  if (!tabs) return;
+  tabs.addEventListener('scroll', marcarBordesDeTabs, { passive: true });
+  window.addEventListener('resize', marcarBordesDeTabs);
+  marcarBordesDeTabs();
 }
 
 // ── FILTRO ────────────────────────────────────────────────────
@@ -7239,6 +7283,7 @@ function ajustarPestanasAlModelo() {
   // servidor por plan.
   document.getElementById('tabBtnTv').style.display = restauranteTieneTv() ? 'block' : 'none';
   if (hayCarrito) { renderPedidos(); renderMetodosPago(); }
+  marcarBordesDeTabs();   // aparecer o desaparecer pestañas cambia si sobran
 }
 
 // ¿Este restaurante puede tener cartelera?
@@ -9886,6 +9931,7 @@ function habilitarArrastre() {
 // ── ARRANQUE ──────────────────────────────────────────────────
 habilitarArrastre();
 vigilarCambiosApariencia();
+vigilarBordesDeTabs();
 
 if(token && state.rol && state.restauranteSlug) {
   if(state.rol==='admin' && !sessionStorage.getItem('menuAdminEditingResto')) {
