@@ -3981,3 +3981,84 @@ describe('«✓ Pagó» se puede deshacer', () => {
 		assert.match(ficha().estadoPagoHtml({ dia_pago: 1, ultimo_pago: null }), /Vencido/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
+	// PE1 en docs/revision-ux.md. El estado roto no nace de borrar el número
+	// —savePedidos() no deja guardarlo vacío— sino de no ponerlo nunca al pasar
+	// un restaurante a un modelo con carrito. Así estaba A Ojo Cerrado.
+	const reglas = [['const MODELO_POR_DEFECTO', '// En qué proporción se recorta el video']];
+	const regla = () => cargar('index.html', reglas, { String });
+	const aviso = () => cargar('index.html',
+		[...reglas, ['function avisoPedidosHtml', 'function fichaPlanHtml']],
+		{ String, planDe: r => r._plan || {} });
+
+	const CON_CARRITO = { carrito: true };
+
+	test('el modelo Carrito tiene carrito siempre, sin mirar plan ni interruptor', () => {
+		assert.equal(regla().cartaTieneCarrito({ nav: 'carrito' }, {}), true);
+	});
+
+	test('Video y Vertical, solo con plan e interruptor', () => {
+		const r = regla();
+		assert.equal(r.cartaTieneCarrito({ nav: 'video', carrito: true }, CON_CARRITO), true);
+		assert.equal(r.cartaTieneCarrito({ nav: 'vertical', carrito: false }, CON_CARRITO), false);
+		assert.equal(r.cartaTieneCarrito({ nav: 'video', carrito: true }, {}), false);
+	});
+
+	test('Topnav, Sidebar y Explorar no tienen carrito aunque plan e interruptor digan que sí', () => {
+		// El caso que lo justifica todo. La pestaña Pedidos sí se enciende para
+		// ellos, pero en la carta ninguno llama a activarCarrito(): avisar de que
+		// no reciben pedidos sería una falsa alarma.
+		const r = regla();
+		for (const nav of ['topnav', 'sidebar', 'explorar']) {
+			assert.equal(r.cartaTieneCarrito({ nav, carrito: true }, CON_CARRITO), false, nav);
+		}
+	});
+
+	test('sin modelo elegido cuenta como el modelo por defecto, que no tiene carrito', () => {
+		assert.equal(regla().cartaTieneCarrito({ carrito: true }, CON_CARRITO), false);
+	});
+
+	test('recibePedidos limpia el número igual que la carta', () => {
+		const r = regla();
+		assert.equal(r.recibePedidos({ whatsapp_pedidos: '+57 300 123 4567' }), true);
+		assert.equal(r.recibePedidos({ whatsapp_pedidos: '  - + ' }), false);
+		assert.equal(r.recibePedidos({}), false);
+	});
+
+	test('la lista marca a quien tiene carrito y no tiene número', () => {
+		const html = aviso().avisoPedidosHtml({ atributos: { nav: 'carrito' } });
+		assert.match(html, /no recibe pedidos/);
+		assert.match(html, /resto-etiqueta mal/);
+	});
+
+	test('y no marca a quien ya tiene número', () => {
+		assert.equal(aviso().avisoPedidosHtml({ atributos: { nav: 'carrito', whatsapp_pedidos: '573001234567' } }), '');
+	});
+
+	test('ni a un Topnav con el interruptor encendido, que no tiene carrito', () => {
+		assert.equal(aviso().avisoPedidosHtml({ atributos: { nav: 'topnav', carrito: true }, _plan: CON_CARRITO }), '');
+	});
+
+	test('la pestaña Pedidos enciende y apaga el aviso', () => {
+		const caja = { style: {} };
+		const estado = { restaurante: { atributos: { nav: 'carrito' } } };
+		const ctx = cargar('index.html',
+			[...reglas, ['function actualizarAvisoPedidos', 'async function savePedidos']],
+			{ String, state: estado, planActual: () => ({}), document: { getElementById: () => caja } });
+		ctx.actualizarAvisoPedidos();
+		assert.equal(caja.style.display, 'block', 'sin número el aviso no se enseña');
+		estado.restaurante.atributos.whatsapp_pedidos = '573001234567';
+		ctx.actualizarAvisoPedidos();
+		assert.equal(caja.style.display, 'none', 'con número el aviso sigue a la vista');
+	});
+
+	test('guardar el número vuelve a evaluar el aviso', () => {
+		// Si no, se guarda el número y el aviso rojo sigue ahí hasta recargar.
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const cuerpo = src.match(/async function savePedidos\(\)\s*\{[\s\S]*?\n\}/);
+		assert.ok(cuerpo, 'no se encontró savePedidos');
+		assert.match(cuerpo[0], /actualizarAvisoPedidos\(\)/);
+	});
+});

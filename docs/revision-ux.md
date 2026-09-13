@@ -186,7 +186,7 @@ aparece **después** de entrar, en la barra superior.
 
 ## S1 · `✓ Pagó` escribe en cobranza sin confirmar y sin vuelta atrás · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #78
 
 `marcarComoPagado` (`index.html:8841`) manda el `PATCH` con la fecha de hoy en
 cuanto lo pulsas: sin confirmación, toast verde y listo. Y `ultimo_pago`
@@ -573,6 +573,24 @@ ningún camino hacia adelante.
 2. Que la carta esconda el botón de enviar —o el carrito entero— cuando no hay
    número, en vez de fallar en el último paso.
 
+> **Corregido al aplicarlo (14/09/2026).** Dos cosas de esta receta no valían:
+>
+> - **Esconder el carrito rompería el modelo Carrito.** Ahí tocar un plato *es*
+>   añadirlo al pedido —no hay ficha—, así que sin carrito tocar un plato no haría
+>   nada. `temas/carrito.js` lo advierte expresamente. Se hizo con un aviso que
+>   **sustituye al botón «Hacer Pedido»**, antes de pedir un solo dato, y que
+>   funciona igual en los tres modelos con carrito (vmenus-app).
+> - **«Que el panel no deje encender pedidos sin número» no apunta al origen.**
+>   `savePedidos()` ya se negaba a guardar el número vacío: el estado roto no nace
+>   de borrarlo, sino de **no ponerlo nunca** al pasar un restaurante a un modelo
+>   con carrito. Se avisa en la **lista del superadmin**, que es donde se deciden
+>   los modelos, y en la pestaña Pedidos, donde el placeholder «573001234567» hacía
+>   parecer relleno un campo vacío.
+>
+> **A quién afectaba de verdad**, consultado en producción antes de empezar: solo a
+> `aojocerrado`, que es de prueba. Era preventivo. Pasando la función del aviso por
+> las once filas reales, marca a ese y a ningún otro.
+
 ## PE2 · Otra vez dos guardados en una pantalla · **Baja**
 
 - [ ] Pendiente
@@ -581,6 +599,30 @@ ningún camino hacia adelante.
 Mismo patrón que A1, pero aquí están cerca y los dos bloques se distinguen
 bien, así que el riesgo es mucho menor. Se anota para decidirlo de una vez
 junto con A1 y no dos veces.
+
+## PE3 · La pestaña Pedidos aparece en modelos que no tienen carrito · **Baja**
+
+- [ ] Pendiente
+
+Encontrado al aplicar PE1. El panel y la carta **no deciden igual** si un
+restaurante tiene carrito:
+
+| | Regla |
+|---|---|
+| Panel, `ajustarPestanasAlModelo()` | modelo Carrito, **o cualquier modelo** con plan e interruptor |
+| Carta, vmenus-app | modelo Carrito siempre; **solo Video y Vertical** con plan e interruptor |
+
+Topnav, Sidebar y Explorar no llaman nunca a `activarCarrito()`. Así que a un
+restaurante Topnav con el interruptor encendido **se le enseña la pestaña Pedidos**
+—para poner un WhatsApp y unos métodos de pago— que **no hacen nada**, porque su
+carta no deja armar un pedido.
+
+**Hoy no afecta a nadie:** los Topnav, Sidebar y Explorar de producción tienen el
+interruptor apagado o sin definir. Es preventivo.
+
+**Lo que ya existe para arreglarlo:** PE1 añadió `cartaTieneCarrito()`, que es la
+regla de la carta escrita en el panel. `hayCarrito` podría usarla. No se hizo en
+PE1 a propósito: cambia qué pestañas ve un cliente, y eso merece su propio PR.
 
 ## Lo que está bien
 
@@ -717,11 +759,11 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**68 hallazgos** en las tres superficies · **6 aplicados** · **62 pendientes**.
+**69 hallazgos** en las tres superficies · **7 aplicados** · **62 pendientes**.
 
 ## Aplicados
 
-La tanda de arreglos cortos, del 11 al 13 de septiembre de 2026:
+Del 11 al 13 de septiembre de 2026:
 
 | Hallazgo | PR | |
 |---|---|---|
@@ -731,6 +773,7 @@ La tanda de arreglos cortos, del 11 al 13 de septiembre de 2026:
 | **MD3** · Escape en el lateral | vmenus-app#18 | receta corregida: va en el tema, no en el núcleo |
 | **L2** · foco en el login | #75 | receta corregida: llamada explícita, no `autofocus` |
 | **SU1** · mensaje del HEIC | #76 | y decisión de no añadir soporte, anotada en el hallazgo |
+| **S1** · `✓ Pagó` sin vuelta atrás | #78 | con Deshacer, no con confirmación: los diálogos esperan decisión del equipo |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -741,14 +784,13 @@ cada «Arreglo» como una hipótesis, no como una instrucción.
 
 | # | Hallazgo | Por qué primero |
 |---|---|---|
-| 1 | **S1** · `✓ Pagó` sin confirmar ni deshacer | Es el único que corrompe un dato sin dejar rastro ni forma de arreglarlo desde el panel. |
-| 2 | **PE1** · carrito sin WhatsApp | Es el único que le rompe la experiencia a un **comensal**, y en el último paso. |
-| 3 | **A1 + A2** · los dos guardados de Apariencia | Se pierde trabajo tuyo en silencio, y van juntos. |
-| 4 | **F1 + F3 + CL2** · el primer día de un restaurante | Los tres son el mismo momento: «Sin productos», sin poder crear uno hasta descubrir las categorías, y sin que se le ofrezca importar la carta — que es lo que la landing le prometió. |
-| 5 | **L1** · sin salida si se olvida el PIN | Cada caso es una llamada a soporte. |
-| 6 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
-| 7 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
-| 8 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
+| 1 | **PE1** · carrito sin WhatsApp | Es el único que le rompe la experiencia a un **comensal**, y en el último paso. |
+| 2 | **A1 + A2** · los dos guardados de Apariencia | Se pierde trabajo tuyo en silencio, y van juntos. |
+| 3 | **F1 + F3 + CL2** · el primer día de un restaurante | Los tres son el mismo momento: «Sin productos», sin poder crear uno hasta descubrir las categorías, y sin que se le ofrezca importar la carta — que es lo que la landing le prometió. |
+| 4 | **L1** · sin salida si se olvida el PIN | Cada caso es una llamada a soporte. |
+| 5 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
+| 6 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
+| 7 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
 
 Lo demás es acabado y se puede ir tachando sin prisa.
 
