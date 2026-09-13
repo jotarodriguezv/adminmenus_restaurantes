@@ -2682,6 +2682,24 @@ function logout() {
   document.getElementById('appScreen').style.display='none';
   document.getElementById('adminScreen').style.display='none';
   document.getElementById('loginScreen').style.display='flex';
+  enfocarLogin();
+}
+
+// El foco en el identificador, en los DOS caminos que llevan al login: el
+// arranque sin sesión y la vuelta desde logout().
+//
+// No se usa el atributo autofocus, que sería lo obvio. Dispara al cargar la
+// página, y al cargar todavía no se sabe si el login es el destino: con sesión
+// guardada el arranque llama a enterAdmin() o enterApp() y esconde esta
+// pantalla, así que el foco habría acabado en un campo invisible. Y tampoco
+// serviría al volver desde logout(), que no recarga nada — solo cambia qué
+// pantalla se enseña.
+//
+// La cadena de teclado ya estaba montada: Enter en el identificador salta al
+// PIN y Enter en el PIN entra. Esto es lo único que faltaba para hacer el
+// login entero sin soltar el teclado.
+function enfocarLogin() {
+  document.getElementById('slugInput').focus();
 }
 
 // ── APP ───────────────────────────────────────────────────────
@@ -9232,6 +9250,7 @@ if(token && state.rol && state.restauranteSlug) {
   enterAdmin();
 } else {
   document.getElementById('loginScreen').style.display='flex';
+  enfocarLogin();
 }
 </script>
 <!-- Codificador QR (MIT, Kazuhiko Arase). Solo genera la matriz; el
