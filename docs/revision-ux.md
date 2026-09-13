@@ -836,7 +836,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **34 aplicados** · **2 descartados** · **34 pendientes**.
+**70 hallazgos** en las tres superficies · **36 aplicados** · **2 descartados** · **32 pendientes**.
 
 ## Aplicados
 
@@ -868,6 +868,7 @@ Del 11 al 13 de septiembre de 2026:
 | **MD1 + MD4** · el lateral sin nombre y con el foco fuera | vmenus-app#25 | el foco vuelve a SU botón, porque tras un toque no es lo enfocado; y apareció V6 |
 | **M1** · las pestañas se salían sin avisar | #95 | barra visible, borde difuminado y la pestaña activa a la vista |
 | **M3** · la fila de categoría desbordaba en móvil | #96 | dos filas como la de producto; y borrar necesitaba tamaño mínimo, no bastaba con no encogerlo |
+| **M4 + M5** · Promoción sin instrucción en móvil, y la prueba que no lo veía | #97 | lista de palabras permitidas en vez de prohibidas |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -894,7 +895,7 @@ decisión antes de escribir código.
 | 5 | ~~**E1 + E2 + E3 + M6 + B3**~~ | Hecho. Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
 | 6 | ~~**V3 + MD2**~~, ~~**MD1 + MD4**~~ | Hecho. La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
 
-**Grupo 2 · el panel del cliente en móvil:** ~~M1~~, ~~M3~~, M4 + M5, CL4, M7. Juntos
+**Grupo 2 · el panel del cliente en móvil:** ~~M1~~, ~~M3~~, ~~M4 + M5~~, CL4, M7. Juntos
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
@@ -1785,7 +1786,7 @@ encoger `.btn-del` ahí.
 
 ## M4 · En móvil, el estado vacío de Promoción se queda sin su única instrucción · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #97
 
 En móvil, el recuadro dice **solo** «Todavía no tienes promociones.». En
 escritorio dice además «Pulsa «Añadir promoción» o arrastra una imagen aquí».
@@ -1813,9 +1814,14 @@ Extraídas las nueve pistas del archivo:
 Así que en la única pantalla donde el estado vacío tenía que decir qué hacer,
 el móvil se queda sin ello.
 
+> **Aplicado (13/09/2026)** tal cual: «Pulsa «Añadir promoción»» sale del `<span>` y
+> dentro queda solo « o arrastra una imagen aquí». Visto en el panel: emulando un
+> teléfono táctil el recuadro dice «Todavía no tienes promociones. Pulsa «Añadir
+> promoción».»; con ratón, la frase completa como antes.
+
 ## M5 · La prueba que vigila esto no lo detecta, por una palabra · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #97
 
 `test/navegador.test.js:3291`, «dentro de la pista solo va lo que sobra sin
 ratón»:
@@ -1842,6 +1848,14 @@ comprobación pensada para proteger al móvil.
    exigir que la pista **solo** hable de arrastrar. Una lista negra de palabras
    hay que ampliarla cada vez que alguien usa un sinónimo, y ese es justo el
    fallo que se acaba de ver.
+
+> **Aplicado (13/09/2026): lista de palabras permitidas.** Dentro de una pista solo
+> caben palabras de arrastrar (o, también, puedes, arrastra…, la, una, imagen,
+> video, aquí, hasta, este, recuadro). Al escribirla apareció una pista legítima que
+> no estaba en la cuenta de nueve —«También puedes arrastrar el video hasta este
+> recuadro»— y sus palabras entraron en la lista. Comprobado que la caza lo que la
+> vieja no: volver al `<span>` de antes tumba dos pruebas, y meter «toca» en otra
+> pista tumba la de la lista. La frase exacta que se coló queda como prueba.
 
 ## M6 · Con cero visitas, «Platos que nadie abrió» acusa a toda la carta · **Media**
 
