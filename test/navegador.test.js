@@ -1501,8 +1501,11 @@ describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
 			tabBtnPedidos:  { style: {} },
 			tabBtnTv:       { style: {} },
 		};
-		const ctx = cargar('index.html', 'function ajustarPestanasAlModelo',
-			'// Qué modelo se guarda', {
+		const ctx = cargar('index.html', [
+			['// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
+			['function ajustarPestanasAlModelo', '// Qué modelo se guarda'],
+		], {
+				MODELO_POR_DEFECTO: 'topnav',
 				state: { restaurante: { atributos } },
 				planActual: () => plan,
 				document: { getElementById: id => mapa[id] },
@@ -1548,6 +1551,24 @@ describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
 		// Un cambio de plan no puede dejar una pantalla encendida en la pared
 		// de un local sin ninguna forma de apagarla desde el panel.
 		assert.equal(conAtributos({ tv: { activa: true } }, { carrito: true, tv: false }).tv, 'block');
+	});
+
+	test('topnav, sidebar y explorar no tienen Pedidos aunque el interruptor esté puesto', () => {
+		// PE3. Sus cartas no llaman a activarCarrito(): la pestaña servía para
+		// configurar un WhatsApp al que nunca iba a llegar un pedido.
+		for (const nav of ['topnav', 'sidebar', 'explorar', undefined]) {
+			const r = conAtributos({ nav, carrito: true });
+			assert.equal(r.pedidos, 'none', `${nav ?? 'sin modelo'} enseña Pedidos`);
+			assert.equal(r.toppings, 'none', `${nav ?? 'sin modelo'} enseña Toppings sin tener datos`);
+		}
+	});
+
+	test('vertical con plan e interruptor sí las tiene, como indigo', () => {
+		assert.equal(conAtributos({ nav: 'vertical', carrito: true }).pedidos, 'block');
+	});
+
+	test('el modelo carrito las tiene aunque el interruptor esté apagado, como perroscriollos', () => {
+		assert.equal(conAtributos({ nav: 'carrito', carrito: false }, { carrito: false }).pedidos, 'block');
 	});
 
 	test('un restaurante con toppings de antes conserva su pestaña', () => {

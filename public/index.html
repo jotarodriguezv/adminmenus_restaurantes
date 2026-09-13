@@ -2886,9 +2886,10 @@ const MODELO_POR_DEFECTO = 'topnav';
 function esModeloDeVideo(nav) { return MODELOS_VIDEO.includes(nav); }
 
 // ── ¿LA CARTA TIENE CARRITO DE VERDAD? ────────────────────────
-// No es lo mismo que hayCarrito de ajustarPestanasAlModelo(). Aquel decide si
-// se enseña la pestaña Pedidos, y se enciende con plan + interruptor en
-// CUALQUIER modelo. Pero en la carta solo tres temas llaman a activarCarrito():
+// La usan los avisos de «no recibe pedidos» y, desde PE3, las pestañas de
+// ajustarPestanasAlModelo(). Hasta entonces aquellas tenían su propia regla
+// —plan + interruptor en CUALQUIER modelo— y las dos discrepaban. En la carta
+// solo tres temas llaman a activarCarrito():
 // temas/carrito.js siempre, y temas/video.js y temas/vertical.js si hay plan e
 // interruptor. Topnav, Sidebar y Explorar no tienen carrito, digan lo que digan
 // el plan y el interruptor.
@@ -7150,10 +7151,11 @@ function renderPlan() {
 // ninguna pista de que falta configurar algo. Pasó.
 function ajustarPestanasAlModelo() {
   const attr = state.restaurante?.atributos || {};
-  const esCarrito = attr.nav === 'carrito';
-  // El carrito ya no es solo un modelo de página: otros modelos pueden
-  // encenderlo, y donde haya carrito hacen falta las dos pestañas.
-  const hayCarrito = esCarrito || !!(planActual().carrito && attr.carrito);
+  // La misma regla que la carta, y no una propia. Antes bastaba plan +
+  // interruptor en CUALQUIER modelo, así que un Topnav con el interruptor puesto
+  // veía la pestaña Pedidos para configurar un WhatsApp y unos métodos de pago
+  // que no hacían nada: su carta no deja armar un pedido. Ver PE3.
+  const hayCarrito = cartaTieneCarrito(attr, planActual());
   const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
 
   document.getElementById('tabBtnToppings').style.display = (hayCarrito || hasToppings) ? 'block' : 'none';
