@@ -1300,6 +1300,12 @@
 							<label for="pedidosWhatsapp" class="form-label">Número <span style="color:var(--text-dim)">(solo dígitos, con código de país, sin +)</span></label>
 							<input type="text" class="form-input" id="pedidosWhatsapp" placeholder="573001234567">
 						</div>
+						<div id="pedidosSinNumero" style="display:none;margin-top:12px;padding:10px 12px;border-radius:var(--radius);
+							background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger);font-size:12px;line-height:1.6;">
+							<strong>Tu carta no puede recibir pedidos.</strong> Sin este número, tus clientes llenan el
+							carrito y en vez del botón de pedir les sale un aviso de que aquí no se reciben pedidos.
+							Pon el número y guarda.
+						</div>
 					</div>
 					<div style="text-align:right;">
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="savePedidos()">Guardar</button>
@@ -2850,6 +2856,34 @@ const MODELOS_VIDEO = ['video', 'vertical'];
 // forma de carta y el comensal ve otra.
 const MODELO_POR_DEFECTO = 'topnav';
 function esModeloDeVideo(nav) { return MODELOS_VIDEO.includes(nav); }
+
+// ── ¿LA CARTA TIENE CARRITO DE VERDAD? ────────────────────────
+// No es lo mismo que hayCarrito de ajustarPestanasAlModelo(). Aquel decide si
+// se enseña la pestaña Pedidos, y se enciende con plan + interruptor en
+// CUALQUIER modelo. Pero en la carta solo tres temas llaman a activarCarrito():
+// temas/carrito.js siempre, y temas/video.js y temas/vertical.js si hay plan e
+// interruptor. Topnav, Sidebar y Explorar no tienen carrito, digan lo que digan
+// el plan y el interruptor.
+//
+// Los avisos de «no recibe pedidos» usan ESTA regla y no aquella: avisarle a un
+// restaurante Topnav de que sus clientes no pueden enviar el pedido sería falso,
+// porque su carta ni siquiera deja armarlo.
+//
+// MODELOS_CARRITO_OPCIONAL coincide hoy con MODELOS_VIDEO, pero no es el mismo
+// concepto y no se atan: si mañana un modelo de fotos gana carrito, cambia esta
+// lista y no aquella. Y si en vmenus-app otro tema empieza a llamar a
+// activarCarrito(), hay que añadirlo aquí.
+const MODELOS_CARRITO_OPCIONAL = ['video', 'vertical'];
+function cartaTieneCarrito(atributos, plan) {
+  const nav = atributos?.nav || MODELO_POR_DEFECTO;
+  if (nav === 'carrito') return true;
+  return MODELOS_CARRITO_OPCIONAL.includes(nav) && !!(plan?.carrito && atributos?.carrito);
+}
+// Mismo criterio que la carta (soloDigitos): «+57 300…» cuenta como número, y
+// un campo de espacios o guiones cuenta como vacío.
+function recibePedidos(atributos) {
+  return !!String(atributos?.whatsapp_pedidos || '').replace(/\D/g, '');
+}
 
 // En qué proporción se recorta el video de esta carta. Espejo de formatoDe()
 // en video.js, y por el mismo motivo por el que allí existe: la ternaria
@@ -8670,6 +8704,16 @@ async function saveTV() {
 // ── PEDIDOS (WhatsApp, modelo carrito) ─────────────────────────
 function renderPedidos() {
   document.getElementById('pedidosWhatsapp').value = state.restaurante.atributos?.whatsapp_pedidos || '';
+  actualizarAvisoPedidos();
+}
+
+// El campo vacío enseña «573001234567» de placeholder, que a simple vista
+// parece un número puesto. Sin esto no había forma de saber desde aquí que la
+// carta estaba rechazando pedidos.
+function actualizarAvisoPedidos() {
+  const a = state.restaurante?.atributos;
+  const roto = cartaTieneCarrito(a, planActual()) && !recibePedidos(a);
+  document.getElementById('pedidosSinNumero').style.display = roto ? 'block' : 'none';
 }
 
 async function savePedidos() {
@@ -8682,6 +8726,7 @@ async function savePedidos() {
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
     if (data) state.restaurante = data;
     document.getElementById('pedidosWhatsapp').value = whatsapp_pedidos;
+    actualizarAvisoPedidos();
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     showToast('Número de pedidos guardado', 'success');
   } catch(e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; }
@@ -8829,6 +8874,16 @@ function siguienteOcurrencia(cicloInicio, diaPago) {
 // El encuadre va con el modelo y no aparte porque en video no es un detalle:
 // decide el recorte de cada archivo, y cambiarlo obliga a reconvertir la carta
 // entera. Ver docs/planes-y-modelos.md.
+// Una carta con carrito y sin número rechaza cada pedido. Se marca aquí, en la
+// lista, porque es donde se deciden los modelos: el estado roto no nace de que
+// alguien borre el número —savePedidos() no deja guardarlo vacío— sino de que
+// nunca se puso al pasar un restaurante a un modelo con carrito. Así se ve sin
+// abrir las fichas de una en una.
+function avisoPedidosHtml(r) {
+  if (!cartaTieneCarrito(r?.atributos, planDe(r)) || recibePedidos(r?.atributos)) return '';
+  return `<div class="resto-etiquetas"><span class="resto-etiqueta mal">⚠ carrito sin WhatsApp · no recibe pedidos</span></div>`;
+}
+
 function fichaPlanHtml(r) {
   const plan = planDe(r);
   const modelo = r?.atributos?.nav || MODELO_POR_DEFECTO;
@@ -9036,6 +9091,7 @@ async function cargarListaRestos() {
           <div class="resto-card-slug">${esc(r.slug)}</div>
           ${fichaEntornoHtml(facturacionDe(r.id))}
           ${estadoPagoHtml(facturacionDe(r.id))}
+          ${avisoPedidosHtml(r)}
           ${fichaPlanHtml(r)}
           ${resumenVideoHtml(resumen[r.id])}
         </div>
