@@ -116,7 +116,7 @@ de T1 y expone los nombres de los campos de administración.
 
 ## L1 · No hay salida si el cliente olvida el PIN · **Alta**
 
-- [x] Hecho · 2026-09-13 · PR pendiente de número
+- [x] Hecho · 2026-09-13 · PR #82
 
 No hay nada en pantalla que diga qué hacer. Y no es solo que falte el enlace:
 `#slugInput` lleva `autocomplete="off"` y `#pinInput` no declara nada, así que
@@ -818,7 +818,7 @@ Del 11 al 13 de septiembre de 2026:
 | **PE1** · carrito sin WhatsApp | #79 y vmenus-app#19 | receta corregida: no se esconde el carrito, se avisa antes de pedir datos; y abrió PE3 |
 | **A1 + A2** · los dos guardados de Apariencia | #80 | y apareció algo peor: subir una imagen borraba los cambios sin guardar |
 | **F1 + F3** · el primer día de un restaurante | #81 | «Sin productos» valía también para una búsqueda sin resultados; CL2 se descartó |
-| **L1** · sin salida si se olvida el PIN | pendiente | los atributos del gestor de contraseñas, además de quitar `off` |
+| **L1** · sin salida si se olvida el PIN | #82 | los atributos del gestor de contraseñas, además de quitar `off` |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
