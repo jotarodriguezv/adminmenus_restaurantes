@@ -821,7 +821,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **19 aplicados** · **1 descartado** · **49 pendientes**.
+**69 hallazgos** en las tres superficies · **20 aplicados** · **2 descartados** · **47 pendientes**.
 
 ## Aplicados
 
@@ -844,6 +844,7 @@ Del 11 al 13 de septiembre de 2026:
 | **V1 + V2** · zoom y teclado en la carta | vmenus-app#20 | el foco entra y vuelve; y la carta del modelo Carrito dejaba de cargar, cazado en el navegador |
 | **V4 + V5** · el formulario del pedido y el carrito que se vaciaba | vmenus-app#21 | con la pregunta «¿Enviaste el pedido?»; y el zoom de iOS que volvió al quitar `maximum-scale` en V1 |
 | **PE3** · Pedidos en modelos sin carrito | #86 | la regla de la carta en el panel; hoy no cambia la pestaña de nadie |
+| **SU2** · foto cortada anunciada en verde | #88 | por la marca de fin del archivo, no por los píxeles; se rechaza antes de subir |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -852,12 +853,42 @@ cada «Arreglo» como una hipótesis, no como una instrucción.
 
 ## Lo que queda, por orden
 
-**Las cinco prioridades de esta lista están aplicadas** (13/09/2026). Lo demás
-es acabado y se puede ir tachando sin prisa. Hay dos cabos que salieron al
-aplicar y no estaban en la lista:
+La primera lista —cinco prioridades y los dos cabos que salieron al aplicarla,
+PE3 y el Tab dentro de la ficha— quedó aplicada el 13/09/2026.
 
-- ~~**PE3**: la pestaña Pedidos sale en modelos sin carrito.~~ Hecho en #86.
-- ~~**V2**: con la ficha del plato abierta, el Tab no se queda dentro.~~ Hecho en vmenus-app#22.
+**Segunda lista, acordada el 13/09/2026** para los 49 que quedaban. Va primero lo
+que hoy enseña algo falso o hace daño de verdad; al final, lo que necesita una
+decisión antes de escribir código.
+
+**Grupo 1 · lo que hoy engaña o hace daño**, en este orden, un PR cada uno:
+
+| # | Hallazgos | Por qué |
+|---|---|---|
+| 1 | ~~**SU2**~~ | Publicaba una foto rota anunciándola en verde. Hecho. |
+| 2 | **TV1** | La pantalla del televisor —algo que se cobra— se apaga sola con el método que el panel recomienda como el más seguro. |
+| 3 | **CL1** | Tres mensajes mandan al cliente a pestañas que no ve. Se cambia el texto, no la decisión de Apariencia. |
+| 4 | **B2** | Con «Activa» apagada, la pantalla afirma «En la carta: sí». |
+| 5 | **E1 + E2 + E3 + M6 + B3** | Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
+| 6 | **V3 + MD2**, luego **MD1 + MD4** | La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
+
+**Grupo 2 · el panel del cliente en móvil:** M1, M3, M4 + M5, CL4, M7. Juntos
+porque se prueban igual, a 375 px.
+
+**Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
+del panel: F2, P6 · C2, C3 · TP1 + TP2 · L3 + L4 + L5 · S2 + S3, S5, F4, X1, X2 ·
+A5, PE2, P5, M2.
+
+**Grupo 4 · necesitan una decisión antes de código:**
+
+- **CL3** — ¿el cliente puede cambiar su propio PIN? Es acceso y seguridad.
+- **P4** — una «nota en la carta» es una función nueva: base, panel y carta.
+- **P3** — ¿avisar al crear una categoría casi idéntica, o arreglar Bonzas a mano?
+- **C1** — ¿arrastrar y soltar, o un campo de posición?
+- **A3 + A4 + S4 + S6** — reorganizar Apariencia y la lista del superadmin. Grande,
+  y en pantallas que usa solo el equipo.
+
+**Grupo 5 · se dejan:** **T2** y **P2** cambian la arquitectura del panel sin un
+problema real hoy; revisarlos si el panel se vuelve lento. **LP2**, descartado.
 
 ## Una observación sobre el código, no sobre la UX
 
@@ -1255,7 +1286,7 @@ tema de los precios, que es tuyo y no mío.
 
 ## LP2 · Nada impide que el borrador se indexe · **Media**
 
-- [ ] Pendiente
+- [~] Descartado · 2026-09-13 · se cayó solo al aplicar LP1, como preveía el propio hallazgo
 
 No hay `<meta name="robots" content="noindex">` en `index.html` ni ninguna
 regla en `nginx.conf`. El `robots.txt` que responde `vmenus.co` es el de
@@ -1267,6 +1298,9 @@ arregle mañana.
 
 **Arreglo:** si LP1 se resuelve ya, esto se cae solo y no hace falta tocar
 nada. Si va a seguir en borrador más de unos días, un `noindex` mientras tanto.
+
+> **Descartado (13/09/2026):** LP1 se resolvió (vmenus-landing#3), así que no hay
+> borrador que proteger. Lo que se indexe ahora es la página de verdad.
 
 ---
 ---
@@ -2038,7 +2072,7 @@ bajo demanda.
 
 ## SU2 · Una foto corrupta se acepta, se sube y se anuncia en verde · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #88
 
 Probado con `2-truncado.jpg`. **Resultado: «✓ Lista para guardar», en verde** —
 no el error que se esperaba.
@@ -2071,6 +2105,26 @@ datos hasta abajo —muestrear las últimas filas de píxeles y ver si son todas
 del mismo valor vacío— y avisar en ámbar: «Esta foto parece incompleta, se ve
 cortada. Súbela otra vez». No hace falta bloquearla; basta con no cantar
 victoria.
+
+> **Aplicado de otra forma (13/09/2026): la receta habría dado falsos positivos.**
+> Muestrear las últimas filas buscando blanco marcaría como rota cualquier foto de
+> un plato sobre un mantel blanco. Lo que le falta a un archivo cortado es su
+> **marca de fin**, y eso se comprueba sin adivinar: `imagenIncompleta()` mira el
+> FF D9 del JPEG, el IEND del PNG y el tamaño que declara el WebP.
+>
+> Dos trampas que la comprobación tenía que esquivar: la **miniatura EXIF** trae
+> su propio FF D9 dentro de la cabecera (por eso se recorren los segmentos en vez
+> de buscar a lo bruto), y las **fotos en movimiento** de Android pegan un video
+> detrás del FF D9 (por eso basta con que exista, no con que esté al final).
+>
+> **Se rechaza en vez de avisar en ámbar**, porque aquí no es una sospecha: y así
+> el archivo roto no llega a subirse ni queda huérfano en `uploads/`. Los nueve
+> sitios que suben imágenes lo pintan en rojo sin cambiar nada.
+>
+> **Comprobado:** detecta `2-truncado.jpg` en un navegador real, sin ninguna
+> petición a `/api/upload`; deja pasar `3-enorme.png` y una foto de fondo blanco; y
+> **ninguna de 4.014 imágenes reales** de este equipo (2.739 JPEG, 1.266 PNG, 9
+> WebP) sale marcada como incompleta.
 
 ## Comprobado: una imagen enorme no tumba el navegador · **cerrado**
 
