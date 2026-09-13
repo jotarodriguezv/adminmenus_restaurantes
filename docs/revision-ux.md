@@ -845,7 +845,7 @@ Del 11 al 13 de septiembre de 2026:
 | **V4 + V5** · el formulario del pedido y el carrito que se vaciaba | vmenus-app#21 | con la pregunta «¿Enviaste el pedido?»; y el zoom de iOS que volvió al quitar `maximum-scale` en V1 |
 | **PE3** · Pedidos en modelos sin carrito | #86 | la regla de la carta en el panel; hoy no cambia la pestaña de nadie |
 | **SU2** · foto cortada anunciada en verde | #88 | por la marca de fin del archivo, no por los píxeles; se rechaza antes de subir |
-| **TV1** · la pantalla del televisor se apagaba | vmenus-app#23 y #NUMERO_PR | también en cada vuelta, sin insistir tras una denegación; y la nota en el panel |
+| **TV1** · la pantalla del televisor se apagaba | vmenus-app#23 y #89 | también en cada vuelta, sin insistir tras una denegación; y la nota en el panel |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1908,7 +1908,7 @@ Para funcionar sola durante horas es lo más robusto de los dos repositorios.
 
 ## TV1 · Nada impide que la pantalla se apague sola · **Media**
 
-- [x] Hecho · 2026-09-13 · vmenus-app#23 y PR #NUMERO_PR
+- [x] Hecho · 2026-09-13 · vmenus-app#23 y PR #89
 
 No hay ninguna llamada a la **Wake Lock API** en `tv.html` —ni
 `navigator.wakeLock`, ni ninguna alternativa—, así que la página no pide
@@ -1932,7 +1932,7 @@ pestaña—. Donde no exista la API no pasa nada, se ignora. Y añadir a
 `docs/pantalla-tv.md` la nota de desactivar el apagado de pantalla en el
 computador, para los navegadores que no la soportan.
 
-> **Aplicado (13/09/2026)** en vmenus-app#23 y #NUMERO_PR, con dos añadidos a la receta:
+> **Aplicado (13/09/2026)** en vmenus-app#23 y #89, con dos añadidos a la receta:
 >
 > 1. **También en cada vuelta del carrusel**, por si el navegador lo soltó sin
 >    avisar, porque solo pide si no hay uno vivo. Y al probarlo en un navegador que
