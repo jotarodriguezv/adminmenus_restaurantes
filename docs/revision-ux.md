@@ -116,7 +116,7 @@ de T1 y expone los nombres de los campos de administración.
 
 ## L1 · No hay salida si el cliente olvida el PIN · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR pendiente de número
 
 No hay nada en pantalla que diga qué hacer. Y no es solo que falte el enlace:
 `#slugInput` lleva `autocomplete="off"` y `#pinInput` no declara nada, así que
@@ -130,6 +130,17 @@ etiquetas de arriba.
 
 **Arreglo:** cambiar esa frase por «¿Olvidaste tu PIN? Escríbenos por WhatsApp»
 con el enlace, y quitar el `autocomplete="off"`.
+
+> **Cómo se aplicó (13/09/2026).** Quitar `off` no bastaba: sin decir qué es cada
+> campo, el navegador adivina. El identificador declara `autocomplete="username"`
+> y el PIN `current-password`, que es lo que empareja los dos en el gestor de
+> contraseñas. El enlace va al mismo número que la landing, con un mensaje ya
+> escrito. Lleva el número y nada más: el identificador no viaja en la URL.
+>
+> Lo que **no** se pudo comprobar aquí es que un gestor concreto ofrezca guardarlo:
+> el login no es un `<form>` y cada navegador decide con sus propias heurísticas.
+> Los atributos son la parte que depende del panel; conviene mirarlo una vez desde
+> el móvil de un cliente.
 
 ## L2 · El campo no recibe el foco al abrir · **Baja**
 
@@ -789,7 +800,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **10 aplicados** · **1 descartado** · **58 pendientes**.
+**69 hallazgos** en las tres superficies · **13 aplicados** · **1 descartado** · **55 pendientes**.
 
 ## Aplicados
 
@@ -806,6 +817,8 @@ Del 11 al 13 de septiembre de 2026:
 | **S1** · `✓ Pagó` sin vuelta atrás | #78 | con Deshacer, no con confirmación: los diálogos esperan decisión del equipo |
 | **PE1** · carrito sin WhatsApp | #79 y vmenus-app#19 | receta corregida: no se esconde el carrito, se avisa antes de pedir datos; y abrió PE3 |
 | **A1 + A2** · los dos guardados de Apariencia | #80 | y apareció algo peor: subir una imagen borraba los cambios sin guardar |
+| **F1 + F3** · el primer día de un restaurante | #81 | «Sin productos» valía también para una búsqueda sin resultados; CL2 se descartó |
+| **L1** · sin salida si se olvida el PIN | pendiente | los atributos del gestor de contraseñas, además de quitar `off` |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -816,11 +829,9 @@ cada «Arreglo» como una hipótesis, no como una instrucción.
 
 | # | Hallazgo | Por qué primero |
 |---|---|---|
-| 1 | **F1 + F3 + CL2** · el primer día de un restaurante | Los tres son el mismo momento: «Sin productos», sin poder crear uno hasta descubrir las categorías, y sin que se le ofrezca importar la carta — que es lo que la landing le prometió. |
-| 2 | **L1** · sin salida si se olvida el PIN | Cada caso es una llamada a soporte. |
-| 3 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
-| 4 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
-| 5 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
+| 1 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
+| 2 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
+| 3 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
 
 Lo demás es acabado y se puede ir tachando sin prisa.
 
@@ -1191,7 +1202,7 @@ restaurante en el panel**.
 
 ## F1 · La trampa del primer producto · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #81
 
 Recorrido tal cual, sin atajos, en un restaurante recién creado:
 
@@ -1249,7 +1260,7 @@ en uno**: guardas, corriges, guardas, corriges.
 
 ## F3 · Los estados vacíos del primer día no dicen nada · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #81
 
 | Pantalla | Lo que dice |
 |---|---|

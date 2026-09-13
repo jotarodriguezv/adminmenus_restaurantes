@@ -3754,6 +3754,29 @@ describe('el login recibe el foco al llegar a él', () => {
 		assert.doesNotMatch(campo[0], /\bautofocus\b/,
 			'el foco se pone desde los dos puntos de entrada, no con el atributo');
 	});
+
+	// ── Olvidar el PIN (L1) ─────────────────────────────────────
+	test('el gestor de contraseñas puede guardar y ofrecer el acceso', () => {
+		// El cliente entra cada varias semanas. Con autocomplete="off" el
+		// navegador no guardaba el identificador, y sin declarar nada en el PIN
+		// no siempre lo emparejaba con él.
+		const slug = src.match(/<input[^>]*id="slugInput"[\s\S]*?>/);
+		const pin = src.match(/<input[^>]*id="pinInput"[\s\S]*?>/);
+		assert.match(slug[0], /autocomplete="username"/);
+		assert.match(pin[0], /autocomplete="current-password"/);
+	});
+
+	test('el login dice a quién pedir un PIN olvidado', () => {
+		const pista = src.match(/<div class="login-hint">[\s\S]*?<\/div>/);
+		assert.ok(pista, 'no se encontró la línea bajo el botón');
+		assert.match(pista[0], /Olvidaste tu PIN/);
+		const enlace = pista[0].match(/href="([^"]+)"/);
+		assert.ok(enlace, 'la línea no enlaza a ningún sitio');
+		// El mismo número que la landing. Con el prefijo del país: sin él,
+		// wa.me no abre ningún chat.
+		assert.match(enlace[1], /^https:\/\/wa\.me\/573151182283\b/);
+		assert.match(pista[0], /rel="noopener"/);
+	});
 });
 
 // ═══════════════════════════════════════════════════════════════

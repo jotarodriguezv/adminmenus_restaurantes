@@ -90,6 +90,7 @@
 			.btn-primary:hover{opacity:.88;}
 			.login-error{text-align:center;font-size:11px;color:var(--danger);margin-top:10px;font-family:var(--mono);min-height:16px;}
 			.login-hint{font-size:11px;color:var(--text-muted);text-align:center;margin-top:14px;font-family:var(--mono);}
+			.login-hint a{color:var(--accent);text-decoration:underline;text-underline-offset:2px;}
 
 			/* ── TOPBAR ── */
 			#appScreen{display:none;min-height:100vh;}
@@ -646,15 +647,20 @@
 				<div class="login-card">
 					<label for="slugInput" class="login-label">Identificador de acceso</label>
 					<input type="text" class="login-input" id="slugInput" placeholder="ej: bonzas"
-					autocomplete="off" autocapitalize="none" spellcheck="false"
+					autocomplete="username" autocapitalize="none" spellcheck="false"
 					oninput="clearLoginError()" onkeydown="if(event.key==='Enter')document.getElementById('pinInput').focus()">
 					<label for="pinInput" class="login-label">PIN</label>
 					<input type="password" class="login-input pin-input" id="pinInput"
-					maxlength="10" placeholder="····"
+					maxlength="10" placeholder="····" autocomplete="current-password"
 					oninput="clearLoginError()" onkeydown="if(event.key==='Enter')doLogin()">
 					<button class="btn-primary" onclick="doLogin()">INGRESAR</button>
 					<div class="login-error" id="loginError"></div>
-					<div class="login-hint">Ingresa tu identificador y PIN de acceso</div>
+					<!-- El PIN no se recupera solo: lo reinicia el equipo. Un cliente entra
+					     cada varias semanas, y esta línea es lo único que le dice a quién
+					     pedírselo. Ver L1 en docs/revision-ux.md. -->
+					<div class="login-hint">¿Olvidaste tu PIN?
+						<a href="https://wa.me/573151182283?text=Hola%2C%20olvid%C3%A9%20el%20PIN%20de%20mi%20panel"
+						target="_blank" rel="noopener">Escríbenos por WhatsApp</a></div>
 				</div>
 			</div>
 		</div>
