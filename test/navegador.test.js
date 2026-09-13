@@ -1509,7 +1509,7 @@ describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
 				state: { restaurante: { atributos } },
 				planActual: () => plan,
 				document: { getElementById: id => mapa[id] },
-				renderPedidos() {}, renderMetodosPago() {},
+				renderPedidos() {}, renderMetodosPago() {}, marcarBordesDeTabs() {},
 			});
 		ctx.ajustarPestanasAlModelo();
 		return {
@@ -4776,5 +4776,50 @@ describe('las estadísticas no concluyen más de lo que los datos permiten', () 
 		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 		assert.match(src, /renderIgnorados\(data\.nuncaAbiertos \|\| \[\], data\.totalVisitas, platosDisponibles\(\)\)/);
 		assert.match(src, /avisoPocosDatos\(data\.totalVisitas\);/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('las pestañas avisan de que hay más fuera de la pantalla', () => {
+	// M1 en docs/revision-ux.md. A 375 px, 519 px de pestañas y la barra escondida
+	// a mano: la última quedaba 124 px fuera sin nada que lo dijera.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const { bordesConContenido } = cargar('index.html', 'function bordesConContenido', 'function marcarBordesDeTabs', {});
+
+	test('al principio de un carril más ancho que la pantalla, queda contenido a la derecha', () => {
+		const b = bordesConContenido({ scrollLeft: 0, clientWidth: 375, scrollWidth: 519 });
+		assert.equal(b.derecha, true);
+		assert.equal(b.izquierda, false);
+	});
+
+	test('a mitad, por los dos lados; al final, solo a la izquierda', () => {
+		assert.deepEqual({ ...bordesConContenido({ scrollLeft: 60, clientWidth: 375, scrollWidth: 519 }) }, { izquierda: true, derecha: true });
+		assert.deepEqual({ ...bordesConContenido({ scrollLeft: 144, clientWidth: 375, scrollWidth: 519 }) }, { izquierda: true, derecha: false });
+	});
+
+	test('si caben todas, no se difumina nada', () => {
+		assert.deepEqual({ ...bordesConContenido({ scrollLeft: 0, clientWidth: 1000, scrollWidth: 1000 }) }, { izquierda: false, derecha: false });
+	});
+
+	test('el medio píxel del zoom no cuenta como contenido', () => {
+		assert.equal(bordesConContenido({ scrollLeft: 143.6, clientWidth: 375, scrollWidth: 519 }).derecha, false);
+	});
+
+	test('la barra ya no está escondida', () => {
+		const regla = src.match(/\.tabs\{[^}]*\}/)[0];
+		assert.doesNotMatch(regla, /scrollbar-width:none/);
+		assert.doesNotMatch(src, /\.tabs::-webkit-scrollbar\{display:none;?\}/);
+	});
+
+	test('la pestaña pulsada se trae a la vista', () => {
+		const cuerpo = src.match(/function switchTab\(tab, btn\) \{[\s\S]*?\n\}/)[0];
+		assert.match(cuerpo, /btn\.scrollIntoView\?\.\(\{ block: 'nearest', inline: 'nearest'/);
+	});
+
+	test('se vigila desde el arranque y se repinta al cambiar las pestañas visibles', () => {
+		const arranque = src.slice(src.indexOf('// ── ARRANQUE'));
+		assert.match(arranque, /vigilarBordesDeTabs\(\);/);
+		const ajustar = src.match(/function ajustarPestanasAlModelo\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(ajustar, /marcarBordesDeTabs\(\)/);
 	});
 });
