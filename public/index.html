@@ -346,6 +346,14 @@
 			  font-family:var(--mono);font-size:10px;letter-spacing:1px;z-index:900;
 			  transform:translateY(8px);opacity:0;transition:all .25s;pointer-events:none;}
 			.toast.show{opacity:1;transform:translateY(0);}
+			/* El toast normal lleva pointer-events:none a propósito: aparece en la
+			   esquina donde suele estar el botón de Guardar, y no debe tragarse el
+			   clic de lo que tiene debajo. Solo el que trae una acción —«Deshacer»—
+			   necesita recibir clics, así que solo ese los recibe. */
+			.toast.con-accion{pointer-events:auto;display:flex;align-items:center;gap:14px;}
+			.toast-accion{background:none;border:1px solid currentColor;color:inherit;
+			  font:inherit;letter-spacing:inherit;padding:5px 10px;border-radius:6px;cursor:pointer;}
+			.toast-accion:hover{text-decoration:underline;}
 			.toast.success{background:var(--success-dim);border:1px solid var(--success);color:var(--success);}
 			.toast.error{background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger);}
 			.toast.info{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);}
@@ -7118,10 +7126,32 @@ function initCatFilterDrag() {
 
 // ── TOAST ─────────────────────────────────────────────────────
 let toastTimer=null;
-function showToast(msg,type='info') {
+function showToast(msg,type='info',accion=null) {
   const t=document.getElementById('toast');
-  t.textContent=msg; t.className=`toast ${type} show`;
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+  clearTimeout(toastTimer);
+  if (!accion) {
+    // textContent y className sobrescriben lo que hubiera: si había un toast
+    // con botón a la vista, este lo reemplaza entero, botón y clase incluidos.
+    t.textContent=msg; t.className=`toast ${type} show`;
+    toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+    return;
+  }
+  // Con acción dura más que los 3 s de siempre: hay que leerlo, darse cuenta
+  // de que el restaurante no era ese, y llegar al botón.
+  t.textContent='';
+  const texto=document.createElement('span'); texto.textContent=msg;
+  const boton=document.createElement('button');
+  boton.type='button'; boton.className='toast-accion';
+  const etiqueta=document.createElement('span'); etiqueta.textContent=accion.texto;
+  boton.appendChild(etiqueta);
+  boton.onclick=()=>{
+    clearTimeout(toastTimer);
+    t.classList.remove('show','con-accion');
+    accion.alPulsar();
+  };
+  t.appendChild(texto); t.appendChild(boton);
+  t.className=`toast ${type} con-accion show`;
+  toastTimer=setTimeout(()=>t.classList.remove('show','con-accion'), accion.duracionMs || 8000);
 }
 
 // ── ESTADÍSTICAS ────────────────────────────────────────────────
@@ -8900,20 +8930,60 @@ function estadoPagoHtml(fact) {
     return `<span class="status-badge vencido" style="margin-top:2px;width:fit-content;">Vencido desde ${fmt(cicloInicio)}${detalle}</span>`;
   }
   const diasParaProxima = Math.round((proxima - hoy) / 86400000);
+  // La fecha del pago se enseña, y antes no se enseñaba en ningún sitio: solo
+  // se usaba para decidir entre «vencido» y «vigente». Así un pago marcado por
+  // error sigue siendo visible después de que caduque el «Deshacer» —«pagó el
+  // 13 sep» en un cliente que no ha pagado salta a la vista— en vez de
+  // convertirse en una etiqueta verde indistinguible de un pago de verdad.
+  const pago = ` · pagó el ${fmt(ultimoPago)}`;
   if (diasParaProxima <= 5) {
-    return `<span class="status-badge porvencer" style="margin-top:2px;width:fit-content;">Vence en ${diasParaProxima} día${diasParaProxima === 1 ? '' : 's'} (${fmt(proxima)})</span>`;
+    return `<span class="status-badge porvencer" style="margin-top:2px;width:fit-content;">Vence en ${diasParaProxima} día${diasParaProxima === 1 ? '' : 's'} (${fmt(proxima)})${pago}</span>`;
   }
-  return `<span class="status-badge pagovigente" style="margin-top:2px;width:fit-content;">Vigente hasta ${fmt(proxima)}</span>`;
+  return `<span class="status-badge pagovigente" style="margin-top:2px;width:fit-content;">Vigente hasta ${fmt(proxima)}${pago}</span>`;
 }
 
+// ── MARCAR COMO PAGADO ────────────────────────────────────────
+// Un clic manda la fecha de hoy y ya. Es lo que se pulsa nueve veces al mes, y
+// en móvil queda justo encima de «Eliminar», así que un toque mal dado no es
+// raro. Antes no había forma de volver atrás desde el panel: el aviso rojo de
+// «Vencido» desaparecía, y con él la única señal de que ese cliente debía.
+// Arreglarlo era SQL contra producción.
+//
+// Se ofrece DESHACER y no una confirmación, por dos motivos:
+//
+//  - Una confirmación en algo que se pulsa nueve veces al mes se acaba
+//    aceptando sin leer, y entonces no protege de nada.
+//  - Los diálogos de confirmación del panel están pendientes de una decisión
+//    del equipo (ver CLAUDE.md, «Ocho diálogos del navegador sin unificar»):
+//    añadir un noveno sería meterse en ese frente antes de tiempo.
+//
+// Se guarda el valor ANTERIOR antes de escribir, no la fecha de hoy menos algo:
+// puede ser otra fecha o puede no haber ninguna, y deshacer tiene que dejarlo
+// exactamente como estaba. El servidor acepta null para borrarlo.
 async function marcarComoPagado(id, nombre) {
+  const anterior = facturacionDe(id)?.ultimo_pago ?? null;
   const hoy = new Date();
   const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
   try {
     await apiFetch('PATCH', `/api/facturacion/${id}`, { ultimo_pago: hoyStr });
-    showToast(`${nombre}: pago registrado`, 'success');
+    // El nombre va delante a propósito: el error típico es pulsar en la fila
+    // equivocada, y es el nombre lo que hace saltar a la vista que no era ese.
+    showToast(`${nombre}: pago registrado`, 'success',
+      { texto: 'Deshacer', alPulsar: () => deshacerPago(id, nombre, anterior) });
     await cargarListaRestos();
   } catch (e) { showToast('Error al registrar el pago', 'error'); }
+}
+
+async function deshacerPago(id, nombre, anterior) {
+  try {
+    await apiFetch('PATCH', `/api/facturacion/${id}`, { ultimo_pago: anterior });
+    showToast(`${nombre}: pago deshecho`, 'info');
+    await cargarListaRestos();
+  } catch (e) {
+    // Si esto falla, el pago SIGUE registrado. Hay que decirlo con esas
+    // palabras: un «error» a secas deja creer que se deshizo.
+    showToast(`No se pudo deshacer: ${nombre} sigue marcado como pagado`, 'error');
+  }
 }
 
 async function eliminarRestaurante(id, nombre) {

@@ -3818,3 +3818,166 @@ describe('una foto HEIC que el navegador no abre dice qué hacer', () => {
 			'el onerror ya no pasa por mensajeImagenIlegible');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('«✓ Pagó» se puede deshacer', () => {
+	// S1 en docs/revision-ux.md: un clic mal dado marcaba a un cliente como
+	// pagado, borraba el aviso de «Vencido» y no había forma de volver atrás
+	// desde el panel. Arreglarlo era SQL contra producción.
+
+	// ── Un DOM mínimo, con className y classList sincronizados ─────
+	function nodo() {
+		const n = {
+			children: [], type: '', onclick: null, _cls: new Set(), _texto: '',
+			get className() { return [...this._cls].join(' '); },
+			set className(v) { this._cls = new Set(String(v).split(/\s+/).filter(Boolean)); },
+			get textContent() { return this._texto ?? this.children.map(c => c.textContent).join(''); },
+			set textContent(v) { this._texto = String(v); this.children = []; },
+			appendChild(c) { this._texto = undefined; this.children.push(c); return c; },
+		};
+		n.classList = {
+			add: (...c) => c.forEach(x => n._cls.add(x)),
+			remove: (...c) => c.forEach(x => n._cls.delete(x)),
+			contains: c => n._cls.has(c),
+		};
+		return n;
+	}
+
+	function montarToast() {
+		const toast = nodo();
+		const reloj = { pendiente: null };
+		const ctx = cargar('index.html', 'let toastTimer=null;', '// ── ESTADÍSTICAS', {
+			document: { getElementById: () => toast, createElement: () => nodo() },
+			setTimeout: (fn, ms) => { reloj.pendiente = { fn, ms }; return 1; },
+			clearTimeout: () => { reloj.pendiente = null; },
+			String,
+		});
+		const boton = () => toast.children.find(c => c.className === 'toast-accion');
+		return { ctx, toast, reloj, boton };
+	}
+
+	test('sin acción, el toast se comporta como siempre', () => {
+		// Lo usan decenas de sitios del panel. No puede cambiar para ninguno.
+		const { ctx, toast, reloj, boton } = montarToast();
+		ctx.showToast('Guardado', 'success');
+		assert.equal(toast.textContent, 'Guardado');
+		assert.equal(toast.classList.contains('con-accion'), false);
+		assert.equal(boton(), undefined);
+		assert.equal(reloj.pendiente.ms, 3000);
+	});
+
+	test('con acción, lleva el botón y se puede pulsar', () => {
+		const { ctx, toast, boton } = montarToast();
+		let pulsado = false;
+		ctx.showToast('Bonzas: pago registrado', 'success',
+			{ texto: 'Deshacer', alPulsar: () => { pulsado = true; } });
+		assert.ok(boton(), 'no se pintó el botón');
+		assert.equal(boton().textContent, 'Deshacer');
+		// Sin esta clase hereda pointer-events:none y el botón no recibe el clic.
+		assert.equal(toast.classList.contains('con-accion'), true);
+		boton().onclick();
+		assert.equal(pulsado, true);
+		assert.equal(toast.classList.contains('show'), false, 'el toast no se escondió al pulsar');
+	});
+
+	test('dura más que los 3 s de siempre, para dar tiempo a reaccionar', () => {
+		const { ctx, reloj } = montarToast();
+		ctx.showToast('x', 'success', { texto: 'Deshacer', alPulsar: () => {} });
+		assert.ok(reloj.pendiente.ms > 3000);
+	});
+
+	test('al caducar no deja un toast invisible bloqueando clics', () => {
+		// El caso delicado. Si al esconderse conservara 'con-accion', quedaría
+		// transparente pero con pointer-events:auto, tapando la esquina donde
+		// suele estar el botón de Guardar.
+		const { ctx, toast, reloj } = montarToast();
+		ctx.showToast('x', 'success', { texto: 'Deshacer', alPulsar: () => {} });
+		reloj.pendiente.fn();
+		assert.equal(toast.classList.contains('show'), false);
+		assert.equal(toast.classList.contains('con-accion'), false,
+			'el toast escondido sigue recibiendo clics');
+	});
+
+	test('un toast normal después reemplaza al que tenía botón', () => {
+		const { ctx, toast, boton } = montarToast();
+		ctx.showToast('x', 'success', { texto: 'Deshacer', alPulsar: () => {} });
+		ctx.showToast('Otra cosa', 'info');
+		assert.equal(boton(), undefined, 'el botón viejo sigue ahí');
+		assert.equal(toast.classList.contains('con-accion'), false);
+	});
+
+	// ── Marcar y deshacer ───────────────────────────────────────
+	function montarPago(factura, apiFetch) {
+		const peticiones = [];
+		const toasts = [];
+		const ctx = cargar('index.html', 'async function marcarComoPagado', 'async function eliminarRestaurante', {
+			facturacionDe: () => factura,
+			apiFetch: apiFetch || (async (metodo, ruta, cuerpo) => { peticiones.push({ metodo, ruta, cuerpo }); return {}; }),
+			cargarListaRestos: async () => {},
+			showToast: (msg, tipo, accion) => toasts.push({ msg, tipo, accion }),
+			Date, String,
+		});
+		return { ctx, peticiones, toasts };
+	}
+	const tanda = () => new Promise(r => setImmediate(r));
+
+	test('deshacer restaura la fecha de pago que había antes', async () => {
+		const { ctx, peticiones, toasts } = montarPago({ ultimo_pago: '2026-08-01' });
+		await ctx.marcarComoPagado('r1', 'Bonzas');
+		assert.match(peticiones[0].cuerpo.ultimo_pago, /^\d{4}-\d{2}-\d{2}$/);
+		toasts[0].accion.alPulsar();
+		await tanda();
+		assert.equal(peticiones[1].cuerpo.ultimo_pago, '2026-08-01');
+	});
+
+	test('y si no había ningún pago, lo devuelve a null, no a una fecha', async () => {
+		// El caso fácil de equivocar: un restaurante que nunca pagó. Deshacer
+		// tiene que dejarlo sin fecha, que es lo que lo pinta como «Vencido».
+		const { ctx, peticiones, toasts } = montarPago(null);
+		await ctx.marcarComoPagado('r1', 'Bonzas');
+		toasts[0].accion.alPulsar();
+		await tanda();
+		assert.ok('ultimo_pago' in peticiones[1].cuerpo, 'no se mandó la clave');
+		assert.equal(peticiones[1].cuerpo.ultimo_pago, null);
+	});
+
+	test('el toast nombra el restaurante', async () => {
+		// El error típico es la fila equivocada; el nombre es lo que lo delata.
+		const { ctx, toasts } = montarPago(null);
+		await ctx.marcarComoPagado('r1', 'Bonzas Burger Grill');
+		assert.match(toasts[0].msg, /Bonzas Burger Grill/);
+		assert.equal(toasts[0].accion.texto, 'Deshacer');
+	});
+
+	test('si deshacer falla, dice que el pago sigue registrado', async () => {
+		// Un «error» a secas dejaría creer que se deshizo.
+		const { ctx, toasts } = montarPago(null, async () => { throw new Error('red'); });
+		await ctx.deshacerPago('r1', 'Bonzas', null);
+		assert.equal(toasts[0].tipo, 'error');
+		assert.match(toasts[0].msg, /sigue marcado como pagado/);
+	});
+
+	// ── La ficha enseña cuándo se pagó ──────────────────────────
+	const ficha = () => cargar('index.html',
+		[['function diaDelMesClamped', '// Recibe la fila de facturación'],
+		 ['function estadoPagoHtml', '// ── MARCAR COMO PAGADO']],
+		{ Date, Math, String });
+	const hoyISO = () => {
+		const d = new Date();
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	};
+
+	test('un restaurante al día enseña la fecha de su último pago', () => {
+		// Así un pago marcado por error sigue a la vista cuando ya caducó el
+		// «Deshacer», en vez de ser una etiqueta verde igual a un pago de verdad.
+		const html = ficha().estadoPagoHtml({ dia_pago: 1, ultimo_pago: hoyISO() });
+		assert.match(html, /pagó el/);
+	});
+
+	test('uno vencido y sin ningún pago no revienta', () => {
+		// La fecha del pago se calcula después de la rama de «vencido» a
+		// propósito: ahí puede no haber pago, y formatear null lanzaría.
+		assert.doesNotThrow(() => ficha().estadoPagoHtml({ dia_pago: 1, ultimo_pago: null }));
+		assert.match(ficha().estadoPagoHtml({ dia_pago: 1, ultimo_pago: null }), /Vencido/);
+	});
+});
