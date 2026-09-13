@@ -465,6 +465,20 @@ campos**, y tiene dos guardados independientes:
 pulsas «Guardar apariencia» —el botón grande del final de la página—. El color
 se guarda y el nombre se descarta sin decir nada.
 
+> **Cómo se arregló (14/09/2026).** Se mantienen los dos botones: no se fundieron
+> en uno. «Guardar» de arriba escribe en dos tablas —la de cobranza incluida— y
+> tiene su propio aviso de cambio de slug, así que juntarlos obligaría a gestionar
+> fallos a medias sin que eso añada nada.
+>
+> Lo que cambia es que **cada sección dice lo que tiene pendiente** junto a su
+> botón, y **al guardar una con la otra pendiente se dice ahí mismo**: «✓ Guardado
+> · ⚠ «Datos del restaurante» (arriba) sigue sin guardar». El aviso de la otra
+> sección queda a casi cuatro mil píxeles; tiene que decirse donde está quien pulsó.
+>
+> Lo pendiente se calcula con la misma `recolectarApariencia()` que construye lo que
+> se guarda, así que no hay una lista de 35 campos que mantener. Verificado con la
+> fila real de Bonzas: recién abierta la pestaña no marca nada pendiente.
+
 ## A2 · No hay control de cambios sin guardar, y cambiar de pestaña disimula · **Alta**
 
 - [ ] Pendiente
@@ -478,6 +492,22 @@ estuviera guardado. Se pierde en silencio al recargar.
 **Y el patrón ya existe en el panel:** el modal de producto tiene su
 `cambiosModal` con «Hiciste cambios en este producto que todavía no has
 guardado. Si sales ahora se pierden». Aquí no.
+
+> **Corregido al aplicarlo (14/09/2026): era peor de lo que decía.** Además de no
+> avisar, **subir o quitar el logo, el fondo o la portada llamaba a
+> `renderApariencia()`, que vuelve a rellenar todos los campos desde lo guardado**.
+> Cambiar un color, subir el logo y ver cómo el color volvía solo a su valor
+> anterior. Verificado en un navegador con la fila real de Bonzas: por el camino
+> de antes el color volvía a `#cdfefe`; por el nuevo se conserva.
+>
+> Se arregló refrescando solo las vistas previas de las imágenes, y el interruptor
+> de portada, que el servidor sí cambia al subirla.
+>
+> **Lo que queda sin hacer, a propósito:** avisar o impedir **salir** con cambios
+> pendientes —volver a la lista, cerrar sesión, recargar—. Es la misma pregunta
+> que el equipo tiene abierta para los videos a medias (`CLAUDE.md`, «¿avisar o
+> impedir salir con un video a medias?»). Resolverla aquí sería adelantarse a esa
+> decisión. Hasta entonces, lo pendiente se ve, pero salir no se bloquea.
 
 ## A3 · Cuatro pantallas y media de formulario seguido · **Media**
 
@@ -555,7 +585,7 @@ Comparar con el estado vacío de **Promoción**, que es el mejor del panel.
 
 ## PE1 · Se puede encender el carrito sin número de WhatsApp, y el cliente se enterá al final · **Alta**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #79 y jotarodriguezv/vmenus-app#19
 
 Estado real de esta carta ahora mismo: modelo **Carrito**, insignia **pedidos**
 activa y el campo «WhatsApp para recibir pedidos» **vacío**. El panel no avisa
@@ -759,7 +789,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **7 aplicados** · **62 pendientes**.
+**69 hallazgos** en las tres superficies · **8 aplicados** · **61 pendientes**.
 
 ## Aplicados
 
@@ -774,6 +804,7 @@ Del 11 al 13 de septiembre de 2026:
 | **L2** · foco en el login | #75 | receta corregida: llamada explícita, no `autofocus` |
 | **SU1** · mensaje del HEIC | #76 | y decisión de no añadir soporte, anotada en el hallazgo |
 | **S1** · `✓ Pagó` sin vuelta atrás | #78 | con Deshacer, no con confirmación: los diálogos esperan decisión del equipo |
+| **PE1** · carrito sin WhatsApp | #79 y vmenus-app#19 | receta corregida: no se esconde el carrito, se avisa antes de pedir datos; y abrió PE3 |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -784,13 +815,12 @@ cada «Arreglo» como una hipótesis, no como una instrucción.
 
 | # | Hallazgo | Por qué primero |
 |---|---|---|
-| 1 | **PE1** · carrito sin WhatsApp | Es el único que le rompe la experiencia a un **comensal**, y en el último paso. |
-| 2 | **A1 + A2** · los dos guardados de Apariencia | Se pierde trabajo tuyo en silencio, y van juntos. |
-| 3 | **F1 + F3 + CL2** · el primer día de un restaurante | Los tres son el mismo momento: «Sin productos», sin poder crear uno hasta descubrir las categorías, y sin que se le ofrezca importar la carta — que es lo que la landing le prometió. |
-| 4 | **L1** · sin salida si se olvida el PIN | Cada caso es una llamada a soporte. |
-| 5 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
-| 6 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
-| 7 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
+| 1 | **A1 + A2** · los dos guardados de Apariencia | Se pierde trabajo tuyo en silencio, y van juntos. |
+| 2 | **F1 + F3 + CL2** · el primer día de un restaurante | Los tres son el mismo momento: «Sin productos», sin poder crear uno hasta descubrir las categorías, y sin que se le ofrezca importar la carta — que es lo que la landing le prometió. |
+| 3 | **L1** · sin salida si se olvida el PIN | Cada caso es una llamada a soporte. |
+| 4 | **P1** · los dos desplegables de orden | Publica un cambio a clientes creyendo que es una vista. |
+| 5 | **V1 + V2** · zoom desactivado y carta sin teclado | Es el público general, no clientes tuyos: cualquiera que escanee un QR. |
+| 6 | **V4 + V5** · el checkout sin autocompletado y el carrito que se vacía antes de tiempo | Es la ruta que genera ingresos. |
 
 Lo demás es acabado y se puede ir tachando sin prisa.
 

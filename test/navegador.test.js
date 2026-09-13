@@ -4062,3 +4062,129 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 		assert.match(cuerpo[0], /actualizarAvisoPedidos\(\)/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('Apariencia no pierde cambios en silencio', () => {
+	// A1 y A2 en docs/revision-ux.md. Dos guardados a casi cuatro mil píxeles,
+	// ninguna señal de lo pendiente, y subir una imagen reiniciaba el formulario.
+
+	function montar() {
+		const nodos = {};
+		const nodo = () => ({ value: '', checked: false, textContent: '', src: '', style: {}, dataset: {} });
+		const $ = id => (nodos[id] ||= nodo());
+		const estado = { restaurante: { atributos: {} } };
+		const ctx = cargar('index.html', '// ── CAMBIOS SIN GUARDAR EN APARIENCIA', 'async function renderDatosResto() {', {
+			document: { getElementById: $ },
+			state: estado,
+			JSON, String,
+			// La forma real de lo que se guarda, reducida a lo que estas pruebas tocan.
+			recolectarApariencia: () => ({
+				color_primario: $('apColor1').value,
+				atributos: { portada_activa: $('apPortadaActiva').checked },
+			}),
+		});
+		const correr = codigo => vm.runInContext(codigo, ctx);
+		const foto = () => { correr('fotoApariencia = aparienciaActual(); fotoDatosResto = datosRestoActuales();'); };
+		return { ctx, $, estado, correr, foto };
+	}
+
+	test('recién pintado, no hay nada pendiente', () => {
+		// Si la foto no coincidiera con el formulario, la pestaña diría «cambios
+		// sin guardar» nada más abrirla.
+		const { ctx, $, foto } = montar();
+		$('apColor1').value = '#ff0000';
+		$('apNombreResto').value = 'Bonzas';
+		foto();
+		assert.equal(ctx.hayCambiosApariencia(), false);
+		assert.equal(ctx.hayCambiosDatosResto(), false);
+	});
+
+	test('cambiar un campo lo marca pendiente junto a su propio botón', () => {
+		const { ctx, $, foto } = montar();
+		foto();
+		$('apColor1').value = '#00ff00';
+		ctx.marcarPendientes();
+		assert.match($('apArienciaStatus').textContent, /Cambios sin guardar/);
+		assert.equal($('apDatosRestoStatus').textContent, '', 'marcó pendiente la sección que no se tocó');
+	});
+
+	test('volver al valor guardado quita el aviso', () => {
+		const { ctx, $, foto } = montar();
+		$('apColor1').value = '#ff0000';
+		foto();
+		$('apColor1').value = '#00ff00'; ctx.marcarPendientes();
+		$('apColor1').value = '#ff0000'; ctx.marcarPendientes();
+		assert.equal($('apArienciaStatus').textContent, '');
+	});
+
+	test('A1: guardar la apariencia con el nombre sin guardar lo dice junto al botón pulsado', () => {
+		// El caso exacto del hallazgo. El aviso de la sección de arriba queda a
+		// casi cuatro mil píxeles; tiene que decirse donde está quien pulsó.
+		const { ctx, $, correr, foto } = montar();
+		foto();
+		$('apNombreResto').value = 'Nombre nuevo';
+		correr('fotoApariencia = aparienciaActual();');   // se guardó la apariencia
+		ctx.pintarGuardado('apArienciaStatus', ctx.hayCambiosDatosResto(), 'Datos del restaurante', 'arriba');
+		ctx.marcarPendientes();
+		assert.match($('apArienciaStatus').textContent, /Datos del restaurante.*sigue sin guardar/);
+		assert.match($('apDatosRestoStatus').textContent, /Cambios sin guardar/);
+	});
+
+	test('guardar después la otra sección retira el aviso que ya es falso', () => {
+		const { ctx, $, correr, foto } = montar();
+		foto();
+		$('apNombreResto').value = 'Nombre nuevo';
+		correr('fotoApariencia = aparienciaActual();');
+		ctx.pintarGuardado('apArienciaStatus', ctx.hayCambiosDatosResto(), 'Datos del restaurante', 'arriba');
+		ctx.marcarPendientes();
+		// Ahora se guardan también los datos.
+		correr('fotoDatosResto = datosRestoActuales();');
+		ctx.pintarGuardado('apDatosRestoStatus', ctx.hayCambiosApariencia(), 'Apariencia', 'abajo');
+		ctx.marcarPendientes();
+		assert.equal($('apArienciaStatus').textContent, '✓ Guardado',
+			'la apariencia sigue diciendo que los datos no se han guardado');
+	});
+
+	test('un estado que pintó otra función se respeta', () => {
+		// «Error al guardar» o «Slug inválido» los pone guardarDatosResto. Que el
+		// oyente de la pestaña los borre al siguiente clic sería esconder un error.
+		const { ctx, $, foto } = montar();
+		foto();
+		$('apDatosRestoStatus').textContent = 'Slug inválido: solo minúsculas, números y guiones';
+		ctx.marcarPendientes();
+		assert.match($('apDatosRestoStatus').textContent, /Slug inválido/);
+	});
+
+	test('pintar las imágenes no toca ningún campo del formulario', () => {
+		// Antes subir el logo llamaba a renderApariencia, que rellenaba todos los
+		// campos desde lo guardado y se llevaba por delante lo que no se guardó.
+		const { ctx, $, estado } = montar();
+		$('apColor1').value = '#00ff00';   // cambio sin guardar
+		estado.restaurante = { logo_url: '/uploads/logos/x.webp', atributos: {} };
+		ctx.pintarImagenesApariencia();
+		assert.equal($('apColor1').value, '#00ff00', 'se perdió el color sin guardar');
+		assert.equal($('apLogoPreview').src, '/uploads/logos/x.webp');
+		assert.equal($('apLogoDelBtn').style.display, 'inline-block');
+	});
+
+	test('subir la portada la enciende sin inventar un cambio pendiente', () => {
+		// El servidor pone portada_activa a true. Si solo se actualizara el
+		// interruptor y no la foto de referencia, marcaría un cambio que nadie hizo.
+		const { ctx, $, estado, foto } = montar();
+		foto();
+		estado.restaurante = { atributos: { portada_activa: true, portada_url: '/p.webp' } };
+		ctx.sincronizarPortadaActiva();
+		assert.equal($('apPortadaActiva').checked, true);
+		assert.equal(ctx.hayCambiosApariencia(), false);
+	});
+
+	test('los cuatro manejadores de imagen ya no reinician el formulario', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		for (const f of ['handleLogoUpload', 'handleFondoUpload', 'handlePortadaUpload', 'eliminarImagen']) {
+			const cuerpo = src.match(new RegExp(`async function ${f}\\([\\s\\S]*?\\n\\}`));
+			assert.ok(cuerpo, `no se encontró ${f}`);
+			assert.doesNotMatch(cuerpo[0], /renderApariencia\(\)/, `${f} vuelve a llamar a renderApariencia`);
+			assert.match(cuerpo[0], /pintarImagenesApariencia\(\)/, `${f} no refresca las vistas previas`);
+		}
+	});
+});
