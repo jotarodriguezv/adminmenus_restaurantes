@@ -836,7 +836,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **33 aplicados** · **2 descartados** · **35 pendientes**.
+**70 hallazgos** en las tres superficies · **34 aplicados** · **2 descartados** · **34 pendientes**.
 
 ## Aplicados
 
@@ -867,6 +867,7 @@ Del 11 al 13 de septiembre de 2026:
 | **V3 + MD2** · controles por debajo de 44 px | vmenus-app#24 | se agranda lo que se toca, no lo que se ve; el borde de 1 px dejaba dos en 42 |
 | **MD1 + MD4** · el lateral sin nombre y con el foco fuera | vmenus-app#25 | el foco vuelve a SU botón, porque tras un toque no es lo enfocado; y apareció V6 |
 | **M1** · las pestañas se salían sin avisar | #95 | barra visible, borde difuminado y la pestaña activa a la vista |
+| **M3** · la fila de categoría desbordaba en móvil | #96 | dos filas como la de producto; y borrar necesitaba tamaño mínimo, no bastaba con no encogerlo |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -893,7 +894,7 @@ decisión antes de escribir código.
 | 5 | ~~**E1 + E2 + E3 + M6 + B3**~~ | Hecho. Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
 | 6 | ~~**V3 + MD2**~~, ~~**MD1 + MD4**~~ | Hecho. La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
 
-**Grupo 2 · el panel del cliente en móvil:** ~~M1~~, M3, M4 + M5, CL4, M7. Juntos
+**Grupo 2 · el panel del cliente en móvil:** ~~M1~~, ~~M3~~, M4 + M5, CL4, M7. Juntos
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
@@ -1738,7 +1739,7 @@ teléfono— sigue sin probar, porque `zz-pruebas-ux` tiene un producto.
 
 ## M3 · La fila de categoría no tiene adaptación de móvil, y su botón de borrar encoge · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #96
 
 Medido a 375 px en la sesión del cliente:
 
@@ -1771,6 +1772,16 @@ persiguiendo una fila que se mueve.
 **Arreglo:** meter `.cat-row` en el bloque de móvil con el mismo criterio que
 `.product-row` —dos filas, controles abajo con su separador— y dejar de
 encoger `.btn-del` ahí.
+
+> **Aplicado (13/09/2026)** con la receta: los tres controles van en un grupo
+> propio (`.cat-acciones`) que en móvil baja a una segunda fila con su separador, y
+> `.btn-del` deja de encogerse. Medido a 375 px con tres categorías, una de nombre
+> largo y otra con horario: ninguna desborda; flechas, «Editar» y borrar miden 44 × 40.
+> Y en escritorio, a 1200 px, la fila sigue en una línea con el mismo hueco.
+>
+> **Corregido al medir:** quitar el encogimiento no bastaba. Con solo el padding,
+> borrar se quedaba en 36 × 35, y lleva el mismo tamaño mínimo que las flechas.
+> La cabecera tampoco parte ya «+ Nueva categoría» en dos líneas.
 
 ## M4 · En móvil, el estado vacío de Promoción se queda sin su única instrucción · **Media**
 
