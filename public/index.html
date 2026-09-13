@@ -7343,6 +7343,65 @@ function mensajeImagenIlegible(file) {
   return 'Ese archivo no es una imagen que el navegador pueda abrir';
 }
 
+// ── ¿EL ARCHIVO LLEGÓ ENTERO? ─────────────────────────────────
+// SU2 en docs/revision-ux.md. Un JPEG cortado a la décima parte —una descarga
+// interrumpida, una copia a medias— no hace fallar al navegador: decodifica lo
+// que hay, pinta el resto en blanco, y el panel lo subía y decía «✓ Lista para
+// guardar» en verde encima de una foto rota.
+//
+// Se mira el archivo y no los píxeles. La receta original era muestrear las
+// últimas filas buscando blanco, y eso marcaría como rota cualquier foto de un
+// plato sobre un mantel blanco. Lo que de verdad le falta a un archivo cortado
+// es su marca de fin, y eso no da falsos positivos.
+//
+// Devuelve true solo cuando está SEGURO de que falta el final. Un formato que
+// no conoce, o un archivo raro, pasa: esto no es un validador, es un aviso para
+// el caso que ya pasó.
+function imagenIncompleta(bytes) {
+  const b = bytes, n = b.length;
+  // JPEG: FF D8 al principio.
+  if (n >= 4 && b[0] === 0xFF && b[1] === 0xD8) {
+    // Se recorren los segmentos saltando cada uno por su longitud hasta el
+    // primer SOS (FF DA). No vale buscar FF D9 a lo bruto: la miniatura EXIF va
+    // dentro de APP1 con su propia marca de fin, y un archivo cortado justo
+    // después la tendría.
+    let i = 2;
+    while (i + 4 <= n) {
+      if (b[i] !== 0xFF) return false;          // estructura rara: no se juzga
+      const marca = b[i + 1];
+      if (marca === 0xFF) { i++; continue; }    // relleno entre segmentos
+      if (marca === 0xDA) break;
+      i += 2 + ((b[i + 2] << 8) | b[i + 3]);
+    }
+    if (i + 4 > n) return true;                 // se acabó antes de la imagen
+    // Dentro de los datos comprimidos un FF va siempre seguido de 00 o de un
+    // RSTn, así que FF D9 solo puede ser el fin. Detrás puede venir más (las
+    // fotos en movimiento de Android pegan un video): basta con que exista.
+    for (let j = i + 2; j + 1 < n; j++) {
+      if (b[j] === 0xFF && b[j + 1] === 0xD9) return false;
+    }
+    return true;
+  }
+  // PNG: la firma de 8 bytes, y el último fragmento se llama IEND.
+  if (n >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) {
+    for (let j = n - 4; j >= 8; j--) {
+      if (b[j] === 0x49 && b[j + 1] === 0x45 && b[j + 2] === 0x4E && b[j + 3] === 0x44) return false;
+    }
+    return true;
+  }
+  // WebP: RIFF declara en su cabecera cuánto mide el archivo.
+  if (n >= 12 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+      b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) {
+    const declarado = (b[4] | (b[5] << 8) | (b[6] << 16) | (b[7] << 24)) >>> 0;
+    return n < declarado + 8;
+  }
+  return false;
+}
+
+const MENSAJE_IMAGEN_INCOMPLETA =
+  'Esa foto está incompleta: el archivo se cortó al copiarlo o descargarlo, y se vería rota. ' +
+  'Vuelve a descargarla o elige otra.';
+
 function compressImage(file, maxW, q, { conservarTransparencia = false } = {}) {
   // WebP cuando se pueda: la misma foto pesa entre un 30% y un 40% menos, y
   // eso lo paga el comensal en datos móviles cada vez que abre una carta.
@@ -7358,7 +7417,17 @@ function compressImage(file, maxW, q, { conservarTransparencia = false } = {}) {
     : (conservarTransparencia && /^image\/(png|webp)$/.test(file?.type || ''))
       ? 'image/png' : 'image/jpeg';
 
-  return new Promise((res, rej) => {
+  // Se rechaza en vez de avisar en ámbar, que era lo que proponía SU2: aquí la
+  // comprobación es segura, no una sospecha, y rechazar antes de subir evita
+  // además dejar el archivo roto huérfano en uploads/. Los nueve sitios que
+  // suben imágenes ya pintan este error en rojo; ninguno necesita cambiar.
+  const leer = file?.arrayBuffer ? file.arrayBuffer() : Promise.resolve(null);
+  return leer.then(buf => {
+    if (buf && imagenIncompleta(new Uint8Array(buf))) throw new Error(MENSAJE_IMAGEN_INCOMPLETA);
+    return decodificarYComprimir();
+  });
+
+  function decodificarYComprimir() { return new Promise((res, rej) => {
     const r = new FileReader();
     r.onerror = () => rej(new Error('No se pudo leer el archivo'));
     r.onload = e => {
@@ -7378,7 +7447,7 @@ function compressImage(file, maxW, q, { conservarTransparencia = false } = {}) {
       img.src = e.target.result;
     };
     r.readAsDataURL(file);
-  });
+  }); }
 }
 
 async function uploadImg(blob,folder='productos') {

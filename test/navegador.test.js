@@ -4454,3 +4454,86 @@ describe('los dos desplegables de orden no se confunden', () => {
 		assert.equal($('ordenProductos').value, 'precio_asc');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('una foto cortada no se sube ni se anuncia en verde', () => {
+	// SU2 en docs/revision-ux.md. Probado el 10/09/2026 con un JPEG cortado al
+	// 10 %: el navegador lo decodificaba a medias y el panel decía «✓ Lista para
+	// guardar» encima de una foto blanca en sus nueve décimas partes.
+	const { imagenIncompleta } = cargar('index.html', 'function imagenIncompleta', 'const MENSAJE_IMAGEN_INCOMPLETA', {});
+	const u8 = (...partes) => Uint8Array.from(partes.flat());
+	const seg = (marca, datos) => [0xFF, marca, ((datos.length + 2) >> 8) & 0xFF, (datos.length + 2) & 0xFF, ...datos];
+
+	// Un JPEG con la forma de uno de verdad: APP0, datos con FF 00 de relleno
+	// dentro de la imagen, y su FF D9 al final.
+	const SOI = [0xFF, 0xD8], EOI = [0xFF, 0xD9];
+	const escaneo = [0x12, 0xFF, 0x00, 0x34, 0x56, 0xFF, 0xD0, 0x78];   // FF00 relleno, FFD0 un RST
+	const jpeg = (...cola) => u8(SOI, seg(0xE0, [0x4A, 0x46, 0x49, 0x46, 0]), seg(0xDA, [1, 2, 3]), escaneo, ...cola);
+
+	test('un JPEG entero pasa', () => {
+		assert.equal(imagenIncompleta(jpeg(EOI)), false);
+	});
+
+	test('un JPEG cortado dentro de la imagen se detecta', () => {
+		assert.equal(imagenIncompleta(jpeg()), true);
+	});
+
+	test('un JPEG cortado antes de empezar la imagen se detecta', () => {
+		assert.equal(imagenIncompleta(u8(SOI, seg(0xE0, [1, 2, 3]))), true);
+	});
+
+	test('la miniatura EXIF, con su propio fin, no hace pasar por entera una foto cortada', () => {
+		// La trampa de buscar FF D9 a lo bruto: la miniatura lo trae dentro de APP1.
+		const miniatura = [0x45, 0x78, 0x69, 0x66, 0, 0, ...SOI, 0xFF, 0xDA, 0, 3, 9, 9, ...EOI];
+		const cortada = u8(SOI, seg(0xE1, miniatura), seg(0xDA, [1, 2, 3]), escaneo);
+		assert.equal(imagenIncompleta(cortada), true);
+		assert.equal(imagenIncompleta(u8(cortada, EOI)), false);
+	});
+
+	test('una foto en movimiento de Android, con un video pegado detrás, pasa', () => {
+		// Esas fotos llevan un MP4 después del FF D9. Mirar solo los últimos bytes
+		// las rechazaría todas.
+		const video = [0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6D, 0x70, 0x34, 0x32, ...new Array(64).fill(7)];
+		assert.equal(imagenIncompleta(jpeg(EOI, video)), false);
+	});
+
+	const PNG_FIRMA = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+	const IEND = [0, 0, 0, 0, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82];
+	test('un PNG con IEND pasa; sin él, se detecta', () => {
+		assert.equal(imagenIncompleta(u8(PNG_FIRMA, new Array(40).fill(1), IEND)), false);
+		assert.equal(imagenIncompleta(u8(PNG_FIRMA, new Array(40).fill(1))), true);
+	});
+
+	const webp = (declarado, real) => {
+		const b = new Uint8Array(real);
+		b.set([0x52, 0x49, 0x46, 0x46, declarado & 0xFF, (declarado >> 8) & 0xFF, 0, 0, 0x57, 0x45, 0x42, 0x50]);
+		return b;
+	};
+	test('un WebP que mide lo que declara pasa; uno más corto, se detecta', () => {
+		assert.equal(imagenIncompleta(webp(92, 100)), false);
+		assert.equal(imagenIncompleta(webp(492, 100)), true);
+	});
+
+	test('lo que no reconoce no lo juzga', () => {
+		// Un GIF, un archivo raro: aquí no se valida, se avisa del caso conocido.
+		assert.equal(imagenIncompleta(u8([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])), false);
+		assert.equal(imagenIncompleta(u8([])), false);
+	});
+
+	test('compressImage la rechaza antes de decodificar, con un mensaje que dice qué hacer', async () => {
+		let decodificada = false;
+		const ctx = cargar('index.html', [['let _haceWebp', 'async function uploadImg']], {
+			// Si llegara a leerse, falla en el acto: una promesa colgada deja la
+			// prueba cancelada, no fallida, y la regresión pasaría sin ruido.
+			FileReader: class { readAsDataURL() { decodificada = true; setTimeout(() => this.onerror?.(), 0); } },
+			Image: class {}, document: { createElement: () => ({}) },
+		});
+		const archivo = { name: 'plato.jpg', type: 'image/jpeg', arrayBuffer: async () => jpeg().buffer };
+		await assert.rejects(ctx.compressImage(archivo, 800, .82), err => {
+			assert.match(err.message, /incompleta/);
+			assert.match(err.message, /descargarla|elige otra/);
+			return true;
+		});
+		assert.equal(decodificada, false, 'se intentó abrir la foto rota en vez de rechazarla antes');
+	});
+});
