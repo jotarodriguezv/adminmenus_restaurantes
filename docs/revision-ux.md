@@ -654,7 +654,7 @@ junto con A1 y no dos veces.
 
 ## PE3 · La pestaña Pedidos aparece en modelos que no tienen carrito · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #86
 
 Encontrado al aplicar PE1. El panel y la carta **no deciden igual** si un
 restaurante tiene carrito:
@@ -675,6 +675,16 @@ interruptor apagado o sin definir. Es preventivo.
 **Lo que ya existe para arreglarlo:** PE1 añadió `cartaTieneCarrito()`, que es la
 regla de la carta escrita en el panel. `hayCarrito` podría usarla. No se hizo en
 PE1 a propósito: cambia qué pestañas ve un cliente, y eso merece su propio PR.
+
+> **Aplicado (13/09/2026)** tal cual: `hayCarrito` usa `cartaTieneCarrito()`, y el
+> panel y la carta ya no pueden discrepar. Afecta también a la pestaña Toppings,
+> que colgaba de la misma variable. Un restaurante con toppings guardados la sigue
+> viendo, igual que antes.
+>
+> **Comprobado contra producción antes de cambiarlo, solo leyendo:** de los 11
+> restaurantes, ninguno Topnav, Sidebar o Explorar tiene el interruptor puesto, así
+> que **nadie gana ni pierde una pestaña hoy**. Los tres con WhatsApp y métodos de
+> pago —indigo (Vertical), voro (Video) y perroscriollos (Carrito)— las conservan.
 
 ## Lo que está bien
 
@@ -811,7 +821,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**69 hallazgos** en las tres superficies · **18 aplicados** · **1 descartado** · **50 pendientes**.
+**69 hallazgos** en las tres superficies · **19 aplicados** · **1 descartado** · **49 pendientes**.
 
 ## Aplicados
 
@@ -833,6 +843,7 @@ Del 11 al 13 de septiembre de 2026:
 | **P1** · los dos desplegables de orden | #83 | «Ver aquí» en cada opción, no en una etiqueta; y Deshacer al publicar |
 | **V1 + V2** · zoom y teclado en la carta | vmenus-app#20 | el foco entra y vuelve; y la carta del modelo Carrito dejaba de cargar, cazado en el navegador |
 | **V4 + V5** · el formulario del pedido y el carrito que se vaciaba | vmenus-app#21 | con la pregunta «¿Enviaste el pedido?»; y el zoom de iOS que volvió al quitar `maximum-scale` en V1 |
+| **PE3** · Pedidos en modelos sin carrito | #86 | la regla de la carta en el panel; hoy no cambia la pestaña de nadie |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -845,7 +856,7 @@ cada «Arreglo» como una hipótesis, no como una instrucción.
 es acabado y se puede ir tachando sin prisa. Hay dos cabos que salieron al
 aplicar y no estaban en la lista:
 
-- **PE3**: la pestaña Pedidos sale en modelos sin carrito.
+- ~~**PE3**: la pestaña Pedidos sale en modelos sin carrito.~~ Hecho en #86.
 - **V2**: con la ficha del plato abierta, el Tab no se queda dentro.
 
 ## Una observación sobre el código, no sobre la UX
