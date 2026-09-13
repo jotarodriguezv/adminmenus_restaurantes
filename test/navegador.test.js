@@ -4823,3 +4823,63 @@ describe('las pestañas avisan de que hay más fuera de la pantalla', () => {
 		assert.match(ajustar, /marcarBordesDeTabs\(\)/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('la fila de categoría cabe en un móvil', () => {
+	// M3 en docs/revision-ux.md. A 375 px la fila medía 326 px dentro de una caja de
+	// 307, y la única regla móvil que la tocaba ENCOGÍA el botón de borrar.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const bloqueMovil = (() => {
+		const i = src.indexOf('@media(max-width:680px){');
+		assert.ok(i > 0, 'no se encontró el bloque de móvil');
+		// Hasta la llave que lo cierra, contando anidamiento.
+		let prof = 0, j = src.indexOf('{', i);
+		for (; j < src.length; j++) {
+			if (src[j] === '{') prof++;
+			else if (src[j] === '}' && --prof === 0) break;
+		}
+		return src.slice(i, j);
+	})();
+	const px = (regla, prop) => Number((regla.match(new RegExp(prop + String.raw`\s*:\s*(\d+)px`)) || [])[1] || 0);
+
+	test('la fila se parte en dos en móvil, con los controles abajo', () => {
+		assert.match(bloqueMovil, /\.cat-row\{[^}]*flex-wrap:wrap/);
+		assert.match(bloqueMovil, /\.cat-acciones\{[^}]*flex-basis:100%[^}]*border-top/);
+	});
+
+	test('en móvil el botón de borrar no es más pequeño que en escritorio', () => {
+		const base = src.match(/\.btn-del \{[^}]*\}/)[0];
+		const movil = bloqueMovil.match(/\.btn-del\s*\{[^}]*\}/)[0];
+		assert.ok(px(movil, 'font-size') >= px(base, 'font-size'),
+			`borrar pasa de ${px(base, 'font-size')} px a ${px(movil, 'font-size')} px en móvil`);
+	});
+
+	test('las flechas y borrar tienen diana de dedo en móvil', () => {
+		const regla = bloqueMovil.match(/\.cat-acciones \.btn-edit,\.cat-acciones \.btn-del\{[^}]*\}/);
+		assert.ok(regla, 'falta el tamaño mínimo de los controles de la fila');
+		assert.ok(px(regla[0], 'min-width') >= 44 && px(regla[0], 'min-height') >= 40);
+	});
+
+	test('los tres controles van juntos en su grupo, en el mismo orden', () => {
+		const nodo = (tag) => ({
+			tag, className: '', textContent: '', style: {}, hijos: [], title: '', type: '',
+			appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {},
+		});
+		const lista = nodo('div');
+		const ctx = cargar('index.html', 'function renderCatList', '// Muestra/oculta el campo de imagen', {
+			state: {
+				categorias: [{ id: 'c1', nombre: 'Hamburguesas', emoji: '🍔' }, { id: 'c2', nombre: 'Bebidas' }],
+				productos: [{ categoria_id: 'c1' }],
+			},
+			document: { getElementById: () => lista, createElement: nodo },
+			categoriaVisibleAhora: () => true, describirHorario: () => '',
+			moveCat() {}, openEditCatModal() {}, confirmDelete() {},
+		});
+		ctx.renderCatList();
+		const fila = lista.hijos[0];
+		assert.equal(fila.hijos.length, 3, 'la fila debería tener emoji, datos y el grupo de controles');
+		const acciones = fila.hijos[2];
+		assert.equal(acciones.className, 'cat-acciones');
+		assert.deepEqual(acciones.hijos.map(h => h.className || h.hijos.map(b => b.textContent).join('')), ['↑↓', 'btn-edit', 'btn-del']);
+	});
+});
