@@ -78,7 +78,7 @@ corregir el documento en la misma tarea.
   estética: las pruebas de `navegador.test.js` evalúan **tramos enteros** del
   fuente, a veces de miles de líneas, y una llamada suelta a mitad de archivo
   (un `document.getElementById(...).addEventListener(...)`) revienta la prueba con
-  `document is not defined`. Pasó el 14/09/2026. La pista es la de siempre: el
+  `document is not defined`. Pasó el 13/09/2026. La pista es la de siempre: el
   total de pruebas baja.
 - `sql/` — migraciones numeradas.
 - `respaldo/` — scripts de copia y restauración que se ejecutan en el servidor.
