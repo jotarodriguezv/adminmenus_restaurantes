@@ -857,7 +857,7 @@ es acabado y se puede ir tachando sin prisa. Hay dos cabos que salieron al
 aplicar y no estaban en la lista:
 
 - ~~**PE3**: la pestaña Pedidos sale en modelos sin carrito.~~ Hecho en #86.
-- **V2**: con la ficha del plato abierta, el Tab no se queda dentro.
+- ~~**V2**: con la ficha del plato abierta, el Tab no se queda dentro.~~ Hecho en vmenus-app#22.
 
 ## Una observación sobre el código, no sobre la UX
 
@@ -1043,7 +1043,7 @@ años; hoy no hace falta para evitar el zoom al enfocar un campo.
 
 ## V2 · No se puede recorrer la carta con el teclado · **Alta**
 
-- [x] Hecho · 2026-09-13 · vmenus-app#20 · salvo encerrar el Tab dentro de la ficha, anotado abajo
+- [x] Hecho · 2026-09-13 · vmenus-app#20 · y el Tab dentro de la ficha en vmenus-app#22
 
 La tarjeta de cada plato es un `<div>` con `card.onclick`
 (`core/menu.js:113`). En **todo el repositorio** —`index.html`, `core/` y los
@@ -1092,6 +1092,15 @@ el ratón.
 > funciona siempre, así que no deja a nadie atrapado, pero un lector de pantalla
 > puede salirse del diálogo. Es un cambio aparte, que toca las dos fichas y la
 > personalización del carrito.
+>
+> **Hecho después (13/09/2026, vmenus-app#22)** en las tres ventanas. La
+> personalización del carrito tampoco recibía el foco, ni lo devolvía, ni se
+> cerraba con Escape; ahora hace las tres cosas. Probado con teclas reales en
+> Bonzas (Topnav y Explorar) y en perroscriollos (Carrito).
+>
+> **Visto de paso y sin tocar:** el formulario del pedido y el panel lateral del
+> carrito tampoco llevan el foco dentro al abrirse. Mismo arreglo, con
+> `llevarFocoA` y `encerrarTab`, si se decide hacerlo.
 
 ## V3 · Ocho controles por debajo del tamaño mínimo de toque, y los peores son los de cerrar · **Media**
 
