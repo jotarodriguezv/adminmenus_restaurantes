@@ -4600,3 +4600,59 @@ describe('los avisos no mandan al cliente a pestañas que no ve', () => {
 		assert.doesNotMatch(pers, /attr\.nav === 'carrito'/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('con «Activa» apagada, los destinos de la promoción se ven sin efecto', () => {
+	// B2 en docs/revision-ux.md. Los tres interruptores eran iguales, y apagando
+	// «Activa» seguían «En la carta» y «En el televisor» encendidos a la vista.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const { atenuarDestinos } = cargar('index.html', 'function atenuarDestinos', 'function programacionDelFormulario', {});
+
+	function caja(activa) {
+		const destinos = [{ style: {}, title: '' }, { style: {}, title: '' }];
+		return {
+			destinos,
+			querySelector: sel => (sel === '.p-activa' ? { checked: activa } : null),
+			querySelectorAll: sel => (sel === '.p-destino' ? destinos : []),
+		};
+	}
+
+	test('apagada: los dos destinos atenuados y con el motivo', () => {
+		const c = caja(false);
+		atenuarDestinos(c);
+		for (const d of c.destinos) {
+			assert.equal(d.style.opacity, '0.4');
+			assert.match(d.title, /apagada/);
+		}
+	});
+
+	test('encendida: vuelven a verse normales', () => {
+		const c = caja(false);
+		atenuarDestinos(c);
+		c.querySelector = sel => (sel === '.p-activa' ? { checked: true } : null);
+		atenuarDestinos(c);
+		for (const d of c.destinos) {
+			assert.equal(d.style.opacity, '');
+			assert.equal(d.title, '');
+		}
+	});
+
+	test('los dos destinos llevan la marca, y «Activa» no', () => {
+		const t = src.match(/function tarjetaDePromo\(p\) \{[\s\S]*?\n\}/)[0];
+		assert.match(t, /class="p-destino form-check"><label class="toggle"><input type="checkbox" class="p-popup">/);
+		assert.match(t, /class="p-destino p-tv-fila form-check"><label class="toggle"><input type="checkbox" class="p-tv">/);
+		assert.doesNotMatch(t, /p-destino[^>]*><label class="toggle"><input type="checkbox" class="p-activa">/);
+	});
+
+	test('se repinta cada vez que cambia algo de la tarjeta', () => {
+		// nota() se llama al pintar y en cada onchange de los interruptores.
+		const t = src.match(/function tarjetaDePromo\(p\) \{[\s\S]*?\n\}/)[0];
+		assert.match(t, /const nota = \(\) => \{\s*atenuarDestinos\(caja\);/);
+		assert.match(t, /for \(const c of \['p-activa', 'p-popup', 'p-tv'/);
+	});
+
+	test('atenuar no los deshabilita: se pueden dejar preparados antes de encender', () => {
+		const cuerpo = src.match(/function atenuarDestinos\(caja\) \{[\s\S]*?\n\}/)[0];
+		assert.doesNotMatch(cuerpo, /disabled/);
+	});
+});
