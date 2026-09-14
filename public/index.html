@@ -1173,16 +1173,23 @@
 								<option value="subdominio">Subdominio — nombre.vmenus.co</option>
 							</select>
 						</div>
-						<div style="margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--accent);word-break:break-all;" id="apUrlPreview"></div>
+						<!-- Un enlace y no un texto: la forma de saber si el subdominio responde es
+						     abrirlo, y antes había que copiarlo a mano. -->
+						<a id="apUrlPreview" target="_blank" rel="noopener noreferrer"
+							style="display:inline-block;margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--accent);word-break:break-all;"></a>
+						<!-- A5: estos dos avisos se contradecían a 8 px. El de abajo decía «Las dos
+						     formas funcionan siempre», y el subdominio NO funciona hasta registrarlo
+						     en Dokploy, que es lo que dice este. La ruta es la que siempre responde. -->
 						<div id="apUrlAviso" style="display:none;margin-top:10px;padding:9px 11px;border-radius:var(--radius);background:var(--warn-dim);border:1px solid var(--warn);color:var(--warn);font-size:11px;line-height:1.6;">
 							Este subdominio no responderá hasta que lo registres en Dokploy:
 							aplicación <strong>vmenus-app</strong> → Domains → Add Domain, puerto 80,
 							con el mismo certificado que <strong>menu.vmenus.co</strong>.
+							Ábrelo arriba y comprueba que carga <strong>antes</strong> de imprimir el QR.
 						</div>
 						<div style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.6;">
-							Las dos formas funcionan siempre, sin importar cuál elijas: esto solo define
-							cuál se usa en el QR y en la vista previa. Los enlaces y códigos que ya
-							repartió el restaurante siguen sirviendo aunque cambies esta opción.
+							Esta opción solo decide qué enlace sale en el QR y en la vista previa.
+							La forma de ruta (menu.vmenus.co/nombre) responde siempre, y los enlaces y
+							códigos que el restaurante ya repartió siguen sirviendo aunque la cambies.
 						</div>
 					</div>
 
@@ -7539,7 +7546,7 @@ function aplicarPlanAlPanel() {
 function renderUrlPublicaPreview() {
   const modo = document.getElementById('apUrlModo').value;
   const el = document.getElementById('apUrlPreview');
-  if (el) el.textContent = urlPublica(state.restaurante, modo);
+  if (el) { el.textContent = urlPublica(state.restaurante, modo); el.href = el.textContent; }
   // El subdominio no responde hasta registrarlo también en Dokploy. Es un
   // paso en otro sistema y es justo el que se olvida.
   const aviso = document.getElementById('apUrlAviso');
