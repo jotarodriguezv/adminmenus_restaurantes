@@ -4909,3 +4909,64 @@ describe('la fila de categoría cabe en un móvil', () => {
 		assert.deepEqual(acciones.hijos.map(h => h.className || h.hijos.map(b => b.textContent).join('')), ['↑↓', 'btn-edit', 'btn-del']);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('en vista clara, el acento sobre su fondo tenue se lee', () => {
+	// CL4 en docs/revision-ux.md. El chip SELECCIONADO —el que dice qué filtro está
+	// puesto— era lo menos legible de la pantalla: verde #0b8850 sobre su propio
+	// fondo al 10 %, 3,55-3,97 según dónde. Se calcula con la paleta del archivo,
+	// no con números copiados: si alguien retoca un color, la cuenta cambia sola.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const bloque = sel => src.slice(src.indexOf(sel), src.indexOf('}', src.indexOf(sel)));
+	const claro = bloque(':root[data-theme="light"] {');
+	const oscuro = bloque(':root {');
+	const vari = (b, nombre) => (b.match(new RegExp('--' + nombre + String.raw`:\s*([^;]+);`)) || [])[1]?.trim();
+	const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+	const rgba = v => { const m = v.match(/[\d.]+/g).map(Number); return { c: m.slice(0, 3), a: m[3] ?? 1 }; };
+	const lum = c => { const l = c.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]; };
+	const contraste = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+	const sobre = (capa, base) => base.map((v, i) => capa.a * capa.c[i] + (1 - capa.a) * v);
+
+	test('el texto de acento pasa AA sobre --accent-dim en los tres fondos claros', () => {
+		const texto = hex(vari(claro, 'accent-texto'));
+		const tenue = rgba(vari(claro, 'accent-dim'));
+		for (const fondo of ['bg', 'panel', 'card']) {
+			const c = contraste(texto, sobre(tenue, hex(vari(claro, fondo))));
+			assert.ok(c >= 4.5, `sobre --${fondo} da ${c.toFixed(2)}`);
+		}
+	});
+
+	test('con el acento de marca no pasaba: la prueba mide el problema real', () => {
+		// Si esto dejara de fallar con el color viejo, la prueba de arriba no
+		// estaría midiendo lo que dice.
+		const tenue = rgba(vari(claro, 'accent-dim'));
+		const c = contraste(hex(vari(claro, 'accent')), sobre(tenue, hex(vari(claro, 'bg'))));
+		assert.ok(c < 4.5, `el acento de marca daba ${c.toFixed(2)}`);
+	});
+
+	test('el chip seleccionado, el botón de acento y el aviso usan el texto de acento', () => {
+		for (const regla of [/\.cat-chip\.active\{[^}]*\}/, /\.btn-sm\.accent\{[^}]*\}/, /\.toast\.info\{[^}]*\}/, /\.btn-edit:hover\{[^}]*\}/]) {
+			assert.match(src.match(regla)[0], /color:var\(--accent-texto\)/, `${regla} sigue con el acento de marca como texto`);
+		}
+	});
+
+	test('en la vista oscura no cambia nada', () => {
+		assert.equal(vari(oscuro, 'accent-texto'), vari(oscuro, 'accent'));
+	});
+});
+
+describe('el rango libre de fechas va junto', () => {
+	// M7. A 375 px los dos campos caían en filas distintas y el guion quedaba
+	// huérfano: «03/09/2026 –» arriba y «09/09/2026» debajo.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	test('los dos campos y el guion comparten un grupo que no se parte', () => {
+		const grupo = src.match(/<span class="rango-campos" style="([^"]*)">([\s\S]*?)<\/span>\s*<\/div>/);
+		assert.ok(grupo, 'falta el grupo de los campos del rango');
+		assert.doesNotMatch(grupo[1], /flex-wrap:\s*wrap/);
+		assert.match(grupo[2], /id="estDesde"[\s\S]*–[\s\S]*id="estHasta"/);
+		// Pueden encoger: si no, a 375 px no caben y el grupo desborda.
+		for (const id of ['estDesde', 'estHasta']) {
+			assert.match(grupo[2].match(new RegExp('<input[^>]*id="' + id + '"[^>]*>'))[0], /min-width:0/);
+		}
+	});
+});
