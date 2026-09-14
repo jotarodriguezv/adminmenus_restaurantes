@@ -71,6 +71,11 @@ corregir el documento en la misma tarea.
   **Un precio se guarda dos veces** (`precio` y `precio_numerico`) y separarlos
   hace que la carta muestre uno y el carrito cobre otro. Ya pasó.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.
+- `parada.js` — qué hace el panel al recibir `SIGTERM` en cada despliegue: deja
+  de aceptar conexiones, deja terminar las abiertas, la cola de video suelta su
+  trabajo y se sale antes de los 10 s de Docker. **Quitarlo devuelve el
+  `Exited (137)`** y las conversiones colgadas en "convirtiendo" hasta hora y
+  media, que es lo que había hasta el 14/09/2026.
 - `public/` — el panel (HTML + JS servidos tal cual).
 
   **En `public/index.html`, entre las declaraciones no se ejecuta nada.** Las
