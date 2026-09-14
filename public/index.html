@@ -293,6 +293,8 @@
 			  color:var(--text);font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;padding:4px 0;}
 			.imp-cat-nombre:focus{outline:none;border-bottom-color:var(--accent);}
 			.imp-cat-estado{font-size:10px;font-family:var(--mono);white-space:nowrap;}
+			.cat-parecida{margin:-4px 0 14px;padding:9px 11px;border-radius:var(--radius);background:var(--warn-dim);
+			  border:1px solid var(--warn);color:var(--warn);font-size:12px;line-height:1.5;}
 			.imp-plato{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
 			.imp-plato input{background:var(--panel);border:1px solid var(--border);border-radius:6px;
 			  color:var(--text);font-size:12px;padding:6px 8px;min-width:0;}
@@ -2461,13 +2463,16 @@
       <div class="form-row">
         <div class="form-group">
           <label for="editCatNombre" class="form-label">Nombre</label>
-          <input type="text" class="form-input" id="editCatNombre" placeholder="Hamburguesas">
+          <input type="text" class="form-input" id="editCatNombre" placeholder="Hamburguesas" oninput="avisarCategoriaParecida()" aria-describedby="catParecida">
         </div>
         <div class="form-group">
           <label for="editCatEmoji" class="form-label">Emoji</label>
           <input type="text" class="form-input" id="editCatEmoji" placeholder="🍔" maxlength="4">
         </div>
       </div>
+      <!-- P3: aviso de categoría casi igual a otra. No impide guardar: un
+           restaurante puede tener a propósito «POSTRE DEL DÍA» y «POSTRES». -->
+      <div id="catParecida" class="cat-parecida" role="status" hidden></div>
       <div class="form-row">
         <div class="form-group">
           <label for="editCatOrden" class="form-label">Orden (número)</label>
@@ -5753,6 +5758,7 @@ function openNewCatModal() {
   state.pendingCatImgUrl=null;
   renderCatImgField(null);
   cargarCatHorario(null);
+  avisarCategoriaParecida();
   openModal('catModal');
 }
 
@@ -5767,6 +5773,8 @@ function openEditCatModal(id) {
   state.pendingCatImgUrl=null;
   renderCatImgField(cat.atributos?.imagen_cabecera || null);
   cargarCatHorario(cat);
+  // Al editar también: así se ve un duplicado que ya existe, no solo al crearlo.
+  avisarCategoriaParecida();
   openModal('catModal');
 }
 
@@ -5794,6 +5802,33 @@ function quitarCatImg() {
   document.getElementById('btnQuitarCatImg').style.display='none';
   const st=document.getElementById('catImgUploadStatus');
   st.textContent='Imagen eliminada al guardar'; st.style.color='var(--warn)';
+}
+
+// ── CATEGORÍA CASI REPETIDA (P3) ─────────────────────────────
+// En aojocerrado convivían «HAMBURGUESA» y «Hamburguesas», y el aviso de las
+// papas solo estaba en una. Se reutiliza la regla de la importación
+// (impNormalizar e impRaiz), que ya reconoce singular y plural: si cambia allí,
+// cambia aquí, y las dos pantallas no pueden discrepar.
+function categoriaParecida(nombre, idPropio, categorias) {
+  if (!String(nombre || '').trim()) return null;
+  const otras = (categorias || []).filter(c => c && c.nombre && c.id !== idPropio);
+  return otras.find(c => impNormalizar(c.nombre) === impNormalizar(nombre))
+      || otras.find(c => impRaiz(c.nombre) === impRaiz(nombre))
+      || null;
+}
+
+function avisarCategoriaParecida() {
+  const aviso = document.getElementById('catParecida');
+  const id = document.getElementById('editCatId').value || null;
+  const nombre = document.getElementById('editCatNombre').value;
+  const otra = categoriaParecida(nombre, id, state.categorias);
+  aviso.hidden = !otra;
+  if (!otra) { aviso.textContent = ''; return; }
+  const n = (state.productos || []).filter(p => p.categoria_id === otra.id).length;
+  const platos = n === 1 ? '1 plato' : `${n} platos`;
+  aviso.textContent = id
+    ? `Ya tienes «${otra.nombre}» (${platos}), que parece la misma. Si lo es, pasa los platos a una y borra la otra: quien entre por una no ve lo de la otra.`
+    : `Ya tienes «${otra.nombre}» (${platos}). Si es la misma, añade los platos ahí en vez de crear otra.`;
 }
 
 async function saveCat() {
