@@ -193,6 +193,22 @@ describe('PATCH /api/categorias · los horarios dependen del plan', () => {
 		assert.equal(S.ultimaEscritura('categorias').atributos.se_pide_sin_abrir, true);
 	});
 
+	test('la nota de la categoría se guarda recortada, y lo que no es texto no', async () => {
+		// P4. La carta la escapa, pero un objeto aquí rompería su plantilla.
+		conPlan('vitrina');
+		await S.pedir('PATCH', `/api/categorias/${IDS.categoria}`,
+			{ atributos: { nota: '  Todas van con papas  ' } }, tokenCliente);
+		assert.equal(S.ultimaEscritura('categorias').atributos.nota, 'Todas van con papas');
+
+		await S.pedir('PATCH', `/api/categorias/${IDS.categoria}`, { atributos: { nota: 'x'.repeat(500) } }, tokenCliente);
+		assert.equal(S.ultimaEscritura('categorias').atributos.nota.length, 200);
+
+		for (const mala of [{ a: 1 }, 42, '   ']) {
+			await S.pedir('PATCH', `/api/categorias/${IDS.categoria}`, { atributos: { nota: mala } }, tokenCliente);
+			assert.equal(S.ultimaEscritura('categorias').atributos.nota, undefined, JSON.stringify(mala));
+		}
+	});
+
 	test('las claves ajenas se descartan', async () => {
 		conPlan('completo');
 		await S.pedir('PATCH', `/api/categorias/${IDS.categoria}`,

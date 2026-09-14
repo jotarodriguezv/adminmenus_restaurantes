@@ -395,7 +395,7 @@ idéntica a otra, ni al escribirla en otra caja.
 
 ## P4 · No hay forma de poner una nota en la carta, así que se usan productos de $ 0 · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #116 y jotarodriguezv/vmenus-app#27 · a prueba
 
 Los dos únicos productos con precio 0 de los 100 no son platos, son avisos:
 
@@ -414,6 +414,17 @@ efecto que el dueño buscaba.
 El día que alguien cambie ese orden a «Nombre A → Z» —el desplegable de P1, el
 de al lado— «TODAS LAS HAMBURGUESAS VAN ACOMPAÑADAS DE PAPAS» se va por la T al
 final de su categoría, detrás de los platos que anuncia.
+
+> **Aplicado a prueba (13/09/2026).** El usuario pidió hacerla «y miramos cómo
+> queda», porque no está seguro: **no es una decisión cerrada**. Nota opcional por
+> categoría (máx. 200 caracteres) en `categorias.atributos.nota`, sin migración. La
+> carta la pinta bajo el título en los seis modelos; en Vertical, solo en el primer
+> plato de la categoría, para no tapar la comida en todos. Vista con cartas reales y
+> la nota solo en memoria: aojocerrado, Malparados, San Javier, Indigo y Juanmar.
+>
+> **Los dos platos de $ 0 de aojocerrado siguen como estaban.** Pasarlos a nota lo
+> decide el usuario después de verlo; si no convence, se quita el campo y no queda
+> nada guardado que limpiar.
 
 ## P5 · El carril de categorías esconde dos tercios · **Media**
 
@@ -973,7 +984,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **61 aplicados** · **2 descartados** · **7 pendientes**.
+**70 hallazgos** en las tres superficies · **62 aplicados** · **2 descartados** · **6 pendientes**.
 
 ## Aplicados
 
@@ -1024,6 +1035,7 @@ Del 11 al 13 de septiembre de 2026:
 | **P3** · categorías casi repetidas | #113 | aviso en el modal con la regla de la importación, que ya lo hacía |
 | **C1** · reordenar de uno en uno | #114 | arrastrar desde un asa, un guardado; las flechas siguen, con el foco en la fila |
 | **B3**, segunda mitad · bebidas y adicionales en «Platos que nadie abrió» | #115 | casilla por categoría; en Bonzas, de 37 a 4 |
+| **P4** · avisos hechos con platos de $ 0 | #116 y vmenus-app#27 | nota por categoría, a prueba |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1061,7 +1073,7 @@ del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2
 
 - ~~**CL3**~~ — sí, pidiendo el PIN actual; el superadmin conserva el cambio sin
   conocerlo.
-- **P4** — hacer la **nota por categoría** y ver cómo queda: el usuario no está
+- ~~**P4**~~ — hacer la **nota por categoría** y ver cómo queda: el usuario no está
   seguro, así que es una prueba, no una decisión cerrada.
 - ~~**P3**~~ — el duplicado de aojocerrado fue **un error al probar el escaneo**, no
   del dueño. Avisar en el panel al crear o renombrar una categoría casi igual, y

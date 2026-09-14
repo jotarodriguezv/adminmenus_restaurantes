@@ -5949,3 +5949,28 @@ describe('el modal de categoría marca las que se piden sin abrir la ficha', () 
 		assert.match(guardar, /if\(document\.getElementById\('editCatSinAbrir'\)\.checked\) atributos\.se_pide_sin_abrir = true;\s*else delete atributos\.se_pide_sin_abrir;/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('la categoría lleva una nota opcional para la carta', () => {
+	// P4 en docs/revision-ux.md: avisos hechos con platos de $ 0.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('el campo existe, con etiqueta y el mismo tope que el servidor', () => {
+		assert.match(src, /<label for="editCatNota" class="form-label">Nota/);
+		assert.match(src, /<textarea class="form-textarea" id="editCatNota" maxlength="200"/);
+		const servidor = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+		assert.match(servidor, /const NOTA_CATEGORIA_MAX = 200;/);
+	});
+
+	test('se rellena al abrir en los dos modos', () => {
+		const nueva = src.match(/function openNewCatModal\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(nueva, /getElementById\('editCatNota'\)\.value=''/);
+		const editar = src.match(/function openEditCatModal\([^)]*\) \{[\s\S]*?\n\}/)[0];
+		assert.match(editar, /getElementById\('editCatNota'\)\.value=cat\.atributos\?\.nota \|\| ''/);
+	});
+
+	test('guardar la pone recortada, y vacía la borra', () => {
+		const guardar = src.match(/async function saveCat\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(guardar, /const nota=document\.getElementById\('editCatNota'\)\.value\.trim\(\);\s*if\(nota\) atributos\.nota = nota; else delete atributos\.nota;/);
+	});
+});

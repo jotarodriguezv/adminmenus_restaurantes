@@ -2482,6 +2482,14 @@
       <!-- P3: aviso de categoría casi igual a otra. No impide guardar: un
            restaurante puede tener a propósito «POSTRE DEL DÍA» y «POSTRES». -->
       <div id="catParecida" class="cat-parecida" role="status" hidden></div>
+      <!-- P4: un aviso que no es un plato. Se hacía con productos de $ 0 («TODAS
+           LAS HAMBURGUESAS VAN ACOMPAÑADAS DE PAPAS»), que funcionaba solo mientras
+           el orden los dejara primeros. -->
+      <div class="form-group">
+        <label for="editCatNota" class="form-label">Nota <span style="color:var(--text-dim)">(opcional, sale bajo el título en la carta)</span></label>
+        <textarea class="form-textarea" id="editCatNota" maxlength="200" rows="2" style="min-height:0"
+          placeholder="Todas las hamburguesas van acompañadas de papas"></textarea>
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label for="editCatOrden" class="form-label">Orden (número)</label>
@@ -5786,6 +5794,7 @@ function openNewCatModal() {
   document.getElementById('editCatOrden').value=state.categorias.length;
   document.getElementById('editCatSinFotos').checked=false;
   document.getElementById('editCatSinAbrir').checked=false;
+  document.getElementById('editCatNota').value='';
   state.pendingCatImgUrl=null;
   renderCatImgField(null);
   cargarCatHorario(null);
@@ -5802,6 +5811,7 @@ function openEditCatModal(id) {
   document.getElementById('editCatOrden').value=cat.orden;
   document.getElementById('editCatSinFotos').checked=cat.sin_fotos;
   document.getElementById('editCatSinAbrir').checked=!!cat.atributos?.se_pide_sin_abrir;
+  document.getElementById('editCatNota').value=cat.atributos?.nota || '';
   state.pendingCatImgUrl=null;
   renderCatImgField(cat.atributos?.imagen_cabecera || null);
   cargarCatHorario(cat);
@@ -5903,6 +5913,8 @@ async function saveCat() {
   // sería guardar ruido en cada categoría.
   if(document.getElementById('editCatSinAbrir').checked) atributos.se_pide_sin_abrir = true;
   else delete atributos.se_pide_sin_abrir;
+  const nota=document.getElementById('editCatNota').value.trim();
+  if(nota) atributos.nota = nota; else delete atributos.nota;
   body.atributos = atributos;
   let creada = null;
   try {
