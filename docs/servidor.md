@@ -503,15 +503,17 @@ servir dentro del VPS más barato de Hostinger.**
   Dokploy (*Settings → Server*), o `docker swarm update --task-history-limit 2`.
 - **794 MB en volúmenes sin usar.** Probablemente de la boda y de las cartas
   borradas, pero pueden tener datos: repasar uno a uno, no `volume prune`.
-- **Docker mata el panel en cada despliegue** (`Exited (137)`). **Arreglado en
-  el repositorio el 14/09/2026** con `parada.js`: al recibir `SIGTERM` deja de
-  aceptar conexiones, deja terminar las abiertas y devuelve a la cola la
-  conversión en curso, todo en menos de 8 s. **Falta confirmarlo en el
-  servidor** tras el siguiente despliegue: los contenedores viejos del panel en
-  `docker ps -a` tienen que salir `Exited (0)`, no `(137)`, y el registro
-  terminar en `🛑 panel parado en N ms`. Si una subida de video larga tiene que
-  sobrevivir a un despliegue, habría que alargar además el plazo de parada del
-  servicio en Dokploy (Swarm da 10 s por defecto).
+- ~~Docker mata el panel en cada despliegue~~ — **hecho y confirmado en el
+  servidor el 14/09/2026** con `parada.js` (PR #125): al recibir `SIGTERM` deja
+  de aceptar conexiones, deja terminar las abiertas y devuelve a la cola la
+  conversión en curso. El primer despliegue siguió dando `Exited (137)`, y era
+  lo esperado: el que se para es el contenedor **anterior**, con el código
+  viejo. En el segundo, `Exited (0)` y en su registro
+  `🛑 panel parado en 3 ms`. **Para comprobar un cambio en la parada hacen
+  falta dos despliegues.**
+- **Una subida de video de más de 8 s sigue cortándose** si coincide con un
+  despliegue. Para que sobreviva habría que alargar el plazo de parada del
+  servicio en Dokploy (Swarm da 10 s) y `PARADA_MAX_MS` con él. No urgente.
 - **La salida por IPv6 no respondió** a Docker Hub (`i/o timeout` hacia una
   dirección `2600:…`) al intentar bajar una imagen. Hoy no rompe nada; mirar si
   el día que un despliegue falle bajando imágenes.
