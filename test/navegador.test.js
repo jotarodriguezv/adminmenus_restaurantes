@@ -4888,8 +4888,9 @@ describe('la fila de categoría cabe en un móvil', () => {
 
 	test('los tres controles van juntos en su grupo, en el mismo orden', () => {
 		const nodo = (tag) => ({
-			tag, className: '', textContent: '', style: {}, hijos: [], title: '', type: '',
+			tag, className: '', textContent: '', style: {}, hijos: [], title: '', type: '', atributos: {},
 			appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {},
+			setAttribute(k, v) { this.atributos[k] = String(v); },
 		});
 		const lista = nodo('div');
 		const ctx = cargar('index.html', 'function renderCatList', '// Muestra/oculta el campo de imagen', {
@@ -4968,5 +4969,113 @@ describe('el rango libre de fechas va junto', () => {
 		for (const id of ['estDesde', 'estHasta']) {
 			assert.match(grupo[2].match(new RegExp('<input[^>]*id="' + id + '"[^>]*>'))[0], /min-width:0/);
 		}
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('los errores de la ficha del plato se dicen todos y en su sitio', () => {
+	// F2 en docs/revision-ux.md. Tres return seguidos, el de la categoría sin
+	// llevar el foco, todo en un aviso lejos del campo y de uno en uno.
+	const { erroresDeFicha } = cargar('index.html', 'function erroresDeFicha', 'const CAMPOS_FICHA', { String, Number });
+
+	test('con los tres vacíos salen los tres, en el orden de la ficha', () => {
+		const e = erroresDeFicha({ categoria: '', nombre: '  ', precio: '' });
+		assert.deepEqual([...e.map(x => x.campo)], ['editNombre', 'editCategoria', 'editPrecioNum']);
+	});
+
+	test('la categoría también es un error de campo, no solo un aviso', () => {
+		const e = erroresDeFicha({ categoria: '', nombre: 'Hamburguesa', precio: '22000' });
+		assert.equal(e.length, 1);
+		assert.equal(e[0].campo, 'editCategoria');
+	});
+
+	test('el cero escrito a mano es un precio; vacío o negativo no', () => {
+		assert.equal(erroresDeFicha({ categoria: 'c1', nombre: 'Agua', precio: '0' }).length, 0);
+		assert.equal(erroresDeFicha({ categoria: 'c1', nombre: 'Agua', precio: '' }).length, 1);
+		assert.equal(erroresDeFicha({ categoria: 'c1', nombre: 'Agua', precio: '-5' }).length, 1);
+	});
+
+	function dom() {
+		const nodos = {};
+		const nodo = id => {
+			const n = {
+				id, clases: new Set(), atributos: {}, enfocado: 0, despues: null, insertados: [],
+				classList: { add: c => n.clases.add(c), remove: c => n.clases.delete(c) },
+				setAttribute(k, v) { n.atributos[k] = String(v); }, removeAttribute(k) { delete n.atributos[k]; },
+				focus() { n.enfocado++; }, addEventListener() {},
+				// Como un navegador: insertar dos veces deja DOS elementos, aunque tengan
+				// el mismo id. Sin esto, un mensaje duplicado pasaba por uno solo.
+				insertAdjacentElement(_, el) {
+					n.despues = el; n.insertados.push(el); nodos[el.id] = el;
+					el.remove = () => { n.insertados = n.insertados.filter(x => x !== el); if (nodos[el.id] === el) delete nodos[el.id]; n.despues = n.insertados.at(-1) || null; };
+				},
+			};
+			return n;
+		};
+		for (const id of ['editNombre', 'editCategoria', 'editPrecioNum']) nodos[id] = nodo(id);
+		return { nodos, document: { getElementById: id => nodos[id] || null, createElement: () => ({}) } };
+	}
+
+	test('cada campo con error se marca, se describe y el foco va al primero', () => {
+		const { nodos, document } = dom();
+		const ctx = cargar('index.html', 'function erroresDeFicha', 'function vigilarErroresFicha', { String, Number, document });
+		ctx.pintarErroresFicha(ctx.erroresDeFicha({ categoria: '', nombre: 'Hamburguesa', precio: '' }));
+		const cat = nodos.editCategoria, precio = nodos.editPrecioNum;
+		assert.ok(cat.clases.has('con-error') && precio.clases.has('con-error'));
+		assert.equal(nodos.editNombre.clases.has('con-error'), false);
+		assert.equal(cat.atributos['aria-invalid'], 'true');
+		assert.equal(cat.atributos['aria-describedby'], 'editCategoriaError');
+		assert.match(cat.despues.textContent, /categoría/);
+		assert.equal(cat.enfocado, 1, 'el foco no fue a la categoría, el primer campo con error');
+		assert.equal(precio.enfocado, 0);
+	});
+
+	test('volver a validar no duplica los mensajes, y corregir un campo quita el suyo', () => {
+		const { nodos, document } = dom();
+		const ctx = cargar('index.html', 'function erroresDeFicha', 'function vigilarErroresFicha', { String, Number, document });
+		const errores = ctx.erroresDeFicha({ categoria: '', nombre: '', precio: '1' });
+		ctx.pintarErroresFicha(errores);
+		ctx.pintarErroresFicha(errores);
+		assert.equal(nodos.editNombre.insertados.length, 1, 'el mensaje del nombre salió dos veces');
+		assert.equal(nodos.editCategoria.insertados.length, 1, 'el mensaje de la categoría salió dos veces');
+		ctx.limpiarErrorDeCampo('editNombre');
+		assert.equal(nodos.editNombre.clases.has('con-error'), false);
+		assert.equal(nodos.editNombreError, undefined);
+		assert.ok(nodos.editCategoriaError, 'limpiar un campo se llevó el error de otro');
+	});
+
+	test('saveProduct usa la validación, y al abrir la ficha no quedan errores de la anterior', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const guardar = src.match(/async function saveProduct\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(guardar, /pintarErroresFicha\(errores\)/);
+		assert.doesNotMatch(guardar, /showToast\('Selecciona una categoría'/);
+		for (const f of ['function openNewProductModal', 'function openEditProductModal']) {
+			const i = src.indexOf(f);
+			assert.match(src.slice(i, src.indexOf('\n}', i)), /limpiarErroresFicha\(\)/, `${f} no limpia los errores`);
+		}
+		assert.match(src.slice(src.indexOf('// ── ARRANQUE')), /vigilarErroresFicha\(\);/);
+	});
+});
+
+describe('borrar dice qué borra', () => {
+	// P6. Un 🗑 con title="Eliminar" y nada más, en una lista de cien filas.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	test('el de cada plato y el de cada categoría llevan nombre accesible con el nombre', () => {
+		assert.match(src, /delBtnMovil\.setAttribute\('aria-label',`Eliminar «\$\{p\.nombre\}»`\)/);
+		assert.match(src, /delBtn\.setAttribute\('aria-label',`Eliminar la categoría «\$\{cat\.nombre\}»`\)/);
+	});
+
+	test('la fila de categoría pinta ese nombre de verdad', () => {
+		const nodo = () => ({ className: '', textContent: '', style: {}, hijos: [], title: '', type: '', atributos: {},
+			appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {}, setAttribute(k, v) { this.atributos[k] = String(v); } });
+		const lista = nodo();
+		const ctx = cargar('index.html', 'function renderCatList', '// Muestra/oculta el campo de imagen', {
+			state: { categorias: [{ id: 'c1', nombre: 'Bebidas' }], productos: [] },
+			document: { getElementById: () => lista, createElement: nodo },
+			categoriaVisibleAhora: () => true, describirHorario: () => '', moveCat() {}, openEditCatModal() {}, confirmDelete() {},
+		});
+		ctx.renderCatList();
+		const borrar = lista.hijos[0].hijos[2].hijos[2];
+		assert.equal(borrar.atributos['aria-label'], 'Eliminar la categoría «Bebidas»');
 	});
 });

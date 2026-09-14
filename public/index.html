@@ -341,6 +341,9 @@
 			  border:1px solid var(--border);border-radius:var(--radius);color:var(--text);
 			  font-family:var(--sans);font-size:14px;outline:none;transition:border-color .2s;}
 			.form-input:focus,.form-textarea:focus,.form-select:focus{border-color:var(--accent);}
+			/* F2: el error se dice junto al campo, no solo en un aviso abajo a la derecha. */
+			.form-input.con-error,.form-select.con-error{border-color:var(--danger);}
+			.campo-error{margin-top:5px;font-size:11px;color:var(--danger);line-height:1.5;}
 			.form-textarea{resize:vertical;min-height:75px;line-height:1.5;}
 			.form-select option{background:var(--card);}
 			.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -3305,7 +3308,10 @@ function renderProducts() {
     // Basurero solo visible en móvil (en desktop la col 6 tiene el suyo)
     const delBtnMovil=document.createElement('button');
     delBtnMovil.className='btn-del btn-del-movil'; delBtnMovil.type='button';
-    delBtnMovil.title='Eliminar'; delBtnMovil.textContent='🗑';
+    // P6: solo un icono. Con nombre para el lector de pantalla, y diciendo QUÉ
+    // borra: en una lista de cien filas, «Eliminar» a secas no dice cuál.
+    delBtnMovil.title=`Eliminar «${p.nombre}»`; delBtnMovil.setAttribute('aria-label',`Eliminar «${p.nombre}»`);
+    delBtnMovil.textContent='🗑';
     delBtnMovil.addEventListener('click',function(){confirmDelete('producto',p.id,p.nombre);});
     actionsDiv.appendChild(precioMovil);
     actionsDiv.appendChild(editBtn);
@@ -3353,6 +3359,7 @@ function openNewProductModal() {
 	// Se corta aquí, antes de pedir nada: se abre la categoría con una nota, y al
 	// guardarla se vuelve a esta ficha con ella ya elegida.
 	if (!state.categorias.length) { abrirPrimeraCategoria(); return; }
+	limpiarErroresFicha();
 	state.pendingImgUrl=null;
 	document.getElementById('productModalTitle').textContent='Nuevo producto';
 	document.getElementById('editProductId').value='';
@@ -3578,6 +3585,7 @@ function chipToggle(emoji, label, activo, onClick) {
 
 function openEditProductModal(id) {
 	const p=state.productos.find(pr=>pr.id===id); if(!p) return;
+	limpiarErroresFicha();
 	state.pendingImgUrl=null;
 	document.getElementById('productModalTitle').textContent='Editar producto';
 	document.getElementById('editProductId').value=p.id;
@@ -5135,35 +5143,87 @@ function handleProductBg(e) {
 	if (e.target.id === 'productModal') intentarCerrarProducto();
 }
 
+// ── LOS ERRORES DE LA FICHA DEL PLATO ─────────────────────────
+// F2 en docs/revision-ux.md. Eran tres return seguidos: el de la categoría no
+// llevaba el foco al campo (los otros dos sí), todos se decían solo en un aviso
+// abajo a la derecha, lejos del campo, y se descubrían de uno en uno —guardas,
+// corriges, guardas, corriges—. Ahora se miran los tres a la vez, cada uno se
+// marca en su sitio y el foco va al primero.
+//
+// Devuelve los errores en el orden de la ficha, que es el orden en que se leen.
+function erroresDeFicha({ categoria, nombre, precio }) {
+  const errores = [];
+  if (!String(nombre || '').trim()) errores.push({ campo: 'editNombre', mensaje: 'Escribe el nombre del plato.' });
+  if (!categoria) errores.push({ campo: 'editCategoria', mensaje: 'Elige en qué categoría va.' });
+  // El precio no puede caer a 0 por descuido. El campo es type="number", así
+  // que lo que llega o es un número o es la cadena vacía — y la cadena vacía
+  // con `parseFloat(...) || 0` se guardaba como $ 0 sin decir nada. El cero
+  // escrito a mano sí pasa: una cortesía es un precio legítimo.
+  const bruto = String(precio ?? '').trim();
+  const n = Number(bruto);
+  if (bruto === '' || !Number.isFinite(n) || n < 0) errores.push({ campo: 'editPrecioNum', mensaje: 'Escribe el precio, solo el número.' });
+  return errores;
+}
+
+const CAMPOS_FICHA = ['editNombre', 'editCategoria', 'editPrecioNum'];
+
+function limpiarErrorDeCampo(id) {
+  const campo = document.getElementById(id);
+  if (!campo) return;
+  campo.classList.remove('con-error');
+  campo.removeAttribute('aria-invalid');
+  campo.removeAttribute('aria-describedby');
+  document.getElementById(id + 'Error')?.remove();
+}
+
+function limpiarErroresFicha() { CAMPOS_FICHA.forEach(limpiarErrorDeCampo); }
+
+function pintarErroresFicha(errores) {
+  limpiarErroresFicha();
+  for (const { campo, mensaje } of errores) {
+    const el = document.getElementById(campo);
+    if (!el) continue;
+    el.classList.add('con-error');
+    el.setAttribute('aria-invalid', 'true');
+    const aviso = document.createElement('div');
+    aviso.id = campo + 'Error';
+    aviso.className = 'campo-error';
+    aviso.textContent = mensaje;
+    el.setAttribute('aria-describedby', aviso.id);
+    el.insertAdjacentElement('afterend', aviso);
+  }
+  if (errores.length) document.getElementById(errores[0].campo)?.focus();
+}
+
+// Al corregir un campo su error se va, sin esperar a volver a guardar.
+function vigilarErroresFicha() {
+  for (const id of CAMPOS_FICHA) {
+    const el = document.getElementById(id);
+    el?.addEventListener('input', () => limpiarErrorDeCampo(id));
+    el?.addEventListener('change', () => limpiarErrorDeCampo(id));
+  }
+}
+
 async function saveProduct() {
 	const btn=document.getElementById('btnSaveProduct');
 	btn.disabled=true; btn.textContent='Guardando...';
 	const id=document.getElementById('editProductId').value;
 	const catId=document.getElementById('editCategoria').value;
-	if(!catId){showToast('Selecciona una categoría','error');btn.disabled=false;btn.textContent='Guardar';return;}
-	// El precio no puede caer a 0 por descuido. El campo es type="number", así
-	// que lo que llega o es un número o es la cadena vacía — y la cadena vacía
-	// con `parseFloat(...) || 0` se guardaba como $ 0 sin decir nada: el plato
-	// quedaba publicado, visible en la carta y sumando cero en el carrito.
-	//
-	// El cero escrito a mano sí pasa: una cortesía o un acompañamiento sin
-	// coste es un precio legítimo. Lo que se rechaza es no haber escrito nada.
-	// El nombre se comprobaba en el servidor y no aquí, así que el aviso
-	// llegaba después del viaje. El precio ya se miraba antes de enviar; esto
-	// es lo mismo para el otro campo obligatorio.
+	const errores=erroresDeFicha({
+		categoria: catId,
+		nombre: document.getElementById('editNombre').value,
+		precio: document.getElementById('editPrecioNum').value,
+	});
+	if(errores.length){
+		pintarErroresFicha(errores);
+		// El aviso de siempre se queda, pero ahora resume: el detalle está en cada campo.
+		showToast(errores.length===1 ? errores[0].mensaje : `Faltan ${errores.length} datos del plato`,'error');
+		btn.disabled=false;btn.textContent='Guardar';return;
+	}
+	limpiarErroresFicha();
+	// Ya validados arriba (erroresDeFicha): aquí solo se leen.
 	const nombrePlato=document.getElementById('editNombre').value.trim();
-	if(!nombrePlato){
-		showToast('Escribe el nombre del plato','error');
-		document.getElementById('editNombre').focus();
-		btn.disabled=false;btn.textContent='Guardar';return;
-	}
-	const precioBruto=document.getElementById('editPrecioNum').value.trim();
-	const precioNum=Number(precioBruto);
-	if(precioBruto===''||!Number.isFinite(precioNum)||precioNum<0){
-		showToast('Escribe el precio del plato','error');
-		document.getElementById('editPrecioNum').focus();
-		btn.disabled=false;btn.textContent='Guardar';return;
-	}
+	const precioNum=Number(document.getElementById('editPrecioNum').value.trim());
 	const precioTexto=formatPrecio(precioNum);
 	const filtroActual=state.catFiltro; // conservar filtro activo
 	const body={
@@ -5511,7 +5571,8 @@ function renderCatList() {
 
     // Eliminar
     const delBtn=document.createElement('button');
-    delBtn.className='btn-del'; delBtn.type='button'; delBtn.title='Eliminar'; delBtn.textContent='🗑';
+    delBtn.className='btn-del'; delBtn.type='button'; delBtn.textContent='🗑';
+    delBtn.title=`Eliminar la categoría «${cat.nombre}»`; delBtn.setAttribute('aria-label',`Eliminar la categoría «${cat.nombre}»`);
     delBtn.addEventListener('click',()=>confirmDelete('categoria',cat.id,cat.nombre));
 
     const acciones=document.createElement('div'); acciones.className='cat-acciones';
@@ -9973,6 +10034,7 @@ function habilitarArrastre() {
 habilitarArrastre();
 vigilarCambiosApariencia();
 vigilarBordesDeTabs();
+vigilarErroresFicha();
 
 if(token && state.rol && state.restauranteSlug) {
   if(state.rol==='admin' && !sessionStorage.getItem('menuAdminEditingResto')) {
