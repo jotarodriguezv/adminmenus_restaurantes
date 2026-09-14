@@ -746,17 +746,22 @@ imagen libre para la pantalla ya era una promoción con `en_tv` y sin
 - ~~¿En qué planes entra?~~ **Decidido:** capacidad `tv` en `completo` y
   `video`. Sigue pendiente la revisión de los planes en general: los nombres no
   dicen lo que incluyen y el de video se añadió después de constituirlos.
-- **Panel de capacidades por restaurante para el superadmin.** Hoy se editan a
-  mano en `atributos`. Anotado, no urgente.
+- **Panel de capacidades por restaurante para el superadmin.** A 14/09/2026,
+  **a medias:** Apariencia ya tiene el selector de **plan** y el interruptor de
+  **importar carta**, y la capacidad `tv` sale del plan. Lo que sigue sin
+  pantalla es conceder una capacidad suelta fuera de su plan. Anotado, no urgente.
 - **¿800 px bastan?** Probado en televisor el 30/08/2026: **con 3 y 4 se ven
   bien; con 2 se nota y con 1 más.** Falta decidir qué hacer — subir el límite
   para las fotos nuevas es fácil, volver a subir las 119 que ya hay no lo es.
-- **Tres restaurantes sin plan** (perroscriollos, sanjavier, aojocerrado) caen
-  por defecto en `pedidos` y reciben QR, estadísticas y horarios sin que nadie
-  lo haya decidido.
-- **¿La tipografía del restaurante en la cartelera?** Los colores ya se toman
-  (10.quinquies); las fuentes no, porque cargarlas de Google Fonts mete una
-  petición de red bloqueante en una pantalla que se enciende sola cada mañana.
-  Alternativa si se quiere: servirlas desde el propio VPS, como las imágenes.
+- **Restaurantes sin plan.** Eran tres (perroscriollos, sanjavier,
+  aojocerrado). **A 14/09/2026:** perroscriollos está en `completo` y
+  aojocerrado en `pedidos`, pero **sanjavier y gale** siguen sin plan —además
+  de `zz-pruebas-ux`, que es de pruebas— y caen por defecto en `pedidos`,
+  con QR, estadísticas y horarios sin que nadie lo haya decidido.
+- ~~¿La tipografía del restaurante en la cartelera?~~ **Hecho** (vmenus-app,
+  04/09/2026): `tv.html` toma `fuente_titulo` y `fuente_cuerpo` del restaurante
+  («LA TIPOGRAFÍA QUE ELIGIÓ EL RESTAURANTE»). Lo de abajo es por qué costaba:
+  cargarlas de Google Fonts mete una petición de red en una pantalla que se
+  enciende sola cada mañana.
 - **El lavado del fondo es muy sutil a propósito** (11 % y 9 %). Si se quiere
   más marca, es un número; si se sube mucho, compite con las fotos.

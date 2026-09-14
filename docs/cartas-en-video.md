@@ -1181,6 +1181,13 @@ a la misma cola: es otra forma de llenarla, no otra arquitectura. Notas para ent
 
 Estado a agosto de 2026. Pensada para copiar y pegar.
 
+> **Repasada contra el código y la base el 14/09/2026.** Tres casillas llevaban
+> semanas sin marcar estando hechas (la generación con IA, las pruebas de
+> `argumentosPortada` y la IA como salida de producto), y la sección de
+> mantenimiento del final daba por pendiente un reinicio hecho el 23/08. Lo que
+> depende del servidor —redespliegues, `docker system df`, `PIN_ADMIN`— no se
+> puede comprobar desde el repositorio y se deja como estaba.
+
 ### Video
 
 - [x] **Paso 0 — Medición.** Parámetros fijados sobre mediciones reales
@@ -1195,10 +1202,12 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       deslizamiento con `scroll-snap`, tres estilos (`clasico`, `intenso`, `avance`)
       elegibles desde el panel. En producción en Indigo; Voro sigue de demo
       horizontal
-- [ ] **Paso 4 — Generación con IA.** Foto → video contra un servicio externo, a la misma cola.
+- [x] **Paso 4 — Generación con IA.** Foto → video contra un servicio externo, a la misma cola.
       **Análisis cerrado el 24/08/2026 en `docs/video-con-ia.md`** — modelo
       `minimax/hailuo-02`, 6 s, 768p, cupo de 24 generaciones por restaurante.
-      Sin implementar: la fase 0 es medir dos platos reales antes de integrar
+      **Implementado:** `ia.js`, `colaia.js` y `cupo.js`, con trabajos
+      `origen_tipo: 'ia'`. Primera generación real el 24/08/2026 (Juan Mar),
+      de punta a punta en ~2 min 24 s. Ver `docs/video-con-ia.md` §7
 - [x] Probado el recorte 16:9 con origen vertical: el plato queda centrado, pero se
       pierde el 69 % de la altura. Decisión tomada: se mantiene 16:9 y se recomienda
       al restaurante grabar en horizontal
@@ -1223,11 +1232,9 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       ampliar una fuente pequeña, que se corta por el mismo segundo que el
       entregable y que lleva `-nostdin`. (Esta casilla llevaba tiempo sin marcar
       diciendo que faltaba algo que ya estaba hecho.)
-- [ ] Pruebas para `argumentosPortada`. Hoy solo se comprueba que lleva
-      `-nostdin`. **Nadie fija que pida un fotograma y no un video**: faltan
-      `-frames:v 1`, `-update 1` y la calidad `-q:v 5`. Si eso se rompiera, en
-      vez de un JPEG saldría otra cosa y el trabajo moriría en "La portada salió
-      vacía", que es un mensaje que no explica la causa. Son 3 pruebas
+- [x] Pruebas para `argumentosPortada`. Están en `test/video.test.js`: fijan
+      `-frames:v 1`, `-update 1` y la calidad `-q:v 5`, además de `-nostdin`.
+      (Marcada el 14/09/2026; la casilla decía que faltaban.)
 - [x] Pruebas para `limpieza.recogerNombres` — y para `pasada`, que es la que borra
 
 ### Seguridad
@@ -1375,7 +1382,8 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       log: el `MAILTO` de este servidor no llega a ningún sitio. Le falta su
       propio check en healthchecks.io, como ya tiene `respaldo.sh`
 - [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
-- [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Comprobado el
+- [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Sigue ahí el
+      14/09/2026, con los mismos 4 objetos. Comprobado el
       23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
       tamaño de uno solo, `fondos/bonzas.png`), del 10 de julio, y **ninguno
       referenciado** por restaurantes, productos ni categorías. Seguro de
@@ -1399,9 +1407,9 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       para los restaurantes de fuera del área. Debería decir en horizontal o
       vertical según su modelo, cuántos segundos, con qué luz, y que no hace
       falta editar nada porque el recorte lo hace el servidor
-- [ ] Generación con IA: queda como posible salida para los de fuera del área
-      que no quieran grabar ni contratar. Si se explora, probar 3-4 modelos con
-      la misma foto de plato y verificar precios vigentes y licencia comercial
+- [x] Generación con IA como salida para los de fuera del área que no quieran
+      grabar ni contratar. **Hecha:** es el Paso 4 de arriba, con el modelo y los
+      precios elegidos en `docs/video-con-ia.md`
 
 ---
 
@@ -1425,8 +1433,11 @@ esporádica, probablemente nunca haga falta.
 - `/opt/menus/uploads` **ya está respaldado** desde el 22/08/2026 — instantáneas
   diarias en Backblaze, con restauración comprobada. Todo lo operativo (rutas,
   cron, secretos, cómo recuperar) está en `docs/servidor.md`; cómo se montó, en
-  `respaldo/LEEME.md`. Lo que sigue abierto es enterarse si deja de correr.
-- Hay un reinicio pendiente por actualización de kernel y actualizaciones de
-  seguridad sin aplicar. Hacer en horario de restaurantes cerrados.
+  `respaldo/LEEME.md`. ~~Lo que sigue abierto es enterarse si deja de correr.~~
+  **Hecho el 23/08/2026** con healthchecks.io. Lo que falta es la alarma de la
+  **prueba mensual** de restauración: `probar-restauracion.sh` no avisa a nadie
+  (comprobado el 14/09/2026, no tiene ping).
+- ~~Hay un reinicio pendiente por actualización de kernel y actualizaciones de
+  seguridad sin aplicar.~~ **Hecho el 23/08/2026** (ver la checklist de arriba).
 - Revisar `docker system df`: 26 GB usados de 48 sin video de por medio, y las
   imágenes viejas de Docker suelen ser lo que más ocupa.
