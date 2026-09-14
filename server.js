@@ -755,7 +755,10 @@ const planDe = atributos => PLANES[atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
 // 'se_pide_sin_abrir' (B3) solo lo lee el panel, para no listar bebidas y
 // adicionales en «Platos que nadie abrió». No es un dato sensible —categorias es
 // pública— y la carta lo ignora.
-const ATRIBUTOS_CATEGORIA_PERMITIDOS = ['horario', 'imagen_cabecera', 'se_pide_sin_abrir'];
+// 'nota' (P4) es el texto que la carta pinta bajo el título: «Todas van con papas».
+// Antes se hacía con un plato de $ 0, que se movía de sitio al cambiar el orden.
+const ATRIBUTOS_CATEGORIA_PERMITIDOS = ['horario', 'imagen_cabecera', 'se_pide_sin_abrir', 'nota'];
+const NOTA_CATEGORIA_MAX = 200;
 const ATRIBUTOS_CATEGORIA_SEGUN_PLAN = { horario: 'horarios' };
 
 // El panel manda el objeto "atributos" COMPLETO: apagar un horario es borrar
@@ -770,7 +773,16 @@ function atributosCategoria(entrantes, actuales, esAdmin, plan) {
     // borra lo que ya hubiera: bajar de plan no debe destruir la configuración.
     const valor = bloqueada ? actuales?.[clave] : entrantes?.[clave];
     // null es como el panel pide quitar una imagen de cabecera.
-    if (valor !== undefined && valor !== null) out[clave] = valor;
+    if (valor === undefined || valor === null) continue;
+    if (clave === 'nota') {
+      // Texto y nada más: la carta la escapa, pero un objeto o un número aquí
+      // romperían la plantilla. Vacía no se guarda; larga se corta.
+      if (typeof valor !== 'string') continue;
+      const nota = valor.trim().slice(0, NOTA_CATEGORIA_MAX);
+      if (nota) out.nota = nota;
+      continue;
+    }
+    out[clave] = valor;
   }
   return out;
 }
