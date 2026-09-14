@@ -5974,3 +5974,42 @@ describe('la categoría lleva una nota opcional para la carta', () => {
 		assert.match(guardar, /const nota=document\.getElementById\('editCatNota'\)\.value\.trim\(\);\s*if\(nota\) atributos\.nota = nota; else delete atributos\.nota;/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('Apariencia enseña lo que el modelo usa', () => {
+	// A4 en docs/revision-ux.md.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const conModelo = nav => {
+		const mapa = { apNavModelo: { value: nav }, apEstiloFila: { style: {} }, apPortadaCard: { style: {} }, apHeroFila: { style: {} } };
+		const ctx = cargar('index.html', [['function navElegido', 'function aplicarPlanAlPanel']], {
+			state: { restaurante: { atributos: { nav } } },
+			document: { getElementById: id => mapa[id] },
+		});
+		ctx.ajustarEstiloAlModelo();
+		return mapa;
+	};
+
+	test('la portada solo con explorar', () => {
+		assert.equal(conModelo('explorar').apPortadaCard.style.display, '');
+		for (const nav of ['topnav', 'sidebar', 'carrito', 'video', 'vertical'])
+			assert.equal(conModelo(nav).apPortadaCard.style.display, 'none', nav);
+	});
+
+	test('el mensaje de bienvenida solo con sidebar y carrito', () => {
+		for (const nav of ['sidebar', 'carrito']) assert.equal(conModelo(nav).apHeroFila.style.display, 'flex', nav);
+		for (const nav of ['topnav', 'explorar', 'video', 'vertical'])
+			assert.equal(conModelo(nav).apHeroFila.style.display, 'none', nav);
+	});
+
+	test('se ajusta al cambiar el modelo y al cargar', () => {
+		assert.match(src, /id="apNavModelo" onchange="ajustarEstiloAlModelo\(\)"/);
+		assert.match(src, /getElementById\('apNavModelo'\)\.value = at\.nav \|\| 'topnav';[^\n]*\n[^\n]*\n\s*ajustarEstiloAlModelo\(\);/);
+	});
+
+	test('los filtros no se esconden ni dicen que son de explorar: los pintan todos los modelos', () => {
+		assert.match(src, /<div class="section-card" id="apFiltrosCard">\s*<div class="section-title">Filtros y etiquetas<\/div>/);
+		assert.doesNotMatch(src, /\(solo modelo explorar\)<\/span><\/div>/);
+		const ajustar = src.match(/function ajustarEstiloAlModelo\(\) \{[\s\S]*?\n\}/)[0];
+		assert.doesNotMatch(ajustar, /apFiltrosCard/);
+	});
+});
