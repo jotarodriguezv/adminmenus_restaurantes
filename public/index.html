@@ -677,28 +677,43 @@
 		</style>
 		<script>
 			// Antes de pintar nada, para que no parpadee al recargar.
+			//
+			// L5: el login no seguía la vista clara del sistema. Y no bastaba con
+			// mirarla: el panel GUARDABA el tema en cada carga, así que quien había
+			// entrado alguna vez tenía «oscuro» guardado sin haberlo elegido nunca.
+			// Ahora solo se guarda al pulsar el botón, en otra clave. La vieja se lee
+			// solo si dice «claro»: por defecto era oscuro, así que «claro» ahí sí fue
+			// una elección; «oscuro» no se sabe, y manda el sistema.
 			try {
-				const t = localStorage.getItem('menuAdminTema');
-				if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+				const elegido = localStorage.getItem('menuAdminTemaElegido');
+				const antiguo = localStorage.getItem('menuAdminTema');
+				const claro = elegido
+					? elegido === 'light'
+					: antiguo === 'light' || window.matchMedia('(prefers-color-scheme: light)').matches;
+				if (claro) document.documentElement.setAttribute('data-theme', 'light');
 			} catch (e) {}
 		</script>
 	</head>
 	<body>
 		<!-- LOGIN -->
-		<div id="loginScreen">
+		<div id="loginScreen" style="position:relative">
+			<!-- L5: el interruptor de tema solo aparecía DESPUÉS de entrar. -->
+			<button class="btn-sm btn-tema" onclick="toggleTema()" style="position:absolute;top:16px;right:16px;min-width:34px;font-size:13px;line-height:1;"></button>
 			<div class="login-box">
 				<div class="login-brand">
 					<div class="login-brand-sub">Sistema de Gestión</div>
 					<div class="login-brand-name">MENÚS DIGITALES</div>
 				</div>
 				<div class="login-card">
-					<label for="slugInput" class="login-label">Identificador de acceso</label>
+					<!-- L3: «Identificador de acceso» era jerga; quien explicaba de verdad era
+					     el placeholder. El dueño piensa en el nombre de su restaurante. -->
+					<label for="slugInput" class="login-label">Nombre corto de tu restaurante</label>
 					<input type="text" class="login-input" id="slugInput" placeholder="ej: bonzas"
 					autocomplete="username" autocapitalize="none" spellcheck="false"
 					oninput="clearLoginError()" onkeydown="if(event.key==='Enter')document.getElementById('pinInput').focus()">
 					<label for="pinInput" class="login-label">PIN</label>
 					<input type="password" class="login-input pin-input" id="pinInput"
-					maxlength="10" placeholder="····" autocomplete="current-password"
+					maxlength="10" autocomplete="current-password"
 					oninput="clearLoginError()" onkeydown="if(event.key==='Enter')doLogin()">
 					<button class="btn-primary" onclick="doLogin()">INGRESAR</button>
 					<div class="login-error" id="loginError"></div>
@@ -2759,7 +2774,7 @@ function clearLoginError() {
 async function doLogin() {
   const slug = document.getElementById('slugInput').value.trim().toLowerCase();
   const pin  = document.getElementById('pinInput').value;
-  if (!slug) { document.getElementById('slugInput').classList.add('error'); document.getElementById('loginError').textContent='Ingresa el identificador'; return; }
+  if (!slug) { document.getElementById('slugInput').classList.add('error'); document.getElementById('loginError').textContent='Escribe el nombre corto de tu restaurante'; return; }
   if (!pin)  { document.getElementById('pinInput').classList.add('error');  document.getElementById('loginError').textContent='Ingresa el PIN'; return; }
   try {
     const res = await fetch(`${API}/api/login`, {
@@ -9976,10 +9991,12 @@ function volverAlAdmin() {
 // Preferencia del navegador de quien usa el panel, no del restaurante:
 // va en localStorage, no en la base de datos. Dos personas del mismo
 // restaurante pueden verlo distinto.
-function aplicarTema(tema) {
+function aplicarTema(tema, { guardar = true } = {}) {
   if (tema === 'light') document.documentElement.setAttribute('data-theme', 'light');
   else document.documentElement.removeAttribute('data-theme');
-  try { localStorage.setItem('menuAdminTema', tema); } catch (e) {}
+  // Solo cuando alguien lo elige: guardarlo al cargar convertía el tema por
+  // defecto en una elección que nadie hizo (ver el script del <head>).
+  if (guardar) try { localStorage.setItem('menuAdminTemaElegido', tema); } catch (e) {}
   const claro = tema === 'light';
   document.querySelectorAll('.btn-tema').forEach(b => {
     b.textContent = claro ? '🌙' : '☀';
@@ -9996,7 +10013,7 @@ function toggleTema() {
 }
 
 // El atributo ya lo puso el script del <head>; esto solo pone los iconos.
-aplicarTema(temaActual());
+aplicarTema(temaActual(), { guardar: false });
 
 // ── ARRASTRAR Y SOLTAR ────────────────────────────────────────
 // Soltar un archivo hace exactamente lo mismo que elegirlo con el diálogo: se

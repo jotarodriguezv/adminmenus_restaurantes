@@ -5192,3 +5192,80 @@ describe('la pestaña de toppings vacía explica para qué sirve', () => {
 		assert.match(guia, /no sale en la carta hasta que algún plato lo ofrece/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('el login: textos claros y la vista clara del sistema', () => {
+	// L3, L4 y L5 en docs/revision-ux.md.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('la etiqueta habla del restaurante, no de un «identificador de acceso»', () => {
+		assert.match(src, /<label for="slugInput" class="login-label">Nombre corto de tu restaurante<\/label>/);
+		// Sin comentarios: el que explica este cambio cita el texto viejo.
+		const visible = src.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\/.*$/gm, '');
+		assert.doesNotMatch(visible, /Identificador de acceso/);
+		// Y el error de dejarlo vacío habla igual que la etiqueta.
+		assert.doesNotMatch(visible, /Ingresa el identificador/);
+		assert.match(visible, /textContent='Escribe el nombre corto de tu restaurante'/);
+	});
+
+	test('el PIN vacío no parece traer algo escrito', () => {
+		const pin = src.match(/<input[^>]*id="pinInput"[\s\S]*?>/)[0];
+		assert.doesNotMatch(pin, /placeholder="[·•*.]+"/);
+	});
+
+	// ── L5: el tema inicial, con el script real del <head> ──
+	const scriptTema = (() => {
+		const i = src.indexOf("const elegido = localStorage.getItem('menuAdminTemaElegido');");
+		assert.ok(i > 0, 'no se encontró el script de tema del <head>');
+		const ini = src.lastIndexOf('try {', i), fin = src.indexOf('} catch (e) {}', i) + '} catch (e) {}'.length;
+		return src.slice(ini, fin);
+	})();
+	function temaAlCargar({ elegido = null, antiguo = null, sistemaClaro = false }) {
+		let tema = null;
+		const guardado = { menuAdminTemaElegido: elegido, menuAdminTema: antiguo };
+		vm.runInNewContext(scriptTema, {
+			localStorage: { getItem: k => guardado[k] ?? null },
+			window: { matchMedia: q => ({ matches: q.includes('light') && sistemaClaro }) },
+			document: { documentElement: { setAttribute: (k, v) => { if (k === 'data-theme') tema = v; } } },
+		});
+		return tema || 'dark';
+	}
+
+	test('sin nada elegido, sigue al sistema', () => {
+		assert.equal(temaAlCargar({ sistemaClaro: true }), 'light');
+		assert.equal(temaAlCargar({ sistemaClaro: false }), 'dark');
+	});
+
+	test('lo elegido con el botón manda sobre el sistema', () => {
+		assert.equal(temaAlCargar({ elegido: 'dark', sistemaClaro: true }), 'dark');
+		assert.equal(temaAlCargar({ elegido: 'light', sistemaClaro: false }), 'light');
+	});
+
+	test('el «oscuro» que el panel guardaba solo, sin elegirlo, ya no tapa al sistema', () => {
+		// Es el caso de casi todo el que había entrado alguna vez: la carga
+		// guardaba el tema por defecto.
+		assert.equal(temaAlCargar({ antiguo: 'dark', sistemaClaro: true }), 'light');
+	});
+
+	test('un «claro» antiguo sí fue una elección, y se respeta', () => {
+		assert.equal(temaAlCargar({ antiguo: 'light', sistemaClaro: false }), 'light');
+	});
+
+	test('cargar la página no guarda nada; solo el botón guarda', () => {
+		const guardados = [];
+		const ctx = cargar('index.html', 'function aplicarTema', 'function temaActual', {
+			localStorage: { setItem: (k, v) => guardados.push([k, v]) },
+			document: { documentElement: { setAttribute() {}, removeAttribute() {} }, querySelectorAll: () => [] },
+		});
+		ctx.aplicarTema('dark', { guardar: false });
+		assert.deepEqual(guardados, []);
+		ctx.aplicarTema('light');
+		assert.deepEqual(guardados, [['menuAdminTemaElegido', 'light']]);
+		assert.match(src, /aplicarTema\(temaActual\(\), \{ guardar: false \}\);/);
+	});
+
+	test('el botón de tema está también en el login', () => {
+		const login = src.slice(src.indexOf('<div id="loginScreen"'), src.indexOf('<div class="login-box">'));
+		assert.match(login, /class="btn-sm btn-tema" onclick="toggleTema\(\)"/);
+	});
+});
