@@ -12,11 +12,62 @@ set -euo pipefail
 CARPETA="${RESPALDO_ORIGEN:-/opt/menus/uploads}"
 CONFIG="${RESPALDO_ENV:-/root/.respaldo.env}"
 DESTINO=$(mktemp -d "${RESPALDO_DESTINO_TMP:-/tmp}/prueba-respaldo-XXXXXX")
-trap 'rm -rf "$DESTINO"' EXIT
+SALIDA=$(mktemp "${TMPDIR:-/tmp}/prueba-respaldo-salida-XXXXXX")
+
+# ── AVISAR A LA VIGILANCIA ────────────────────────────────────────────────
+# Esta prueba corre una vez al mes desde cron, y el MAILTO de este servidor no
+# llega a ningún sitio. Sin esto, el día que la copia deje de restaurarse bien
+# el único rastro es una línea en un log que nadie abre: la misma trampa de la
+# que protege respaldo.sh, un mes más lenta.
+#
+# Tiene su propio check, RESTAURACION_PING, y NO reutiliza RESPALDO_PING. Ese
+# check espera noticias cada día; un ping mensual no lo mantendría vivo, y un
+# fallo de aquí lo pondría en rojo como si el respaldo diario hubiera fallado,
+# que no es lo que pasó.
+#
+# Se avisa desde un trap de salida y no en cada 'exit 1' a mano: el script
+# tiene 'set -e', así que puede morirse en cualquier línea —un restic que
+# revienta, un find sin permisos— sin pasar por ningún echo de error. El trap
+# se entera de todas. Al fallar manda las últimas líneas de la salida, para
+# que el aviso ya diga qué pasó.
+#
+# Sin RESTAURACION_PING configurado no hace nada distinto. Y si falta el propio
+# /root/.respaldo.env no hay URL a la que avisar, pero tampoco llega el ping de
+# éxito: ese silencio es el que healthchecks convierte en aviso.
+exec > >(tee "$SALIDA") 2>&1
+TEE_PID=$!
+
+al_salir() {
+  local codigo=$?
+  rm -rf "$DESTINO"
+  if [ -n "${RESTAURACION_PING:-}" ]; then
+    # Hay que dejar terminar a tee antes de leer $SALIDA: si no, las últimas
+    # líneas —justo las que dicen por qué falló— pueden no estar escritas aún.
+    exec 1>&- 2>&-
+    wait "$TEE_PID" 2>/dev/null || true
+    # Los fallos del aviso no cambian el resultado de la prueba: una copia
+    # buena sigue siendo buena aunque healthchecks no conteste.
+    if [ "$codigo" -eq 0 ]; then
+      curl -fsS -m 10 --retry 3 "$RESTAURACION_PING" > /dev/null 2>&1 || true
+    else
+      tail -20 "$SALIDA" | curl -fsS -m 10 --retry 3 --data-binary @- \
+        "$RESTAURACION_PING/fail" > /dev/null 2>&1 || true
+    fi
+  fi
+  rm -f "$SALIDA"
+  exit "$codigo"
+}
+trap al_salir EXIT
 
 [ -r "$CONFIG" ] || { echo "❌ no se puede leer $CONFIG"; exit 1; }
 # shellcheck disable=SC1090
 . "$CONFIG"
+
+# El /start le dice a healthchecks que la prueba arrancó. Así mide cuánto
+# tarda y, si se queda colgada restaurando, avisa por el margen en vez de
+# esperar al mes siguiente.
+[ -n "${RESTAURACION_PING:-}" ] && \
+  curl -fsS -m 10 "$RESTAURACION_PING/start" > /dev/null 2>&1 || true
 
 # ── ¿Cabe? ────────────────────────────────────────────────────────────────
 # Esto restaura la copia ENTERA, y con los masters de video eso son gigas.
