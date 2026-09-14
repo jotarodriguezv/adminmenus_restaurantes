@@ -603,7 +603,9 @@ app.post('/api/restaurantes', auth, async (req, res) => {
   if (!nombre || !slug) return res.status(400).json({ error: 'Nombre y slug requeridos' });
   const malSlug = errorDeSlug(slug);
   if (malSlug) return res.status(400).json({ error: malSlug });
-  if (!pin || pin.length < 4) return res.status(400).json({ error: 'PIN requerido (mínimo 4 caracteres)' });
+  // Máximo 10: es lo que admite el campo del login. Uno más largo se guardaba y
+  // no servía para entrar (visto en CL3).
+  if (!pin || pin.length < 4 || pin.length > 10) return res.status(400).json({ error: 'El PIN debe tener entre 4 y 10 caracteres' });
   const pin_hash = await bcrypt.hash(pin, 10);
 
   let atributos = {};
@@ -645,7 +647,9 @@ app.post('/api/restaurantes', auth, async (req, res) => {
 app.patch('/api/restaurantes/:id/pin', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
   const { pin } = req.body;
-  if (!pin || pin.length < 4) return res.status(400).json({ error: 'PIN requerido (mínimo 4 caracteres)' });
+  // Máximo 10: es lo que admite el campo del login. Uno más largo se guardaba y
+  // no servía para entrar (visto en CL3).
+  if (!pin || pin.length < 4 || pin.length > 10) return res.status(400).json({ error: 'El PIN debe tener entre 4 y 10 caracteres' });
   const pin_hash = await bcrypt.hash(pin, 10);
   // upsert y no update: un restaurante que todavía no tiene fila de
   // credenciales (creado antes de que el PIN fuera obligatorio) también
