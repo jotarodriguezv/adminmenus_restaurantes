@@ -134,11 +134,13 @@
 			.tabs::-webkit-scrollbar{height:3px;}
 			.tabs::-webkit-scrollbar-track{background:transparent;}
 			.tabs::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
-			.tabs.hay-mas-derecha{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent);
+			/* P5: el carril de categorías de Productos usa el mismo aviso. Con 21
+			   categorías enseñaba 8 y nada decía que había 13 más. */
+			.tabs.hay-mas-derecha,.cat-filter.hay-mas-derecha{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent);
 			  mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent);}
-			.tabs.hay-mas-izquierda{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 48px),transparent);
+			.tabs.hay-mas-izquierda,.cat-filter.hay-mas-izquierda{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 48px),transparent);
 			  mask-image:linear-gradient(to left,#000 calc(100% - 48px),transparent);}
-			.tabs.hay-mas-izquierda.hay-mas-derecha{
+			.tabs.hay-mas-izquierda.hay-mas-derecha,.cat-filter.hay-mas-izquierda.hay-mas-derecha{
 			  -webkit-mask-image:linear-gradient(to right,transparent,#000 48px,#000 calc(100% - 48px),transparent);
 			  mask-image:linear-gradient(to right,transparent,#000 48px,#000 calc(100% - 48px),transparent);}
 			.tab-btn{padding:13px 18px;border:none;border-bottom:2px solid transparent;background:transparent;
@@ -3116,13 +3118,16 @@ function bordesConContenido({ scrollLeft, clientWidth, scrollWidth }) {
   };
 }
 
-function marcarBordesDeTabs() {
-  const tabs = document.querySelector('.tabs');
-  if (!tabs) return;
-  const b = bordesConContenido(tabs);
-  tabs.classList.toggle('hay-mas-izquierda', b.izquierda);
-  tabs.classList.toggle('hay-mas-derecha', b.derecha);
+// Sirve para cualquier carril que desplace en horizontal: las pestañas (M1) y
+// las categorías de Productos (P5).
+function marcarBordes(carril) {
+  if (!carril) return;
+  const b = bordesConContenido(carril);
+  carril.classList.toggle('hay-mas-izquierda', b.izquierda);
+  carril.classList.toggle('hay-mas-derecha', b.derecha);
 }
+
+function marcarBordesDeTabs() { marcarBordes(document.querySelector('.tabs')); }
 
 function vigilarBordesDeTabs() {
   const tabs = document.querySelector('.tabs');
@@ -3142,6 +3147,7 @@ function renderCatFilter() {
     wrap.appendChild(mkChip(`${cat.emoji||''} ${cat.nombre}`.trim(), cat.id, false));
   });
   initCatFilterDrag();
+  marcarBordes(wrap);
 }
 function mkChip(label,catId,active) {
   const c=document.createElement('button');
@@ -3155,6 +3161,9 @@ function setFilter(catId,btn) {
   state.catFiltro=catId;
   document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('active'));
   btn.classList.add('active'); renderOrdenProductos(); renderProducts();
+  // Una categoría medio fuera del carril se trae entera, para que se vea cuál
+  // está elegida (P5). 'nearest' no mueve la página en vertical.
+  btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
 }
 
 // ── PRODUCTOS ─────────────────────────────────────────────────
@@ -7795,6 +7804,14 @@ document.addEventListener('keydown',e=>{
 function initCatFilterDrag() {
   const el=document.getElementById('catFilter');
   if(!el) return;
+  // Se llama en cada renderCatFilter, que corre al guardar un plato o una
+  // categoría, y cada llamada añadía OTRA tanda de escuchas al mismo carril:
+  // tras cinco guardados, un giro de rueda desplazaba cinco veces lo debido.
+  // Visto al tocar este carril por P5. Una sola vez por elemento.
+  if(el.dataset.arrastre) return;
+  el.dataset.arrastre='1';
+  el.addEventListener('scroll',()=>marcarBordes(el),{passive:true});
+  window.addEventListener('resize',()=>marcarBordes(el));
   let isDown=false,startX,scrollLeft;
   el.addEventListener('mousedown',e=>{isDown=true;startX=e.pageX-el.offsetLeft;scrollLeft=el.scrollLeft;});
   el.addEventListener('mouseleave',()=>isDown=false);

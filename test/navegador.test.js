@@ -5597,3 +5597,47 @@ describe('la pestaña Pedidos se guarda de una vez', () => {
 		assert.match(cuerpo, /actualizarAvisoPedidos\(\)/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('el carril de categorías avisa de que hay más, y la rueda no se acelera', () => {
+	// P5 en docs/revision-ux.md: 21 categorías y 8 a la vista, sin aviso.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('el carril difumina su borde como las pestañas', () => {
+		assert.match(src, /\.tabs\.hay-mas-derecha,\.cat-filter\.hay-mas-derecha\{/);
+		assert.match(src, /\.tabs\.hay-mas-izquierda,\.cat-filter\.hay-mas-izquierda\{/);
+	});
+
+	test('marcarBordes sirve para cualquier carril', () => {
+		const clases = new Set();
+		const carril = { scrollLeft: 0, clientWidth: 862, scrollWidth: 2321,
+			classList: { toggle: (c, on) => (on ? clases.add(c) : clases.delete(c)) } };
+		const ctx = cargar('index.html', 'function bordesConContenido', 'function marcarBordesDeTabs', {});
+		ctx.marcarBordes(carril);
+		assert.ok(clases.has('hay-mas-derecha'));
+		assert.equal(clases.has('hay-mas-izquierda'), false);
+	});
+
+	test('repintar el carril no vuelve a registrar las escuchas', () => {
+		// Se repinta al guardar cada plato. Antes cada repintado añadía otra rueda,
+		// y el desplazamiento se multiplicaba por el número de guardados.
+		const escuchas = {};
+		const carril = { dataset: {}, offsetLeft: 0, scrollLeft: 0,
+			addEventListener: (ev) => { escuchas[ev] = (escuchas[ev] || 0) + 1; } };
+		const ctx = cargar('index.html', 'function initCatFilterDrag', '// ── TOAST', {
+			document: { getElementById: () => carril },
+			window: { addEventListener() {} }, marcarBordes() {},
+		});
+		for (let i = 0; i < 5; i++) ctx.initCatFilterDrag();
+		assert.equal(escuchas.wheel, 1, `la rueda quedó registrada ${escuchas.wheel} veces`);
+		assert.equal(escuchas.mousedown, 1);
+		assert.equal(escuchas.scroll, 1);
+	});
+
+	test('pintar el carril marca sus bordes, y elegir una categoría la trae a la vista', () => {
+		const pintar = src.match(/function renderCatFilter\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(pintar, /marcarBordes\(wrap\);/);
+		const elegir = src.match(/function setFilter\(catId,btn\) \{[\s\S]*?\n\}/)[0];
+		assert.match(elegir, /btn\.scrollIntoView\?\.\(\{ block: 'nearest', inline: 'nearest'/);
+	});
+});
