@@ -186,6 +186,45 @@ puede dejar sin poner.
 Para comprobar que llega, forzar una ejecución y mirar en healthchecks que el
 check pasó a verde.
 
+#### La prueba mensual de restauración, con su propio check
+
+`probar-restauracion.sh` avisa igual, pero a **otro** check y con otra
+variable, `RESTAURACION_PING`. No vale reutilizar `RESPALDO_PING`: ese check
+espera noticias cada día, y un fallo de la prueba lo pondría en rojo como si
+hubiera fallado el respaldo diario.
+
+En healthchecks.io: crear un check nuevo con horario **cron**
+`0 10 1 * *`, zona horaria **UTC** (la misma línea del crontab) y margen de
+**1 día**. Luego:
+
+```bash
+echo 'export RESTAURACION_PING=https://hc-ping.com/OTRO-UUID' >> /root/.respaldo.env
+```
+
+Manda `/start` al empezar, el ping de éxito si la copia se restaura y coincide,
+y `/fail` con las últimas veinte líneas de la salida si algo sale mal —incluido
+un comando que revienta a mitad sin llegar a ningún mensaje de error—. Si no
+llega a correr, el silencio lo convierte healthchecks en aviso al pasar el
+margen.
+
+Para probarlo en los dos sentidos sin esperar un mes:
+
+```bash
+# Verde: la prueba de verdad.
+/opt/menus/respaldo/probar-restauracion.sh
+# Rojo: una copia de la configuración apuntando a un repositorio que no existe.
+# No vale pasar RESTIC_REPOSITORY delante del comando: el script lee el .env
+# después y lo pisa con el bueno.
+( umask 077 && cp /root/.respaldo.env /root/.respaldo-malo.env \
+  && echo 'export RESTIC_REPOSITORY=b2:no-existe-vmenus:uploads' >> /root/.respaldo-malo.env )
+RESPALDO_ENV=/root/.respaldo-malo.env /opt/menus/respaldo/probar-restauracion.sh
+rm /root/.respaldo-malo.env
+```
+
+**Recordar el `docker cp`** del paso 3.bis antes de probar: el despliegue no
+actualiza `/opt/menus/respaldo/`, y sin copiarlo se estaría probando el script
+viejo, que no avisa a nadie.
+
 ## Recuperar
 
 Ver qué hay:

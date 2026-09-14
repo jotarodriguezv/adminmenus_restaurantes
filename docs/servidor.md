@@ -113,6 +113,7 @@ Ninguno está en el repositorio, y así debe seguir.
 | `RESTIC_PASSWORD` | `/root/.respaldo.env` + gestor de contraseñas | **el respaldo entero es irrecuperable** |
 | `B2_ACCOUNT_ID` / `B2_ACCOUNT_KEY` | `/root/.respaldo.env` | se generan otras en Backblaze |
 | `RESPALDO_PING` | `/root/.respaldo.env` | se regenera en healthchecks.io |
+| `RESTAURACION_PING` | `/root/.respaldo.env` | se regenera en healthchecks.io (es otro check) |
 | `PIN_ADMIN` | variables de entorno de Dokploy | se cambia en el panel de Dokploy |
 | `REPLICATE_API_TOKEN` | variables de entorno de Dokploy | se genera otro en Replicate |
 | `ANTHROPIC_API_KEY` | variables de entorno de Dokploy | se genera otra en la consola de Anthropic |
@@ -197,10 +198,11 @@ MAILTO=verificameco@gmail.com
 > `verificar.sh`. Con el `||`, una corrida buena queda en el log y en silencio, y
 > una mala le enseña a cron las últimas veinte líneas.
 >
-> **Sigue sin ser una alarma de verdad**, porque el `MAILTO` de este servidor
-> probablemente no llega a ningún sitio. Lo correcto es engancharlo a
-> healthchecks.io con su propio check mensual, como ya hace `respaldo.sh`. Queda
-> anotado en "Lo que falta".
+> **Eso solo no es una alarma de verdad**, porque el `MAILTO` de este servidor
+> probablemente no llega a ningún sitio. La alarma es el ping a su propio check
+> de healthchecks.io, `RESTAURACION_PING`, que el script manda desde el
+> 14/09/2026. Cómo configurarlo y probarlo, en `respaldo/LEEME.md` §7. El
+> `|| tail` se queda: no estorba y deja rastro en el correo si algún día llega.
 
 > El script existía desde el principio y decía que había que correrlo "de vez en
 > cuando", pero no lo corría nadie — que es el modo de fallo del que avisa su
@@ -441,9 +443,9 @@ servir dentro del VPS más barato de Hostinger.**
 
 ## 8. Lo que falta
 
-> Repasado el 14/09/2026. La alarma de la prueba de restauración sigue sin hacer:
-> `respaldo/probar-restauracion.sh` no hace ningún ping. Lo demás depende de mirar
-> el servidor y no se puede confirmar desde el repositorio.
+> Repasado el 14/09/2026. La alarma de la prueba de restauración ya está en el
+> script; falta configurarla en el servidor (abajo). Lo demás depende de mirar el
+> servidor y no se puede confirmar desde el repositorio.
 
 - ~~La vigilancia del respaldo~~ — **hecho el 23/08/2026.** Check en
   healthchecks.io (periodo 1 día, margen 6 h) y `RESPALDO_PING` en
@@ -452,14 +454,18 @@ servir dentro del VPS más barato de Hostinger.**
 - ~~Reinicio pendiente por kernel~~ — **hecho el 23/08/2026.** Corre
   6.8.0-138 y no quedan actualizaciones pendientes. Los 17 contenedores
   volvieron solos.
-- **Alarma para la prueba de restauración mensual** (29/08/2026). Está
-  programada con `|| tail`, así que un fallo le enseña algo a cron y dispara el
-  `MAILTO` — pero ese `MAILTO` de aquí probablemente no llega a ningún sitio.
-  Lo correcto es su propio check en healthchecks.io, mensual, igual que
-  `respaldo.sh`: unas diez líneas en el script y una variable nueva en
-  `/root/.respaldo.env` (no vale reutilizar `RESPALDO_PING`, que es del diario).
-  Mientras tanto, la prueba corre pero su fallo depende de que alguien mire el
-  log.
+- **Alarma para la prueba de restauración mensual** (29/08/2026). **La parte
+  del repositorio está hecha el 14/09/2026:** `probar-restauracion.sh` avisa a
+  `RESTAURACION_PING` al empezar, al terminar bien y al fallar, con el motivo.
+  Falta lo del servidor, y hasta entonces no cuenta como hecha:
+  1. Crear el check mensual en healthchecks.io (`respaldo/LEEME.md` §7).
+  2. Añadir `RESTAURACION_PING` a `/root/.respaldo.env`.
+  3. Repetir el `docker cp` del paso 3.bis, o el anfitrión sigue con el script
+     viejo.
+  4. Confirmar con `crontab -l` que la línea mensual está: el §4 de este
+     documento la daba por no añadida y el checklist de
+     `docs/cartas-en-video.md`, por puesta.
+  5. Probarla en verde y en rojo.
 - **`docker system df`**: 26 GB usados de 48. Las imágenes viejas suelen ser lo
   que más ocupa.
 - **La base de datos la respalda Supabase**, no esto. Conviene mirar qué
