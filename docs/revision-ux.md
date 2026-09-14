@@ -370,7 +370,7 @@ se paga igual al entrar en la pestaña.
 
 ## P3 · Dos categorías «Hamburguesas» y «HAMBURGUESA» conviviendo · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #113 · el aviso; los datos de aojocerrado, aparte
 
 Están las dos en la lista de 21. El panel no avisa al crear una categoría casi
 idéntica a otra, ni al escribirla en otra caja.
@@ -378,6 +378,18 @@ idéntica a otra, ni al escribirla en otra caja.
 **La consecuencia real, y es la que lo convierte en un problema:** el aviso
 «TODAS LAS HAMBURGUESAS VAN ACOMPAÑADAS DE PAPAS» está dentro de
 `HAMBURGUESA`, no de `Hamburguesas`. Quien entre por la otra no lo ve.
+
+> **Aplicado (13/09/2026).** El duplicado **no lo creó el dueño**: salió de probar la
+> importación antes de que esta avisara de las parecidas. **La importación ya lo
+> hace** (`impRaiz`, «¿es la misma que…?»); faltaba el modal de categoría a mano.
+> Ahora avisa al escribir, y también al **abrir una ya duplicada**, con el nombre de
+> la otra y sus platos. **No impide guardar**, porque «POSTRE DEL DÍA» y «POSTRES»
+> pueden ser distintas a propósito. Usa la misma regla que la importación, para que
+> las dos pantallas no discrepen.
+>
+> **Los datos de aojocerrado no se juntan a ciegas:** «SUPREMA» está en las dos, a
+> $25.000 en `Hamburguesas` y a $22.000 en `HAMBURGUESA`. Pasar los platos dejaría
+> dos SUPREMA con precios distintos. Queda para decidir con el usuario qué sobra.
 
 ## P4 · No hay forma de poner una nota en la carta, así que se usan productos de $ 0 · **Media**
 
@@ -946,7 +958,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **59 aplicados** · **2 descartados** · **9 pendientes**.
+**70 hallazgos** en las tres superficies · **60 aplicados** · **2 descartados** · **8 pendientes**.
 
 ## Aplicados
 
@@ -994,6 +1006,7 @@ Del 11 al 13 de septiembre de 2026:
 | **M2** · la dirección de la carta cortada en QR | #110 | un enlace que parte línea y además abre la carta |
 | **V6** · capas cerradas en el Tab | vmenus-app#26 | 26 controles, no 2; y los hijos con `transition: all` retrasaban el foco |
 | **CL3** · el cliente no puede cambiar su PIN | #112 | pidiendo el actual; el superadmin sigue sin necesitarlo |
+| **P3** · categorías casi repetidas | #113 | aviso en el modal con la regla de la importación, que ya lo hacía |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1033,7 +1046,7 @@ del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2
   conocerlo.
 - **P4** — hacer la **nota por categoría** y ver cómo queda: el usuario no está
   seguro, así que es una prueba, no una decisión cerrada.
-- **P3** — el duplicado de aojocerrado fue **un error al probar el escaneo**, no
+- ~~**P3**~~ — el duplicado de aojocerrado fue **un error al probar el escaneo**, no
   del dueño. Avisar en el panel al crear o renombrar una categoría casi igual, y
   arreglar ese caso (con aviso antes de escribir en producción).
 - **C1** — **arrastrar y soltar**, manteniendo las flechas para teclado.
