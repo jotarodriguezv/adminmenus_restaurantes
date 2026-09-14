@@ -3312,10 +3312,36 @@ describe('la pista "o arrástralo aquí" · sin prometer nada al teléfono', () 
 	test('dentro de la pista solo va lo que sobra sin ratón', () => {
 		// Si alguien mete aquí "haz clic para subir", el usuario de teléfono
 		// se queda sin la única instrucción que le servía.
+		//
+		// Es una lista de palabras PERMITIDAS, no de prohibidas. La primera versión
+		// prohibía «clic», y la pista de Promoción se coló diciendo «Pulsa «Añadir
+		// promoción» o arrastra una imagen aquí»: tenía «arrastra» y no tenía
+		// «clic», así que pasaba (M5). Una lista negra hay que ampliarla con cada
+		// sinónimo —pulsa, toca, sube, elige…— y el fallo llega siempre por el que
+		// faltaba. Aquí cualquier palabra que no sea de arrastrar la tumba.
+		const PERMITIDAS = new Set(['o', 'también', 'puedes', 'arrastra', 'arrastrar', 'arrástralo',
+			'arrástrala', 'arrástralas', 'la', 'las', 'lo', 'una', 'un', 'el', 'imagen', 'imágenes', 'video',
+			'aquí', 'hasta', 'este', 'recuadro']);
 		for (const texto of pistas) {
 			assert.match(texto, /arrastr|arrástra/i, `esta pista no habla de arrastrar: "${texto}"`);
-			assert.doesNotMatch(texto, /clic/i, `esta pista esconde algo que hace falta sin ratón: "${texto}"`);
+			const ajenas = texto.toLowerCase().split(/[^a-záéíóúñü]+/).filter(p => p && !PERMITIDAS.has(p));
+			assert.deepEqual(ajenas, [], `esta pista esconde algo que hace falta sin ratón: "${texto}"`);
 		}
+	});
+
+	test('la lista de permitidas caza el caso que se le escapó a la de prohibidas', () => {
+		// M5, convertido en prueba: la frase exacta que pasó la comprobación vieja.
+		const PERMITIDAS = new Set(['o', 'arrastra', 'una', 'imagen', 'aquí']);
+		const texto = 'Pulsa «Añadir promoción» o arrastra una imagen aquí.';
+		const ajenas = texto.toLowerCase().split(/[^a-záéíóúñü]+/).filter(p => p && !PERMITIDAS.has(p));
+		assert.deepEqual(ajenas, ['pulsa', 'añadir', 'promoción']);
+	});
+
+	test('el recuadro vacío de Promoción dice qué hacer también sin ratón', () => {
+		// M4. Lo que queda fuera de las pistas es lo que ve un teléfono.
+		const vacio = src.match(/<div id="promoVacio"[^>]*>([\s\S]*?)<\/div>/)[1];
+		const sinPistas = vacio.replace(/<span class="pista-arrastre">[^<]*<\/span>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+		assert.match(sinPistas, /Pulsa «Añadir promoción»/);
 	});
 
 	test('está escondida por defecto y solo aparece con ratón', () => {
