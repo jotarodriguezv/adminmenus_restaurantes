@@ -946,7 +946,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **58 aplicados** · **2 descartados** · **10 pendientes**.
+**70 hallazgos** en las tres superficies · **59 aplicados** · **2 descartados** · **9 pendientes**.
 
 ## Aplicados
 
@@ -993,6 +993,7 @@ Del 11 al 13 de septiembre de 2026:
 | **P5** · el carril de categorías escondía dos tercios | #109 | mismo aviso que las pestañas; y la rueda se aceleraba con cada guardado |
 | **M2** · la dirección de la carta cortada en QR | #110 | un enlace que parte línea y además abre la carta |
 | **V6** · capas cerradas en el Tab | vmenus-app#26 | 26 controles, no 2; y los hijos con `transition: all` retrasaban el foco |
+| **CL3** · el cliente no puede cambiar su PIN | #112 | pidiendo el actual; el superadmin sigue sin necesitarlo |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1026,16 +1027,19 @@ porque se prueban igual, a 375 px.
 del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, ~~F4~~, ~~X1, X2~~ ·
 ~~A5~~, ~~PE2~~, ~~P5~~, ~~M2~~ · ~~**V6**~~ (capas cerradas en el Tab, encontrado al aplicar MD4).
 
-**Grupo 4 · necesitan una decisión antes de código:**
+**Grupo 4 · decidido con el usuario el 13/09/2026:**
 
-- **CL3** — ¿el cliente puede cambiar su propio PIN? Es acceso y seguridad.
-- **P4** — una «nota en la carta» es una función nueva: base, panel y carta.
-- **P3** — ¿avisar al crear una categoría casi idéntica, o arreglar Bonzas a mano?
-- **C1** — ¿arrastrar y soltar, o un campo de posición?
-- **B3, segunda mitad** — ¿se marca por categoría que «no se abre» (bebidas,
-  cervezas, adicionales) para que no llene «Platos que nadie abrió»? Es un campo nuevo.
-- **A3 + A4 + S4 + S6** — reorganizar Apariencia y la lista del superadmin. Grande,
-  y en pantallas que usa solo el equipo.
+- ~~**CL3**~~ — sí, pidiendo el PIN actual; el superadmin conserva el cambio sin
+  conocerlo.
+- **P4** — hacer la **nota por categoría** y ver cómo queda: el usuario no está
+  seguro, así que es una prueba, no una decisión cerrada.
+- **P3** — el duplicado de aojocerrado fue **un error al probar el escaneo**, no
+  del dueño. Avisar en el panel al crear o renombrar una categoría casi igual, y
+  arreglar ese caso (con aviso antes de escribir en producción).
+- **C1** — **arrastrar y soltar**, manteniendo las flechas para teclado.
+- **B3, segunda mitad** — **casilla por categoría** «no hace falta abrir la ficha».
+- **A3 + A4 + S4 + S6** — el usuario no tiene opinión. Recomendación: **S4 y A4**,
+  pequeños; A3 y S6 cuando el equipo los eche en falta. Al final del grupo.
 
 **Grupo 5 · se dejan:** **T2** y **P2** cambian la arquitectura del panel sin un
 problema real hoy; revisarlos si el panel se vuelve lento. **LP2**, descartado.
@@ -1761,7 +1765,7 @@ al dar de alta a un cliente.
 
 ## CL3 · El cliente no puede cambiar su propio PIN · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #112
 
 `cambiarPin` solo se llama desde el botón de la ficha en la lista del
 superadmin (`index.html:8960`). En la sesión del cliente no hay ninguna forma
@@ -1771,6 +1775,18 @@ Junto con **L1** cierra el círculo: no lo puede cambiar, no lo puede recuperar,
 el login no le dice a quién pedirlo, y el `autocomplete="off"` impide que el
 gestor de contraseñas se lo haya guardado. Cualquier problema con el acceso
 termina, sin excepción, en una llamada a soporte.
+
+> **Aplicado (13/09/2026).** Decisión del usuario: el cliente lo cambia **pidiendo
+> el actual**, y el superadmin conserva la forma de ponerlo **sin conocerlo**,
+> «por si cualquier cosa». Botón «Cambiar PIN» en la barra del cliente, que en
+> móvil dice «PIN».
+>
+> Tres cosas de la ruta nueva (`PATCH /api/mi-pin`) que no son obvias:
+> - Un PIN actual equivocado **cuenta en el límite del login**: sin eso, una sesión
+>   robada serviría para probar PINs sin tope.
+> - Responde **403, no 401**: el panel cierra la sesión ante cualquier 401.
+> - Máximo **10 caracteres**, que es lo que admite el campo del login. El modal del
+>   superadmin dejaba 20, y un PIN de 11 no servía para entrar: corregido también.
 
 ---
 ---
