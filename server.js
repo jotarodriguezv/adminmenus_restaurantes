@@ -752,7 +752,10 @@ const planDe = atributos => PLANES[atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
 // de plan, y esconder el interruptor en el panel no impide una llamada
 // directa a la API — la misma razón por la que ya se repite el chequeo en
 // restaurantes y en /api/estadisticas.
-const ATRIBUTOS_CATEGORIA_PERMITIDOS = ['horario', 'imagen_cabecera'];
+// 'se_pide_sin_abrir' (B3) solo lo lee el panel, para no listar bebidas y
+// adicionales en «Platos que nadie abrió». No es un dato sensible —categorias es
+// pública— y la carta lo ignora.
+const ATRIBUTOS_CATEGORIA_PERMITIDOS = ['horario', 'imagen_cabecera', 'se_pide_sin_abrir'];
 const ATRIBUTOS_CATEGORIA_SEGUN_PLAN = { horario: 'horarios' };
 
 // El panel manda el objeto "atributos" COMPLETO: apagar un horario es borrar

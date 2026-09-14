@@ -2494,6 +2494,17 @@
           </div>
         </div>
       </div>
+      <!-- B3: bebidas, cervezas, adicionales. Nadie abre la ficha de una cerveza:
+           se pide y ya. Sin esto llenaban «Platos que nadie abrió». -->
+      <div class="form-group">
+        <div class="form-check" style="margin-bottom:0">
+          <label class="toggle"><input type="checkbox" id="editCatSinAbrir" aria-describedby="editCatSinAbrirAyuda"><span class="toggle-slider"></span></label>
+          <label for="editCatSinAbrir" style="font-size:13px;color:var(--text-muted)">Se pide sin abrir la ficha</label>
+        </div>
+        <div id="editCatSinAbrirAyuda" style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5">
+          Para bebidas, cervezas o adicionales. Sus platos no saldrán en «Platos que nadie abrió» de Estadísticas. En la carta no cambia nada.
+        </div>
+      </div>
       <div class="form-group" id="editCatHorarioBloque" style="border-top:1px solid var(--border);padding-top:14px;">
         <div class="form-check" style="margin-bottom:0">
           <label class="toggle"><input type="checkbox" id="editCatHorarioActivo" onchange="toggleCatHorario()"><span class="toggle-slider"></span></label>
@@ -5774,6 +5785,7 @@ function openNewCatModal() {
   document.getElementById('editCatEmoji').value='';
   document.getElementById('editCatOrden').value=state.categorias.length;
   document.getElementById('editCatSinFotos').checked=false;
+  document.getElementById('editCatSinAbrir').checked=false;
   state.pendingCatImgUrl=null;
   renderCatImgField(null);
   cargarCatHorario(null);
@@ -5789,6 +5801,7 @@ function openEditCatModal(id) {
   document.getElementById('editCatEmoji').value=cat.emoji||'';
   document.getElementById('editCatOrden').value=cat.orden;
   document.getElementById('editCatSinFotos').checked=cat.sin_fotos;
+  document.getElementById('editCatSinAbrir').checked=!!cat.atributos?.se_pide_sin_abrir;
   state.pendingCatImgUrl=null;
   renderCatImgField(cat.atributos?.imagen_cabecera || null);
   cargarCatHorario(cat);
@@ -5886,6 +5899,10 @@ async function saveCat() {
   } else {
     delete atributos.horario;
   }
+  // Se borra la clave al desmarcar, igual que el horario: dejarla en false
+  // sería guardar ruido en cada categoría.
+  if(document.getElementById('editCatSinAbrir').checked) atributos.se_pide_sin_abrir = true;
+  else delete atributos.se_pide_sin_abrir;
   body.atributos = atributos;
   let creada = null;
   try {
@@ -8145,7 +8162,7 @@ async function cargarEstadisticas() {
     renderRanking(data.rankingProductos);
     renderHoras(data.porHora || []);
     renderCategorias(data.porCategoria || []);
-    renderIgnorados(data.nuncaAbiertos || [], data.totalVisitas, platosDisponibles());
+    renderIgnorados(data.nuncaAbiertos || [], data.totalVisitas, platosQueSeAbren(), categoriasSinAbrir());
     renderCarrito(data);
   } catch (e) { showToast('Error cargando estadísticas', 'error'); }
 }
@@ -8260,10 +8277,18 @@ function visitasParaIgnorados(platos) {
   return Math.max(MIN_VISITAS_FIABLE, platos);
 }
 
-function renderIgnorados(lista, totalVisitas = 0, platos = 0) {
+function renderIgnorados(lista, totalVisitas = 0, platos = 0, sinAbrir = []) {
   const cont = document.getElementById('estIgnorados');
   const resumen = document.getElementById('estIgnoradosResumen');
   if (!cont) return;
+  // B3: fuera las categorías marcadas «se pide sin abrir la ficha». El servidor
+  // devuelve el NOMBRE de la categoría, no su id, y filtrar aquí evita cambiar la
+  // función SQL; con el aviso de P3, dos categorías con el mismo nombre ya se ven.
+  const fuera = new Set(sinAbrir);
+  lista = lista.filter(p => !fuera.has(p.categoria));
+  const nota = fuera.size
+    ? ` · sin contar ${fuera.size === 1 ? `«${[...fuera][0]}»` : `${fuera.size} categorías que se piden sin abrir`}`
+    : '';
 
   const hacenFalta = visitasParaIgnorados(platos);
   if (totalVisitas < hacenFalta) {
@@ -8283,7 +8308,7 @@ function renderIgnorados(lista, totalVisitas = 0, platos = 0) {
     cont.innerHTML = '<div class="empty-state">Todos los platos disponibles se abrieron al menos una vez</div>';
     return;
   }
-  resumen.textContent = `${lista.length} en total`;
+  resumen.textContent = `${lista.length} en total${nota}`;
 
   const porCategoria = {};
   lista.forEach(p => { (porCategoria[p.categoria] ||= []).push(p.nombre); });
@@ -8309,6 +8334,19 @@ const MIN_EVENTOS_PORCENTAJE = 20;
 
 function platosDisponibles() {
   return (state.productos || []).filter(p => p.disponible !== false).length;
+}
+
+// B3: las categorías que el restaurante marcó como «se pide sin abrir la ficha».
+function categoriasSinAbrir() {
+  return (state.categorias || []).filter(c => c.atributos?.se_pide_sin_abrir).map(c => c.nombre);
+}
+
+// Los platos con los que se mide si hay visitas suficientes: sin los de esas
+// categorías, que ya no se listan. Si contaran, una carta con 40 bebidas
+// seguiría pidiendo 40 visitas más para una lista que no las incluye.
+function platosQueSeAbren() {
+  const fuera = new Set((state.categorias || []).filter(c => c.atributos?.se_pide_sin_abrir).map(c => c.id));
+  return (state.productos || []).filter(p => p.disponible !== false && !fuera.has(p.categoria_id)).length;
 }
 
 // E3. No se esconde nada: se dice cuánto pesa lo que se ve.

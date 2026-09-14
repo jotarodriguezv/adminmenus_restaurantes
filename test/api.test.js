@@ -184,6 +184,15 @@ describe('PATCH /api/categorias · los horarios dependen del plan', () => {
 		assert.equal(S.ultimaEscritura('categorias').atributos.horario, undefined);
 	});
 
+	test('«se pide sin abrir la ficha» se guarda, también desde la sesión del cliente', async () => {
+		// B3: la marca la pone el dueño. Si no estuviera en la lista, el servidor
+		// la descartaría en silencio y la casilla nunca se quedaría marcada.
+		conPlan('vitrina');
+		await S.pedir('PATCH', `/api/categorias/${IDS.categoria}`,
+			{ atributos: { imagen_cabecera: 'x.jpg', se_pide_sin_abrir: true } }, tokenCliente);
+		assert.equal(S.ultimaEscritura('categorias').atributos.se_pide_sin_abrir, true);
+	});
+
 	test('las claves ajenas se descartan', async () => {
 		conPlan('completo');
 		await S.pedir('PATCH', `/api/categorias/${IDS.categoria}`,

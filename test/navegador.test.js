@@ -4693,14 +4693,14 @@ describe('las estadísticas no concluyen más de lo que los datos permiten', () 
 		style: {}, textContent: '', innerHTML: '', className: '', hijos: [],
 		appendChild(h) { this.hijos.push(h); return h; },
 	});
-	function montar(productos = []) {
+	function montar(productos = [], categorias = []) {
 		const nodos = {};
 		const ctx = cargar('index.html', [
 			['// ── MÁS AGREGADOS AL CARRITO', '// ── HORAS DE MAYOR TRÁFICO'],
 			['// ── PLATOS QUE NADIE ABRIÓ', 'function renderKpis'],
 		], {
 			Object, String, Math,
-			state: { productos },
+			state: { productos, categorias },
 			esc: s => String(s),
 			document: { getElementById: id => (nodos[id] ||= nodo()), createElement: () => nodo() },
 		});
@@ -4799,9 +4799,42 @@ describe('las estadísticas no concluyen más de lo que los datos permiten', () 
 		assert.equal(ctx.platosDisponibles(), 2);
 	});
 
+	// ── B3, la segunda mitad ──────────────────────────────────
+	test('las categorías que se piden sin abrir la ficha no se listan, y se dice', () => {
+		const { ctx, nodos } = montar();
+		const lista = [
+			{ categoria: 'ENTRADAS', nombre: 'Papas a la francesa' },
+			{ categoria: 'CERVEZAS', nombre: 'Águila' }, { categoria: 'CERVEZAS', nombre: 'Corona' },
+		];
+		ctx.renderIgnorados(lista, 257, 97, ['CERVEZAS']);
+		assert.doesNotMatch(nodos.estIgnorados.innerHTML, /Águila|Corona/);
+		assert.match(nodos.estIgnorados.innerHTML, /Papas a la francesa/);
+		assert.equal(nodos.estIgnoradosResumen.textContent, '1 en total · sin contar «CERVEZAS»');
+		ctx.renderIgnorados(lista, 257, 97, ['CERVEZAS', 'BEBIDAS']);
+		assert.match(nodos.estIgnoradosResumen.textContent, /sin contar 2 categorías que se piden sin abrir/);
+	});
+
+	test('si solo quedaban esas, la carta sale limpia', () => {
+		const { ctx, nodos } = montar();
+		ctx.renderIgnorados([{ categoria: 'CERVEZAS', nombre: 'Águila' }], 257, 97, ['CERVEZAS']);
+		assert.match(nodos.estIgnorados.innerHTML, /Todos los platos disponibles se abrieron/);
+	});
+
+	test('sus platos no cuentan para las visitas que hacen falta', () => {
+		const cats = [{ id: 'c1', nombre: 'HAMBURGUESAS', atributos: {} }, { id: 'c2', nombre: 'CERVEZAS', atributos: { se_pide_sin_abrir: true } }];
+		const prods = [
+			{ categoria_id: 'c1' }, { categoria_id: 'c1', disponible: false },
+			{ categoria_id: 'c2' }, { categoria_id: 'c2' }, { categoria_id: 'c2' },
+		];
+		const { ctx } = montar(prods, cats);
+		assert.equal(ctx.platosQueSeAbren(), 1);
+		assert.equal(ctx.platosDisponibles(), 4, 'el total de la carta no cambia');
+		assert.deepEqual([...ctx.categoriasSinAbrir()], ['CERVEZAS']);
+	});
+
 	test('cargarEstadisticas pasa las visitas y los platos a la sección', () => {
 		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
-		assert.match(src, /renderIgnorados\(data\.nuncaAbiertos \|\| \[\], data\.totalVisitas, platosDisponibles\(\)\)/);
+		assert.match(src, /renderIgnorados\(data\.nuncaAbiertos \|\| \[\], data\.totalVisitas, platosQueSeAbren\(\), categoriasSinAbrir\(\)\)/);
 		assert.match(src, /avisoPocosDatos\(data\.totalVisitas\);/);
 	});
 });
@@ -5890,5 +5923,29 @@ describe('las categorías se reordenan arrastrando', () => {
 		assert.match(src, /asa\.addEventListener\('pointerdown',ev=>empezarArrastreCat\(ev,row\)\)/);
 		const tecla = src.match(/function teclaArrastreCat\(ev\) \{[\s\S]*?\n\}/)[0];
 		assert.match(tecla, /Escape[\s\S]*cancelarArrastreCat/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('el modal de categoría marca las que se piden sin abrir la ficha', () => {
+	// B3, segunda mitad, en docs/revision-ux.md.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('la casilla existe, se explica y tiene su etiqueta', () => {
+		assert.match(src, /<input type="checkbox" id="editCatSinAbrir" aria-describedby="editCatSinAbrirAyuda">/);
+		assert.match(src, /<label for="editCatSinAbrir"[^>]*>Se pide sin abrir la ficha<\/label>/);
+		assert.match(src, /id="editCatSinAbrirAyuda"[^>]*>[\s\S]*?En la carta no cambia nada/);
+	});
+
+	test('al abrir se rellena en los dos modos', () => {
+		const nueva = src.match(/function openNewCatModal\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(nueva, /getElementById\('editCatSinAbrir'\)\.checked=false/);
+		const editar = src.match(/function openEditCatModal\([^)]*\) \{[\s\S]*?\n\}/)[0];
+		assert.match(editar, /getElementById\('editCatSinAbrir'\)\.checked=!!cat\.atributos\?\.se_pide_sin_abrir/);
+	});
+
+	test('guardar la pone al marcarla y la borra al desmarcarla', () => {
+		const guardar = src.match(/async function saveCat\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(guardar, /if\(document\.getElementById\('editCatSinAbrir'\)\.checked\) atributos\.se_pide_sin_abrir = true;\s*else delete atributos\.se_pide_sin_abrir;/);
 	});
 });
