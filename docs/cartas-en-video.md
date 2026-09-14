@@ -1378,12 +1378,11 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       corrida cinco veces seguidas en verde y puesta en el cron el día 1 de cada
       mes. El respaldo queda probado de punta a punta: se restaura y los bytes
       coinciden, no solo los nombres
-- [ ] **Alarma para esa prueba.** Corre, pero su fallo solo se ve mirando el
-      log: el `MAILTO` de este servidor no llega a ningún sitio. **El script ya
-      avisa** (14/09/2026) a su propio check, `RESTAURACION_PING`; falta
-      crearlo en healthchecks.io, ponerlo en el servidor y probarlo. Pasos en
-      `docs/servidor.md` §8
-- [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg)
+- [x] **Alarma para esa prueba** (14/09/2026). Su propio check en
+      healthchecks.io, `RESTAURACION_PING`, con aviso al empezar, al terminar y
+      al fallar con el motivo. Probada en verde y en rojo, con correo en los dos
+      sentidos. Ver `docs/servidor.md`, registro de cambios
+- [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg). **El 14/09/2026 quedan 14 GB libres**: unos 8 GB más usados que en agosto
 - [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Sigue ahí el
       14/09/2026, con los mismos 4 objetos. Comprobado el
       23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
@@ -1436,9 +1435,8 @@ esporádica, probablemente nunca haga falta.
   diarias en Backblaze, con restauración comprobada. Todo lo operativo (rutas,
   cron, secretos, cómo recuperar) está en `docs/servidor.md`; cómo se montó, en
   `respaldo/LEEME.md`. ~~Lo que sigue abierto es enterarse si deja de correr.~~
-  **Hecho el 23/08/2026** con healthchecks.io. Lo que falta es la alarma de la
-  **prueba mensual** de restauración. El script ya manda el ping desde el
-  14/09/2026; falta configurar su check en el servidor (`docs/servidor.md` §8).
+  **Hecho el 23/08/2026** con healthchecks.io. La alarma de la **prueba
+  mensual** de restauración, **hecha y probada el 14/09/2026**.
 - ~~Hay un reinicio pendiente por actualización de kernel y actualizaciones de
   seguridad sin aplicar.~~ **Hecho el 23/08/2026** (ver la checklist de arriba).
 - Revisar `docker system df`: 26 GB usados de 48 sin video de por medio, y las
