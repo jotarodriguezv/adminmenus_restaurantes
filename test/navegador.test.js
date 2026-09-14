@@ -5742,3 +5742,70 @@ describe('el cliente cambia su propio PIN', () => {
 		assert.match(src, /id="newPinValue"[^>]*maxlength="10"/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('el modal de categoría avisa de una casi repetida', () => {
+	// P3 en docs/revision-ux.md: «HAMBURGUESA» y «Hamburguesas» en la misma carta.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const CATS = [
+		{ id: 'a', nombre: 'HAMBURGUESA' }, { id: 'b', nombre: 'Postres' }, { id: 'c', nombre: 'Café' },
+	];
+
+	function montar({ id = '', nombre = '', productos = [] } = {}) {
+		const campos = { editCatId: { value: id }, editCatNombre: { value: nombre }, catParecida: { hidden: true, textContent: '' } };
+		const ctx = cargar('index.html', [
+			['function impNormalizar', 'const IMP_SIN_CATEGORIA'],
+			['function impRaiz', 'function impTotales'],
+			['// ── CATEGORÍA CASI REPETIDA (P3)', 'async function saveCat'],
+		], { document: { getElementById: i => campos[i] }, state: { categorias: CATS, productos } });
+		return { ctx, campos };
+	}
+
+	test('reconoce plural, mayúsculas y tildes, y no se compara consigo misma', () => {
+		const { ctx } = montar();
+		assert.equal(ctx.categoriaParecida('Hamburguesas', null, CATS).nombre, 'HAMBURGUESA');
+		assert.equal(ctx.categoriaParecida('POSTRE', null, CATS).nombre, 'Postres');
+		assert.equal(ctx.categoriaParecida('cafe', null, CATS).nombre, 'Café');
+		assert.equal(ctx.categoriaParecida('HAMBURGUESA', 'a', CATS), null, 'editar la propia no avisa');
+	});
+
+	test('no avisa de lo que es distinto a propósito', () => {
+		const { ctx } = montar();
+		assert.equal(ctx.categoriaParecida('Postre del día', null, CATS), null);
+		assert.equal(ctx.categoriaParecida('Perros', null, CATS), null);
+		assert.equal(ctx.categoriaParecida('   ', null, CATS), null);
+	});
+
+	test('al crear, dice cuál es y cuántos platos tiene', () => {
+		const { ctx, campos } = montar({ nombre: 'Hamburguesas', productos: [{ categoria_id: 'a' }, { categoria_id: 'a' }, { categoria_id: 'b' }] });
+		ctx.avisarCategoriaParecida();
+		assert.equal(campos.catParecida.hidden, false);
+		assert.match(campos.catParecida.textContent, /«HAMBURGUESA» \(2 platos\)/);
+		assert.match(campos.catParecida.textContent, /añade los platos ahí/);
+	});
+
+	test('al editar una ya duplicada, lo dice también', () => {
+		const { ctx, campos } = montar({ id: 'zz', nombre: 'Hamburguesas', productos: [{ categoria_id: 'a' }] });
+		ctx.avisarCategoriaParecida();
+		assert.match(campos.catParecida.textContent, /\(1 plato\)/);
+		assert.match(campos.catParecida.textContent, /pasa los platos a una/);
+	});
+
+	test('al corregir el nombre, el aviso desaparece', () => {
+		const { ctx, campos } = montar({ nombre: 'Hamburguesas' });
+		ctx.avisarCategoriaParecida();
+		campos.editCatNombre.value = 'Perros';
+		ctx.avisarCategoriaParecida();
+		assert.equal(campos.catParecida.hidden, true);
+	});
+
+	test('se revisa al escribir y al abrir el modal, en los dos modos, y no bloquea el guardado', () => {
+		assert.match(src, /id="editCatNombre"[^>]*oninput="avisarCategoriaParecida\(\)"/);
+		const abrirNueva = src.match(/function openNewCatModal\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(abrirNueva, /avisarCategoriaParecida\(\);\s*openModal\('catModal'\)/);
+		const abrirEditar = src.match(/function openEditCatModal\([^)]*\) \{[\s\S]*?\n\}/)[0];
+		assert.match(abrirEditar, /avisarCategoriaParecida\(\);\s*openModal\('catModal'\)/);
+		const guardar = src.match(/async function saveCat\(\) \{[\s\S]*?\n\}/)[0];
+		assert.doesNotMatch(guardar, /categoriaParecida/);
+	});
+});
