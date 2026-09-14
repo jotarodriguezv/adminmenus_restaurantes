@@ -5269,3 +5269,67 @@ describe('el login: textos claros y la vista clara del sistema', () => {
 		assert.match(login, /class="btn-sm btn-tema" onclick="toggleTema\(\)"/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('la lista del superadmin: el rojo solo para eliminar, y el estado no parece un botón', () => {
+	// S2 y S3 en docs/revision-ux.md.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	function pintarLista(restos) {
+		const tarjetas = [];
+		const nodo = () => {
+			const n = { hijos: [], style: {}, className: '', textContent: '', innerHTML: '',
+				appendChild(h) { this.hijos.push(h); return h; } };
+			n.querySelector = () => (n._acciones ||= { hijos: [], appendChild(h) { this.hijos.push(h); return h; } });
+			return n;
+		};
+		const lista = { innerHTML: '', appendChild(c) { tarjetas.push(c); } };
+		const ctx = cargar('index.html', 'async function cargarListaRestos', '// Encender o apagar la generación con IA', {
+			document: {
+				getElementById: id => (id === 'adminRestoList' ? lista : { innerHTML: '', appendChild() {} }),
+				createElement: nodo,
+			},
+			apiFetch: async ruta => null, state: {},
+			esc: x => String(x), fichaEntornoHtml: () => '', estadoPagoHtml: () => '', avisoPedidosHtml: () => '',
+			fichaPlanHtml: () => '', resumenVideoHtml: () => '', facturacionDe: () => null,
+			urlPublica: () => 'https://x', planDe: () => ({}),
+			toggleSuspension() {}, entrarARestaurante() {}, cambiarPin() {}, marcarComoPagado() {}, eliminarRestaurante() {},
+			Promise, String,
+		});
+		// apiFetch devuelve los restaurantes solo en su ruta; el resto, vacío.
+		ctx.apiFetch = async (metodo, ruta) => (ruta === '/api/restaurantes' ? restos : ruta === '/api/facturacion' ? [] : {});
+		vm.runInContext('apiFetch = globalThis.apiFetch;', ctx);
+		return { ctx, tarjetas };
+	}
+
+	test('Eliminar es el único rojo; Suspender no lo es', async () => {
+		const { ctx, tarjetas } = pintarLista([{ id: 'r1', nombre: 'Bonzas', slug: 'bonzas', activo: true }]);
+		await ctx.cargarListaRestos();
+		const botones = tarjetas[0]._acciones.hijos;
+		const por = texto => botones.find(b => b.textContent === texto);
+		assert.match(por('Eliminar').className, /\beliminar\b/);
+		assert.doesNotMatch(por('Suspender').className, /\b(danger|eliminar)\b/);
+		assert.match(por('Suspender').className, /\bsuspender\b/);
+	});
+
+	test('el rojo de eliminar se ve sin pasar el ratón, y el de suspender es ámbar', () => {
+		assert.match(src, /\.btn-sm\.eliminar\{border-color:var\(--danger\);color:var\(--danger\);\}/);
+		assert.match(src, /\.btn-sm\.suspender:hover\{border-color:var\(--warn\);color:var\(--warn\);\}/);
+	});
+
+	test('el estado va junto al nombre y fuera de la fila de botones', async () => {
+		const { ctx, tarjetas } = pintarLista([
+			{ id: 'r1', nombre: 'Bonzas', slug: 'bonzas', activo: true },
+			{ id: 'r2', nombre: 'Gale', slug: 'gale', activo: false },
+		]);
+		await ctx.cargarListaRestos();
+		assert.match(tarjetas[0].innerHTML, /<div class="resto-card-name">Bonzas<span class="resto-estado activo">Activo<\/span><\/div>/);
+		assert.match(tarjetas[1].innerHTML, /<span class="resto-estado suspendido">Suspendido<\/span>/);
+		assert.match(tarjetas[0].innerHTML, /<div class="resto-card-actions"><\/div>/, 'el estado sigue dentro de la fila de botones');
+	});
+
+	test('el estado no tiene caja: ni borde ni fondo', () => {
+		const regla = src.match(/\.resto-estado\{[^}]*\}/)[0];
+		assert.doesNotMatch(regla, /border|background|padding/);
+	});
+});
