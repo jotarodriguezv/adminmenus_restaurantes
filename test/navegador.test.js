@@ -5641,3 +5641,30 @@ describe('el carril de categorías avisa de que hay más, y la rueda no se acele
 		assert.match(elegir, /btn\.scrollIntoView\?\.\(\{ block: 'nearest', inline: 'nearest'/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('la dirección de la carta se lee entera en la pestaña QR', () => {
+	// M2 en docs/revision-ux.md: un campo de 232 px en móvil la cortaba.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('es un enlace que parte línea, no un campo de una sola línea', () => {
+		assert.match(src, /<a id="qrEnlace" class="qr-enlace" target="_blank" rel="noopener"><\/a>/);
+		assert.doesNotMatch(src, /<input[^>]*id="qrEnlace"/);
+		const regla = src.match(/\.qr-enlace\{[^}]*\}/)[0];
+		assert.match(regla, /overflow-wrap:anywhere/);
+		assert.match(regla, /min-width:0/);
+	});
+
+	test('rellenar los controles pone la dirección como texto y como destino', () => {
+		const campos = {};
+		const $ = id => (campos[id] ||= {});
+		const ctx = cargar('qr.js', 'function qrAplicarAControles', 'function qrCopiarEnlace', {
+			document: { getElementById: $, querySelectorAll: () => [] }, qrCfg: {},
+			urlPublica: () => 'https://menu.vmenus.co/zz-pruebas-ux', state: { restaurante: {} },
+		});
+		ctx.qrEnlace = () => 'https://menu.vmenus.co/zz-pruebas-ux';
+		ctx.qrAplicarAControles();
+		assert.equal(campos.qrEnlace.textContent, 'https://menu.vmenus.co/zz-pruebas-ux');
+		assert.equal(campos.qrEnlace.href, 'https://menu.vmenus.co/zz-pruebas-ux');
+	});
+});

@@ -426,7 +426,8 @@ function qrCargarLogo(url) {
 
 // Vuelca qrCfg sobre los controles del formulario.
 function qrAplicarAControles() {
-	document.getElementById('qrEnlace').value        = qrEnlace();
+	const enlace = document.getElementById('qrEnlace');
+	enlace.textContent = enlace.href = qrEnlace();
 	document.getElementById('qrColorFg').value       = qrCfg.fg;
 	document.getElementById('qrColorOjos').value     = qrCfg.ojos;
 	document.getElementById('qrColorBg').value       = qrCfg.bg;
