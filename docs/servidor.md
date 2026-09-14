@@ -23,7 +23,43 @@ Contenedores relevantes (`docker ps`):
 |---|---|
 | `vmenus-adminvmenus-…` | el panel: API, cola de conversión de video y limpiador |
 | `vmenus-vmenusapp-…` | la carta pública (`vmenus-app`) |
-| `vmenus-menubonza-…`, `vmenus-menumalparados-…`, `vmenus-perroscriollos-…`, `vmenus-menupostressanjavier-…` | despliegues por restaurante |
+| `vmenus-vmenuslanding-…` | la página de `vmenus.co` (`vmenus-landing`) |
+| `vmenus-menubonza-…`, `vmenus-menumalparados-…` | **redirecciones heredadas** de los QR impresos, ver abajo |
+
+### Las dos cartas heredadas: Bonzas y Malparados
+
+Fueron los **dos primeros clientes**, antes de que existieran el panel y
+`vmenus-app`. Entonces cada restaurante era un repositorio con su carta en HTML
+y una app de Dokploy enlazada a él. Al montar el panel, ese modelo se abandonó
+por no escalar, pero sus **QR ya estaban impresos** con la URL de aquellas apps.
+Por eso siguen vivas, y desde el 24/07/2026 solo redirigen:
+
+| QR impreso (no se puede cambiar) | App de Dokploy | Repositorio | Redirige a |
+|---|---|---|---|
+| `bonzaburgergrill.verificame.click` | `vmenus-menubonza-mdlavq` | `menu-bonzas` | `menu.vmenus.co/bonzas` |
+| `malparados.verificame.click` | `vmenus-menumalparados-e0dc98` | `menu-malparados` | `menu.vmenus.co/malparados` |
+
+El `index.html` de cada repo son 9 líneas: `<meta http-equiv="refresh"
+content="0; url=…">` más un `location.replace` de respaldo. **Nunca fueron
+`vmenus-app`**: redesplegarlas reconstruye la redirección, no la carta. Las
+cartas de verdad se editan en el panel, como las de cualquier otro restaurante.
+
+Medido el 14/09/2026 desde Colombia: la redirección responde en 0,4–0,8 s y
+manda 266 bytes. En los repos siguen `imgs/` (66 MB en Bonzas, 20 MB en
+Malparados) y `menu.json` de la carta vieja; **no se descargan** —el comensal
+solo recibe el `index.html`— y lo único que ocupan es disco. Las imágenes de
+Docker pesan 810 y 626 MB por la base con la que Dokploy construye apps sin
+`Dockerfile`, no por las fotos.
+
+> **Si se tocan: la URL del QR tiene que seguir respondiendo.** Un error aquí
+> deja a los comensales de dos restaurantes con un QR muerto y nadie lo nota
+> hasta que llaman. Mejoras posibles, ninguna urgente: borrar `imgs/` y
+> `menu.json` de los repos (orden, 86 MB), o sustituir las dos apps por una
+> redirección 301 en Traefik sin contenedor (~1,4 GB y un paso menos).
+
+`vmenus-perroscriollos-…` y `vmenus-menupostressanjavier-…` eran del mismo
+modelo; ya no se usan, se borraron de Dokploy a finales de agosto y sus restos
+se limpiaron el 14/09/2026.
 
 Para dar con el del panel sin depender del ID, que cambia en cada despliegue:
 
@@ -459,9 +495,22 @@ servir dentro del VPS más barato de Hostinger.**
   Check «vmenus · prueba de restauración mensual» en healthchecks.io (cron
   `0 10 1 * *`, UTC, margen 1 día) y `RESTAURACION_PING` en
   `/root/.respaldo.env`. Probada en los dos sentidos, con correo en ambos.
-- **`docker system df`**: 26 GB usados de 48 en agosto. **El 14/09/2026 quedan
-  14 GB libres** (lo dijo la prueba de restauración), así que el uso creció
-  unos 8 GB. Las imágenes viejas suelen ser lo que más ocupa.
+- ~~`docker system df`~~ — **hecho el 14/09/2026.** De 35 GB usados a 25 GB
+  (52 %). Detalle en el registro de cambios.
+- **Que no vuelva a acumularse.** Swarm guarda 5 tareas por servicio
+  (`Task History Retention Limit: 5`) y cada una retiene su imagen: ~300 MB por
+  despliegue del panel. Opciones, sin decidir: la limpieza diaria de Docker de
+  Dokploy (*Settings → Server*), o `docker swarm update --task-history-limit 2`.
+- **794 MB en volúmenes sin usar.** Probablemente de la boda y de las cartas
+  borradas, pero pueden tener datos: repasar uno a uno, no `volume prune`.
+- **Docker mata el panel en cada despliegue** (`Exited (137)`). `node server.js`
+  es el PID 1 y no atiende `SIGTERM`, así que Docker espera 10 s y lo corta: una
+  conversión de video o una subida en curso se interrumpen. Las cartas y la
+  landing (nginx) paran bien, con `Exited (0)`. Arreglo en el repositorio:
+  cerrar el servidor y la cola al recibir `SIGTERM`.
+- **La salida por IPv6 no respondió** a Docker Hub (`i/o timeout` hacia una
+  dirección `2600:…`) al intentar bajar una imagen. Hoy no rompe nada; mirar si
+  el día que un despliegue falle bajando imágenes.
 - **La comparación byte a byte de la prueba ya no mira ningún video.** Coge los
   cinco archivos más grandes suponiendo que son videos, y el 14/09/2026 fueron
   cinco PDF de `cartas/` de 24 MB cada uno. Los videos solo se comprueban por
@@ -485,6 +534,35 @@ servir dentro del VPS más barato de Hostinger.**
 ---
 
 ## Registro de cambios
+
+**14/09/2026 — Limpieza de Docker: de 35 GB a 25 GB**
+
+La prueba de restauración avisó de 14 GB libres, 8 GB menos que en agosto. No
+eran los archivos (`/opt/menus/uploads` son 210 MB): eran **imágenes viejas**.
+`docker system df` decía 85 imágenes y 0 % recuperable, porque Swarm guarda 5
+tareas paradas por servicio y cada una retiene la imagen de su despliegue.
+
+Lo que se hizo, en este orden y repasando cada lista antes de borrar:
+
+1. Comprobar qué servicios siguen en uso. Se borró de Dokploy la app de la boda
+   (`bodas-bodaangelsaylin`), que ya no se usa.
+2. `docker service rm` de `vmenus-menupostressanjavier` y
+   `vmenus-perroscriollos`: se borraron de Dokploy semanas antes pero sus
+   servicios seguían en Swarm en `0/0`.
+3. `docker container prune`, `docker image prune -a` y `docker builder prune`.
+   **Ninguno toca volúmenes.**
+
+Resultado: **9,5 GB en imágenes** —la mayor parte, tres versiones viejas de
+Dokploy (v0.29.14, v0.30.3, v0.30.5) y despliegues anteriores del panel, la
+carta y la landing—; disco de 35 GB (73 %) a **25 GB (52 %)**; 18 imágenes, las
+18 en uso; todos los servicios en `1/1`.
+
+**Antes de `image prune -a`, mirar si hay algún servicio en `0/1`.** Borra toda
+imagen que no use un contenedor en marcha, y un servicio que no consigue
+arrancar no tiene contenedor. Salió uno: el panel de vtalent
+(`admincatalogo-modelos`), caído desde finales de agosto. Su imagen ya se había
+perdido, así que no había nada que proteger; se arregló aparte (Node 22 y
+lockfile, PR #1 de ese repo) y sus pendientes están en su `PENDIENTES.md`.
 
 **14/09/2026 — Alarma para la prueba mensual de restauración**
 
@@ -814,6 +892,11 @@ no tienen `HEALTHCHECK` que informar. No es un fallo —«sin estado» no es
 los toppings: ni `bonzas` ni `malparados` tienen catálogo, así que el código
 anterior y el nuevo hacen exactamente lo mismo en sus cartas. Aun así, conviene
 redesplegarlos para que las cuatro cartas corran el mismo código.
+
+> **Corregido el 14/09/2026:** esto partía de un error. `menubonza` y
+> `menumalparados` no son `vmenus-app` sino las redirecciones heredadas de los
+> QR impresos (§1), y no tienen ni necesitan `HEALTHCHECK`. Se redesplegaron
+> ese día igualmente, sin cambio.
 
 **28/08/2026 — Contraste y etiquetas del panel**
 
