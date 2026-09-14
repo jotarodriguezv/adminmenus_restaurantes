@@ -5503,3 +5503,36 @@ describe('cambiar de restaurante empieza arriba', () => {
 		assert.match(volver, /window\.scrollTo\(0, 0\);\s*enterAdmin\(\);/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('los avisos de la dirección del menú no se contradicen', () => {
+	// A5 en docs/revision-ux.md: «no responderá hasta que lo registres» y, 8 px
+	// debajo, «las dos formas funcionan siempre». Comprobado el 13/09/2026:
+	// menu.vmenus.co/bonzas da 200 y bonzas.vmenus.co, sin registrar, 404.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const seccion = src.slice(src.indexOf('<div class="section-title">Dirección del menú</div>'), src.indexOf('<div class="section-title">Zona horaria</div>'));
+	const visible = seccion.replace(/<!--[\s\S]*?-->/g, '');
+
+	test('ya no afirma que las dos formas funcionen siempre', () => {
+		assert.doesNotMatch(visible, /dos formas funcionan siempre/);
+		assert.match(visible, /forma de ruta \(menu\.vmenus\.co\/nombre\) responde siempre/);
+	});
+
+	test('el aviso del subdominio dice que se compruebe antes del QR', () => {
+		assert.match(visible, /comprueba que carga <strong>antes<\/strong> de imprimir el QR/);
+	});
+
+	test('la dirección es un enlace que se puede abrir', () => {
+		const campos = {};
+		const $ = id => (campos[id] ||= { value: 'subdominio', textContent: '', href: '', style: {} });
+		const ctx = cargar('index.html', 'function renderUrlPublicaPreview', '// ── ', {
+			document: { getElementById: $ },
+			state: { restaurante: { slug: 'bonzas' } },
+			urlPublica: (r, modo) => (modo === 'subdominio' ? `https://${r.slug}.vmenus.co` : `https://menu.vmenus.co/${r.slug}`),
+		});
+		ctx.renderUrlPublicaPreview();
+		assert.equal($('apUrlPreview').href, 'https://bonzas.vmenus.co');
+		assert.equal($('apUrlAviso').style.display, 'block');
+		assert.match(seccion, /<a id="apUrlPreview" target="_blank" rel="noopener noreferrer"/);
+	});
+});

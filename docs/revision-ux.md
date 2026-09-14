@@ -598,7 +598,7 @@ para este restaurante.
 
 ## A5 · Dos avisos pegados que se contradicen · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #107
 
 En «Dirección del menú», a 8 px de distancia:
 
@@ -611,6 +611,16 @@ Cada frase es correcta en lo suyo —la segunda habla de que los enlaces ya
 repartidos no se rompen— pero leídas juntas se anulan. Y de fondo queda que
 esta opción se puede guardar apuntando a un subdominio que todavía no responde:
 el panel lo avisa, pero no lo impide ni lo comprueba.
+
+> **Aplicado (13/09/2026), y la segunda frase no era solo confusa: era falsa.**
+> Comprobado ese día: `menu.vmenus.co/bonzas` da **200** y `bonzas.vmenus.co`, sin
+> registrar en Dokploy, **404**. «Las dos formas funcionan siempre» pasa a «La forma
+> de ruta responde siempre, y los enlaces ya repartidos siguen sirviendo aunque la
+> cambies». La dirección de la vista previa es ahora **un enlace** que se abre, y el
+> aviso del subdominio pide comprobar que carga antes de imprimir el QR.
+>
+> Lo que **no** se hizo: comprobar el subdominio desde el panel o impedir guardarlo.
+> Abrir el enlace ya lo comprueba, y bloquear el guardado es otra decisión.
 
 ## Lo que está bien
 
@@ -918,7 +928,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **53 aplicados** · **2 descartados** · **15 pendientes**.
+**70 hallazgos** en las tres superficies · **54 aplicados** · **2 descartados** · **14 pendientes**.
 
 ## Aplicados
 
@@ -960,6 +970,7 @@ Del 11 al 13 de septiembre de 2026:
 | **S5** · la lista que no carga, sin salida | #104 | motivo legible, también sin red, y Reintentar |
 | **F4** · crear un restaurante no llevaba a él | #105 | a la vista, resaltado, y «Montar la carta» en el aviso |
 | **X1 + X2** · la insignia de pedidos, y el scroll al cambiar de restaurante | #106 | salía en los once; ahora dice lo mismo que la pestaña Pedidos |
+| **A5** · dos avisos que se contradecían | #107 | «las dos formas funcionan siempre» era falso para el subdominio; la dirección, un enlace para comprobarlo |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -991,7 +1002,7 @@ porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
 del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, ~~F4~~, ~~X1, X2~~ ·
-A5, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
+~~A5~~, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
 
