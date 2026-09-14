@@ -517,6 +517,12 @@
 			.qr-aviso{margin-top:12px;padding:9px 11px;border-radius:var(--radius);background:var(--warn-dim);
 			  border:1px solid var(--warn);color:var(--warn);font-size:11px;line-height:1.5;}
 			.qr-descargas{display:flex;gap:8px;}
+			/* M2: el enlace parte línea en cualquier carácter —una dirección no tiene
+			   espacios— en vez de cortarse dentro de un campo de una sola línea. */
+			.qr-enlace{flex:1;min-width:0;padding:10px 13px;background:var(--card);border:1px solid var(--border);
+			  border-radius:var(--radius);color:var(--text);font-family:var(--mono);font-size:12px;line-height:1.5;
+			  overflow-wrap:anywhere;text-decoration:none;}
+			.qr-enlace:hover{border-color:var(--accent);text-decoration:underline;}
 			.qr-range{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;
 			  background:var(--border2);outline:none;cursor:pointer;}
 			.qr-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;
@@ -1924,9 +1930,12 @@
 						<div class="qr-controls-col">
 							<div class="section-card">
 								<div class="section-title">Enlace del menú</div>
-								<div style="display:flex;gap:8px;">
-									<input type="text" class="form-input" id="qrEnlace" readonly style="font-family:var(--mono);font-size:12px;">
-									<button class="btn-sm" style="flex-shrink:0;padding:0 14px;" onclick="qrCopiarEnlace()">Copiar</button>
+								<!-- M2: era un campo de 232 px en móvil y cortaba la dirección en
+								     «https://menu.vmenus.co/zz-pr». Un enlace que parte línea se lee
+								     entero —para dictarlo o comprobar el slug— y además se abre. -->
+								<div style="display:flex;gap:8px;align-items:flex-start;">
+									<a id="qrEnlace" class="qr-enlace" target="_blank" rel="noopener"></a>
+									<button class="btn-sm" style="flex-shrink:0;padding:11px 14px;" onclick="qrCopiarEnlace()">Copiar</button>
 								</div>
 								<div style="margin-top:8px;font-size:11px;color:var(--text-dim);font-family:var(--mono);">
 									El QR apunta siempre aquí. Si cambias el slug del restaurante, hay que volver a imprimirlo.
