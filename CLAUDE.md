@@ -37,6 +37,7 @@ la tarea roza alguno de estos temas, leer el documento primero:
 | `docs/promociones.md` | La promoción: el popup de la carta y la pantalla del televisor. Diseño de las promociones programadas. |
 | `docs/seguridad-subidas.md` | Las dos puertas por las que entra un archivo. Qué se comprobó, qué se arregló y qué se dejó a propósito. |
 | `docs/importar-carta.md` | Importar la carta desde un PDF o una imagen. Las dos pruebas de realidad, con sus números. |
+| `docs/pruebas-manuales-ux.md` | **Qué comprobar a mano** de todo lo que cambió con la revisión de UX, ordenado por pantalla, con casillas. |
 | `docs/revision-ux.md` | **Revisión de UX de los tres repositorios**, con una casilla por hallazgo. Leerlo antes de proponer cambios de interfaz: trae lo ya detectado, lo comprobado que **no** es un fallo, y las decisiones tomadas a propósito. |
 
 Si el código y un documento se contradicen, manda el código — y hay que
@@ -154,6 +155,40 @@ función y dejó la otra igual, porque cada una estaba abierta por una vía
 distinta. Se detectó solo por verificar. El detalle completo está en `sql/16`.
 
 ## Pendiente
+
+### Partir `public/index.html` por pestañas
+
+**Acordado el 14/09/2026.** El panel es un solo archivo de 10.572 líneas: el
+HTML de las once pestañas y del superadmin, 721 de CSS y unas 7.800 de
+JavaScript con ~330 funciones. Funciona y está probado, pero todo cambio toca el
+mismo archivo —S4 y A4 chocaron siendo independientes—, un error de sintaxis en
+una pestaña tumba el panel entero, y cada cliente descarga el superadmin (T2 en
+`docs/revision-ux.md`).
+
+**Cómo:** igual que ya está `qr.js`. Archivos `<script>` clásicos, **sin paso de
+compilación**, moviendo código **sin cambiar lo que hace**. Un pull request por
+paso, con las pruebas en verde y la pestaña mirada en el navegador:
+
+| Paso | Qué | Riesgo |
+|---|---|---|
+| 0 | **Desde ya:** lo nuevo no entra en `index.html`, va a su propio archivo | ninguno |
+| 1 | El CSS a `panel.css` | muy bajo |
+| 2 | Lo común: sesión, `apiFetch`, avisos, ventanas, `esc` | bajo |
+| 3 | Una pestaña por PR, las más aisladas primero: Estadísticas, TV, Promoción, Importar, Toppings, Pedidos | bajo |
+| 4 | Las más enlazadas: Productos, Categorías, Apariencia | medio |
+| 5 | El superadmin a su archivo, cargado solo con sesión de admin (resuelve T2) | medio |
+
+Las pruebas de `navegador.test.js` leen tramos de `index.html` con `cargar()`;
+al mover una función hay que cambiar el archivo en su llamada (`cargar('qr.js',
+…)` ya lo hace). Son unas 91 llamadas, trabajo mecánico.
+
+**Buen momento:** antes de que entre otra persona a programar, o antes de rehacer
+los planes, que tocará varias pestañas a la vez.
+
+**Lo que no se decidió:** usar un framework. No está prohibido —el proyecto se
+empezó sin él, no se descartó—, y el análisis está resumido en el `CLAUDE.md` de
+`C:\ProyectosVerificame`. Partir por archivos sirve en los dos casos: es el
+primer paso también si algún día se adopta uno, pestaña a pestaña.
 
 ### Si las peticiones de fuente se vuelven frecuentes
 
