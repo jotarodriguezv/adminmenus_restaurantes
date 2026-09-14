@@ -657,6 +657,50 @@ app.patch('/api/restaurantes/:id/pin', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// El cliente cambia SU PIN (CL3 en docs/revision-ux.md). Antes solo podía el
+// superadmin, y cualquier problema de acceso acababa en una llamada a soporte.
+//
+// Pide el PIN actual aunque la sesión ya esté abierta: un panel abierto y
+// olvidado en el computador de la caja no debe bastar para dejar fuera al
+// dueño. Y un PIN actual equivocado cuenta en el MISMO límite que el login,
+// porque si no esta ruta sería una forma de probar PINs sin tope desde una
+// sesión robada.
+//
+// La ruta del superadmin, la de arriba, sigue sin pedir el actual a propósito:
+// es la salida cuando el dueño lo olvidó o alguien se lo cambió.
+app.patch('/api/mi-pin', auth, async (req, res) => {
+  if (req.user.rol !== 'cliente' || !req.user.restauranteId) {
+    return res.status(403).json({ error: 'Solo desde la sesión de un restaurante' });
+  }
+  if (loginBloqueado(req.ip)) {
+    return res.status(429).json({ error: 'Demasiados intentos fallidos. Espera unos minutos.' });
+  }
+  const { actual, nuevo } = req.body || {};
+  if (typeof actual !== 'string' || !actual) return res.status(400).json({ error: 'Falta el PIN actual' });
+  // Máximo 10 porque es lo que admite el campo del login (maxlength="10"): uno
+  // más largo se guardaría bien y luego no habría forma de escribirlo para entrar.
+  if (typeof nuevo !== 'string' || nuevo.trim().length < 4 || nuevo.trim().length > 10) {
+    return res.status(400).json({ error: 'El PIN nuevo debe tener entre 4 y 10 caracteres' });
+  }
+
+  const { data: cred } = await supabase.from('restaurantes_privado')
+    .select('pin_hash').eq('restaurante_id', req.user.restauranteId).maybeSingle();
+  if (!cred?.pin_hash || !(await bcrypt.compare(actual, cred.pin_hash))) {
+    anotarFalloLogin(req.ip);
+    // 403 y no 401: el panel trata cualquier 401 como sesión caducada y cierra
+    // la sesión, y equivocarse de PIN no puede echar a nadie de su panel.
+    return res.status(403).json({ error: 'El PIN actual no es correcto' });
+  }
+  fallosLogin.delete(req.ip);
+
+  const pin_hash = await bcrypt.hash(nuevo.trim(), 10);
+  const { error } = await supabase.from('restaurantes_privado')
+    .update({ pin_hash, actualizado_at: new Date().toISOString() })
+    .eq('restaurante_id', req.user.restauranteId);
+  if (error) return res.status(500).json({ error: 'No se pudo guardar el PIN' });
+  res.json({ ok: true });
+});
+
 // Campos de nivel superior que cada rol puede tocar en un restaurante.
 // El cliente NUNCA debe poder cambiar marca/estructura (eso es Apariencia,
 // oculta en la UI pero antes también alcanzable a mano por API).

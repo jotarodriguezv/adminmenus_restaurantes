@@ -5668,3 +5668,77 @@ describe('la dirección de la carta se lee entera en la pestaña QR', () => {
 		assert.equal(campos.qrEnlace.href, 'https://menu.vmenus.co/zz-pruebas-ux');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('el cliente cambia su propio PIN', () => {
+	// CL3 en docs/revision-ux.md. La ruta está probada en pin.test.js; aquí, el panel.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	function montar(respuesta) {
+		const campos = {};
+		const $ = id => (campos[id] ||= { value: '', textContent: '', disabled: false });
+		const peticiones = [], avisos = [], cerrados = [];
+		const ctx = cargar('index.html', '// ── CAMBIAR MI PIN (cliente)', 'function entrarARestaurante', {
+			document: { getElementById: $ },
+			apiFetch: async (m, ruta, cuerpo) => { peticiones.push({ m, ruta, cuerpo }); if (respuesta instanceof Error) throw respuesta; return respuesta; },
+			showToast: (m, t) => avisos.push({ m, t }), closeModal: id => cerrados.push(id), openModal() {}, setTimeout() {},
+		});
+		return { ctx, $, peticiones, avisos, cerrados };
+	}
+
+	test('explica en palabras lo que está mal antes de enviar nada', () => {
+		const { ctx } = montar({ ok: true });
+		assert.match(ctx.errorDeMiPin('', '5678', '5678'), /actual/);
+		assert.match(ctx.errorDeMiPin('1234', '12', '12'), /entre 4 y 10/);
+		assert.match(ctx.errorDeMiPin('1234', '12345678901', '12345678901'), /entre 4 y 10/);
+		assert.match(ctx.errorDeMiPin('1234', '5678', '5679'), /no coinciden/);
+		assert.match(ctx.errorDeMiPin('1234', '1234', '1234'), /igual/);
+		assert.equal(ctx.errorDeMiPin('1234', '5678', '5678'), null);
+	});
+
+	test('con datos buenos manda el actual y el nuevo, cierra y lo dice', async () => {
+		const { ctx, $, peticiones, avisos, cerrados } = montar({ ok: true });
+		$('miPinActual').value = '1234'; $('miPinNuevo').value = '5678'; $('miPinRepetir').value = '5678';
+		await ctx.guardarMiPin();
+		assert.equal(JSON.stringify(peticiones), JSON.stringify([{ m: 'PATCH', ruta: '/api/mi-pin', cuerpo: { actual: '1234', nuevo: '5678' } }]));
+		assert.deepEqual(cerrados, ['miPinModal']);
+		assert.match(avisos[0].m, /PIN cambiado/);
+		assert.equal($('miPinGuardar').disabled, false);
+	});
+
+	test('si no coinciden no sale ninguna petición', async () => {
+		const { ctx, $, peticiones } = montar({ ok: true });
+		$('miPinActual').value = '1234'; $('miPinNuevo').value = '5678'; $('miPinRepetir').value = '8765';
+		await ctx.guardarMiPin();
+		assert.equal(peticiones.length, 0);
+		assert.match($('miPinError').textContent, /no coinciden/);
+	});
+
+	test('el PIN actual equivocado se queda en el modal, con el motivo', async () => {
+		const { ctx, $, avisos, cerrados } = montar(new Error('El PIN actual no es correcto'));
+		$('miPinActual').value = '0000'; $('miPinNuevo').value = '5678'; $('miPinRepetir').value = '5678';
+		await ctx.guardarMiPin();
+		assert.equal(cerrados.length, 0);
+		assert.equal(avisos.length, 0);
+		assert.match($('miPinError').textContent, /no es correcto/);
+	});
+
+	test('una sesión caducada no se anuncia como PIN cambiado', async () => {
+		const { ctx, $, avisos } = montar(null);
+		$('miPinActual').value = '1234'; $('miPinNuevo').value = '5678'; $('miPinRepetir').value = '5678';
+		await ctx.guardarMiPin();
+		assert.equal(avisos.length, 0);
+	});
+
+	test('el botón es solo del cliente, y los campos se entienden con el gestor de contraseñas', () => {
+		assert.match(src, /getElementById\('btnMiPin'\)\.style\.display = state\.rol==='cliente'/);
+		assert.match(src, /id="miPinActual" maxlength="10" autocomplete="current-password"/);
+		assert.match(src, /id="miPinNuevo" maxlength="10" autocomplete="new-password"/);
+	});
+
+	test('ningún campo deja escribir un PIN que el login no admite', () => {
+		// El login corta en 10: un PIN de 11 se guardaría y no serviría para entrar.
+		assert.match(src, /id="pinInput"\s+maxlength="10"/);
+		assert.match(src, /id="newPinValue"[^>]*maxlength="10"/);
+	});
+});

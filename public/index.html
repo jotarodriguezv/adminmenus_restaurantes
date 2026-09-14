@@ -104,12 +104,22 @@
 			#appScreen{display:none;min-height:100vh;}
 			.topbar{position:sticky;top:0;z-index:100;background:var(--topbar-bg);backdrop-filter:blur(12px);
 			  border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;}
-			.topbar-left{display:flex;align-items:center;gap:12px;}
+			.topbar-left{display:flex;align-items:center;gap:12px;min-width:0;}
 			.topbar-badge{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;
 			  padding:4px 10px;border-radius:4px;border:1px solid var(--accent);color:var(--accent);}
 			.topbar-badge.admin{border-color:var(--warn);color:var(--warn);}
 			.topbar-resto{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text);letter-spacing:1px;}
-			.topbar-right{display:flex;align-items:center;gap:8px;}
+			.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+			.topbar-right .btn-sm{white-space:nowrap;}
+			/* CL3: «Cambiar PIN» no cabía a 375 px junto al tema y Salir: la página
+			   se ensanchaba a 406. En móvil el botón dice «PIN» y la versión se
+			   esconde; el nombre del restaurante puede partir en dos líneas, como ya
+			   hacía «BONZAS BURGER GRILL». */
+			@media (max-width:480px){
+			  .topbar{padding:0 12px;gap:8px;}
+			  .topbar-version{display:none;}
+			  .solo-ancho{display:none;}
+			}
 			.btn-sm{padding:6px 12px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;
 			  color:var(--text-muted);font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .18s;}
 			.btn-sm:hover{border-color:var(--border2);color:var(--text);}
@@ -822,11 +832,12 @@
 				<div class="topbar-left">
 					<div class="topbar-badge" id="topbarBadge">EDITOR</div>
 					<div class="topbar-resto" id="topbarResto">—</div>
-					<div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v19</div>
+					<div class="topbar-version" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v19</div>
 				</div>
 				<div class="topbar-right">
 					<button class="btn-sm btn-tema" onclick="toggleTema()" style="min-width:34px;font-size:13px;line-height:1;"></button>
 					<button class="btn-sm" id="btnSwitchResto" onclick="volverAlAdmin()" style="display:none">← Restaurantes</button>
+					<button class="btn-sm" id="btnMiPin" onclick="abrirMiPin()" style="display:none" aria-label="Cambiar mi PIN"><span class="solo-ancho">Cambiar </span>PIN</button>
 					<button class="btn-sm danger" onclick="logout()">Salir</button>
 				</div>
 			</div>
@@ -2560,12 +2571,43 @@
       <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;" id="pinRestoNombre"></p>
       <div class="form-group" style="margin-bottom:0">
         <label for="newPinValue" class="form-label">Nuevo PIN</label>
-        <input type="text" class="form-input" id="newPinValue" placeholder="Mínimo 4 caracteres" maxlength="20">
+        <input type="text" class="form-input" id="newPinValue" placeholder="Entre 4 y 10 caracteres" maxlength="10">
       </div>
     </div>
     <div class="modal-foot">
       <button class="btn-cancel" onclick="closeModal('pinModal')">Cancelar</button>
       <button class="btn-save" onclick="confirmCambiarPin()">Guardar PIN</button>
+    </div>
+  </div>
+</div>
+
+<!-- CL3: el cliente cambia su propio PIN. Pide el actual aunque la sesión esté
+     abierta: un panel olvidado en la caja no debe bastar para dejar fuera al dueño. -->
+<div class="modal-bg" id="miPinModal" onclick="handleModalBg(event,'miPinModal')">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-head">
+      <span class="modal-title">Cambiar mi PIN</span>
+      <button class="modal-close" onclick="closeModal('miPinModal')">✕</button>
+    </div>
+    <form class="modal-body" id="miPinForm" onsubmit="event.preventDefault(); guardarMiPin()">
+      <div class="form-group">
+        <label for="miPinActual" class="form-label">PIN actual</label>
+        <input type="password" class="form-input" id="miPinActual" maxlength="10" autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label for="miPinNuevo" class="form-label">PIN nuevo</label>
+        <input type="password" class="form-input" id="miPinNuevo" maxlength="10" autocomplete="new-password" placeholder="Entre 4 y 10 caracteres">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label for="miPinRepetir" class="form-label">Repite el PIN nuevo</label>
+        <input type="password" class="form-input" id="miPinRepetir" maxlength="10" autocomplete="new-password">
+      </div>
+      <div id="miPinError" class="form-error" role="alert" style="margin-top:10px;font-size:12px;color:var(--danger);"></div>
+      <button type="submit" hidden></button>
+    </form>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('miPinModal')">Cancelar</button>
+      <button class="btn-save" id="miPinGuardar" onclick="guardarMiPin()">Guardar PIN</button>
     </div>
   </div>
 </div>
@@ -2881,6 +2923,9 @@ async function enterApp() {
   badge.textContent = state.rol==='admin' ? 'SUPERADMIN' : 'EDITOR';
   badge.className = 'topbar-badge'+(state.rol==='admin'?' admin':'');
   document.getElementById('btnSwitchResto').style.display = state.rol==='admin' ? 'block':'none';
+  // CL3: el cliente cambia su PIN. El superadmin no lo ve aquí: entrar a un
+  // restaurante no le da su PIN actual, y para él está «Cambiar PIN» en la lista.
+  document.getElementById('btnMiPin').style.display = state.rol==='cliente' ? 'block':'none';
   await loadData();
   switchTab('productos', document.querySelector('.tab-btn'));
 }
@@ -10065,6 +10110,46 @@ async function confirmCambiarPin() {
     showToast('PIN actualizado','success');
     closeModal('pinModal');
   } catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+// ── CAMBIAR MI PIN (cliente) ──────────────────────────────────
+// Qué está mal, en palabras, o null. Aparte para probarlo sin el modal.
+function errorDeMiPin(actual, nuevo, repetir) {
+  if (!actual) return 'Escribe tu PIN actual.';
+  if (nuevo.length < 4 || nuevo.length > 10) return 'El PIN nuevo debe tener entre 4 y 10 caracteres.';
+  if (nuevo !== repetir) return 'Los dos PIN nuevos no coinciden.';
+  if (nuevo === actual) return 'El PIN nuevo es igual al actual.';
+  return null;
+}
+
+function abrirMiPin() {
+  ['miPinActual', 'miPinNuevo', 'miPinRepetir'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('miPinError').textContent = '';
+  openModal('miPinModal');
+  setTimeout(() => document.getElementById('miPinActual').focus(), 100);
+}
+
+async function guardarMiPin() {
+  const actual  = document.getElementById('miPinActual').value;
+  const nuevo   = document.getElementById('miPinNuevo').value.trim();
+  const repetir = document.getElementById('miPinRepetir').value.trim();
+  const aviso = document.getElementById('miPinError');
+  const error = errorDeMiPin(actual, nuevo, repetir);
+  aviso.textContent = error || '';
+  if (error) return;
+  const boton = document.getElementById('miPinGuardar');
+  boton.disabled = true;
+  try {
+    // null es sesión caducada: apiFetch ya llevó al login, y no se cambió nada.
+    if (!(await apiFetch('PATCH', '/api/mi-pin', { actual, nuevo }))) return;
+    closeModal('miPinModal');
+    // La sesión sigue abierta: el PIN nuevo se usa la próxima vez que se entre.
+    showToast('PIN cambiado. Úsalo la próxima vez que entres.', 'success');
+  } catch (e) {
+    aviso.textContent = e.message;
+  } finally {
+    boton.disabled = false;
+  }
 }
 
 function entrarARestaurante(slug) {
