@@ -279,12 +279,21 @@ restaurantes, diez pastillas que invitan a pulsar y no responden.
 
 ## S4 · El formulario de crear ocupa la pantalla entera antes de la lista · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #117
 
 En móvil hay que bajar seis gestos para llegar al primer restaurante. Crear uno
 es cosa de una vez al mes; la lista es a lo que entras siempre.
 
 **Arreglo:** plegarlo detrás de un `+ Nuevo restaurante`.
+
+> **Aplicado (13/09/2026)** con un `<details>`, que el teclado y los lectores de
+> pantalla ya entienden sin JavaScript. Medido a 375 px: plegado ocupa 47 px y la
+> lista empieza a 195 px; abierto, a 700. Al crear se pliega solo, antes de llevar
+> al restaurante nuevo (F4).
+>
+> **De paso:** el PIN de crear dejaba 20 caracteres, y el servidor no ponía tope ni
+> al crear ni al cambiarlo desde la lista. El login admite 10, así que uno más largo
+> se guardaba y no servía para entrar. Ahora el tope es 10 en los tres sitios.
 
 ## S5 · Si falla la carga de la lista, es un callejón sin salida · **Media**
 
@@ -984,7 +993,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **62 aplicados** · **2 descartados** · **6 pendientes**.
+**70 hallazgos** en las tres superficies · **63 aplicados** · **2 descartados** · **5 pendientes**.
 
 ## Aplicados
 
@@ -1036,6 +1045,7 @@ Del 11 al 13 de septiembre de 2026:
 | **C1** · reordenar de uno en uno | #114 | arrastrar desde un asa, un guardado; las flechas siguen, con el foco en la fila |
 | **B3**, segunda mitad · bebidas y adicionales en «Platos que nadie abrió» | #115 | casilla por categoría; en Bonzas, de 37 a 4 |
 | **P4** · avisos hechos con platos de $ 0 | #116 y vmenus-app#27 | nota por categoría, a prueba |
+| **S4** · el formulario de crear tapaba la lista | #117 | plegado; y el PIN de crear ya no pasa de 10 |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo

@@ -5484,7 +5484,7 @@ describe('crear un restaurante lleva a él', () => {
 	test('crear la usa después de recargar la lista, y cada tarjeta lleva su slug', () => {
 		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
-		assert.match(crear, /await cargarListaRestos\(\);\s*llevarARestauranteNuevo\(slug, nombre\);/);
+		assert.match(crear, /await cargarListaRestos\(\);[\s\S]{0,200}?llevarARestauranteNuevo\(slug, nombre\);/);
 		assert.match(src, /card\.className='resto-card'; card\.dataset\.slug=r\.slug;/);
 	});
 });
@@ -5972,5 +5972,31 @@ describe('la categoría lleva una nota opcional para la carta', () => {
 	test('guardar la pone recortada, y vacía la borra', () => {
 		const guardar = src.match(/async function saveCat\(\) \{[\s\S]*?\n\}/)[0];
 		assert.match(guardar, /const nota=document\.getElementById\('editCatNota'\)\.value\.trim\(\);\s*if\(nota\) atributos\.nota = nota; else delete atributos\.nota;/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('el formulario de crear restaurante va plegado', () => {
+	// S4 en docs/revision-ux.md: seis gestos en móvil hasta el primer restaurante.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('es un <details> cerrado, con el título como lo que se pulsa', () => {
+		assert.match(src, /<details class="new-resto-card" id="nuevoRestoPanel">\s*<summary class="section-title new-resto-summary">\+ Nuevo restaurante<\/summary>/);
+		assert.doesNotMatch(src, /<details class="new-resto-card" id="nuevoRestoPanel" open/);
+		const i = src.indexOf('id="nuevoRestoPanel"');
+		const f = src.indexOf('</details>', i);
+		assert.ok(src.slice(i, f).includes('id="newRestoNombre"'), 'los campos van dentro');
+		assert.ok(src.slice(i, f).includes('onclick="crearRestaurante()"'));
+	});
+
+	test('al crear se pliega, antes de llevar al restaurante nuevo', () => {
+		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(crear, /getElementById\('nuevoRestoPanel'\)\.open=false;\s*llevarARestauranteNuevo/);
+	});
+
+	test('el PIN de un restaurante nuevo no pasa de lo que admite el login', () => {
+		assert.match(src, /id="newRestoPin"[^>]*maxlength="10"/);
+		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(crear, /pin\.length>10/);
 	});
 });

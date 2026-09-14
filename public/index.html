@@ -510,6 +510,13 @@
 			.status-badge.esprueba{background:var(--warn-dim);color:var(--warn);border:1px dashed var(--warn);}
 
 			.new-resto-card{background:var(--panel);border:1px dashed var(--border2);border-radius:var(--r-lg);padding:24px;margin-bottom:24px;}
+			/* S4: plegado, es una línea que se pulsa; abierto, el formulario de siempre. */
+			.new-resto-card:not([open]){padding:0;}
+			.new-resto-summary{cursor:pointer;list-style:none;padding:16px 24px;margin:0;}
+			.new-resto-summary::-webkit-details-marker{display:none;}
+			.new-resto-summary:hover{color:var(--accent);}
+			.new-resto-card[open] .new-resto-summary{padding:0 0 16px;}
+			.new-resto-card:not([open]) .new-resto-summary::after{content:' ▾';color:var(--text-dim);}
 			.color-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 			.resto-card-plan{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;
 			  color:var(--text-muted);border:1px solid var(--border2);border-radius:4px;
@@ -783,9 +790,13 @@
 			</div>
 			
 			<div class="admin-content">
-				<!-- Nuevo restaurante -->
-				<div class="new-resto-card">
-					<div class="section-title" style="margin-bottom:16px;">+ Nuevo restaurante</div>
+				<!-- Nuevo restaurante. S4 en docs/revision-ux.md: abierto ocupaba la
+				     pantalla entera del móvil antes del primer restaurante (seis gestos),
+				     y crear uno es cosa de una vez al mes. <details> y no un botón con
+				     JavaScript: el teclado y los lectores de pantalla ya lo entienden. -->
+				<details class="new-resto-card" id="nuevoRestoPanel">
+					<summary class="section-title new-resto-summary">+ Nuevo restaurante</summary>
+					<div class="new-resto-cuerpo">
 					<div class="form-row" style="margin-bottom:12px;">
 						<div class="form-group" style="margin-bottom:0">
 							<label for="newRestoNombre" class="form-label">Nombre</label>
@@ -823,11 +834,12 @@
 					</div>
 					<div class="form-group" style="margin-bottom:16px;">
 						<label for="newRestoPin" class="form-label">PIN de acceso <span style="color:var(--text-dim)">(el que le compartes al cliente para entrar)</span></label>
-						<input type="text" class="form-input" id="newRestoPin" placeholder="Mínimo 4 caracteres" maxlength="20">
+						<input type="text" class="form-input" id="newRestoPin" placeholder="Entre 4 y 10 caracteres" maxlength="10">
 					</div>
 					<button class="btn-save" style="width:auto;padding:11px 24px;" onclick="crearRestaurante()">Crear restaurante</button>
 					<div id="newRestoStatus" style="margin-top:10px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-				</div>
+					</div>
+				</details>
 
 				<!-- Lista de restaurantes -->
 				<div class="section-card">
@@ -10280,7 +10292,7 @@ async function crearRestaurante() {
 
   if(!nombre||!slug){status.textContent='Nombre y slug son obligatorios';status.style.color='var(--danger)';return;}
   if(!/^[a-z0-9-]+$/.test(slug)){status.textContent='El slug solo puede tener letras minúsculas, números y guiones';status.style.color='var(--danger)';return;}
-  if(!pin||pin.length<4){status.textContent='El PIN debe tener mínimo 4 caracteres';status.style.color='var(--danger)';return;}
+  if(!pin||pin.length<4||pin.length>10){status.textContent='El PIN debe tener entre 4 y 10 caracteres';status.style.color='var(--danger)';return;}
 
   status.textContent='Creando...'; status.style.color='var(--text-muted)';
   try {
@@ -10291,6 +10303,8 @@ async function crearRestaurante() {
     document.getElementById('newRestoPin').value='';
     document.getElementById('newRestoClonar').value='';
     await cargarListaRestos();
+    // Se pliega: lo siguiente es la lista, donde llevarARestauranteNuevo lleva a él.
+    document.getElementById('nuevoRestoPanel').open=false;
     llevarARestauranteNuevo(slug, nombre);
   } catch(e) { status.textContent='Error: '+e.message; status.style.color='var(--danger)'; }
 }
