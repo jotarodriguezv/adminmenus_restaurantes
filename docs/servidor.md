@@ -183,13 +183,14 @@ Lo que no existe es recuperar una perdida cuando ya no queda ninguna.
 MAILTO=verificameco@gmail.com
 30 4 * * * /opt/menus/respaldo/respaldo.sh >> /var/log/respaldo-uploads.log 2>&1
 0 9 * * 1 /opt/menus/respaldo/verificar.sh
-```
 
-**Pendiente de añadir** (29/08/2026) — esto todavía NO está en el crontab:
-
-```cron
+# El día 1 de cada mes, restaurar de verdad y comparar bytes.
 0 10 1 * * /opt/menus/respaldo/probar-restauracion.sh >> /var/log/respaldo-prueba.log 2>&1 || tail -20 /var/log/respaldo-prueba.log
 ```
+
+Copiado del servidor el 14/09/2026. La línea mensual está puesta desde el
+29/08/2026; aquí se decía que no, y el checklist de `docs/cartas-en-video.md`
+que sí. Tenía razón el checklist.
 
 > El `|| tail` del final no es adorno. Cron solo manda correo cuando un trabajo
 > **escribe algo**, y mandarlo todo al log significa que cron no ve nada — ni
@@ -454,20 +455,21 @@ servir dentro del VPS más barato de Hostinger.**
 - ~~Reinicio pendiente por kernel~~ — **hecho el 23/08/2026.** Corre
   6.8.0-138 y no quedan actualizaciones pendientes. Los 17 contenedores
   volvieron solos.
-- **Alarma para la prueba de restauración mensual** (29/08/2026). **La parte
-  del repositorio está hecha el 14/09/2026:** `probar-restauracion.sh` avisa a
-  `RESTAURACION_PING` al empezar, al terminar bien y al fallar, con el motivo.
-  Falta lo del servidor, y hasta entonces no cuenta como hecha:
-  1. Crear el check mensual en healthchecks.io (`respaldo/LEEME.md` §7).
-  2. Añadir `RESTAURACION_PING` a `/root/.respaldo.env`.
-  3. Repetir el `docker cp` del paso 3.bis, o el anfitrión sigue con el script
-     viejo.
-  4. Confirmar con `crontab -l` que la línea mensual está: el §4 de este
-     documento la daba por no añadida y el checklist de
-     `docs/cartas-en-video.md`, por puesta.
-  5. Probarla en verde y en rojo.
-- **`docker system df`**: 26 GB usados de 48. Las imágenes viejas suelen ser lo
-  que más ocupa.
+- ~~Alarma para la prueba de restauración mensual~~ — **hecho el 14/09/2026.**
+  Check «vmenus · prueba de restauración mensual» en healthchecks.io (cron
+  `0 10 1 * *`, UTC, margen 1 día) y `RESTAURACION_PING` en
+  `/root/.respaldo.env`. Probada en los dos sentidos, con correo en ambos.
+- **`docker system df`**: 26 GB usados de 48 en agosto. **El 14/09/2026 quedan
+  14 GB libres** (lo dijo la prueba de restauración), así que el uso creció
+  unos 8 GB. Las imágenes viejas suelen ser lo que más ocupa.
+- **La comparación byte a byte de la prueba ya no mira ningún video.** Coge los
+  cinco archivos más grandes suponiendo que son videos, y el 14/09/2026 fueron
+  cinco PDF de `cartas/` de 24 MB cada uno. Los videos solo se comprueban por
+  número de archivos. Arreglo probable: muestrear por carpeta, no por tamaño.
+- **Cinco PDF de `cartas/` del mismo tamaño (24 MB), subidos en días
+  distintos.** Huele a la misma carta importada varias veces. Mirar si
+  `cartas/` se queda con los originales después de importar y si el limpiador
+  los recoge.
 - **La base de datos la respalda Supabase**, no esto. Conviene mirar qué
   retención da el plan contratado, que no es la misma en el gratuito.
 - **Los archivos de menos de un día no están en ninguna copia.** Un video subido
@@ -483,6 +485,23 @@ servir dentro del VPS más barato de Hostinger.**
 ---
 
 ## Registro de cambios
+
+**14/09/2026 — Alarma para la prueba mensual de restauración**
+
+`probar-restauracion.sh` corría cada mes desde el 29/08, pero su fallo solo
+quedaba en un log y en un `MAILTO` que no llega a ningún sitio. Ahora avisa a
+su propio check de healthchecks.io (`RESTAURACION_PING`): `/start` al empezar,
+éxito al terminar bien y `/fail` con las últimas veinte líneas desde un trap de
+salida, que cubre también las muertes por `set -e`.
+
+- Check aparte del diario: uno mensual no mantendría vivo el diario, y un fallo
+  de la prueba lo pondría en rojo como si el respaldo hubiera fallado.
+- **Verde:** 210 MB restaurados, 10 carpetas completas, 5 archivos idénticos;
+  en healthchecks `Started` → `OK`.
+- **Rojo:** credenciales copiadas apuntando a `b2:no-existe-vmenus:uploads`;
+  restic falla con 401, sale con código 1, el check pasa a rojo con el motivo
+  dentro y **llega el correo**. Vuelto a verde con otra corrida buena, y llegó
+  también el correo de *up*.
 
 **03/09/2026 — Traefik cortaba las subidas de video a los 60 segundos**
 
