@@ -899,7 +899,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **50 aplicados** · **2 descartados** · **18 pendientes**.
+**70 hallazgos** en las tres superficies · **51 aplicados** · **2 descartados** · **17 pendientes**.
 
 ## Aplicados
 
@@ -939,6 +939,7 @@ Del 11 al 13 de septiembre de 2026:
 | **L3 + L4 + L5** · el login: jerga, PIN con puntos y tema | #102 | el panel guardaba el tema en cada carga, y eso tapaba la preferencia del sistema |
 | **S2 + S3** · el rojo para dos cosas, y «Activo» con forma de botón | #103 | eliminar, único rojo y visible en reposo; el estado, texto junto al nombre |
 | **S5** · la lista que no carga, sin salida | #104 | motivo legible, también sin red, y Reintentar |
+| **F4** · crear un restaurante no llevaba a él | #105 | a la vista, resaltado, y «Montar la carta» en el aviso |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -969,7 +970,7 @@ decisión antes de escribir código.
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
-del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, F4, X1, X2 ·
+del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, ~~F4~~, X1, X2 ·
 A5, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
@@ -1549,7 +1550,7 @@ restaurante nuevo.
 
 ## F4 · Crear un restaurante no lleva a ninguna parte · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #105
 
 `crearRestaurante` (`index.html:9027`) limpia el formulario, enseña
 «✓ Restaurante creado correctamente» y recarga la lista. No desplaza hasta el
@@ -1561,6 +1562,13 @@ restaurante nuevo lo empeora.
 
 La validación previa, en cambio, está bien: nombre y slug obligatorios, formato
 del slug comprobado y PIN de mínimo 4, cada uno con su mensaje.
+
+> **Aplicado (13/09/2026)** con las tres cosas: tras recargar la lista, la tarjeta
+> del nuevo **se trae a la vista** y se resalta cuatro segundos, y el aviso ofrece
+> **«Montar la carta»**, que entra en él. Probado en el panel con doce restaurantes,
+> rellenando el formulario con teclas reales y el API simulado: la página bajó al
+> fondo con la tarjeta entera a la vista (es la última, así que no puede centrarse)
+> y un clic en «Montar la carta» entró en el restaurante nuevo.
 
 ## Lo que no se pudo probar, y por qué
 
