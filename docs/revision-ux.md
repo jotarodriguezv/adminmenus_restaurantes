@@ -254,20 +254,28 @@ como está.
 
 ## S2 · El rojo significa dos cosas distintas en la misma fila · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #103
 
 `Suspender` y `Eliminar` comparten `btn-sm danger`. Una es reversible con otro
 clic; la otra borra el menú, los videos, la cobranza y las estadísticas. Cuando
 el color de peligro cubre las dos, deja de avisar de la que importa.
 
+> **Aplicado (13/09/2026).** Eliminar es el único rojo, y ahora lo es **sin pasar
+> el ratón** (antes solo se ponía rojo al pasar por encima). Suspender queda neutro
+> y avisa en ámbar al pasar el ratón: es reversible con otro clic.
+
 ## S3 · `Activo` parece un botón y no lo es · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #103
 
 Es un `<span class="status-badge">` dentro del mismo contenedor flex que los
 botones, con la misma forma de pastilla y el mismo tamaño
 (`index.html:8905`), y pegado a `Suspender`, que sí es acción. Diez
 restaurantes, diez pastillas que invitan a pulsar y no responden.
+
+> **Aplicado (13/09/2026).** El estado sale de la fila de botones y va junto al
+> nombre como texto con punto de color, sin borde ni fondo: «Bonzas Burger Grill
+> ● ACTIVO», «Gale ● SUSPENDIDO».
 
 ## S4 · El formulario de crear ocupa la pantalla entera antes de la lista · **Media**
 
@@ -883,7 +891,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **47 aplicados** · **2 descartados** · **21 pendientes**.
+**70 hallazgos** en las tres superficies · **49 aplicados** · **2 descartados** · **19 pendientes**.
 
 ## Aplicados
 
@@ -921,6 +929,7 @@ Del 11 al 13 de septiembre de 2026:
 | **C2 + C3** · la categoría que no sale en la carta, y «fotos» sin contexto | #100 | también avisa si tiene platos pero ninguno disponible |
 | **TP1 + TP2** · nombres distintos de los grupos, y la pestaña vacía | #101 | el nombre de la carta se conserva entre paréntesis, porque es lo que el dueño ve publicado |
 | **L3 + L4 + L5** · el login: jerga, PIN con puntos y tema | #102 | el panel guardaba el tema en cada carga, y eso tapaba la preferencia del sistema |
+| **S2 + S3** · el rojo para dos cosas, y «Activo» con forma de botón | #103 | eliminar, único rojo y visible en reposo; el estado, texto junto al nombre |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -951,7 +960,7 @@ decisión antes de escribir código.
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
-del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · S2 + S3, S5, F4, X1, X2 ·
+del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, S5, F4, X1, X2 ·
 A5, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
