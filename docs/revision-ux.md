@@ -370,7 +370,7 @@ se paga igual al entrar en la pestaña.
 
 ## P3 · Dos categorías «Hamburguesas» y «HAMBURGUESA» conviviendo · **Media**
 
-- [x] Hecho · 2026-09-13 · PR #113 · el aviso; los datos de aojocerrado, aparte
+- [x] Hecho · 2026-09-13 · PR #113 · el aviso; los datos de aojocerrado los corrige el usuario en el panel
 
 Están las dos en la lista de 21. El panel no avisa al crear una categoría casi
 idéntica a otra, ni al escribirla en otra caja.
@@ -389,7 +389,9 @@ idéntica a otra, ni al escribirla en otra caja.
 >
 > **Los datos de aojocerrado no se juntan a ciegas:** «SUPREMA» está en las dos, a
 > $25.000 en `Hamburguesas` y a $22.000 en `HAMBURGUESA`. Pasar los platos dejaría
-> dos SUPREMA con precios distintos. Queda para decidir con el usuario qué sobra.
+> dos SUPREMA con precios distintos. Y la original es `Hamburguesas` (primera en la
+> carta, con fotos y 12 visitas desde el 03/09), no la del escaneo. **El usuario lo
+> arregla él en el panel**; no se tocan datos de producción.
 
 ## P4 · No hay forma de poner una nota en la carta, así que se usan productos de $ 0 · **Media**
 
