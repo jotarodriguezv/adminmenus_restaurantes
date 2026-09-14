@@ -3007,6 +3007,7 @@ describe('moveCat · reordenar cuando dos categorías empatan en "orden"', () =>
 			state: { categorias, restaurante: { id: 'r1' } },
 			apiFetch: async (m, ruta, cuerpo) => { patches.push({ ruta, ...cuerpo }); return {}; },
 			renderCatList() {}, renderCatFilter() {}, showToast() {},
+			document: { querySelector: () => null },
 		});
 		await ctx.moveCat(id, dir);
 		return { patches,
@@ -4889,7 +4890,7 @@ describe('la fila de categoría cabe en un móvil', () => {
 	test('los tres controles van juntos en su grupo, en el mismo orden', () => {
 		const nodo = (tag) => ({
 			tag, className: '', textContent: '', style: {}, hijos: [], title: '', type: '', atributos: {},
-			appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {},
+			dataset: {}, appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {},
 			setAttribute(k, v) { this.atributos[k] = String(v); },
 		});
 		const lista = nodo('div');
@@ -4907,7 +4908,7 @@ describe('la fila de categoría cabe en un móvil', () => {
 		assert.equal(fila.hijos.length, 3, 'la fila debería tener emoji, datos y el grupo de controles');
 		const acciones = fila.hijos[2];
 		assert.equal(acciones.className, 'cat-acciones');
-		assert.deepEqual(acciones.hijos.map(h => h.className || h.hijos.map(b => b.textContent).join('')), ['↑↓', 'btn-edit', 'btn-del']);
+		assert.deepEqual(acciones.hijos.map(h => h.className || h.hijos.map(b => b.textContent).join('')), ['⠿↑↓', 'btn-edit', 'btn-del']);
 	});
 });
 
@@ -5067,7 +5068,7 @@ describe('borrar dice qué borra', () => {
 
 	test('la fila de categoría pinta ese nombre de verdad', () => {
 		const nodo = () => ({ className: '', textContent: '', style: {}, hijos: [], title: '', type: '', atributos: {},
-			appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {}, setAttribute(k, v) { this.atributos[k] = String(v); } });
+			dataset: {}, appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {}, setAttribute(k, v) { this.atributos[k] = String(v); } });
 		const lista = nodo();
 		const ctx = cargar('index.html', '// ── LA LÍNEA DE DATOS DE CADA CATEGORÍA', '// Muestra/oculta el campo de imagen', {
 			state: { categorias: [{ id: 'c1', nombre: 'Bebidas' }], productos: [] },
@@ -5112,7 +5113,7 @@ describe('cada categoría dice cuántos platos tiene, cómo se ve y si sale en l
 
 	test('la fila pinta el aviso junto a los datos', () => {
 		const nodo = () => ({ className: '', textContent: '', style: {}, hijos: [], title: '', type: '', atributos: {},
-			appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {}, setAttribute(k, v) { this.atributos[k] = String(v); } });
+			dataset: {}, appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {}, setAttribute(k, v) { this.atributos[k] = String(v); } });
 		const lista = nodo();
 		const ctx = cargar('index.html', '// ── LA LÍNEA DE DATOS DE CADA CATEGORÍA', '// Muestra/oculta el campo de imagen', {
 			state: { categorias: [{ id: 'c1', nombre: 'Otros' }], productos: [] },
@@ -5807,5 +5808,87 @@ describe('el modal de categoría avisa de una casi repetida', () => {
 		assert.match(abrirEditar, /avisarCategoriaParecida\(\);\s*openModal\('catModal'\)/);
 		const guardar = src.match(/async function saveCat\(\) \{[\s\S]*?\n\}/)[0];
 		assert.doesNotMatch(guardar, /categoriaParecida/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('las categorías se reordenan arrastrando', () => {
+	// C1 en docs/revision-ux.md: 20 clics para subir la última de 21, y la fila
+	// se escapaba del puntero en cada uno.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const TRAMO = [['async function enTandas', 'function ordenProductosModo'], ['async function moveCat', '// ── ELIMINAR']];
+	const cats = () => ['a', 'b', 'c', 'd'].map((id, i) => ({ id, nombre: id.toUpperCase(), orden: i }));
+
+	function montar(extra = {}) {
+		const patches = [], avisos = [];
+		const ctx = cargar('index.html', TRAMO, {
+			state: { categorias: cats(), restaurante: { id: 'r1' } },
+			apiFetch: async (m, ruta, cuerpo) => { patches.push({ ruta, ...cuerpo }); return {}; },
+			renderCatList() {}, renderCatFilter() {}, showToast: (m) => avisos.push(m),
+			document: { querySelector: () => null }, ...extra,
+		});
+		return { ctx, patches, avisos };
+	}
+
+	test('llevar una fila a otra posición corre las demás', () => {
+		const { ctx } = montar();
+		assert.deepEqual([...ctx.moverEnLista(['a', 'b', 'c', 'd'], 3, 0)], ['d', 'a', 'b', 'c']);
+		assert.deepEqual([...ctx.moverEnLista(['a', 'b', 'c', 'd'], 0, 2)], ['b', 'c', 'a', 'd']);
+	});
+
+	test('la posición sale de la altura del puntero frente a la mitad de cada fila', () => {
+		const { ctx } = montar();
+		const mitades = [100, 160, 220];
+		assert.equal(ctx.posicionDeArrastre(mitades, 50), 0, 'por encima de todo, arriba');
+		assert.equal(ctx.posicionDeArrastre(mitades, 130), 1);
+		assert.equal(ctx.posicionDeArrastre(mitades, 999), 3, 'por debajo de todo, al final');
+	});
+
+	test('soltar la última arriba es un guardado con un solo aviso, no veinte', async () => {
+		const { ctx, patches, avisos } = montar();
+		assert.equal(await ctx.guardarOrdenCategorias(['d', 'a', 'b', 'c']), true);
+		assert.deepEqual([...ctx.state.categorias.map(c => c.id)], ['d', 'a', 'b', 'c']);
+		assert.deepEqual([...ctx.state.categorias.map(c => c.orden)], [0, 1, 2, 3]);
+		assert.equal(patches.length, 4);
+		assert.equal(avisos.length, 1);
+	});
+
+	test('soltar donde estaba no guarda nada', async () => {
+		const { ctx, patches, avisos } = montar();
+		assert.equal(await ctx.guardarOrdenCategorias(['a', 'b', 'c', 'd']), true);
+		assert.equal(patches.length, 0);
+		assert.equal(avisos.length, 0);
+	});
+
+	test('tras una flecha, el foco vuelve a la misma flecha de la fila movida', async () => {
+		const enfocados = [];
+		const boton = dir => ({ style: {}, focus: () => enfocados.push(dir), scrollIntoView() {} });
+		const fila = { querySelector: sel => boton(sel.match(/data-dir="(-?\d)"/)[1]) };
+		const { ctx } = montar({ document: { querySelector: sel => (sel.includes('data-id="c"') ? fila : null) } });
+		await ctx.moveCat('c', -1);
+		assert.deepEqual(enfocados, ['-1']);
+	});
+
+	test('si la captura del puntero falla, el arrastre no se queda abierto', () => {
+		const clases = () => ({ add() {}, remove() {} });
+		const escuchas = [];
+		const fila = { classList: clases() };
+		const lista = { classList: clases(), querySelectorAll: () => [], insertBefore() {} };
+		const ctx = cargar('index.html', [['let arrastreCat=null;', '// ── ELIMINAR']], {
+			document: { getElementById: () => lista, addEventListener: (t) => escuchas.push(t), removeEventListener() {} },
+			requestAnimationFrame: () => 1, cancelAnimationFrame() {}, window: { innerHeight: 800, scrollBy() {} },
+		});
+		const ev = { button: 0, pointerId: 7, clientY: 10, preventDefault() {},
+			currentTarget: { setPointerCapture() { throw new Error('NotFoundError'); } } };
+		assert.doesNotThrow(() => ctx.empezarArrastreCat(ev, fila));
+		assert.ok(escuchas.includes('pointerup'), 'sin la escucha de soltar, no se cierra nunca');
+	});
+
+	test('el asa solo bloquea el desplazamiento táctil en sí misma, y Escape cancela', () => {
+		assert.match(src, /\.cat-asa\{[^}]*touch-action:none/);
+		assert.doesNotMatch(src, /\.cat-row\{[^}]*touch-action:none/);
+		assert.match(src, /asa\.addEventListener\('pointerdown',ev=>empezarArrastreCat\(ev,row\)\)/);
+		const tecla = src.match(/function teclaArrastreCat\(ev\) \{[\s\S]*?\n\}/)[0];
+		assert.match(tecla, /Escape[\s\S]*cancelarArrastreCat/);
 	});
 });

@@ -458,7 +458,7 @@ cosas mejor resueltas del panel.
 
 ## C1 · Reordenar es de uno en uno, y la fila se escapa del cursor · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #114
 
 Solo hay `↑` y `↓`, que intercambian con el vecino (`moveCat`,
 `index.html:5447`). Con las 21 categorías de esta carta, subir la última hasta
@@ -471,6 +471,19 @@ hacia arriba.
 
 **Arreglo:** arrastrar y soltar, o un campo de posición como el que ya tiene el
 modal de categoría («Orden (número)»).
+
+> **Aplicado (13/09/2026): arrastrar y soltar**, decisión del usuario. Se arrastra
+> desde un asa ⠿ junto a las flechas, con Pointer Events: el drag and drop de HTML5
+> no funciona con el dedo. La fila viaja por la lista mientras se arrastra, así que
+> se queda bajo el puntero, y se guarda **una vez** al soltar, con un solo aviso.
+> Cerca del borde de la ventana la página se desplaza sola, y Escape cancela sin
+> guardar. Las **flechas se quedan** para el teclado, y ahora el foco sigue a la
+> fila movida, que era la otra mitad del hallazgo.
+>
+> Probado con un arrastre real del ratón en el navegador: la última de seis pasó
+> arriba con un guardado. **Y el navegador encontró un fallo:** si
+> `setPointerCapture` lanzaba, el arrastre quedaba abierto y no se podía volver a
+> arrastrar hasta recargar. Corregido y con prueba.
 
 ## C2 · El panel no avisa de que una categoría vacía no se ve · **Baja**
 
@@ -960,7 +973,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **60 aplicados** · **2 descartados** · **8 pendientes**.
+**70 hallazgos** en las tres superficies · **61 aplicados** · **2 descartados** · **7 pendientes**.
 
 ## Aplicados
 
@@ -1009,6 +1022,7 @@ Del 11 al 13 de septiembre de 2026:
 | **V6** · capas cerradas en el Tab | vmenus-app#26 | 26 controles, no 2; y los hijos con `transition: all` retrasaban el foco |
 | **CL3** · el cliente no puede cambiar su PIN | #112 | pidiendo el actual; el superadmin sigue sin necesitarlo |
 | **P3** · categorías casi repetidas | #113 | aviso en el modal con la regla de la importación, que ya lo hacía |
+| **C1** · reordenar de uno en uno | #114 | arrastrar desde un asa, un guardado; las flechas siguen, con el foco en la fila |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1051,7 +1065,7 @@ del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2
 - ~~**P3**~~ — el duplicado de aojocerrado fue **un error al probar el escaneo**, no
   del dueño. Avisar en el panel al crear o renombrar una categoría casi igual, y
   arreglar ese caso (con aviso antes de escribir en producción).
-- **C1** — **arrastrar y soltar**, manteniendo las flechas para teclado.
+- ~~**C1**~~ — **arrastrar y soltar**, manteniendo las flechas para teclado.
 - **B3, segunda mitad** — **casilla por categoría** «no hace falta abrir la ficha».
 - **A3 + A4 + S4 + S6** — el usuario no tiene opinión. Recomendación: **S4 y A4**,
   pequeños; A3 y S6 cuando el equipo los eche en falta. Al final del grupo.
