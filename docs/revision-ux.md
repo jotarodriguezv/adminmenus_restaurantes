@@ -171,27 +171,43 @@ está montada y bien pensada —Enter en el identificador salta al PIN
 
 ## L3 · «Identificador de acceso» es jerga · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #102
 
 El que explica de verdad es el placeholder, `ej: bonzas`. El dueño piensa en el
 nombre de su restaurante. «El nombre corto de tu restaurante» haría el trabajo
 de la etiqueta y del placeholder a la vez.
 
+> **Aplicado (13/09/2026):** «Nombre corto de tu restaurante». Y el error de dejarlo
+> vacío, que decía «Ingresa el identificador», ahora habla igual.
+
 ## L4 · El PIN parece traer algo escrito · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #102
 
 El placeholder son cuatro puntos, `····` (`index.html:639`), que es exactamente
 lo que se ve en un campo de contraseña con texto dentro.
 
+> **Aplicado (13/09/2026):** sin placeholder. La etiqueta ya dice «PIN».
+
 ## L5 · El login ignora la vista clara · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #102
 
 Forzando `prefers-color-scheme: light` sigue oscuro. El interruptor de tema solo
 aparece **después** de entrar, en la barra superior.
 
 ---
+
+> **Aplicado (13/09/2026), y la causa era más honda que mirar la preferencia.** El
+> panel **guardaba el tema en cada carga**, así que quien había entrado alguna vez
+> tenía «oscuro» guardado sin haberlo elegido: seguir al sistema no habría cambiado
+> nada para casi nadie. Ahora solo se guarda al pulsar el botón, en otra clave; la
+> vieja se lee solo si dice «claro» (por defecto era oscuro, así que «claro» sí fue
+> una elección). El botón de tema está también en el login.
+>
+> Probado con el sistema en claro emulado y el «oscuro» viejo guardado: el login
+> sale en claro y cargar no guarda nada; pulsar el botón pasa a oscuro y al recargar
+> se mantiene aunque el sistema siga en claro.
 
 # Panel superadmin (lista de restaurantes)
 
@@ -867,7 +883,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **44 aplicados** · **2 descartados** · **24 pendientes**.
+**70 hallazgos** en las tres superficies · **47 aplicados** · **2 descartados** · **21 pendientes**.
 
 ## Aplicados
 
@@ -904,6 +920,7 @@ Del 11 al 13 de septiembre de 2026:
 | **F2 + P6** · errores de la ficha de uno en uno, y borrar sin nombre | #99 | los tres errores a la vez y en su campo; borrar dice qué borra |
 | **C2 + C3** · la categoría que no sale en la carta, y «fotos» sin contexto | #100 | también avisa si tiene platos pero ninguno disponible |
 | **TP1 + TP2** · nombres distintos de los grupos, y la pestaña vacía | #101 | el nombre de la carta se conserva entre paréntesis, porque es lo que el dueño ve publicado |
+| **L3 + L4 + L5** · el login: jerga, PIN con puntos y tema | #102 | el panel guardaba el tema en cada carga, y eso tapaba la preferencia del sistema |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -934,7 +951,7 @@ decisión antes de escribir código.
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
-del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · L3 + L4 + L5 · S2 + S3, S5, F4, X1, X2 ·
+del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · S2 + S3, S5, F4, X1, X2 ·
 A5, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
