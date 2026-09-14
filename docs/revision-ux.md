@@ -379,11 +379,15 @@ indicación de que haya más.
 
 ## P6 · El botón de borrar es un icono sin etiqueta · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #99
 
 `🗑` con `title="Eliminar"` y nada más (`index.html:5186`), pegado a un `Editar`
 que sí lleva texto. En una lista de 100 filas es el control que más conviene
 que no se confunda.
+
+> **Aplicado (13/09/2026)** con nombre accesible y `title` que dicen **qué** borra:
+> «Eliminar «Burger Clásica»», «Eliminar la categoría «Bebidas»». En una lista de
+> cien filas, «Eliminar» a secas no dice cuál. El icono se queda.
 
 ## Lo que está bien y conviene no perder
 
@@ -836,7 +840,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **38 aplicados** · **2 descartados** · **30 pendientes**.
+**70 hallazgos** en las tres superficies · **40 aplicados** · **2 descartados** · **28 pendientes**.
 
 ## Aplicados
 
@@ -870,6 +874,7 @@ Del 11 al 13 de septiembre de 2026:
 | **M3** · la fila de categoría desbordaba en móvil | #96 | dos filas como la de producto; y borrar necesitaba tamaño mínimo, no bastaba con no encogerlo |
 | **M4 + M5** · Promoción sin instrucción en móvil, y la prueba que no lo veía | #97 | lista de palabras permitidas en vez de prohibidas |
 | **CL4 + M7** · contraste del acento en claro, y el rango de fechas partido | #98 | el botón de acento tampoco pasaba; color de texto aparte, sin tocar el de marca |
+| **F2 + P6** · errores de la ficha de uno en uno, y borrar sin nombre | #99 | los tres errores a la vez y en su campo; borrar dice qué borra |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -900,7 +905,7 @@ decisión antes de escribir código.
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
-del panel: F2, P6 · C2, C3 · TP1 + TP2 · L3 + L4 + L5 · S2 + S3, S5, F4, X1, X2 ·
+del panel: ~~F2, P6~~ · C2, C3 · TP1 + TP2 · L3 + L4 + L5 · S2 + S3, S5, F4, X1, X2 ·
 A5, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
@@ -1423,7 +1428,7 @@ crear la categoría desde el propio desplegable.
 
 ## F2 · El error de categoría no lleva el foco al campo; los otros dos sí · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #99
 
 En `saveProduct` (`index.html:4816`), las tres comprobaciones obligatorias:
 
@@ -1440,6 +1445,13 @@ lado.
 
 Y las tres son `return` seguidos, así que los problemas se descubren **de uno
 en uno**: guardas, corriges, guardas, corriges.
+
+> **Aplicado (13/09/2026) resolviendo las tres cosas, no solo el foco.** Los tres
+> campos se comprueban a la vez (`erroresDeFicha`); cada uno con error se marca en
+> rojo con su mensaje debajo, `aria-invalid` y `aria-describedby`; el foco va al
+> primero; y el aviso de abajo resume («Faltan 3 datos del plato»). Al corregir un
+> campo su error se va sin esperar a guardar, y al abrir otra ficha no queda
+> ninguno. Probado con clics y teclas reales en la ficha del panel.
 
 ## F3 · Los estados vacíos del primer día no dicen nada · **Media**
 
