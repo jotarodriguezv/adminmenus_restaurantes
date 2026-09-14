@@ -5536,3 +5536,64 @@ describe('los avisos de la dirección del menú no se contradicen', () => {
 		assert.match(seccion, /<a id="apUrlPreview" target="_blank" rel="noopener noreferrer"/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('la pestaña Pedidos se guarda de una vez', () => {
+	// PE2 en docs/revision-ux.md: «Guardar» para el número y «Guardar métodos de
+	// pago» para lo demás. Los dos van a restaurantes.atributos: una petición.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	function montar({ whatsapp = '573001234567', nequi = { activo: false, telefono: '', titular: '' } } = {}) {
+		const campos = {
+			pedidosWhatsapp: { value: whatsapp }, mpEfectivo: { checked: true }, mpTarjeta: { checked: false },
+			mpNequiActivo: { checked: nequi.activo }, mpNequiTelefono: { value: nequi.telefono }, mpNequiTitular: { value: nequi.titular },
+			mpDaviplataActivo: { checked: false }, mpDaviplataTelefono: { value: '' }, mpDaviplataTitular: { value: '' },
+			mpBancolombiaActivo: { checked: false }, mpBancolombiaNumero: { value: '' }, mpBancolombiaTipo: { value: 'ahorros' }, mpBancolombiaTitular: { value: '' },
+			mpBrebActivo: { checked: false }, mpBrebLlave: { value: '' },
+		};
+		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
+		const peticiones = [], avisos = [];
+		const ctx = cargar('index.html', 'function recolectarMetodosPago', '// ── FUNCIONES SUPERADMIN', {
+			document: { getElementById: $ }, state: { restaurante: { id: 'r1', atributos: {} } },
+			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push({ metodo, ruta, cuerpo }); return { id: 'r1', atributos: cuerpo.atributos }; },
+			actualizarAvisoPedidos() {}, showToast: (m, t) => avisos.push({ m, t }),
+		});
+		return { ctx, $, peticiones, avisos };
+	}
+
+	test('un solo botón de guardar en la pestaña, y ya no existe el segundo guardado', () => {
+		const pestana = src.slice(src.indexOf('<div id="tabPedidos"'), src.indexOf('<div id="tabTv"') > 0 ? src.indexOf('<div id="tabTv"') : undefined);
+		assert.equal((pestana.match(/class="btn-save"/g) || []).length, 1);
+		assert.doesNotMatch(src, /function saveMetodosPago|onclick="saveMetodosPago\(\)"/);
+	});
+
+	test('guardar manda el número y los métodos en la misma petición', async () => {
+		const { ctx, peticiones } = montar();
+		await ctx.savePedidos();
+		assert.equal(peticiones.length, 1);
+		assert.deepEqual(Object.keys(peticiones[0].cuerpo.atributos).sort(), ['metodos_pago', 'whatsapp_pedidos']);
+		assert.equal(peticiones[0].cuerpo.atributos.whatsapp_pedidos, '573001234567');
+		assert.equal(peticiones[0].cuerpo.atributos.metodos_pago.efectivo.activo, true);
+	});
+
+	test('un método activo sin datos no deja guardar nada, y lo dice', async () => {
+		const { ctx, $, peticiones } = montar({ nequi: { activo: true, telefono: '', titular: '' } });
+		await ctx.savePedidos();
+		assert.equal(peticiones.length, 0);
+		assert.equal($('pedidosStatus').textContent, 'Faltan los datos de Nequi');
+	});
+
+	test('sin número tampoco, y dice qué falta; si faltan las dos cosas, las dos', () => {
+		const { ctx } = montar();
+		const mpVacio = { nequi: {}, daviplata: {}, bancolombia: {}, breb: {} };
+		assert.deepEqual([...ctx.erroresDePedidos('', mpVacio)], ['el número de WhatsApp']);
+		const errores = ctx.erroresDePedidos('', { ...mpVacio, breb: { activo: true, llave: '' } });
+		assert.equal(errores.length, 2);
+		assert.match(errores[1], /Bre-B/);
+	});
+
+	test('guardar sigue reevaluando el aviso de «no recibe pedidos»', () => {
+		const cuerpo = src.match(/async function savePedidos\(\)\s*\{[\s\S]*?\n\}/)[0];
+		assert.match(cuerpo, /actualizarAvisoPedidos\(\)/);
+	});
+});
