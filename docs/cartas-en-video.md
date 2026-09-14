@@ -1392,12 +1392,16 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       35 GB usados a 25 GB (52 %): eran imágenes de despliegues anteriores que
       Swarm retenía. Quedan por decidir la limpieza automática y por repasar
       794 MB de volúmenes sin usar. Ver `docs/servidor.md` §8 y registro
-- [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Sigue ahí el
-      14/09/2026, con los mismos 4 objetos. Comprobado el
-      23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
-      tamaño de uno solo, `fondos/bonzas.png`), del 10 de julio, y **ninguno
-      referenciado** por restaurantes, productos ni categorías. Seguro de
-      borrar
+- [x] **Borrar el bucket `vmenus-imagenes` de Supabase** (14/09/2026). Eran
+      4 objetos, 18,2 MB, del 10 de julio: fondo y logo de Bonzas y Malparados,
+      de cuando se pasaron a la carta nueva. Antes de borrar se buscó en **las
+      44 columnas de texto de las 10 tablas** —no solo restaurantes, productos y
+      categorías— y en el código de los tres repos y los dos heredados: cero
+      referencias. La única mención es un ejemplo de URL en
+      `vmenus-app/test/html.test.js`, que no descarga nada. Borrado desde la
+      consola; después, 0 buckets y 0 objetos, y las dos cartas en 200. **El
+      Storage de Supabase queda sin uso**: todo lo subido vive en
+      `/opt/menus/uploads`
 - [ ] Ampliar a KVM 2 (2 vCPU) cuando haya 2-3 clientes usando video
 
 ### Producto

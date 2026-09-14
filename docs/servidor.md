@@ -525,8 +525,7 @@ servir dentro del VPS más barato de Hostinger.**
   a las 10:00 y perdido a las 12:00 se perdió.
 
 > Esta lista es solo lo del **servidor**. Los pendientes de infraestructura que
-> no viven aquí —borrar el bucket `vmenus-imagenes` de Supabase, alargar
-> `PIN_ADMIN`, ampliar a KVM 2— están en la checklist de
+> no viven aquí —alargar `PIN_ADMIN`, ampliar a KVM 2— están en la checklist de
 > `docs/cartas-en-video.md` (§11), que es la única lista completa. No se
 > duplican a propósito: dos listas del mismo pendiente se desincronizan y
 > entonces ninguna es de fiar.
