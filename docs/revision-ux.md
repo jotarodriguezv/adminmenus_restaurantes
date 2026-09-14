@@ -419,7 +419,7 @@ modal de categoría («Orden (número)»).
 
 ## C2 · El panel no avisa de que una categoría vacía no se ve · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #100
 
 `Otros` tiene 0 productos y en el panel se pinta igual que las demás. La carta
 pública **sí la oculta** —`core/menu.js:62`, `if (!prods.length) return;`— así
@@ -432,12 +432,23 @@ creerla publicada.
 nadie crea que la categoría se perdió». Es el mismo aviso, aplicado a otro
 motivo de ocultación.
 
+> **Aplicado (13/09/2026), y el caso era más amplio.** La carta no solo salta las
+> categorías sin platos: solo **carga los disponibles** (`loader.js`,
+> `disponible=eq.true`), así que una categoría con platos pero todos apagados
+> también desaparece. Las dos llevan ahora el aviso en ámbar, como «oculta ahora»:
+> «Sin platos · no sale en la carta hasta que tenga uno» y «2 platos · con fotos ·
+> ninguno disponible: no sale en la carta».
+
 ## C3 · «3 productos · fotos» es criptico · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #100
 
 `index.html:5154`. El segundo dato es el modo de presentación —`fotos` o
 `lista`— pero suelto detrás de un punto medio no dice de qué habla.
+
+> **Aplicado (13/09/2026):** «3 platos · con fotos» y «1 plato · en lista, sin
+> fotos». También «productos» pasa a «platos», que es como habla el resto de esa
+> pantalla.
 
 ## Nota
 
@@ -840,7 +851,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **40 aplicados** · **2 descartados** · **28 pendientes**.
+**70 hallazgos** en las tres superficies · **42 aplicados** · **2 descartados** · **26 pendientes**.
 
 ## Aplicados
 
@@ -875,6 +886,7 @@ Del 11 al 13 de septiembre de 2026:
 | **M4 + M5** · Promoción sin instrucción en móvil, y la prueba que no lo veía | #97 | lista de palabras permitidas en vez de prohibidas |
 | **CL4 + M7** · contraste del acento en claro, y el rango de fechas partido | #98 | el botón de acento tampoco pasaba; color de texto aparte, sin tocar el de marca |
 | **F2 + P6** · errores de la ficha de uno en uno, y borrar sin nombre | #99 | los tres errores a la vez y en su campo; borrar dice qué borra |
+| **C2 + C3** · la categoría que no sale en la carta, y «fotos» sin contexto | #100 | también avisa si tiene platos pero ninguno disponible |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -905,7 +917,7 @@ decisión antes de escribir código.
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
-del panel: ~~F2, P6~~ · C2, C3 · TP1 + TP2 · L3 + L4 + L5 · S2 + S3, S5, F4, X1, X2 ·
+del panel: ~~F2, P6~~ · ~~C2, C3~~ · TP1 + TP2 · L3 + L4 + L5 · S2 + S3, S5, F4, X1, X2 ·
 A5, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**

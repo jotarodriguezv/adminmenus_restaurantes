@@ -4893,7 +4893,7 @@ describe('la fila de categoría cabe en un móvil', () => {
 			setAttribute(k, v) { this.atributos[k] = String(v); },
 		});
 		const lista = nodo('div');
-		const ctx = cargar('index.html', 'function renderCatList', '// Muestra/oculta el campo de imagen', {
+		const ctx = cargar('index.html', '// ── LA LÍNEA DE DATOS DE CADA CATEGORÍA', '// Muestra/oculta el campo de imagen', {
 			state: {
 				categorias: [{ id: 'c1', nombre: 'Hamburguesas', emoji: '🍔' }, { id: 'c2', nombre: 'Bebidas' }],
 				productos: [{ categoria_id: 'c1' }],
@@ -5069,7 +5069,7 @@ describe('borrar dice qué borra', () => {
 		const nodo = () => ({ className: '', textContent: '', style: {}, hijos: [], title: '', type: '', atributos: {},
 			appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {}, setAttribute(k, v) { this.atributos[k] = String(v); } });
 		const lista = nodo();
-		const ctx = cargar('index.html', 'function renderCatList', '// Muestra/oculta el campo de imagen', {
+		const ctx = cargar('index.html', '// ── LA LÍNEA DE DATOS DE CADA CATEGORÍA', '// Muestra/oculta el campo de imagen', {
 			state: { categorias: [{ id: 'c1', nombre: 'Bebidas' }], productos: [] },
 			document: { getElementById: () => lista, createElement: nodo },
 			categoriaVisibleAhora: () => true, describirHorario: () => '', moveCat() {}, openEditCatModal() {}, confirmDelete() {},
@@ -5077,5 +5077,52 @@ describe('borrar dice qué borra', () => {
 		ctx.renderCatList();
 		const borrar = lista.hijos[0].hijos[2].hijos[2];
 		assert.equal(borrar.atributos['aria-label'], 'Eliminar la categoría «Bebidas»');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('cada categoría dice cuántos platos tiene, cómo se ve y si sale en la carta', () => {
+	// C2 y C3 en docs/revision-ux.md. «3 productos · fotos» no decía qué era
+	// «fotos», y una categoría que la carta no enseña se pintaba como las demás.
+	const { datosDeCategoria } = cargar('index.html', 'function datosDeCategoria', 'function renderCatList', {});
+	const plato = (disponible = true) => ({ disponible });
+
+	test('el modo de presentación se dice con palabras', () => {
+		assert.equal(datosDeCategoria([plato(), plato(), plato()], false).texto, '3 platos · con fotos');
+		assert.equal(datosDeCategoria([plato()], true).texto, '1 plato · en lista, sin fotos');
+	});
+
+	test('sin platos, avisa de que no sale en la carta', () => {
+		// La carta la salta: core/menu.js, if (!prods.length) return.
+		const d = datosDeCategoria([], false);
+		assert.match(d.aviso, /no sale en la carta/);
+	});
+
+	test('con platos pero ninguno disponible, tampoco sale, y lo dice', () => {
+		// La carta solo carga los disponibles (loader.js, disponible=eq.true), así
+		// que para ella esta categoría está vacía. El hallazgo no lo recogía.
+		const d = datosDeCategoria([plato(false), plato(false)], false);
+		assert.match(d.aviso, /ninguno disponible/);
+		assert.match(d.texto, /^2 platos/);
+	});
+
+	test('con un solo plato disponible, sale y no avisa', () => {
+		assert.equal(datosDeCategoria([plato(false), plato(true)], false).aviso, null);
+	});
+
+	test('la fila pinta el aviso junto a los datos', () => {
+		const nodo = () => ({ className: '', textContent: '', style: {}, hijos: [], title: '', type: '', atributos: {},
+			appendChild(h) { this.hijos.push(h); return h; }, addEventListener() {}, setAttribute(k, v) { this.atributos[k] = String(v); } });
+		const lista = nodo();
+		const ctx = cargar('index.html', '// ── LA LÍNEA DE DATOS DE CADA CATEGORÍA', '// Muestra/oculta el campo de imagen', {
+			state: { categorias: [{ id: 'c1', nombre: 'Otros' }], productos: [] },
+			document: { getElementById: () => lista, createElement: nodo },
+			categoriaVisibleAhora: () => true, describirHorario: () => '', moveCat() {}, openEditCatModal() {}, confirmDelete() {},
+		});
+		ctx.renderCatList();
+		const meta = lista.hijos[0].hijos[1].hijos[1];
+		assert.equal(meta.textContent, 'Sin platos');
+		assert.match(meta.hijos[0].textContent, /no sale en la carta/);
+		assert.equal(meta.hijos[0].style.cssText.includes('var(--warn)'), true);
 	});
 });
