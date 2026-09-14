@@ -13,6 +13,7 @@ const video    = require('./video');
 const limpieza = require('./limpieza');
 const cupo     = require('./cupo');
 const colaia   = require('./colaia');
+const { pararOrdenadamente } = require('./parada');
 const precios  = require('./precios');
 const lectorpdf   = require('./lectorpdf');
 const lectorcarta = require('./lectorcarta');
@@ -2828,6 +2829,14 @@ const servidor = app.listen(PORT, () => {
   else if (!process.env.REPLICATE_API_TOKEN) console.log('✨ cola de IA apagada: falta REPLICATE_API_TOKEN');
   limpieza.arrancar(supabase);
 });
+
+// ── PARADA ORDENADA ───────────────────────────────────────────
+// Sin esto, cada despliegue mataba el panel a los 10 s con SIGKILL, y una
+// conversión a medias se quedaba en "convirtiendo" hasta una hora y media. El
+// detalle, en parada.js.
+const parar = pararOrdenadamente({ servidor, colas: [video.detener] });
+process.on('SIGTERM', () => parar('SIGTERM'));
+process.on('SIGINT',  () => parar('SIGINT'));
 
 // ── CUÁNTO SE ESPERA A QUE LLEGUE UNA SUBIDA ──────────────────
 // Node corta por su cuenta cualquier petición que tarde más de requestTimeout

@@ -503,11 +503,15 @@ servir dentro del VPS más barato de Hostinger.**
   Dokploy (*Settings → Server*), o `docker swarm update --task-history-limit 2`.
 - **794 MB en volúmenes sin usar.** Probablemente de la boda y de las cartas
   borradas, pero pueden tener datos: repasar uno a uno, no `volume prune`.
-- **Docker mata el panel en cada despliegue** (`Exited (137)`). `node server.js`
-  es el PID 1 y no atiende `SIGTERM`, así que Docker espera 10 s y lo corta: una
-  conversión de video o una subida en curso se interrumpen. Las cartas y la
-  landing (nginx) paran bien, con `Exited (0)`. Arreglo en el repositorio:
-  cerrar el servidor y la cola al recibir `SIGTERM`.
+- **Docker mata el panel en cada despliegue** (`Exited (137)`). **Arreglado en
+  el repositorio el 14/09/2026** con `parada.js`: al recibir `SIGTERM` deja de
+  aceptar conexiones, deja terminar las abiertas y devuelve a la cola la
+  conversión en curso, todo en menos de 8 s. **Falta confirmarlo en el
+  servidor** tras el siguiente despliegue: los contenedores viejos del panel en
+  `docker ps -a` tienen que salir `Exited (0)`, no `(137)`, y el registro
+  terminar en `🛑 panel parado en N ms`. Si una subida de video larga tiene que
+  sobrevivir a un despliegue, habría que alargar además el plazo de parada del
+  servicio en Dokploy (Swarm da 10 s por defecto).
 - **La salida por IPv6 no respondió** a Docker Hub (`i/o timeout` hacia una
   dirección `2600:…`) al intentar bajar una imagen. Hoy no rompe nada; mirar si
   el día que un despliegue falle bajando imágenes.

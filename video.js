@@ -206,8 +206,59 @@ class ErrorDefinitivo extends Error {
 // Express y ffmpeg comparten CPU: sin esto, convertir un video hace que las
 // cartas tarden en cargar mientras dura.
 function correrFfmpeg(args) {
-  return ejecutar('nice', ['-n', '19', 'ffmpeg', ...args],
-    { timeout: LIMITE_FFMPEG_MS, maxBuffer: 4 * 1024 * 1024 });
+  // Entre un paso y el siguiente —del entregable al master, del master a la
+  // portada— no hay ningún ffmpeg al que cortar. Si la parada llega justo ahí,
+  // sin esto se lanzaría el siguiente paso con el proceso ya apagándose.
+  if (parando) return Promise.reject(new Error('el panel se está apagando'));
+  return vigilarHijo(ejecutar('nice', ['-n', '19', 'ffmpeg', ...args],
+    { timeout: LIMITE_FFMPEG_MS, maxBuffer: 4 * 1024 * 1024 }));
+}
+
+// ── PARADA ORDENADA ───────────────────────────────────────────
+// Lo que hace falta para soltar un trabajo a mitad sin dejarlo colgado. El
+// porqué entero está en la cabecera de parada.js.
+let parando = false;
+let hijoFfmpeg = null;      // el ffmpeg en marcha, para poder cortarlo
+let archivosEnCurso = null; // lo que ese trabajo está escribiendo en el disco
+let pasadaEnCurso = null;   // la vuelta de la cola, para esperar a que acabe
+
+// execFile promisificado deja el proceso hijo en `.child`. Se guarda mientras
+// corre y se suelta al terminar, salga como salga.
+function vigilarHijo(promesa) {
+  const hijo = promesa.child;
+  hijoFfmpeg = hijo;
+  return promesa.finally(() => { if (hijoFfmpeg === hijo) hijoFfmpeg = null; });
+}
+
+// Devuelve a la cola un trabajo cortado por la parada. Tres decisiones:
+//
+//   · Vuelve a 'pendiente' YA. Dejarlo en 'procesando' era esperar al rescate,
+//     que no toca nada con menos de una hora.
+//   · NO suma intento. El video no tiene nada malo: lo cortó un despliegue.
+//     Con tres despliegues seguidos durante una conversión, contarlos habría
+//     marcado como 'error' un video perfecto.
+//   · Borra lo que ffmpeg dejó a medias. Nadie lo referencia, y un .mp4
+//     truncado de un nombre que no se va a repetir solo esperaría al limpiador.
+//
+// El `.eq('estado', 'procesando')` protege del caso raro de que el trabajo ya
+// hubiera terminado: no se pisa un 'listo' con un 'pendiente'.
+async function devolverALaCola(supabase, trabajo, archivos) {
+  for (const abs of archivos || []) {
+    if (abs && fs.existsSync(abs)) { try { fs.unlinkSync(abs); } catch {} }
+  }
+  const { error } = await supabase.from('trabajos_video')
+    .update({ estado: 'pendiente', error: null })
+    .eq('id', trabajo.id).eq('estado', 'procesando');
+  if (error) console.error(`⚠️  parada: no se pudo devolver el trabajo ${trabajo.id} a la cola: ${error.message}`);
+  else console.log(`🎬 parada: trabajo ${trabajo.id} devuelto a la cola, sin gastar intento`);
+}
+
+// Lo que llama parada.js. Deja de tomar trabajos, corta el ffmpeg si hay uno y
+// espera a que la vuelta en curso termine de escribir en la base.
+async function detener() {
+  parando = true;
+  if (hijoFfmpeg) hijoFfmpeg.kill('SIGTERM');
+  if (pasadaEnCurso) await pasadaEnCurso.catch(() => {});
 }
 
 async function duracionDe(archivo) {
@@ -382,6 +433,10 @@ async function convertir(trabajo) {
   const pVideo   = path.join(RAIZ, CARPETAS.video,   nVideo);
   const pMaster  = path.join(RAIZ, CARPETAS.master,  nMaster);
   const pPortada = path.join(RAIZ, CARPETAS.portada, nPortada);
+
+  // El master de una reconversión es la entrada y NO entra en la lista: si la
+  // parada borrara lo que hay en curso, se llevaría el único master del plato.
+  archivosEnCurso = reconversion ? [pVideo, pPortada] : [pVideo, pMaster, pPortada];
 
   await correrFfmpeg(argumentosEntregable(entrada, pVideo, desde, trabajo.formato));
   // En una reconversión el master ya existe y es la propia entrada.
@@ -568,8 +623,13 @@ async function descartarTrabajo(supabase, trabajo) {
 }
 
 async function procesarTrabajo(supabase, trabajo) {
+  archivosEnCurso = null;
   try {
     const r = await convertir(trabajo);
+    // Convertido: desde aquí esos archivos son el resultado, no algo a medias.
+    // Si la parada llegara mientras se escribe en la base, no hay que
+    // borrarlos.
+    archivosEnCurso = null;
 
     await supabase.from('trabajos_video').update({
       estado: 'listo', video: r.video, master: r.master, portada: r.portada, error: null,
@@ -616,6 +676,9 @@ async function procesarTrabajo(supabase, trabajo) {
 
     console.log(`🎬 video listo (${r.duracion.toFixed(1)}s) · trabajo ${trabajo.id}`);
   } catch (e) {
+    // Cortado por la parada, no por el video. Ver devolverALaCola().
+    if (parando) return devolverALaCola(supabase, trabajo, archivosEnCurso);
+
     const intentos = (trabajo.intentos || 0) + 1;
     // Un fallo definitivo no se reintenta: repetirlo daría el mismo resultado
     // tres minutos después y el restaurante seguiría sin saber qué pasa.
@@ -666,11 +729,17 @@ function arrancar(supabase) {
   let ocupado = false;
   let ultimoRescate = 0;
 
-  const tick = async () => {
+  const tick = () => {
     // Uno a la vez. Con un núcleo, dos ffmpeg en paralelo tardan el doble
     // cada uno y además dejan a Express sin CPU.
-    if (ocupado) return;
+    if (ocupado || parando) return;
     ocupado = true;
+    // Se guarda la vuelta para que detener() pueda esperarla.
+    pasadaEnCurso = vuelta().finally(() => { pasadaEnCurso = null; });
+    return pasadaEnCurso;
+  };
+
+  const vuelta = async () => {
     try {
       // El rescate corría SOLO al arrancar. Un trabajo se queda en
       // 'procesando' cuando el proceso muere a mitad de conversión —un
@@ -743,7 +812,7 @@ async function reconvertir(supabase, trabajo, formato) {
 }
 
 module.exports = {
-  arrancar, encolar, reconvertir, esReconversion,
+  arrancar, encolar, reconvertir, esReconversion, detener,
   CARPETAS, DURACION_MAX, DURACION_MIN, MEDIDAS, FORMATOS, ENCAJE_AVISA,
   formatoDe, medidasDe, encajeDeFoto, recorteIdeal,
   // Exportados para las pruebas: son puros y se pueden comprobar sin
@@ -751,4 +820,8 @@ module.exports = {
   argumentosEntregable, argumentosMaster, argumentosPortada, instantePortada,
   purgarAnteriores, esperaAprobacion, sinRevisar, publicarTrabajo, descartarTrabajo, guardarEnProducto,
   rutaDentroDeUploads,
+  // La parada, para probarla sin ffmpeg: vigilarHijo acepta cualquier proceso,
+  // y con la parada en marcha procesarTrabajo no llega a lanzar ffmpeg.
+  procesarTrabajo, devolverALaCola, vigilarHijo, ejecutar,
+  _reiniciarParada: () => { parando = false; hijoFfmpeg = null; archivosEnCurso = null; pasadaEnCurso = null; },
 };
