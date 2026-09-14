@@ -9622,9 +9622,17 @@ function fichaPlanHtml(r) {
   // 2. El modelo de página, que es lo que decide la forma de la carta.
   partes.push(et(etiquetaModelo(modelo)));
 
-  // 3. Si el comensal puede pedir. Solo cuando lo tiene: enseñar "sin
-  //    carrito" en las tres cuartas partes de la lista es ruido.
-  if (plan.carrito) partes.push(et('🛒 pedidos'));
+  // 3. Si el comensal puede pedir. Antes salía con `plan.carrito`, o sea con lo
+  //    que el plan PERMITE, y se leía como lo que la carta TIENE: Bonzas la
+  //    llevaba siendo Topnav y con el carrito apagado, y el propio panel ni le
+  //    enseñaba la pestaña Pedidos (X1). Mismo criterio que la IA de abajo: se
+  //    nombra solo donde podría existir. Todos los planes incluyen carrito, así
+  //    que eso no distingue nada; lo que distingue es el modelo. En Video y
+  //    Vertical es un interruptor y se dice si está apagado. En Topnav, Sidebar y
+  //    Explorar no se puede tener sin cambiar de modelo, y ahí «apagado» sugeriría
+  //    un interruptor que no existe: no se nombra.
+  if (cartaTieneCarrito(r?.atributos, plan)) partes.push(et('🛒 pedidos'));
+  else if (plan.carrito && MODELOS_CARRITO_OPCIONAL.includes(modelo)) partes.push(et('🛒 pedidos apagados', 'apagada'));
 
   // 4. La IA. Solo tiene sentido nombrarla donde podría existir —en un plan
   //    sin video no hay nada que encender— y ahí se dice SIEMPRE, encendida o
@@ -10037,6 +10045,9 @@ function entrarARestaurante(slug) {
   // devolvía a la lista y había que volver a entrar.
   sessionStorage.setItem('menuAdminEditingResto','1');
   document.getElementById('adminScreen').style.display='none';
+  // X2: la página conservaba el scroll de la lista, y se aterrizaba a mitad de
+  // la tabla de productos del restaurante recién abierto.
+  window.scrollTo(0, 0);
   enterApp();
 }
 
@@ -10048,6 +10059,8 @@ function volverAlAdmin() {
   detenerVigilanciaIA();
   sessionStorage.removeItem('menuAdminEditingResto');
   document.getElementById('appScreen').style.display='none';
+  // Lo mismo al volver (X2): se aterrizaba a la altura que tuviera la carta.
+  window.scrollTo(0, 0);
   enterAdmin();
 }
 
