@@ -946,7 +946,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **57 aplicados** · **2 descartados** · **11 pendientes**.
+**70 hallazgos** en las tres superficies · **58 aplicados** · **2 descartados** · **10 pendientes**.
 
 ## Aplicados
 
@@ -992,6 +992,7 @@ Del 11 al 13 de septiembre de 2026:
 | **PE2** · dos guardados en Pedidos | #108 | uno solo: aquí los dos escriben en el mismo sitio, a diferencia de A1 |
 | **P5** · el carril de categorías escondía dos tercios | #109 | mismo aviso que las pestañas; y la rueda se aceleraba con cada guardado |
 | **M2** · la dirección de la carta cortada en QR | #110 | un enlace que parte línea y además abre la carta |
+| **V6** · capas cerradas en el Tab | vmenus-app#26 | 26 controles, no 2; y los hijos con `transition: all` retrasaban el foco |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1023,7 +1024,7 @@ porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
 del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, ~~F4~~, ~~X1, X2~~ ·
-~~A5~~, ~~PE2~~, ~~P5~~, ~~M2~~ · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
+~~A5~~, ~~PE2~~, ~~P5~~, ~~M2~~ · ~~**V6**~~ (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
 
@@ -1404,7 +1405,7 @@ conservarlo hasta que la persona vuelva y lo vacíe ella.
 
 ## V6 · Las capas cerradas siguen en el orden del Tab · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR jotarodriguezv/vmenus-app#26
 
 **Encontrado el 13/09/2026 al probar MD4** en Malparados. Con Mayús+Tab desde el
 botón del lateral, el foco pasó por la ✕ de la **promoción** (`promo-close`) y por
@@ -1417,6 +1418,23 @@ no ve y que no hacen nada.
 la transición retrasada para que el fundido siga funcionando), o el atributo
 `inert`. Hay que revisar todas las capas que se esconden por opacidad, no solo
 estas dos.
+
+> **Aplicado (13/09/2026), y era mayor de lo anotado.** Medido en Malparados con
+> todo cerrado: **26 controles tabulables sin ver**, no dos. Estaban en el lateral
+> (✕ y 10 categorías), el carrito, el checkout, la personalización, la ficha, la lupa
+> y el botón de subir, que además se podía pulsar sin verse. Se aplicó el arreglo
+> propuesto a las 11 capas, incluidas las de Explorar. Tras abrir y cerrar, quedan
+> cero, en Malparados y en Indigo (con carrito).
+>
+> **Dos trampas que la receta no preveía**, vistas en el navegador:
+> - Un hijo con `transition: all` también anima la visibilidad **heredada**: el
+>   lateral ya se veía, pero sus enlaces seguían ocultos y el foco no entraba. Toda
+>   `transition: all` lleva ahora `, visibility 0s`.
+> - Las flechas de la ficha se mostraban con `style.visibility = 'visible'`, que se
+>   impone a la capa cerrada. Ahora se asigna `''`.
+>
+> **Visto de paso, sin tocar:** la lupa, el carrito y el checkout no llevan el foco
+> adentro al abrirse. Ya pasaba antes; queda anotado aquí, no es un hallazgo aparte.
 
 ## Lo que está bien, y es de lo mejor de los dos repos
 
