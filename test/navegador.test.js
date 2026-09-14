@@ -5454,3 +5454,52 @@ describe('crear un restaurante lleva a él', () => {
 		assert.match(src, /card\.className='resto-card'; card\.dataset\.slug=r\.slug;/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('la insignia de pedidos dice lo que la carta tiene, no lo que el plan permite', () => {
+	// X1 en docs/revision-ux.md. Todos los planes incluyen carrito, así que salía
+	// «🛒 pedidos» en los once restaurantes; Bonzas la llevaba siendo Topnav, sin
+	// carrito y sin pestaña Pedidos.
+	const ctx = cargar('index.html', [
+		['const PLANES', '// En qué proporción se recorta el video'],
+		['function fichaPlanHtml', 'function resumenVideoHtml'],
+	], { String, state: { resumenVideo: {} }, esc: String, etiquetaModelo: String });
+	const pedidos = atributos => (ctx.fichaPlanHtml({ id: 'r', atributos }).match(/🛒[^<]*/) || [null])[0];
+
+	// Los casos son los de producción el 13/09/2026.
+	test('modelo Carrito: pedidos, aunque el interruptor esté apagado (aojocerrado, perroscriollos)', () => {
+		assert.equal(pedidos({ nav: 'carrito', plan: 'completo', carrito: false }), '🛒 pedidos');
+	});
+
+	test('Video o Vertical con el interruptor puesto: pedidos (indigo, voro)', () => {
+		assert.equal(pedidos({ nav: 'vertical', plan: 'video', carrito: true }), '🛒 pedidos');
+	});
+
+	test('Video o Vertical con el interruptor apagado: lo dice apagado (juanmar, pierrot)', () => {
+		assert.equal(pedidos({ nav: 'video', plan: 'video', carrito: false }), '🛒 pedidos apagados');
+	});
+
+	test('Topnav, Sidebar y Explorar no lo nombran: no hay interruptor que encender (bonzas)', () => {
+		for (const nav of ['topnav', 'sidebar', 'explorar', null]) {
+			assert.equal(pedidos({ nav, plan: 'completo', carrito: false }), null, `${nav} lleva la insignia`);
+		}
+	});
+});
+
+describe('cambiar de restaurante empieza arriba', () => {
+	// X2: entrando a Bonzas desde la lista se aterrizaba a mitad de su tabla de
+	// productos, a la altura que tenía la lista.
+	test('entrar y volver llevan la página arriba', () => {
+		const llamadas = [];
+		const ctx = cargar('index.html', 'function entrarARestaurante', 'function volverAlAdmin', {
+			state: {}, sessionStorage: { setItem() {} },
+			document: { getElementById: () => ({ style: {} }) },
+			window: { scrollTo: (x, y) => llamadas.push([x, y]) }, enterApp() {},
+		});
+		ctx.entrarARestaurante('bonzas');
+		assert.deepEqual(llamadas, [[0, 0]]);
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const volver = src.match(/function volverAlAdmin\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(volver, /window\.scrollTo\(0, 0\);\s*enterAdmin\(\);/);
+	});
+});
