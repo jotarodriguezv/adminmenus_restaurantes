@@ -836,7 +836,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **36 aplicados** · **2 descartados** · **32 pendientes**.
+**70 hallazgos** en las tres superficies · **38 aplicados** · **2 descartados** · **30 pendientes**.
 
 ## Aplicados
 
@@ -869,6 +869,7 @@ Del 11 al 13 de septiembre de 2026:
 | **M1** · las pestañas se salían sin avisar | #95 | barra visible, borde difuminado y la pestaña activa a la vista |
 | **M3** · la fila de categoría desbordaba en móvil | #96 | dos filas como la de producto; y borrar necesitaba tamaño mínimo, no bastaba con no encogerlo |
 | **M4 + M5** · Promoción sin instrucción en móvil, y la prueba que no lo veía | #97 | lista de palabras permitidas en vez de prohibidas |
+| **CL4 + M7** · contraste del acento en claro, y el rango de fechas partido | #98 | el botón de acento tampoco pasaba; color de texto aparte, sin tocar el de marca |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -895,7 +896,7 @@ decisión antes de escribir código.
 | 5 | ~~**E1 + E2 + E3 + M6 + B3**~~ | Hecho. Estadísticas que dicen cosas falsas: 125 %, porcentajes sobre cuatro visitas, «nadie abrió» con cero visitas. |
 | 6 | ~~**V3 + MD2**~~, ~~**MD1 + MD4**~~ | Hecho. La carta pública: botones de cerrar de 18 px y el lateral sin nombre ni foco. |
 
-**Grupo 2 · el panel del cliente en móvil:** ~~M1~~, ~~M3~~, ~~M4 + M5~~, CL4, M7. Juntos
+**Grupo 2 · el panel del cliente en móvil:** ~~M1~~, ~~M3~~, ~~M4 + M5~~, ~~CL4~~, ~~M7~~. **Terminado el 13/09/2026.** Juntos
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
@@ -1704,7 +1705,7 @@ claro, sobre Productos a 375 px.
 
 ## CL4 · El chip de categoría seleccionado se lee peor que los no seleccionados · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #98
 
 Contrastes reales en vista clara, componiendo los fondos semitransparentes
 sobre el blanco:
@@ -1730,6 +1731,19 @@ del fondo para que el contraste suba en vez de bajar. Con llevarlo a 4,5 basta.
 Los dos de 4,51 —precio y pestaña activa— cumplen, pero sin margen: cualquier
 retoque del verde de marca los deja por debajo. Conviene saberlo antes de
 tocar la paleta, no después.
+
+> **Aplicado (13/09/2026) con un color de texto aparte, sin tocar el de marca.**
+> `--accent-texto` es `#07663f` en claro y el mismo `#3dd68c` en oscuro. Lo usan los
+> cuatro sitios con acento como texto sobre `--accent-dim`.
+>
+> **Resultó no ser solo el chip:** el botón `.btn-sm.accent` («+ Nuevo producto»,
+> «Importar carta») tenía la misma combinación y tampoco pasaba. Medido en el panel
+> en vista clara, con los fondos compuestos: chip de 3,97 a **6,19**, botón de 3,65
+> a **5,7**. En los tres fondos claros el nuevo da entre 5,5 y 6,2. La vista oscura
+> no cambia.
+>
+> El precio y la pestaña activa, a 4,51 sobre blanco, siguen con `--accent`: pasan,
+> y cambiarlos es tocar el verde de marca. Sigue valiendo el aviso de arriba.
 
 ## Pendiente de esta pasada
 
@@ -1889,13 +1903,17 @@ Por debajo de un mínimo de visitas, «Sin datos en este rango» y nada más.
 
 ## M7 · El rango libre de fechas se parte en dos filas · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #98
 
 A 375 px, los dos campos de fecha caen en filas distintas (medido: uno a 197 px
 y el otro a 239) y el guion que los une queda huérfano al final de la primera.
 Se lee «03/09/2026 —» y debajo «09/09/2026», que parece un rango incompleto.
 
 Los atajos de al lado —Hoy · 7 días · 30 días · Todo— sí se reparten bien.
+
+> **Aplicado (13/09/2026).** Los dos campos y el guion van en un grupo que no se
+> parte, y los campos encogen antes que separarse. Visto a 375 px: los dos en la
+> misma fila, de 144 px cada uno, con las fechas enteras y sin salirse.
 
 ## Cierre de la pasada de móvil
 

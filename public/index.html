@@ -17,6 +17,9 @@
 			  --accent: #3dd68c;
 			  --accent-dim: rgba(61,214,140,0.10);
 			  --accent-glow: rgba(61,214,140,0.22);
+			  /* El acento cuando es TEXTO sobre su propio fondo tenue (--accent-dim).
+			     En oscuro basta el de siempre; en claro no. Ver la vista clara. */
+			  --accent-texto: #3dd68c;
 			  --danger: #ff4757;
 			  --danger-dim: rgba(255,71,87,0.12);
 			  --success: #3dd68c;
@@ -52,6 +55,11 @@
 			  --accent: #0b8850;
 			  --accent-dim: rgba(11,136,80,0.10);
 			  --accent-glow: rgba(11,136,80,0.18);
+			  /* CL4: #0b8850 sobre --accent-dim da 3,55-3,97 según el fondo —por debajo
+			     del 4,5 de AA—, y es justo el texto del chip SELECCIONADO, el que dice
+			     qué filtro está puesto. Este da 5,5-6,2 en los tres fondos claros. No
+			     se cambia --accent: sobre blanco pasa (4,51) y es el color de marca. */
+			  --accent-texto: #07663f;
 			  --danger: #c62828;
 			  --danger-dim: rgba(198,40,40,0.10);
 			  --success: #0b8850;
@@ -106,7 +114,7 @@
 			  color:var(--text-muted);font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .18s;}
 			.btn-sm:hover{border-color:var(--border2);color:var(--text);}
 			.btn-sm.danger:hover{border-color:var(--danger);color:var(--danger);}
-			.btn-sm.accent{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+			.btn-sm.accent{border-color:var(--accent);color:var(--accent-texto);background:var(--accent-dim);}
 			.btn-sm.accent:hover{opacity:.85;}
 
 			/* ── TABS ── */
@@ -151,7 +159,7 @@
 			  color:var(--text-muted);font-family:var(--sans);font-size:12px;font-weight:500;
 			  cursor:pointer;transition:all .18s;white-space:nowrap;user-select:none;}
 			.cat-chip:hover{border-color:var(--border2);color:var(--text);}
-			.cat-chip.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+			.cat-chip.active{border-color:var(--accent);color:var(--accent-texto);background:var(--accent-dim);}
 
 			/* ── CONTROLES PRODUCTOS ── */
 			.products-controls{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
@@ -201,7 +209,7 @@
 
 			.btn-edit{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;
 			  color:var(--text-muted);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .18s;white-space:nowrap;}
-			.btn-edit:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+			.btn-edit:hover{border-color:var(--accent);color:var(--accent-texto);background:var(--accent-dim);}
 			.btn-del {
 			  padding: 6px 9px;
 			  border-radius: 6px;
@@ -375,7 +383,7 @@
 			.toast-accion:hover{text-decoration:underline;}
 			.toast.success{background:var(--success-dim);border:1px solid var(--success);color:var(--success);}
 			.toast.error{background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger);}
-			.toast.info{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);}
+			.toast.info{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent-texto);}
 
 			.empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);font-family:var(--mono);font-size:11px;letter-spacing:1px;}
 			/* El vacío que explica qué hacer. El de siempre —mayúsculas de máquina,
@@ -1997,10 +2005,17 @@
 							<button class="cat-chip" data-rango="7" onclick="seleccionarRango('7')">7 días</button>
 							<button class="cat-chip" data-rango="30" onclick="seleccionarRango('30')">30 días</button>
 							<button class="cat-chip" data-rango="todo" onclick="seleccionarRango('todo')">Todo</button>
-							<span style="color:var(--text-dim);font-size:11px;margin-left:6px;">o rango libre:</span>
-							<input type="date" class="form-input" id="estDesde" style="width:auto;padding:7px 10px;font-size:12px;" onchange="seleccionarRango('custom')">
-							<span style="color:var(--text-dim);">–</span>
-							<input type="date" class="form-input" id="estHasta" style="width:auto;padding:7px 10px;font-size:12px;" onchange="seleccionarRango('custom')">
+							<!-- M7: en un móvil los dos campos caían en filas distintas con el guion
+							     huérfano al final de la primera, y se leía como un rango a medias. Los
+							     dos campos y el guion van juntos y encogen antes que separarse. -->
+							<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;flex:1 1 280px;min-width:0;">
+								<span style="color:var(--text-dim);font-size:11px;margin-left:6px;">o rango libre:</span>
+								<span class="rango-campos" style="display:flex;align-items:center;gap:6px;flex:1 1 240px;min-width:0;">
+									<input type="date" class="form-input" id="estDesde" style="flex:1 1 0;min-width:0;width:auto;padding:7px 8px;font-size:12px;" onchange="seleccionarRango('custom')" aria-label="Desde">
+									<span style="color:var(--text-dim);">–</span>
+									<input type="date" class="form-input" id="estHasta" style="flex:1 1 0;min-width:0;width:auto;padding:7px 8px;font-size:12px;" onchange="seleccionarRango('custom')" aria-label="Hasta">
+								</span>
+							</div>
 						</div>
 					</div>
 
