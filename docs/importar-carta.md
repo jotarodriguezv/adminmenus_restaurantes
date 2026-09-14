@@ -577,12 +577,13 @@ navegador.**
 
 Preguntas de producto, no técnicas. Van sin contestar a propósito.
 
-1. **Las descripciones.** ¿Se importan tal cual, aunque muchas cartas impresas
-   las traigan en mayúsculas y abreviadas? ¿O se dejan vacías y las escribe el
-   restaurante?
+1. ~~**Las descripciones.**~~ **Contestada el 06/09/2026:** se importan tal
+   cual. «El importador copia, no corrige» (ver arriba), y el prompt de
+   `lectorcarta.js` pide nombres y descripciones literales.
 
-2. **¿Quién importa?** Sigue sin contestar, pero la API tomó una postura
-   **provisional** para no quedarse parada: las rutas dejan importar tanto al
+2. ~~**¿Quién importa?**~~ **Contestada el 09/09/2026 en §7.bis:** lo enciende
+   el superadmin, restaurante por restaurante. Lo que sigue es la postura
+   provisional que había antes: las rutas dejan importar tanto al
    equipo como al propio restaurante —con la misma comprobación de permiso que
    cualquier otra ruta— y **el cupo de 5 solo se le aplica al restaurante**. El
    equipo no tiene tope, porque para él esto es la herramienta del alta.

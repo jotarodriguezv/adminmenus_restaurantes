@@ -641,7 +641,8 @@ mientras tanto la dejaría sin promoción sin que nadie entienda por qué.
 
 ## 11. Preguntas abiertas
 
-- **¿El popup debe recordar que ya se enseñó?** Hoy sale en cada carga. Una vez
+- **¿El popup debe recordar que ya se enseñó?** Hoy sale en cada carga
+  (comprobado el 14/09/2026: la carta no guarda nada en el navegador). Una vez
   por visita es lo normal en el resto de la industria, pero cambia el
   comportamiento actual y Bonzas lo usa contento. Decidirlo antes de que haya
   varias promociones, no después.
@@ -649,9 +650,10 @@ mientras tanto la dejaría sin promoción sin que nadie entienda por qué.
   `video`. Las promociones programadas son candidatas naturales a lo mismo, pero
   el popup de una sola promoción lleva desde el principio en todos los planes y
   no se le puede quitar a nadie.
-- **¿El tope de cinco es por restaurante o por plan?** Cinco es el número de
-  trabajo. Si más adelante se quiere vender «hasta 15», el tope tiene que ser un
-  número del plan desde el primer día, no una constante en el código.
+- ~~¿El tope de cinco es por restaurante o por plan?~~ **Decidido: por plan.**
+  Es `promociones: 5` dentro de cada plan en `PLANES` (`server.js`), hoy cinco en
+  todos. Vender «hasta 15» es cambiar un número, sin migración.
+  (Marcada el 14/09/2026.)
 - **¿Y una promoción que se pisa a sí misma?** Dos programadas para el martes a
   la misma hora es perfectamente válido —entran las dos en el bombo— pero puede
   no ser lo que el restaurante quería. Un aviso, nunca un bloqueo.

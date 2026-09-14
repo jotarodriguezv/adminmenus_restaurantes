@@ -441,6 +441,10 @@ servir dentro del VPS más barato de Hostinger.**
 
 ## 8. Lo que falta
 
+> Repasado el 14/09/2026. La alarma de la prueba de restauración sigue sin hacer:
+> `respaldo/probar-restauracion.sh` no hace ningún ping. Lo demás depende de mirar
+> el servidor y no se puede confirmar desde el repositorio.
+
 - ~~La vigilancia del respaldo~~ — **hecho el 23/08/2026.** Check en
   healthchecks.io (periodo 1 día, margen 6 h) y `RESPALDO_PING` en
   `/root/.respaldo.env`. Probada en los dos sentidos: una copia buena lo pone
