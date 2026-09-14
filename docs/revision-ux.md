@@ -1105,7 +1105,7 @@ del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2
   arreglar ese caso (con aviso antes de escribir en producción).
 - ~~**C1**~~ — **arrastrar y soltar**, manteniendo las flechas para teclado.
 - ~~**B3, segunda mitad**~~ — **casilla por categoría** «no hace falta abrir la ficha».
-- **A3 + A4 + S4 + S6** — el usuario no tiene opinión. Recomendación: **S4 y A4**,
+- **A3 + ~~A4~~ + ~~S4~~ + S6** — el usuario no tiene opinión. Hechos **S4 y A4**, como se recomendó;
   pequeños; A3 y S6 cuando el equipo los eche en falta. Al final del grupo.
 
 **Grupo 5 · se dejan:** **T2** y **P2** cambian la arquitectura del panel sin un
