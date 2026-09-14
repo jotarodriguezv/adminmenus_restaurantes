@@ -279,12 +279,21 @@ restaurantes, diez pastillas que invitan a pulsar y no responden.
 
 ## S4 · El formulario de crear ocupa la pantalla entera antes de la lista · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #117
 
 En móvil hay que bajar seis gestos para llegar al primer restaurante. Crear uno
 es cosa de una vez al mes; la lista es a lo que entras siempre.
 
 **Arreglo:** plegarlo detrás de un `+ Nuevo restaurante`.
+
+> **Aplicado (13/09/2026)** con un `<details>`, que el teclado y los lectores de
+> pantalla ya entienden sin JavaScript. Medido a 375 px: plegado ocupa 47 px y la
+> lista empieza a 195 px; abierto, a 700. Al crear se pliega solo, antes de llevar
+> al restaurante nuevo (F4).
+>
+> **De paso:** el PIN de crear dejaba 20 caracteres, y el servidor no ponía tope ni
+> al crear ni al cambiarlo desde la lista. El login admite 10, así que uno más largo
+> se guardaba y no servía para entrar. Ahora el tope es 10 en los tres sitios.
 
 ## S5 · Si falla la carga de la lista, es un callejón sin salida · **Media**
 
@@ -635,13 +644,27 @@ personalizado o a las redes hay que recorrerlo todo.
 
 ## A4 · Lo que no aplica al modelo se queda en pantalla, solo rotulado · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #118 · la portada; los filtros no eran de explorar
 
 De los 39 campos, 34 están visibles. Los bloques «Portada» y «Filtros y
 etiquetas» llevan la nota «(solo modelo explorar)» y **siguen visibles** aunque
 esta carta use el modelo Carrito. Se rotula lo que no aplica en vez de
 ocultarlo, y eso engorda las 4,7 pantallas de A3 con ajustes que no hacen nada
 para este restaurante.
+
+> **Aplicado (13/09/2026), con una corrección al hallazgo.** «Filtros y etiquetas»
+> **no es solo de explorar**: desde que la lógica pasó a `core/filtros.js`, la carta
+> los pinta en los seis modelos. Esconderlo habría quitado una función que funciona.
+> Lo que estaba mal era el rótulo, y se quitó.
+>
+> Sí se esconden, al cambiar el modelo y al abrir, **la Portada** (solo explorar) y
+> **«Mostrar mensaje de bienvenida»** (solo sidebar y carrito; en topnav sale
+> siempre). Se siguen guardando, como el estilo del carrete: quien pruebe otro modelo
+> y vuelva lo encuentra.
+>
+> **El ahorro es modesto:** medido a 375 px, Apariencia pasa de 4.258 px con explorar
+> a 3.965-4.054 con los demás, un tercio de pantalla sobre unas cinco. Lo que la
+> hace larga es A3, que sigue pendiente.
 
 ## A5 · Dos avisos pegados que se contradicen · **Media**
 
@@ -984,7 +1007,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **62 aplicados** · **2 descartados** · **6 pendientes**.
+**70 hallazgos** en las tres superficies · **64 aplicados** · **2 descartados** · **4 pendientes**.
 
 ## Aplicados
 
@@ -1036,6 +1059,8 @@ Del 11 al 13 de septiembre de 2026:
 | **C1** · reordenar de uno en uno | #114 | arrastrar desde un asa, un guardado; las flechas siguen, con el foco en la fila |
 | **B3**, segunda mitad · bebidas y adicionales en «Platos que nadie abrió» | #115 | casilla por categoría; en Bonzas, de 37 a 4 |
 | **P4** · avisos hechos con platos de $ 0 | #116 y vmenus-app#27 | nota por categoría, a prueba |
+| **S4** · el formulario de crear tapaba la lista | #117 | plegado; y el PIN de crear ya no pasa de 10 |
+| **A4** · Apariencia enseñaba lo que el modelo no usa | #118 | se esconde la portada; los filtros eran de todos los modelos |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
