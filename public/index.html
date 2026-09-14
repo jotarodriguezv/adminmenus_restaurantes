@@ -1275,16 +1275,27 @@
 
 				<!-- TAB TOPPINGS -->
 				<div id="tabToppings" class="hidden">
+					<!-- TP2: con todo vacío la pestaña eran tres «Sin elementos», y nada decía
+					     que un topping no sale en ninguna carta hasta que un plato lo ofrece. -->
+					<div id="toppingsGuia" class="section-card" style="display:none;font-size:13px;line-height:1.6;color:var(--text-muted)">
+						<strong style="color:var(--text)">Así funcionan los toppings.</strong>
+						Créalos aquí, en su grupo, y después márcalos en la ficha de cada plato que los lleve.
+						Un topping no sale en la carta hasta que algún plato lo ofrece; así la gaseosa no
+						pregunta por salsas y la hamburguesa sí.
+					</div>
 					<div class="section-card">
 						<div class="section-header">
-						  <div class="section-title">Toppings Platino <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(sin costo adicional)</span></div>
+						  <!-- TP1: el nombre que se explica solo va primero; el de la carta, entre
+						       paréntesis, porque es lo que el dueño ve en su carta publicada. El mismo
+						       par se usa en la ficha del plato. -->
+						  <div class="section-title">Toppings sin costo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(en la carta: «Toppings Platino»)</span></div>
 						  <button class="btn-sm accent" onclick="addTopping('platino')">+ Añadir</button>
 						</div>
 						<div id="listToppingsPlatino" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
 					</div>
 					<div class="section-card">
 						<div class="section-header">
-							<div class="section-title">Toppings Premium <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(precio adicional)</span></div>
+							<div class="section-title">Toppings con costo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(en la carta: «Toppings Premium»)</span></div>
 							<button class="btn-sm accent" onclick="addTopping('premium')">+ Añadir</button>
 						</div>
 						<div id="listToppingsPremium" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
@@ -2338,11 +2349,11 @@
 						<label class="form-label">Personalización <span style="color:var(--text-dim);font-weight:400">(qué puede añadirle el cliente a este plato)</span></label>
 						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene toppings. Créalos en la pestaña Toppings y vuelve aquí.</div>
 						<div id="persPlatinoWrap" style="margin-top:8px;display:none">
-							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings sin costo</div>
+							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings sin costo (Platino)</div>
 							<div id="persPlatinoChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						</div>
 						<div id="persPremiumWrap" style="margin-top:12px;display:none">
-							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings con costo</div>
+							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings con costo (Premium)</div>
 							<div id="persPremiumChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						</div>
 						<div id="persSalsasWrap" style="margin-top:12px;display:none">
@@ -8172,6 +8183,18 @@ function renderToppings() {
   renderToppingList('listToppingsPlatino', 'platino');
   renderToppingList('listToppingsPremium', 'premium');
   renderToppingList('listToppingsSalsas',  'salsas');
+  pintarGuiaToppings();
+}
+
+// La guía sale mientras el catálogo esté entero vacío: es cuando hace falta.
+// Con un solo topping creado ya se ha entendido la pantalla, y repetirla en
+// cada visita sería ruido.
+function catalogoToppingsVacio(t) {
+  return !(t.platino.length || t.premium.length || t.salsas.length);
+}
+function pintarGuiaToppings() {
+  const guia = document.getElementById('toppingsGuia');
+  if (guia) guia.style.display = catalogoToppingsVacio(toppingState) ? 'block' : 'none';
 }
 
 function renderToppingList(containerId, tipo) {
@@ -8179,7 +8202,7 @@ function renderToppingList(containerId, tipo) {
   if (!wrap) return;
   const items = toppingState[tipo];
   wrap.innerHTML = '';
-  if (!items.length) { wrap.innerHTML = '<span style="font-size:12px;color:var(--text-dim);">Sin elementos</span>'; return; }
+  if (!items.length) { wrap.innerHTML = '<span style="font-size:12px;color:var(--text-dim);">Ninguno todavía. Pulsa «+ Añadir».</span>'; pintarGuiaToppings(); return; }
   items.forEach((item, idx) => {
     const chip = document.createElement('div');
     chip.className = 'topping-chip';
@@ -8199,6 +8222,8 @@ function renderToppingList(containerId, tipo) {
     };
     wrap.appendChild(chip);
   });
+  // Añadir o quitar uno cambia si el catálogo está vacío: la guía se entera aquí.
+  pintarGuiaToppings();
 }
 
 const CONTENEDOR_TOPPING = {
@@ -8213,7 +8238,7 @@ function addTopping(tipo) {
   document.getElementById('toppingNombre').value = '';
   document.getElementById('toppingPrecio').value = tipo === 'premium' ? '4000' : '';
   document.getElementById('toppingPrecioGroup').style.display = tipo === 'premium' ? 'block' : 'none';
-  const titles = { platino: 'Nuevo Topping Platino', premium: 'Nuevo Topping Premium', salsas: 'Nueva Salsa' };
+  const titles = { platino: 'Nuevo topping sin costo', premium: 'Nuevo topping con costo', salsas: 'Nueva salsa' };
   document.getElementById('toppingModalTitle').textContent = titles[tipo];
   document.getElementById('btnGuardarTopping').textContent = 'Añadir';
   openModal('toppingModal');

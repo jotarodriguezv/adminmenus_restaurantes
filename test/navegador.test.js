@@ -5126,3 +5126,69 @@ describe('cada categoría dice cuántos platos tiene, cómo se ve y si sale en l
 		assert.equal(meta.hijos[0].style.cssText.includes('var(--warn)'), true);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('los grupos de toppings se llaman igual en la pestaña y en la ficha', () => {
+	// TP1 en docs/revision-ux.md: «Platino/Premium» en la pestaña y «sin costo/con
+	// costo» en la ficha, y Platino sonaba a más que Premium siendo el gratis. La
+	// carta del comensal dice «TOPPINGS PLATINO», así que ese nombre se conserva
+	// entre paréntesis: es el que el dueño ve publicado.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('los dos grupos llevan el mismo par de nombres en las dos pantallas', () => {
+		const pestana = src.slice(src.indexOf('<!-- TAB TOPPINGS -->'), src.indexOf('id="listToppingsSalsas"'));
+		const ficha = src.slice(src.indexOf('id="persPlatinoWrap"'), src.indexOf('id="persPremiumChips"'));
+		for (const [claro, carta_] of [['sin costo', 'Platino'], ['con costo', 'Premium']]) {
+			assert.match(pestana, new RegExp(`Toppings ${claro}[^<]*<span[^>]*>\\(en la carta: «Toppings ${carta_}»\\)`), `la pestaña no dice «${claro}» con su nombre de carta`);
+			assert.match(ficha, new RegExp(`Toppings ${claro} \\(${carta_}\\)`), `la ficha no dice «${claro} (${carta_})»`);
+		}
+	});
+
+	// Que la carta diga «TOPPINGS PLATINO» y «TOPPINGS PREMIUM» se comprobó a mano
+	// el 13/09/2026 en vmenus-app/index.html. No se prueba desde aquí: en CI solo
+	// se clona este repositorio, y una prueba que lee el otro fallaría allí.
+
+	test('el título de la ventana de añadir usa el nombre claro', () => {
+		assert.match(src, /platino: 'Nuevo topping sin costo', premium: 'Nuevo topping con costo'/);
+	});
+});
+
+describe('la pestaña de toppings vacía explica para qué sirve', () => {
+	// TP2: tres «Sin elementos» y nada que dijera que un topping no sale en
+	// ninguna carta hasta que un plato lo ofrece.
+	function montar(catalogo) {
+		const nodos = {};
+		const nodo = () => ({ style: {}, innerHTML: '', appendChild() {}, querySelector: () => ({}) });
+		const ctx = cargar('index.html', 'function renderToppingList', 'const CONTENEDOR_TOPPING', {
+			toppingState: catalogo, esc: x => x, Number,
+			document: { getElementById: id => (nodos[id] ||= nodo()), createElement: nodo },
+		});
+		const guia = cargar('index.html', '// La guía sale mientras el catálogo esté entero vacío', 'function renderToppingList', {
+			toppingState: catalogo, document: { getElementById: id => (nodos[id] ||= nodo()) },
+		});
+		vm.runInContext('pintarGuiaToppings = globalThis.__guia;', Object.assign(ctx, { __guia: guia.pintarGuiaToppings }));
+		return { ctx, nodos, guia };
+	}
+
+	test('con el catálogo vacío sale la guía, y cada lista dice qué hacer', () => {
+		const { ctx, nodos } = montar({ platino: [], premium: [], salsas: [] });
+		ctx.renderToppingList('listToppingsPlatino', 'platino');
+		assert.equal(nodos.toppingsGuia.style.display, 'block');
+		assert.match(nodos.listToppingsPlatino.innerHTML, /Pulsa «\+ Añadir»/);
+		assert.doesNotMatch(nodos.listToppingsPlatino.innerHTML, /Sin elementos/);
+	});
+
+	test('en cuanto hay uno, la guía se va', () => {
+		const catalogo = { platino: [{ id: 't1', nombre: 'Queso' }], premium: [], salsas: [] };
+		const { ctx, nodos } = montar(catalogo);
+		ctx.renderToppingList('listToppingsPlatino', 'platino');
+		assert.equal(nodos.toppingsGuia.style.display, 'none');
+	});
+
+	test('la guía dice que el topping se asigna en la ficha del plato', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const guia = src.match(/<div id="toppingsGuia"[^>]*>([\s\S]*?)<\/div>/)[1];
+		assert.match(guia, /ficha de cada plato/);
+		assert.match(guia, /no sale en la carta hasta que algún plato lo ofrece/);
+	});
+});
