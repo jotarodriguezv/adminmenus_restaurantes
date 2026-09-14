@@ -1023,6 +1023,7 @@ Del 11 al 13 de septiembre de 2026:
 | **CL3** · el cliente no puede cambiar su PIN | #112 | pidiendo el actual; el superadmin sigue sin necesitarlo |
 | **P3** · categorías casi repetidas | #113 | aviso en el modal con la regla de la importación, que ya lo hacía |
 | **C1** · reordenar de uno en uno | #114 | arrastrar desde un asa, un guardado; las flechas siguen, con el foco en la fila |
+| **B3**, segunda mitad · bebidas y adicionales en «Platos que nadie abrió» | #115 | casilla por categoría; en Bonzas, de 37 a 4 |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1066,7 +1067,7 @@ del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2
   del dueño. Avisar en el panel al crear o renombrar una categoría casi igual, y
   arreglar ese caso (con aviso antes de escribir en producción).
 - ~~**C1**~~ — **arrastrar y soltar**, manteniendo las flechas para teclado.
-- **B3, segunda mitad** — **casilla por categoría** «no hace falta abrir la ficha».
+- ~~**B3, segunda mitad**~~ — **casilla por categoría** «no hace falta abrir la ficha».
 - **A3 + A4 + S4 + S6** — el usuario no tiene opinión. Recomendación: **S4 y A4**,
   pequeños; A3 y S6 cuando el equipo los eche en falta. Al final del grupo.
 
@@ -1175,7 +1176,7 @@ deshabilitados cuando `Activa` está apagada.
 
 ## B3 · «Platos que nadie abrió» mezcla el problema con lo normal · **Media**
 
-- [x] Hecho · 2026-09-13 · PR #92 · salvo dejar fuera las categorías que no se abren, que pasa al grupo 4
+- [x] Hecho · 2026-09-13 · PR #92 y PR #115
 
 Con 27 visitas en 7 días dice «86 en total» sobre 97 productos. Dos cosas lo
 hacen poco accionable:
@@ -1205,6 +1206,16 @@ van en modo lista, que ya declaran que no tienen ficha con foto).
 > proponía las categorías en modo lista, pero esas **también** abren ficha al
 > pulsarlas, así que el criterio no se sostiene. Hace falta que el dueño marque qué
 > categorías «no se abren», y eso es un campo nuevo: pasa al grupo 4, a decidir.
+>
+> **Segunda mitad, aplicada (13/09/2026) con PR #115.** El usuario eligió la
+> casilla por categoría: «Se pide sin abrir la ficha», guardada en
+> `categorias.atributos.se_pide_sin_abrir`, sin migración. Esas categorías salen de
+> la lista, **sus platos no cuentan para el mínimo de visitas**, y el resumen dice
+> qué se dejó fuera. En la carta no cambia nada. Con los datos de Bonzas del
+> 13/09/2026 (267 visitas en total), la lista pasa de **37 platos a 4** si se marcan
+> Adicionales, Cervezas, Bebidas, Limonadas, Micheladas y Cócteles: quedan uno de
+> Hot Dogs, Infantil, Muslitos y Entradas, que son los que sí hay que mirar.
+> La marca la pone el dueño o el equipo: **no hay ninguna marcada todavía**.
 
 ## Lo que está bien, y es mucho
 
