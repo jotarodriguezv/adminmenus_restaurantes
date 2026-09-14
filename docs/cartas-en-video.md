@@ -1020,6 +1020,11 @@ identificadores, para los carritos guardados en el navegador de algún cliente.
 Ese camino se puede quitar cuando ya no quede ninguno; el plazo del carrito son
 24 horas.
 
+> **Corregido el 14/09/2026:** el párrafo siguiente partía de un error.
+> `menubonza` y `menumalparados` no son `vmenus-app`, sino las redirecciones
+> heredadas de los QR impresos (`docs/servidor.md` §1). Sus cartas son las de
+> `vmenus-app` como cualquier otra.
+
 También quedan `menubonza` y `menumalparados` sin redesplegar, así que sus
 cartas corren la imagen anterior. No hay riesgo —ninguno de los dos tiene
 catálogo de toppings, así que el código viejo y el nuevo hacen lo mismo allí—
@@ -1369,11 +1374,12 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       `/salud`; las cartas, por su propio `index.html`, que es lo que atrapa un
       nginx en pie sirviendo una raíz web vacía. En producción: `adminvmenus` y
       `vmenusapp` en `(healthy)`
-- [ ] **Redesplegar `menubonza` y `menumalparados`.** Se quedaron con la imagen
-      anterior el 29/08/2026, así que no informan estado de salud y corren el
-      JavaScript de antes de los toppings por identificador. Sin riesgo —ninguno
-      de los dos tiene catálogo de toppings— pero las cuatro cartas deberían
-      correr lo mismo
+- [x] ~~**Redesplegar `menubonza` y `menumalparados`**~~ (cerrado el
+      14/09/2026). La casilla partía de un error: esas dos apps no son
+      `vmenus-app` sino las **redirecciones heredadas** de los QR impresos de
+      los dos primeros clientes, que mandan a `menu.vmenus.co/bonzas` y
+      `/malparados`. Redesplegadas igualmente y medidas: redirigen en menos de
+      un segundo. Historia y cuidados en `docs/servidor.md` §1
 - [x] **Prueba de restauración programada** (29/08/2026). Copiada al anfitrión,
       corrida cinco veces seguidas en verde y puesta en el cron el día 1 de cada
       mes. El respaldo queda probado de punta a punta: se restaura y los bytes
@@ -1382,7 +1388,10 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       healthchecks.io, `RESTAURACION_PING`, con aviso al empezar, al terminar y
       al fallar con el motivo. Probada en verde y en rojo, con correo en los dos
       sentidos. Ver `docs/servidor.md`, registro de cambios
-- [ ] Revisar `docker system df` y limpiar imágenes viejas (26 GB de 48 sin video de por medio, y la imagen creció con ffmpeg). **El 14/09/2026 quedan 14 GB libres**: unos 8 GB más usados que en agosto
+- [x] **Revisar `docker system df` y limpiar imágenes viejas** (14/09/2026). De
+      35 GB usados a 25 GB (52 %): eran imágenes de despliegues anteriores que
+      Swarm retenía. Quedan por decidir la limpieza automática y por repasar
+      794 MB de volúmenes sin usar. Ver `docs/servidor.md` §8 y registro
 - [ ] **Borrar el bucket `vmenus-imagenes` de Supabase.** Sigue ahí el
       14/09/2026, con los mismos 4 objetos. Comprobado el
       23/08/2026: 4 objetos, **18,2 MB** (no los 14 que decía aquí — ese es el
@@ -1439,5 +1448,6 @@ esporádica, probablemente nunca haga falta.
   mensual** de restauración, **hecha y probada el 14/09/2026**.
 - ~~Hay un reinicio pendiente por actualización de kernel y actualizaciones de
   seguridad sin aplicar.~~ **Hecho el 23/08/2026** (ver la checklist de arriba).
-- Revisar `docker system df`: 26 GB usados de 48 sin video de por medio, y las
-  imágenes viejas de Docker suelen ser lo que más ocupa.
+- ~~Revisar `docker system df`: 26 GB usados de 48 sin video de por medio, y las
+  imágenes viejas de Docker suelen ser lo que más ocupa.~~ **Hecho el
+  14/09/2026**: de 35 GB a 25 GB usados (ver la checklist de arriba).
