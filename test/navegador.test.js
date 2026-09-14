@@ -5278,7 +5278,7 @@ describe('la lista del superadmin: el rojo solo para eliminar, y el estado no pa
 	function pintarLista(restos) {
 		const tarjetas = [];
 		const nodo = () => {
-			const n = { hijos: [], style: {}, className: '', textContent: '', innerHTML: '',
+			const n = { hijos: [], style: {}, className: '', textContent: '', innerHTML: '', dataset: {},
 				appendChild(h) { this.hijos.push(h); return h; } };
 			n.querySelector = () => (n._acciones ||= { hijos: [], appendChild(h) { this.hijos.push(h); return h; } });
 			return n;
@@ -5338,7 +5338,7 @@ describe('la lista del superadmin: el rojo solo para eliminar, y el estado no pa
 describe('si la lista de restaurantes no carga, se dice por qué y se puede reintentar', () => {
 	// S5 en docs/revision-ux.md: «Error cargando restaurantes», sin motivo ni botón.
 	const nodo = () => {
-		const n = { className: '', textContent: '', type: '', onclick: null, hijos: [], innerHTML: '', style: {},
+		const n = { className: '', textContent: '', type: '', onclick: null, hijos: [], innerHTML: '', style: {}, dataset: {},
 			appendChild(h) { this.hijos.push(h); return h; } };
 		n.querySelector = () => (n._dentro ||= nodo());
 		return n;
@@ -5398,5 +5398,59 @@ describe('si la lista de restaurantes no carga, se dice por qué y se puede rein
 		const cuerpo = src.match(/function pintarErrorLista\(list, e\) \{[\s\S]*?\n\}/)[0];
 		assert.match(cuerpo, /motivo\.textContent = motivoDeError\(e\)/);
 		assert.doesNotMatch(cuerpo, /innerHTML\s*=\s*[^'"]*motivo/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('crear un restaurante lleva a él', () => {
+	// F4 en docs/revision-ux.md: «✓ Restaurante creado» y el nuevo quedaba el
+	// último de la lista, 1.552 px por debajo de lo que se veía.
+	function montar(slugs) {
+		const tarjetas = slugs.map(slug => {
+			const clases = new Set();
+			return { dataset: { slug }, vista: 0, clases,
+				classList: { add: c => clases.add(c), remove: c => clases.delete(c) },
+				scrollIntoView() { this.vista++; } };
+		});
+		const avisos = [], entradas = [], temporizadores = [];
+		const ctx = cargar('index.html', '// F4 en docs/revision-ux.md', 'function cambiarPin', {
+			document: { querySelectorAll: sel => (sel === '#adminRestoList .resto-card' ? tarjetas : []) },
+			showToast: (msg, tipo, accion) => avisos.push({ msg, tipo, accion }),
+			entrarARestaurante: slug => entradas.push(slug),
+			setTimeout: fn => temporizadores.push(fn),
+		});
+		return { ctx, tarjetas, avisos, entradas, temporizadores };
+	}
+
+	test('trae a la vista la tarjeta del nuevo y la señala un momento', () => {
+		const { ctx, tarjetas, temporizadores } = montar(['bonzas', 'gale', 'zz-nuevo']);
+		ctx.llevarARestauranteNuevo('zz-nuevo', 'Nuevo');
+		assert.equal(tarjetas[2].vista, 1);
+		assert.equal(tarjetas[0].vista, 0);
+		assert.ok(tarjetas[2].clases.has('recien-creado'));
+		temporizadores.forEach(fn => fn());
+		assert.equal(tarjetas[2].clases.has('recien-creado'), false, 'el resaltado no se va solo');
+	});
+
+	test('el aviso ofrece montar la carta, y lleva a ese restaurante', () => {
+		const { ctx, avisos, entradas } = montar(['zz-nuevo']);
+		ctx.llevarARestauranteNuevo('zz-nuevo', 'Pizzería Italiana');
+		assert.match(avisos[0].msg, /Pizzería Italiana/);
+		assert.equal(avisos[0].accion.texto, 'Montar la carta');
+		avisos[0].accion.alPulsar();
+		assert.deepEqual(entradas, ['zz-nuevo']);
+	});
+
+	test('si la tarjeta no está, el aviso sale igual', () => {
+		const { ctx, avisos } = montar([]);
+		assert.doesNotThrow(() => ctx.llevarARestauranteNuevo('zz-nuevo', 'Nuevo'));
+		assert.equal(avisos.length, 1);
+	});
+
+	test('crear la usa después de recargar la lista, y cada tarjeta lleva su slug', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(crear, /await cargarListaRestos\(\);\s*llevarARestauranteNuevo\(slug, nombre\);/);
+		assert.match(src, /card\.className='resto-card'; card\.dataset\.slug=r\.slug;/);
 	});
 });

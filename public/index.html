@@ -436,6 +436,9 @@
 			  padding:18px 20px;display:flex;flex-wrap:nowrap;align-items:flex-start;
 			  gap:14px;transition:border-color .2s;margin-bottom:10px;}
 			.resto-card:hover{border-color:var(--border2);}
+			/* F4: el restaurante recién creado se señala un momento al traerlo a la
+			   vista. Se va solo: es para encontrarlo, no un estado. */
+			.resto-card.recien-creado{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);}
 			/* La base de 280px es lo que hace que baje entera en vez de
 			   estrecharse: por debajo de eso no cabe y se va a su propia fila.
 			   min-width:0 porque un hijo flex no baja de su contenido por
@@ -9797,7 +9800,7 @@ async function cargarListaRestos() {
       clonarSelect.appendChild(opt);
     });
     restos.forEach(r=>{
-      const card=document.createElement('div'); card.className='resto-card';
+      const card=document.createElement('div'); card.className='resto-card'; card.dataset.slug=r.slug;
       const activo=r.activo!==false; // null o true = activo
       card.innerHTML=`
         <div class="resto-card-info">
@@ -9979,9 +9982,31 @@ async function crearRestaurante() {
     document.getElementById('newRestoSlug').value='';
     document.getElementById('newRestoPin').value='';
     document.getElementById('newRestoClonar').value='';
-    showToast('Restaurante creado','success');
     await cargarListaRestos();
+    llevarARestauranteNuevo(slug, nombre);
   } catch(e) { status.textContent='Error: '+e.message; status.style.color='var(--danger)'; }
+}
+
+// F4 en docs/revision-ux.md. Crear decía «✓ Restaurante creado» y recargaba la
+// lista, pero no llevaba a ninguna parte: el nuevo quedaba el último, medido a
+// 1.552 px por debajo de lo que se veía, y había que ir a buscarlo. Cada
+// restaurante nuevo lo empeora.
+//
+// Lo siguiente a crear un restaurante es montarle la carta, así que el aviso lo
+// ofrece. Y la tarjeta se trae a la vista por si lo que se quiere es otra cosa:
+// cambiar el PIN, ver cómo quedó.
+function llevarARestauranteNuevo(slug, nombre) {
+  const tarjeta = [...document.querySelectorAll('#adminRestoList .resto-card')]
+    .find(t => t.dataset.slug === slug);
+  if (tarjeta) {
+    tarjeta.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    tarjeta.classList.add('recien-creado');
+    setTimeout(() => tarjeta.classList.remove('recien-creado'), 4000);
+  }
+  showToast(`«${nombre}» creado`, 'success', {
+    texto: 'Montar la carta',
+    alPulsar: () => entrarARestaurante(slug),
+  });
 }
 
 function cambiarPin(id, nombre) {
