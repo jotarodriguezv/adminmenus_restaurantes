@@ -63,6 +63,15 @@ describe('PATCH /api/mi-pin · el cliente cambia su PIN', () => {
 		assert.ok(bcrypt.compareSync('4321', S.ultimaEscritura('restaurantes_privado').pin_hash));
 	});
 
+	test('el superadmin tampoco puede poner un PIN que el login no admite', async () => {
+		// El login corta en 10. Crear y cambiar aceptaban cualquier largo.
+		const cambio = await S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}/pin`, { pin: '12345678901' }, tokenAdmin);
+		assert.equal(cambio.status, 400);
+		const alta = await S.pedir('POST', '/api/restaurantes', { nombre: 'X', slug: 'x-largo', pin: '12345678901' }, tokenAdmin);
+		assert.equal(alta.status, 400);
+		assert.match(alta.body.error, /entre 4 y 10/);
+	});
+
 	// Al final: deja el contador de esta IP agotado.
 	test('los fallos cuentan en el límite del login: no sirve para probar PINs', async () => {
 		// Un acierto deja el contador a cero, sin depender de las pruebas de arriba.
