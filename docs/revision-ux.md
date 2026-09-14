@@ -644,13 +644,27 @@ personalizado o a las redes hay que recorrerlo todo.
 
 ## A4 · Lo que no aplica al modelo se queda en pantalla, solo rotulado · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #118 · la portada; los filtros no eran de explorar
 
 De los 39 campos, 34 están visibles. Los bloques «Portada» y «Filtros y
 etiquetas» llevan la nota «(solo modelo explorar)» y **siguen visibles** aunque
 esta carta use el modelo Carrito. Se rotula lo que no aplica en vez de
 ocultarlo, y eso engorda las 4,7 pantallas de A3 con ajustes que no hacen nada
 para este restaurante.
+
+> **Aplicado (13/09/2026), con una corrección al hallazgo.** «Filtros y etiquetas»
+> **no es solo de explorar**: desde que la lógica pasó a `core/filtros.js`, la carta
+> los pinta en los seis modelos. Esconderlo habría quitado una función que funciona.
+> Lo que estaba mal era el rótulo, y se quitó.
+>
+> Sí se esconden, al cambiar el modelo y al abrir, **la Portada** (solo explorar) y
+> **«Mostrar mensaje de bienvenida»** (solo sidebar y carrito; en topnav sale
+> siempre). Se siguen guardando, como el estilo del carrete: quien pruebe otro modelo
+> y vuelva lo encuentra.
+>
+> **El ahorro es modesto:** medido a 375 px, Apariencia pasa de 4.258 px con explorar
+> a 3.965-4.054 con los demás, un tercio de pantalla sobre unas cinco. Lo que la
+> hace larga es A3, que sigue pendiente.
 
 ## A5 · Dos avisos pegados que se contradicen · **Media**
 
@@ -993,7 +1007,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **63 aplicados** · **2 descartados** · **5 pendientes**.
+**70 hallazgos** en las tres superficies · **64 aplicados** · **2 descartados** · **4 pendientes**.
 
 ## Aplicados
 
@@ -1046,6 +1060,7 @@ Del 11 al 13 de septiembre de 2026:
 | **B3**, segunda mitad · bebidas y adicionales en «Platos que nadie abrió» | #115 | casilla por categoría; en Bonzas, de 37 a 4 |
 | **P4** · avisos hechos con platos de $ 0 | #116 y vmenus-app#27 | nota por categoría, a prueba |
 | **S4** · el formulario de crear tapaba la lista | #117 | plegado; y el PIN de crear ya no pasa de 10 |
+| **A4** · Apariencia enseñaba lo que el modelo no usa | #118 | se esconde la portada; los filtros eran de todos los modelos |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1090,7 +1105,7 @@ del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2
   arreglar ese caso (con aviso antes de escribir en producción).
 - ~~**C1**~~ — **arrastrar y soltar**, manteniendo las flechas para teclado.
 - ~~**B3, segunda mitad**~~ — **casilla por categoría** «no hace falta abrir la ficha».
-- **A3 + A4 + S4 + S6** — el usuario no tiene opinión. Recomendación: **S4 y A4**,
+- **A3 + ~~A4~~ + ~~S4~~ + S6** — el usuario no tiene opinión. Hechos **S4 y A4**, como se recomendó;
   pequeños; A3 y S6 cuando el equipo los eche en falta. Al final del grupo.
 
 **Grupo 5 · se dejan:** **T2** y **P2** cambian la arquitectura del panel sin un
