@@ -718,12 +718,21 @@ ningún camino hacia adelante.
 
 ## PE2 · Otra vez dos guardados en una pantalla · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #108
 
 `GUARDAR` para el número y `GUARDAR MÉTODOS DE PAGO` para los interruptores.
 Mismo patrón que A1, pero aquí están cerca y los dos bloques se distinguen
 bien, así que el riesgo es mucho menor. Se anota para decidirlo de una vez
 junto con A1 y no dos veces.
+
+> **Aplicado (13/09/2026): aquí sí se funden, y no contradice A1.** En Apariencia
+> se dejaron dos botones porque «Guardar» escribe en **dos tablas** y fundirlos
+> obligaba a gestionar fallos a medias. En Pedidos el número y los métodos van al
+> mismo `restaurantes.atributos` y el servidor acepta las dos claves del
+> restaurante: **un botón, una petición**. Se valida todo antes de enviar nada
+> («Faltan los datos de Nequi», «Falta el número de WhatsApp»). Probado con clics
+> en la pestaña: con Nequi sin datos no sale ninguna petición; completo, sale una
+> con las dos claves.
 
 ## PE3 · La pestaña Pedidos aparece en modelos que no tienen carrito · **Baja**
 
@@ -928,7 +937,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **54 aplicados** · **2 descartados** · **14 pendientes**.
+**70 hallazgos** en las tres superficies · **55 aplicados** · **2 descartados** · **13 pendientes**.
 
 ## Aplicados
 
@@ -971,6 +980,7 @@ Del 11 al 13 de septiembre de 2026:
 | **F4** · crear un restaurante no llevaba a él | #105 | a la vista, resaltado, y «Montar la carta» en el aviso |
 | **X1 + X2** · la insignia de pedidos, y el scroll al cambiar de restaurante | #106 | salía en los once; ahora dice lo mismo que la pestaña Pedidos |
 | **A5** · dos avisos que se contradecían | #107 | «las dos formas funcionan siempre» era falso para el subdominio; la dirección, un enlace para comprobarlo |
+| **PE2** · dos guardados en Pedidos | #108 | uno solo: aquí los dos escriben en el mismo sitio, a diferencia de A1 |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1002,7 +1012,7 @@ porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
 del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, ~~F4~~, ~~X1, X2~~ ·
-~~A5~~, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
+~~A5~~, ~~PE2~~, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
 
