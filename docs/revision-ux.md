@@ -874,7 +874,7 @@ como referencia de a qué debería parecerse el resto:
 
 ## X1 · La insignia `🛒 pedidos` dice capacidad y se lee como estado · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #106
 
 En la lista del superadmin se pinta con `if (plan.carrito)`
 (`index.html:8756`), o sea **lo que el plan permite**, no si el carrito está
@@ -887,9 +887,24 @@ comentario de la insignia de IA: «el silencio se leería como "no la tiene", y
 son cosas distintas». Ese mismo razonamiento aplicado aquí distinguiría
 «puede tener pedidos» de «tiene pedidos».
 
+> **Aplicado (13/09/2026), y era peor de lo anotado.** Todos los planes incluyen
+> carrito, así que la insignia salía en **los once** restaurantes. La primera
+> versión del arreglo decía «sin usar» donde no había carrito, y habría salido en
+> siete: en Topnav, Sidebar y Explorar eso sugiere un interruptor que no existe. Se
+> quedó con el criterio de la IA, nombrar solo donde podría existir:
+>
+> | Carta | Insignia | En producción (13/09/2026) |
+> |---|---|---|
+> | Con carrito (`cartaTieneCarrito`) | «🛒 pedidos» | aojocerrado, indigo, perroscriollos, voro |
+> | Video o Vertical con el interruptor apagado | «🛒 pedidos apagados» | juanmar, pierrot |
+> | Topnav, Sidebar, Explorar | ninguna | bonzas, gale, malparados, sanjavier, zz-pruebas-ux |
+>
+> Es la misma regla que decide la pestaña Pedidos (PE3), así que la lista y el panel
+> ya no se contradicen. Comprobado pintando la lista con esos once casos.
+
 ## X2 · Cambiar de restaurante conserva el scroll · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #106
 
 Entrando a Bonzas desde la lista se aterriza **en mitad de la tabla de
 productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
@@ -897,9 +912,13 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 ---
 
+> **Aplicado (13/09/2026):** entrar en un restaurante y volver a la lista llevan la
+> página arriba. Probado con un clic real en «Editar menú» del último restaurante
+> con la lista bajada 2.095 px: la ficha abrió en 0.
+
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **51 aplicados** · **2 descartados** · **17 pendientes**.
+**70 hallazgos** en las tres superficies · **53 aplicados** · **2 descartados** · **15 pendientes**.
 
 ## Aplicados
 
@@ -940,6 +959,7 @@ Del 11 al 13 de septiembre de 2026:
 | **S2 + S3** · el rojo para dos cosas, y «Activo» con forma de botón | #103 | eliminar, único rojo y visible en reposo; el estado, texto junto al nombre |
 | **S5** · la lista que no carga, sin salida | #104 | motivo legible, también sin red, y Reintentar |
 | **F4** · crear un restaurante no llevaba a él | #105 | a la vista, resaltado, y «Montar la carta» en el aviso |
+| **X1 + X2** · la insignia de pedidos, y el scroll al cambiar de restaurante | #106 | salía en los once; ahora dice lo mismo que la pestaña Pedidos |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -970,7 +990,7 @@ decisión antes de escribir código.
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
-del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, ~~F4~~, X1, X2 ·
+del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, ~~F4~~, ~~X1, X2~~ ·
 A5, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
