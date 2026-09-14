@@ -946,7 +946,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **56 aplicados** · **2 descartados** · **12 pendientes**.
+**70 hallazgos** en las tres superficies · **57 aplicados** · **2 descartados** · **11 pendientes**.
 
 ## Aplicados
 
@@ -991,6 +991,7 @@ Del 11 al 13 de septiembre de 2026:
 | **A5** · dos avisos que se contradecían | #107 | «las dos formas funcionan siempre» era falso para el subdominio; la dirección, un enlace para comprobarlo |
 | **PE2** · dos guardados en Pedidos | #108 | uno solo: aquí los dos escriben en el mismo sitio, a diferencia de A1 |
 | **P5** · el carril de categorías escondía dos tercios | #109 | mismo aviso que las pestañas; y la rueda se aceleraba con cada guardado |
+| **M2** · la dirección de la carta cortada en QR | #110 | un enlace que parte línea y además abre la carta |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1022,7 +1023,7 @@ porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
 del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, ~~F4~~, ~~X1, X2~~ ·
-~~A5~~, ~~PE2~~, ~~P5~~, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
+~~A5~~, ~~PE2~~, ~~P5~~, ~~M2~~ · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
 
@@ -1801,12 +1802,18 @@ panel sin nada que lo insinúe.
 
 ## M2 · El cliente no puede leer la dirección de su propia carta · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #110
 
 En QR, el campo del enlace mide 232 px y el valor son 35 caracteres:
 se ve `https://menu.vmenus.co/zz-pr` y ahí se corta. El botón `COPIAR` al lado
 salva el uso práctico, pero para leerla —dictarla por teléfono, comprobar que
 el slug es el que se acordó— hay que seleccionar y arrastrar dentro del campo.
+
+> **Aplicado (13/09/2026):** el campo de solo lectura pasa a ser un **enlace que
+> parte línea**, con el mismo aspecto de caja. A 375 px sigue midiendo 232 px, pero
+> ahora se ve entera en dos líneas —`https://menu.vmenus.co/zz-` y `pruebas-ux`—, y
+> tocarla abre la carta, que sirve para comprobar que el slug es el acordado.
+> `COPIAR` sigue al lado.
 
 ## Lo que está bien
 
