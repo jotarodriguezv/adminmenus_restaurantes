@@ -403,11 +403,20 @@ final de su categoría, detrás de los platos que anuncia.
 
 ## P5 · El carril de categorías esconde dos tercios · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #109
 
 Medido: 2.321 px de pastillas dentro de un carril de 862. Con 21 categorías, 13
 quedan fuera de la vista tras un scroll horizontal que en escritorio no tiene
 indicación de que haya más.
+
+> **Aplicado (13/09/2026)** con el mismo aviso que las pestañas (M1): el borde por
+> el que quedan categorías se difumina, y la elegida se trae a la vista. Visto con
+> 21 categorías a 1200 px: 7 a la vista en 960 px de carril de 2.376.
+>
+> **Y apareció un fallo al tocar el carril:** `initCatFilterDrag` volvía a registrar
+> sus escuchas en cada repintado, y el carril se repinta al guardar cada plato.
+> Medido con el código de `main`: tras cinco repintados, un giro de rueda desplazaba
+> **500 px** en vez de 100. Ahora se registran una vez.
 
 ## P6 · El botón de borrar es un icono sin etiqueta · **Baja**
 
@@ -937,7 +946,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **55 aplicados** · **2 descartados** · **13 pendientes**.
+**70 hallazgos** en las tres superficies · **56 aplicados** · **2 descartados** · **12 pendientes**.
 
 ## Aplicados
 
@@ -981,6 +990,7 @@ Del 11 al 13 de septiembre de 2026:
 | **X1 + X2** · la insignia de pedidos, y el scroll al cambiar de restaurante | #106 | salía en los once; ahora dice lo mismo que la pestaña Pedidos |
 | **A5** · dos avisos que se contradecían | #107 | «las dos formas funcionan siempre» era falso para el subdominio; la dirección, un enlace para comprobarlo |
 | **PE2** · dos guardados en Pedidos | #108 | uno solo: aquí los dos escriben en el mismo sitio, a diferencia de A1 |
+| **P5** · el carril de categorías escondía dos tercios | #109 | mismo aviso que las pestañas; y la rueda se aceleraba con cada guardado |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -1012,7 +1022,7 @@ porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
 del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, ~~F4~~, ~~X1, X2~~ ·
-~~A5~~, ~~PE2~~, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
+~~A5~~, ~~PE2~~, ~~P5~~, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**
 
