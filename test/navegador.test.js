@@ -5333,3 +5333,70 @@ describe('la lista del superadmin: el rojo solo para eliminar, y el estado no pa
 		assert.doesNotMatch(regla, /border|background|padding/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('si la lista de restaurantes no carga, se dice por qué y se puede reintentar', () => {
+	// S5 en docs/revision-ux.md: «Error cargando restaurantes», sin motivo ni botón.
+	const nodo = () => {
+		const n = { className: '', textContent: '', type: '', onclick: null, hijos: [], innerHTML: '', style: {},
+			appendChild(h) { this.hijos.push(h); return h; } };
+		n.querySelector = () => (n._dentro ||= nodo());
+		return n;
+	};
+
+	function montar(apiFetch) {
+		const lista = nodo();
+		const otros = {};
+		let reintentos = 0;
+		const ctx = cargar('index.html', 'async function cargarListaRestos', '// Encender o apagar la generación con IA', {
+			// La lista es un nodo y el desplegable de «clonar» otro: si fueran el
+			// mismo, sus opciones se mezclarían con las tarjetas.
+			document: { getElementById: id => (id === 'adminRestoList' ? lista : (otros[id] ||= nodo())), createElement: nodo },
+			apiFetch, state: {}, Promise, String, TypeError,
+		});
+		return { ctx, lista, reintentos: () => reintentos, contar: () => { reintentos++; } };
+	}
+
+	test('sin red se dice que no hay conexión, no «Failed to fetch»', async () => {
+		const { ctx, lista } = montar(async () => { throw new TypeError('Failed to fetch'); });
+		await ctx.cargarListaRestos();
+		const caja = lista.hijos[0];
+		const motivo = caja.hijos.find(h => h.textContent.includes('conexión'));
+		assert.ok(motivo, 'no dice que falta la conexión');
+		assert.equal(caja.hijos.some(h => /Failed to fetch/.test(h.textContent)), false);
+	});
+
+	test('un error del servidor enseña su mensaje', async () => {
+		const { ctx, lista } = montar(async () => { throw new Error('El servidor respondió 502 sin explicación'); });
+		await ctx.cargarListaRestos();
+		assert.ok(lista.hijos[0].hijos.some(h => /502/.test(h.textContent)));
+	});
+
+	test('el botón vuelve a pedir la lista, y si ya funciona la pinta', async () => {
+		let falla = true;
+		const restos = [{ id: 'r1', nombre: 'Bonzas', slug: 'bonzas', activo: true }];
+		const { ctx, lista } = montar(async (m, ruta) => {
+			if (falla) throw new TypeError('Failed to fetch');
+			return ruta === '/api/restaurantes' ? restos : ruta === '/api/facturacion' ? [] : {};
+		});
+		Object.assign(ctx, {
+			esc: String, fichaEntornoHtml: () => '', estadoPagoHtml: () => '', avisoPedidosHtml: () => '',
+			fichaPlanHtml: () => '', resumenVideoHtml: () => '', facturacionDe: () => null, urlPublica: () => '', planDe: () => ({}),
+		});
+		await ctx.cargarListaRestos();
+		const boton = lista.hijos[0].hijos.find(h => h.textContent === 'Reintentar');
+		assert.ok(boton, 'no hay botón de reintentar');
+		falla = false;
+		lista.hijos = [];
+		await boton.onclick();
+		assert.equal(lista.hijos.length, 1);
+		assert.match(lista.hijos[0].innerHTML, /Bonzas/, 'reintentar no volvió a pintar la lista');
+	});
+
+	test('el motivo se pinta como texto: puede venir del servidor', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const cuerpo = src.match(/function pintarErrorLista\(list, e\) \{[\s\S]*?\n\}/)[0];
+		assert.match(cuerpo, /motivo\.textContent = motivoDeError\(e\)/);
+		assert.doesNotMatch(cuerpo, /innerHTML\s*=\s*[^'"]*motivo/);
+	});
+});

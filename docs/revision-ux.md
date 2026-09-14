@@ -288,11 +288,19 @@ es cosa de una vez al mes; la lista es a lo que entras siempre.
 
 ## S5 · Si falla la carga de la lista, es un callejón sin salida · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-09-13 · PR #104
 
 `catch(e) { list.innerHTML='<div class="empty-state">Error cargando restaurantes</div>' }`
 (`index.html:8979`). Sin motivo, sin botón de reintentar, y `e` se descarta. La
 única salida es recargar la página entera — los 465 KB de T1.
+
+> **Aplicado (13/09/2026).** Ahora dice qué pasó y ofrece **Reintentar**. Sin
+> red, `fetch` lanza «Failed to fetch», en inglés y sin decir nada; ese caso se
+> traduce a «No hay conexión con el servidor». Cualquier otro enseña el mensaje de
+> `apiFetch`, que ya incluye el código de estado. Probado con peticiones de verdad:
+> contra un servidor sin API salió «El servidor respondió 404 sin explicación»; con
+> el servidor parado, un clic en Reintentar dio «No hay conexión con el servidor»
+> tras unos dos segundos.
 
 ## S6 · Setenta controles en una pantalla · **Baja**
 
@@ -891,7 +899,7 @@ productos**, donde estaba el scroll de la carta anterior. `entrarARestaurante`
 
 # Resumen para priorizar
 
-**70 hallazgos** en las tres superficies · **49 aplicados** · **2 descartados** · **19 pendientes**.
+**70 hallazgos** en las tres superficies · **50 aplicados** · **2 descartados** · **18 pendientes**.
 
 ## Aplicados
 
@@ -930,6 +938,7 @@ Del 11 al 13 de septiembre de 2026:
 | **TP1 + TP2** · nombres distintos de los grupos, y la pestaña vacía | #101 | el nombre de la carta se conserva entre paréntesis, porque es lo que el dueño ve publicado |
 | **L3 + L4 + L5** · el login: jerga, PIN con puntos y tema | #102 | el panel guardaba el tema en cada carga, y eso tapaba la preferencia del sistema |
 | **S2 + S3** · el rojo para dos cosas, y «Activo» con forma de botón | #103 | eliminar, único rojo y visible en reposo; el estado, texto junto al nombre |
+| **S5** · la lista que no carga, sin salida | #104 | motivo legible, también sin red, y Reintentar |
 
 **Cuatro de los seis tenían la receta mal descrita.** El diagnóstico era bueno
 en todos; lo que fallaba era cómo arreglarlo, porque la revisión se hizo
@@ -960,7 +969,7 @@ decisión antes de escribir código.
 porque se prueban igual, a 375 px.
 
 **Grupo 3 · fricción pequeña**, casi todo con el arreglo ya escrito en otra parte
-del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, S5, F4, X1, X2 ·
+del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2 + S3~~, ~~S5~~, F4, X1, X2 ·
 A5, PE2, P5, M2 · **V6** (capas cerradas en el Tab, encontrado al aplicar MD4).
 
 **Grupo 4 · necesitan una decisión antes de código:**

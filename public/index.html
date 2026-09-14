@@ -9882,7 +9882,35 @@ async function cargarListaRestos() {
       card.querySelector('.resto-card-actions').appendChild(delBtn);
       list.appendChild(card);
     });
-  } catch(e) { list.innerHTML='<div class="empty-state">Error cargando restaurantes</div>'; }
+  } catch(e) { pintarErrorLista(list, e); }
+}
+
+// S5 en docs/revision-ux.md. Era «Error cargando restaurantes», sin motivo y sin
+// botón: la única salida era recargar la página entera, y el error se tiraba.
+//
+// Sin red, fetch no devuelve un error del servidor sino un TypeError con un
+// texto del navegador en inglés («Failed to fetch»), que a nadie le dice nada.
+// Ese caso se nombra; cualquier otro enseña el mensaje que ya prepara apiFetch.
+function motivoDeError(e) {
+  if (e instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(String(e?.message))) {
+    return 'No hay conexión con el servidor. Comprueba la conexión a internet.';
+  }
+  return e?.message || 'Error desconocido';
+}
+
+function pintarErrorLista(list, e) {
+  list.innerHTML = '';
+  const caja = document.createElement('div');
+  caja.className = 'empty-state vacio-guia';
+  const titulo = document.createElement('strong');
+  titulo.textContent = 'No se pudo cargar la lista de restaurantes';
+  const motivo = document.createElement('p');
+  motivo.textContent = motivoDeError(e);   // texto, nunca HTML: puede venir del servidor
+  const boton = document.createElement('button');
+  boton.type = 'button'; boton.className = 'btn-sm accent'; boton.textContent = 'Reintentar';
+  boton.onclick = () => cargarListaRestos();
+  caja.appendChild(titulo); caja.appendChild(motivo); caja.appendChild(boton);
+  list.appendChild(caja);
 }
 
 // Encender o apagar la generación con IA de una carta.
