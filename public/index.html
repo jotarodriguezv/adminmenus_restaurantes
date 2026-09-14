@@ -5515,6 +5515,29 @@ function cargarCatHorario(cat) {
   renderCatHorarioNota();
 }
 
+// ── LA LÍNEA DE DATOS DE CADA CATEGORÍA ─────────────────────
+// C3: decía «3 productos · fotos», y el segundo dato —cómo se presenta— suelto
+// detrás de un punto no decía de qué hablaba.
+//
+// C2: una categoría sin platos se pintaba igual que las demás, y la carta NO la
+// enseña (vmenus-app/core/menu.js: `if (!prods.length) return;`). Y hay un caso
+// más que el hallazgo no recogía: la carta solo carga los platos DISPONIBLES
+// (loader.js pide disponible=eq.true), así que una categoría con platos pero
+// todos apagados también desaparece. El dueño la creía publicada en los dos.
+// Es el mismo aviso que ya tienen las categorías con horario («oculta ahora»).
+function datosDeCategoria(platos, sinFotos) {
+  const total = platos.length;
+  const disponibles = platos.filter(p => p.disponible !== false).length;
+  const cuantos = `${total} plato${total === 1 ? '' : 's'}`;
+  const como = sinFotos ? 'en lista, sin fotos' : 'con fotos';
+  if (total === 0) return { texto: 'Sin platos', aviso: 'no sale en la carta hasta que tenga uno' };
+  if (disponibles === 0) return {
+    texto: `${cuantos} · ${como}`,
+    aviso: `ninguno disponible: no sale en la carta`,
+  };
+  return { texto: `${cuantos} · ${como}`, aviso: null };
+}
+
 function renderCatList() {
   const list=document.getElementById('catList');
   if(!state.categorias.length){
@@ -5527,7 +5550,6 @@ function renderCatList() {
   list.innerHTML='';
   const total=state.categorias.length;
   state.categorias.forEach((cat,idx)=>{
-    const count=state.productos.filter(p=>p.categoria_id===cat.id).length;
     const isFirst=idx===0, isLast=idx===total-1;
     const row=document.createElement('div'); row.className='cat-row';
 
@@ -5539,7 +5561,14 @@ function renderCatList() {
     const infoDiv=document.createElement('div'); infoDiv.style.flex='1';
     const nm=document.createElement('div'); nm.className='cat-name'; nm.textContent=cat.nombre;
     const mt=document.createElement('div'); mt.className='cat-meta';
-    mt.textContent=`${count} producto${count!==1?'s':''} · ${cat.sin_fotos?'lista':'fotos'}`;
+    const datos=datosDeCategoria(state.productos.filter(p=>p.categoria_id===cat.id), cat.sin_fotos);
+    mt.textContent=datos.texto;
+    if(datos.aviso) {
+      const oculta=document.createElement('span');
+      oculta.style.cssText='margin-left:8px;color:var(--warn);';
+      oculta.textContent=`· ${datos.aviso}`;
+      mt.appendChild(oculta);
+    }
     // Con horario se avisa si en este momento está oculta, para que nadie
     // crea que la categoría se perdió.
     const hor=cat.atributos?.horario;
