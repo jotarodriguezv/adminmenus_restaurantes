@@ -2868,7 +2868,7 @@ describe('toppingsHuerfanos · qué platos se quedan colgados al borrar', () => 
 	// BORRAR un elemento del catálogo: renombrarlo ya no los desengancha. Sigue
 	// comparando también por nombre porque un plato que nadie haya vuelto a
 	// guardar desde la migración todavía puede llevar nombres dentro.
-	const buscar = (toppingState, productos) => cargar('index.html',
+	const buscar = (toppingState, productos) => cargar('toppings.js',
 		[['function toppingsHuerfanos', 'async function saveToppings']],
 		{ toppingState, state: { productos } }).toppingsHuerfanos();
 
@@ -2932,7 +2932,7 @@ describe('confirmAddTopping · añadir y renombrar en la pestaña Toppings', () 
 
 		const ctx = cargar('index.html', [
 			['function catalogoDe', '// ── PERSONALIZACIÓN DEL PLATO'],
-			['const CONTENEDOR_TOPPING', '// ── PEDIDOS'],
+			['toppings.js', 'const CONTENEDOR_TOPPING', null],
 		], {
 			toppingState,
 			document: { getElementById: el },
@@ -5189,7 +5189,7 @@ describe('los grupos de toppings se llaman igual en la pestaña y en la ficha', 
 	// costo» en la ficha, y Platino sonaba a más que Premium siendo el gratis. La
 	// carta del comensal dice «TOPPINGS PLATINO», así que ese nombre se conserva
 	// entre paréntesis: es el que el dueño ve publicado.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 
 	test('los dos grupos llevan el mismo par de nombres en las dos pantallas', () => {
 		const pestana = src.slice(src.indexOf('<!-- TAB TOPPINGS -->'), src.indexOf('id="listToppingsSalsas"'));
@@ -5215,11 +5215,11 @@ describe('la pestaña de toppings vacía explica para qué sirve', () => {
 	function montar(catalogo) {
 		const nodos = {};
 		const nodo = () => ({ style: {}, innerHTML: '', appendChild() {}, querySelector: () => ({}) });
-		const ctx = cargar('index.html', 'function renderToppingList', 'const CONTENEDOR_TOPPING', {
+		const ctx = cargar('toppings.js', 'function renderToppingList', 'const CONTENEDOR_TOPPING', {
 			toppingState: catalogo, esc: x => x, Number,
 			document: { getElementById: id => (nodos[id] ||= nodo()), createElement: nodo },
 		});
-		const guia = cargar('index.html', '// La guía sale mientras el catálogo esté entero vacío', 'function renderToppingList', {
+		const guia = cargar('toppings.js', '// La guía sale mientras el catálogo esté entero vacío', 'function renderToppingList', {
 			toppingState: catalogo, document: { getElementById: id => (nodos[id] ||= nodo()) },
 		});
 		vm.runInContext('pintarGuiaToppings = globalThis.__guia;', Object.assign(ctx, { __guia: guia.pintarGuiaToppings }));
@@ -5680,7 +5680,7 @@ describe('el carril de categorías avisa de que hay más, y la rueda no se acele
 		const escuchas = {};
 		const carril = { dataset: {}, offsetLeft: 0, scrollLeft: 0,
 			addEventListener: (ev) => { escuchas[ev] = (escuchas[ev] || 0) + 1; } };
-		const ctx = cargar('index.html', 'function initCatFilterDrag', '// ── TOPPINGS', {
+		const ctx = cargar('index.html', 'function initCatFilterDrag', '// ── PEDIDOS', {
 			document: { getElementById: () => carril },
 			window: { addEventListener() {} }, marcarBordes() {},
 		});
