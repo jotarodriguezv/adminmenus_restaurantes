@@ -71,6 +71,8 @@ corregir el documento en la misma tarea.
   **Un precio se guarda dos veces** (`precio` y `precio_numerico`) y separarlos
   hace que la carta muestre uno y el carrito cobre otro. Ya pasó.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.
+- `public/ajustes.js` — la pestaña Ajustes: lo que el restaurante configura de
+  su carta. Hoy, las redes sociales.
 - `parada.js` — qué hace el panel al recibir `SIGTERM` en cada despliegue: deja
   de aceptar conexiones, deja terminar las abiertas, la cola de video suelta su
   trabajo y se sale antes de los 10 s de Docker. **Quitarlo devuelve el
@@ -504,7 +506,7 @@ queda y lo que se abre:
 |---|---|---|
 | **Datos del restaurante** (nombre, slug) | **solo superadmin**, lo dijo expresamente | — |
 | **Filtros y etiquetas** | el restaurante | `filtros_disponibles` |
-| **Redes sociales** | el restaurante | `social_bar`, `social_facebook`, `social_instagram`, `social_tiktok`, `social_whatsapp` |
+| ~~**Redes sociales**~~ **Hecho el 15/09/2026**, pestaña Ajustes | el restaurante | `social_bar`, `social_facebook`, `social_instagram`, `social_tiktok`, `social_whatsapp` |
 | **Carrito activable o desactivable** | el restaurante | `carrito` |
 | Plan, modelo, colores, tipografía, CSS, dominio, zona horaria… | superadmin, **sin decidir todavía** | — |
 
@@ -529,8 +531,13 @@ queda y lo que se abre:
 4. Las **redes sociales** sí salen en todas las plantillas (`core/menu.js`): es
    lo más fácil de abrir y lo que menos riesgo tiene. Son datos públicos, así
    que vivir en `restaurantes.atributos` está bien.
-5. La pestaña del cliente que las reciba no está decidida: una nueva, o repartir
-   cada cosa donde encaje (el carrito, junto a Pedidos).
+5. **Dónde, decidido el 15/09/2026: la pestaña «Ajustes»** (`public/ajustes.js`),
+   visible para el restaurante y para el superadmin, que la usa igual. Lo que se
+   abra después va ahí. Cada dato vive en **un solo sitio**: al pasar a Ajustes
+   se quita de Apariencia, o las dos pantallas se pisarían al guardar.
+6. **Lo que llega del restaurante se valida en el servidor**, no solo en el
+   formulario: `validarRedes()` (enlaces `http(s)://`, WhatsApp de 8 a 15
+   dígitos) se aplica a los dos roles. Lo siguiente que se abra necesita la suya.
 
 ### Decisión abierta: la sesión caduca en seco a las 8 horas
 

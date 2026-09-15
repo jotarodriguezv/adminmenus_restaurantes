@@ -155,6 +155,7 @@
 				<button class="tab-btn" id="tabBtnImportar" onclick="switchTab('importar',this)" style="display:none">Importar carta</button>
 				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
 				<button class="tab-btn" onclick="switchTab('estadisticas',this)">Estadísticas</button>
+				<button class="tab-btn" id="tabBtnAjustes" onclick="switchTab('ajustes',this)">Ajustes</button>
 			</div>
 			<div class="content">
 
@@ -603,28 +604,8 @@
 						</div>
 					</div>
 
-					<div class="section-card">
-						<div class="section-header">
-							<div class="section-title">Redes sociales</div>
-							<label class="toggle"><input type="checkbox" id="apSocialBar"><span class="toggle-slider"></span></label>
-						</div>
-						<div class="form-group">
-							<label for="apSocialFacebook" class="form-label">Facebook <span style="color:var(--text-dim)">(URL completa)</span></label>
-							<input type="text" class="form-input" id="apSocialFacebook" placeholder="https://facebook.com/tu_restaurante">
-						</div>
-						<div class="form-group">
-							<label for="apSocialInstagram" class="form-label">Instagram <span style="color:var(--text-dim)">(URL completa)</span></label>
-							<input type="text" class="form-input" id="apSocialInstagram" placeholder="https://instagram.com/tu_restaurante">
-						</div>
-						<div class="form-group">
-							<label for="apSocialTiktok" class="form-label">TikTok <span style="color:var(--text-dim)">(URL completa)</span></label>
-							<input type="text" class="form-input" id="apSocialTiktok" placeholder="https://tiktok.com/@tu_restaurante">
-						</div>
-						<div class="form-group" style="margin-bottom:0">
-							<label for="apSocialWhatsapp" class="form-label">WhatsApp <span style="color:var(--text-dim)">(solo número, con código de país)</span></label>
-							<input type="text" class="form-input" id="apSocialWhatsapp" placeholder="573001234567">
-						</div>
-					</div>
+					<!-- Las redes sociales se mudaron a la pestaña Ajustes el 15/09/2026:
+					     las edita el propio restaurante. -->
 
 					<div class="section-card">
 						<div class="section-title">CSS personalizado <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(avanzado, casos especiales)</span></div>
@@ -1224,6 +1205,44 @@
 							<span id="impResumen" style="font-size:11px;font-family:var(--mono);color:var(--text-muted)"></span>
 						</div>
 					</div>
+				</div>
+
+				<!-- TAB AJUSTES: lo que el restaurante configura de su propia carta.
+				     Nació el 15/09/2026 con las redes sociales, que salieron de
+				     Apariencia; ahí irán también los filtros y el interruptor del
+				     carrito (CLAUDE.md, «Decisión: abrir partes de Apariencia»). -->
+				<div id="tabAjustes" class="hidden">
+					<div class="section-card">
+						<div class="section-header">
+							<div class="section-title">Redes sociales</div>
+							<label class="toggle" title="Enseñar la barra de redes en la carta">
+								<input type="checkbox" id="ajSocialBar" aria-label="Enseñar la barra de redes en la carta"><span class="toggle-slider"></span>
+							</label>
+						</div>
+						<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
+							Con el interruptor encendido, tu carta enseña botones a estas redes. Las que dejes vacías no salen.
+						</p>
+						<div class="form-group">
+							<label for="ajSocialInstagram" class="form-label">Instagram <span style="color:var(--text-dim)">(dirección completa)</span></label>
+							<input type="url" class="form-input" id="ajSocialInstagram" placeholder="https://instagram.com/tu_restaurante" autocomplete="off">
+						</div>
+						<div class="form-group">
+							<label for="ajSocialFacebook" class="form-label">Facebook <span style="color:var(--text-dim)">(dirección completa)</span></label>
+							<input type="url" class="form-input" id="ajSocialFacebook" placeholder="https://facebook.com/tu_restaurante" autocomplete="off">
+						</div>
+						<div class="form-group">
+							<label for="ajSocialTiktok" class="form-label">TikTok <span style="color:var(--text-dim)">(dirección completa)</span></label>
+							<input type="url" class="form-input" id="ajSocialTiktok" placeholder="https://tiktok.com/@tu_restaurante" autocomplete="off">
+						</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label for="ajSocialWhatsapp" class="form-label">WhatsApp <span style="color:var(--text-dim)">(número con código de país)</span></label>
+							<input type="tel" class="form-input" id="ajSocialWhatsapp" placeholder="573001234567" autocomplete="off">
+						</div>
+					</div>
+					<div style="text-align:right;">
+						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveAjustes()">Guardar ajustes</button>
+					</div>
+					<div id="ajustesStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 				</div>
 
 				<div id="tabQr" class="hidden">
@@ -2037,6 +2056,7 @@
 <script src="importar.js"></script>
 <script src="toppings.js"></script>
 <script src="pedidos.js"></script>
+<script src="ajustes.js"></script>
 <script>
 // ── COLORES ───────────────────────────────────────────────────
 // Los campos de color son de texto libre y nadie rechazaba un '#12345' o un
@@ -2417,7 +2437,7 @@ function switchTab(tab, btn) {
   // En un móvil la pestaña pulsada puede estar medio fuera; se trae a la vista
   // para que se vea cuál está activa. 'nearest' no mueve la página en vertical.
   btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabTv','tabImportar','tabQr','tabEstadisticas'].forEach(id=>{
+  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabTv','tabImportar','tabQr','tabEstadisticas','tabAjustes'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
@@ -2425,6 +2445,7 @@ function switchTab(tab, btn) {
   if (tab === 'importar') renderImportar();
   if (tab === 'qr') renderQR();
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
+  if (tab === 'ajustes') renderAjustes();
 }
 
 // ── ¿HAY MÁS PESTAÑAS FUERA? ──────────────────────────────────
@@ -5789,12 +5810,6 @@ function renderApariencia() {
   state.filtrosDisponibles = Array.isArray(at.filtros_disponibles) ? [...at.filtros_disponibles] : [];
   renderFiltrosCatalogo();
 
-  document.getElementById('apSocialBar').checked = !!at.social_bar;
-  document.getElementById('apSocialFacebook').value = at.social_facebook || '';
-  document.getElementById('apSocialInstagram').value = at.social_instagram || '';
-  document.getElementById('apSocialTiktok').value = at.social_tiktok || '';
-  document.getElementById('apSocialWhatsapp').value = at.social_whatsapp || '';
-
   document.getElementById('apCssCustom').value = at.css_custom || '';
 
   renderPlan();   // después del modelo de nav: el resumen lo consulta
@@ -5999,16 +6014,9 @@ function recolectarApariencia() {
       mostrar_hero: document.getElementById('apMostrarHero').checked,
       portada_activa: document.getElementById('apPortadaActiva').checked,
       filtros_disponibles: state.filtrosDisponibles,
-      social_bar: document.getElementById('apSocialBar').checked,
-      social_facebook: document.getElementById('apSocialFacebook').value.trim(),
-      social_instagram: document.getElementById('apSocialInstagram').value.trim(),
-      social_tiktok: document.getElementById('apSocialTiktok').value.trim(),
-      // Solo dígitos, igual que el WhatsApp de pedidos: wa.me no acepta otra
-      // cosa, y un '+57 300 123 4567' —que es como lo teclea cualquiera— arma
-      // un enlace que no abre ningún chat. La carta también lo limpia al
-      // pintarlo, para los que ya estén guardados; esto es para que no entren
-      // más.
-      social_whatsapp: document.getElementById('apSocialWhatsapp').value.replace(/[^0-9]/g, ''),
+      // Sin las redes sociales, a propósito: viven en Ajustes (ajustes.js) desde
+      // el 15/09/2026. Si volvieran aquí, guardar Apariencia pisaría con la
+      // copia cargada al entrar lo que el restaurante acabara de cambiar.
       css_custom: document.getElementById('apCssCustom').value,
     }
   };

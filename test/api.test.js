@@ -1623,3 +1623,72 @@ describe('GET / · el panel se manda comprimido', () => {
     );
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('redes sociales · las edita el restaurante, con validación', () => {
+	// Desde el 15/09/2026 están en la pestaña Ajustes y las escribe el propio
+	// restaurante; antes solo el superadmin, desde Apariencia. Salen en la carta
+	// pública, así que lo que no sea una dirección o un número no se guarda.
+	const guardar = (atributos, token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { nav: 'topnav' } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos }, token);
+	};
+
+	test('el restaurante puede guardar sus redes', async () => {
+		const r = await guardar({
+			social_bar: true,
+			social_instagram: ' https://www.instagram.com/bonzasburgergrill/ ',
+			social_facebook: '',
+			social_tiktok: 'https://www.tiktok.com/@bonzas',
+			social_whatsapp: '573185267015',
+		});
+		assert.equal(r.status, 200);
+		const g = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(g.social_bar, true);
+		assert.equal(g.social_instagram, 'https://www.instagram.com/bonzasburgergrill/', 'se guarda sin los espacios');
+		assert.equal(g.social_facebook, '', 'vacío es válido: esa red no sale');
+		assert.equal(g.social_tiktok, 'https://www.tiktok.com/@bonzas');
+		assert.equal(g.social_whatsapp, '573185267015');
+		assert.equal(g.nav, 'topnav', 'lo demás de atributos se conserva');
+	});
+
+	test('el WhatsApp se queda solo con los dígitos, como lo lee la carta', async () => {
+		await guardar({ social_whatsapp: '+57 318 526 7015' });
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.social_whatsapp, '573185267015');
+	});
+
+	test('un enlace que ejecuta código no se guarda', async () => {
+		const r = await guardar({ social_instagram: 'javascript:alert(1)' });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /Instagram/);
+		assert.equal(S.ultimaEscritura('restaurantes'), null, 'no se escribe nada');
+	});
+
+	test('sin https:// se explica en vez de guardar un botón roto', async () => {
+		const r = await guardar({ social_facebook: 'facebook.com/bonzas' });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /Facebook.*https:\/\//);
+	});
+
+	test('un WhatsApp demasiado corto se rechaza con un ejemplo', async () => {
+		const r = await guardar({ social_whatsapp: '3001' });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /573001234567/);
+	});
+
+	test('la validación también frena al superadmin', async () => {
+		const r = await guardar({ social_tiktok: 'data:text/html,hola' }, tokenAdmin);
+		assert.equal(r.status, 400);
+	});
+
+	test('abrir las redes no abre nada más: el resto de Apariencia sigue fuera', async () => {
+		await guardar({ social_bar: true, color_card: '#111111', nav: 'carrito', css_custom: 'body{}', plan: 'video' });
+		const g = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(g.social_bar, true);
+		assert.equal(g.color_card, undefined);
+		assert.equal(g.css_custom, undefined);
+		assert.equal(g.plan, undefined);
+		assert.equal(g.nav, 'topnav', 'el modelo no lo cambia el restaurante');
+	});
+});

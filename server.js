@@ -726,7 +726,48 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // 'importar_carta' NO está aquí a conciencia: es la llave que abre el escaneo
 // de la carta, la concede el superadmin restaurante por restaurante, y si
 // estuviera en esta lista cualquiera podría dársela a sí mismo con un PATCH.
-const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv'];
+// Las redes sociales entraron el 15/09/2026, al pasar de Apariencia a la
+// pestaña Ajustes del restaurante. Van validadas en validarRedes(): hasta
+// entonces solo las escribía el superadmin.
+const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv',
+  'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp'];
+
+// ── REDES SOCIALES ────────────────────────────────────────────
+// Validan lo que llega, y lo arreglan cuando el arreglo es obvio. Se aplica a
+// los dos roles: el enlace sale en la carta pública de un restaurante, y un
+// valor malo hace el mismo daño lo escriba quien lo escriba.
+//
+// La carta ya se protege al pintarlos (escUrl en vmenus-app deja fuera
+// 'javascript:' y compañía). Esto no lo sustituye: evita guardar lo que luego
+// sale como un botón que no lleva a ningún sitio, y le dice al restaurante por
+// qué en el momento de escribirlo, que es cuando lo puede corregir.
+const REDES_ENLACE = { social_instagram: 'Instagram', social_facebook: 'Facebook', social_tiktok: 'TikTok' };
+
+function validarRedes(atributos) {
+  if ('social_bar' in atributos) atributos.social_bar = atributos.social_bar === true;
+
+  for (const [clave, nombre] of Object.entries(REDES_ENLACE)) {
+    if (!(clave in atributos)) continue;
+    const v = atributos[clave] == null ? '' : String(atributos[clave]).trim();
+    atributos[clave] = v;
+    if (!v) continue;
+    if (v.length > 300) return `El enlace de ${nombre} es demasiado largo`;
+    let url;
+    try { url = new URL(v); } catch { url = null; }
+    if (!url || !['http:', 'https:'].includes(url.protocol))
+      return `El enlace de ${nombre} tiene que ser una dirección completa, empezando por https://`;
+  }
+
+  if ('social_whatsapp' in atributos) {
+    // Igual que la carta al pintarlo: se quedan los dígitos. Un número con
+    // espacios o con '+' es un error de forma, no de contenido.
+    const digitos = String(atributos.social_whatsapp ?? '').replace(/[^0-9]/g, '');
+    if (digitos && (digitos.length < 8 || digitos.length > 15))
+      return 'El WhatsApp tiene que ser el número completo con el código de país, por ejemplo 573001234567';
+    atributos.social_whatsapp = digitos;
+  }
+  return null;
+}
 
 // Claves de "atributos" que además dependen del plan. El panel ya las
 // esconde, pero esconder un formulario no impide una llamada directa a la
@@ -890,6 +931,9 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
         (!ATRIBUTOS_SEGUN_PLAN[k] || plan[ATRIBUTOS_SEGUN_PLAN[k]])
       ));
     }
+
+    const errorRedes = validarRedes(entrantes);
+    if (errorRedes) return res.status(400).json({ error: errorRedes });
 
     body.atributos = { ...(actual?.atributos || {}), ...entrantes };
 
