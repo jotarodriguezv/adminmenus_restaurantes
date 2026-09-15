@@ -5361,7 +5361,9 @@ describe('la lista del superadmin: el rojo solo para eliminar, y el estado no pa
 	test('Eliminar es el único rojo; Suspender no lo es', async () => {
 		const { ctx, tarjetas } = pintarLista([{ id: 'r1', nombre: 'Bonzas', slug: 'bonzas', activo: true }]);
 		await ctx.cargarListaRestos();
-		const botones = tarjetas[0]._acciones.hijos;
+		// Desde S6, Suspender y Eliminar van dentro de «⋯ Más»: se buscan en todo el árbol.
+		const todos = n => n.hijos.flatMap(h => [h, ...todos(h)]);
+		const botones = todos(tarjetas[0]._acciones);
 		const por = texto => botones.find(b => b.textContent === texto);
 		assert.match(por('Eliminar').className, /\beliminar\b/);
 		assert.doesNotMatch(por('Suspender').className, /\b(danger|eliminar)\b/);
@@ -5387,6 +5389,53 @@ describe('la lista del superadmin: el rojo solo para eliminar, y el estado no pa
 	test('el estado no tiene caja: ni borde ni fondo', () => {
 		const regla = src.match(/\.resto-estado\{[^}]*\}/)[0];
 		assert.doesNotMatch(regla, /border|background|padding/);
+	});
+
+	// S6: siete botones con el mismo peso. A la vista, lo que el usuario dijo usar
+	// a diario (15/09/2026); lo de mes en mes, dentro de «⋯ Más».
+	test('a la vista quedan Editar menú, Ver carta y Pagó; lo demás, en «⋯ Más»', async () => {
+		const { ctx, tarjetas } = pintarLista([{ id: 'r1', nombre: 'Bonzas', slug: 'bonzas', activo: true }]);
+		await ctx.cargarListaRestos();
+		const fila = tarjetas[0]._acciones.hijos;
+		assert.deepEqual(fila.slice(0, 3).map(b => b.textContent), ['Editar menú', 'Ver carta ↗', '✓ Pagó']);
+		assert.equal(fila.length, 4, 'tres botones y el menú, nada más suelto');
+		const [resumen, menu] = fila[3].hijos;
+		assert.equal(fila[3].className, 'resto-mas');
+		assert.equal(resumen.textContent, '⋯ Más');
+		assert.deepEqual(menu.hijos.map(b => b.textContent), ['Suspender', 'Cambiar PIN', 'Eliminar']);
+	});
+
+	test('con plan de video, el interruptor de IA también va en «⋯ Más»', async () => {
+		const { ctx, tarjetas } = pintarLista([{ id: 'r1', nombre: 'Indigo', slug: 'indigo', activo: false }]);
+		ctx.planDe = () => ({ videos: true });
+		await ctx.cargarListaRestos();
+		const menu = tarjetas[0]._acciones.hijos[3].hijos[1];
+		assert.deepEqual(menu.hijos.map(b => b.textContent), ['Activar', '✨ IA activa', 'Cambiar PIN', 'Eliminar']);
+	});
+
+	test('elegir una acción del menú lo cierra', async () => {
+		const { ctx, tarjetas } = pintarLista([{ id: 'r1', nombre: 'Bonzas', slug: 'bonzas', activo: true }]);
+		await ctx.cargarListaRestos();
+		const mas = tarjetas[0]._acciones.hijos[3];
+		mas.open = true;
+		mas.hijos[1].onclick();
+		assert.equal(mas.open, false);
+	});
+
+	test('pulsar fuera o Escape cierra los menús, con una sola escucha desde el arranque', () => {
+		const escuchas = {};
+		const abiertos = [{ open: true }, { open: true }];
+		const { vigilarMenusMas } = cargar('index.html', 'function vigilarMenusMas', '// Encender o apagar la generación con IA', {
+			document: { addEventListener: (ev, fn) => { escuchas[ev] = fn; }, querySelectorAll: () => abiertos },
+		});
+		vigilarMenusMas();
+		// Pulsar dentro del segundo deja ese abierto y cierra el otro.
+		escuchas.click({ target: { closest: () => abiertos[1] } });
+		assert.deepEqual(abiertos.map(d => d.open), [false, true]);
+		escuchas.keydown({ key: 'Escape' });
+		assert.deepEqual(abiertos.map(d => d.open), [false, false]);
+		const arranque = src.slice(src.indexOf('// ── ARRANQUE'));
+		assert.match(arranque, /vigilarMenusMas\(\);/);
 	});
 });
 

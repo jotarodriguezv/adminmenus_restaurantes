@@ -6820,13 +6820,32 @@ async function cargarListaRestos() {
       const delBtn=document.createElement('button');
       delBtn.className='btn-sm eliminar'; delBtn.textContent='Eliminar';
       delBtn.onclick=()=>eliminarRestaurante(r.id,r.nombre);
-      card.querySelector('.resto-card-actions').appendChild(toggleBtn);
-      card.querySelector('.resto-card-actions').appendChild(editBtn);
-      card.querySelector('.resto-card-actions').appendChild(verBtn);
-      if (iaBtn) card.querySelector('.resto-card-actions').appendChild(iaBtn);
-      card.querySelector('.resto-card-actions').appendChild(pinBtn);
-      card.querySelector('.resto-card-actions').appendChild(pagoBtn);
-      card.querySelector('.resto-card-actions').appendChild(delBtn);
+      // S6 en docs/revision-ux.md: siete botones por restaurante, y los tres de
+      // cada día pesaban lo mismo que Eliminar o Cambiar PIN, que son de mes en
+      // mes. A la vista quedan los que el usuario dijo usar a diario (15/09/2026);
+      // el resto va a «⋯ Más».
+      //
+      // Un <details> y no un menú hecho a mano: se abre con Enter o espacio y se
+      // lee como desplegable sin escribir nada de accesibilidad. Lo que añade
+      // vigilarMenusMas() es cerrarlo al pulsar fuera o con Escape.
+      const acciones=card.querySelector('.resto-card-actions');
+      acciones.appendChild(editBtn);
+      acciones.appendChild(verBtn);
+      acciones.appendChild(pagoBtn);
+      const mas=document.createElement('details');
+      mas.className='resto-mas';
+      const masBoton=document.createElement('summary');
+      masBoton.className='btn-sm'; masBoton.textContent='⋯ Más';
+      masBoton.title='Suspender, IA, cambiar PIN y eliminar';
+      const menu=document.createElement('div');
+      menu.className='resto-mas-menu';
+      for (const b of [toggleBtn, iaBtn, pinBtn, delBtn]) if (b) menu.appendChild(b);
+      // Elegir algo cierra el menú: la acción abre su propia ventana o repinta
+      // la lista, y el desplegable abierto detrás solo estorba.
+      menu.onclick=()=>{ mas.open=false; };
+      mas.appendChild(masBoton);
+      mas.appendChild(menu);
+      acciones.appendChild(mas);
       list.appendChild(card);
     });
   } catch(e) { pintarErrorLista(list, e); }
@@ -6858,6 +6877,17 @@ function pintarErrorLista(list, e) {
   boton.onclick = () => cargarListaRestos();
   caja.appendChild(titulo); caja.appendChild(motivo); caja.appendChild(boton);
   list.appendChild(caja);
+}
+
+// Los menús «⋯ Más» de la lista (S6). Un <details> no se cierra solo al pulsar
+// fuera, y con uno abierto por tarjeta la lista acababa llena de desplegables
+// superpuestos. Una sola escucha para toda la página, registrada al arrancar:
+// la lista se repinta entera a menudo y una por menú se duplicaría.
+function vigilarMenusMas() {
+  const cerrarSalvo = dejar => document.querySelectorAll('.resto-mas[open]')
+    .forEach(d => { if (d !== dejar) d.open = false; });
+  document.addEventListener('click', e => cerrarSalvo(e.target.closest?.('.resto-mas')));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarSalvo(null); });
 }
 
 // Encender o apagar la generación con IA de una carta.
@@ -7161,6 +7191,7 @@ habilitarArrastre();
 vigilarCambiosApariencia();
 vigilarBordesDeTabs();
 vigilarErroresFicha();
+vigilarMenusMas();
 
 if(token && state.rol && state.restauranteSlug) {
   if(state.rol==='admin' && !sessionStorage.getItem('menuAdminEditingResto')) {
