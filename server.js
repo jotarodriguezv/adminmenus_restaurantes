@@ -188,7 +188,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 // volumen: fuera de ahí se perderían en cada despliegue. Pero son archivos
 // internos —el master es material de archivo, el original es el crudo del
 // cliente— y no deben servirse a internet. Este guardia va antes del static.
-const CARPETAS_PRIVADAS = new Set(['masters', 'originales']);
+//
+// 'cartas' se añadió el 14/09/2026: guarda el PDF o la foto de la carta que se
+// sube para importar, y se servía a cualquiera que tuviera la URL. Nadie la
+// usa desde fuera —el panel trabaja con el borrador— y el crudo que manda el
+// restaurante es tan suyo como el de 'originales'.
+const CARPETAS_PRIVADAS = new Set(['masters', 'originales', 'cartas']);
 app.use('/uploads', (req, res, next) => {
   // req.path llega aquí como '/masters/algo.mp4'
   if (CARPETAS_PRIVADAS.has(req.path.split('/')[1])) return res.status(404).end();
@@ -2460,8 +2465,23 @@ const subidaCarta = multer({
 // 'cartas' NO está en limpieza.CARPETAS a propósito. El limpiador borra lo que
 // no referencia ninguna de las tablas que conoce, y no conoce
 // 'importaciones_carta': si estuviera en la lista se llevaría por delante el
-// archivo de una importación que todavía no se ha revisado. Dejarlo fuera hace
-// que esos archivos no se limpien nunca, que es el fallo seguro de los dos.
+// archivo de una importación que todavía no se ha revisado.
+//
+// Así que el archivo lo borra la propia importación AL TERMINAR: al aplicarla,
+// al descartarla o al fallar la lectura. Solo se usa una vez, mientras el
+// modelo lee la carta; después todo sale del borrador guardado en la fila. Sin
+// esto no los borraba nadie: el 14/09/2026 había cinco PDF de 24 MB, cuatro de
+// ellos intentos de la misma carta, y ninguno volvía a usarse.
+//
+// No se guarda para consultarlo después, decidido ese mismo día: el panel no
+// tiene dónde enseñarlo, y si una carta se importó mal el original lo tiene el
+// restaurante. Volver a leerla tampoco arreglaría nada —la importación añade y
+// nunca reemplaza—: lo que se corrige son los platos, en el panel.
+function borrarArchivoCarta(relativa) {
+  if (!String(relativa || '').startsWith('cartas/')) return;
+  const abs = video.rutaDentroDeUploads(relativa);
+  if (abs && fs.existsSync(abs)) { try { fs.unlinkSync(abs); } catch {} }
+}
 
 // La extensión la elige quien sube. Esto mira lo que hay DENTRO, igual que
 // pareceImagen() en /api/upload y por el mismo motivo: sin esta comprobación el
@@ -2637,6 +2657,10 @@ app.post('/api/importaciones', auth,
         .update({ estado: 'error', error: mensaje }).eq('id', fila.id);
       if (errEstado) console.error(`⚠️ importación ${fila.id}: además no se pudo marcar el error: ${errEstado.message}`);
 
+      // Un intento fallido no se vuelve a leer: se sube otra vez, con otro
+      // archivo. Este ya no lo necesita nadie.
+      try { fs.unlinkSync(req.file.path); } catch {}
+
       // Al SUPERADMIN se le da el motivo de verdad, y solo en la respuesta:
       // no se guarda en la fila, que la puede leer el restaurante.
       //
@@ -2768,6 +2792,9 @@ app.post('/api/importaciones/:id/aplicar', auth, async (req, res) => {
   const { error: errEstado } = await supabase.from('importaciones_carta')
     .update({ estado: 'aplicado' }).eq('id', fila.id);
   if (errEstado) console.error(`⚠️ importación ${fila.id}: se creó todo pero no se pudo marcar como aplicada: ${errEstado.message}`);
+  // Solo si quedó marcada: una fila que no dice 'aplicado' todavía parece viva,
+  // y dejarla sin archivo sería el único estado raro que se puede evitar aquí.
+  else borrarArchivoCarta(fila.archivo);
 
   res.json({
     ok: true,
@@ -2783,11 +2810,13 @@ app.post('/api/importaciones/:id/aplicar', auth, async (req, res) => {
 // pagó— y además deja rastro de qué se subió y qué se decidió con ello.
 app.delete('/api/importaciones/:id', auth, async (req, res) => {
   const { data: fila } = await supabase.from('importaciones_carta')
-    .select('restaurante_id, estado').eq('id', req.params.id).maybeSingle();
+    .select('restaurante_id, estado, archivo').eq('id', req.params.id).maybeSingle();
   if (!fila || !canAccessRestaurante(req.user, fila.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   if (fila.estado === 'aplicado') return res.status(409).json({ error: 'Esta importación ya se aplicó' });
   const { error } = await supabase.from('importaciones_carta').update({ estado: 'descartado' }).eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
+  // La fila se queda —cuenta el cupo—; el archivo no hace falta.
+  borrarArchivoCarta(fila.archivo);
   res.json({ ok: true });
 });
 

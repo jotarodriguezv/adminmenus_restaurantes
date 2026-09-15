@@ -286,7 +286,7 @@ Una tabla nueva, `importaciones_carta`, con el borrador entero en `jsonb`:
 | `restaurante_id` | |
 | `origen` | `'pdf'` \| `'imagen'` |
 | `via` | `'texto'` \| `'vision'` — qué camino tomó, para poder medir cuál falla |
-| `archivo` | ruta del original subido |
+| `archivo` | ruta del original subido. **El archivo se borra al terminar** (aplicada, descartada o con error); la ruta se queda como rastro |
 | `estado` | `pendiente` \| `listo` \| `aplicado` \| `descartado` \| `error` |
 | `borrador` | `jsonb`: el árbol de categorías y platos propuesto |
 | `creado` / `actualizado` | |
@@ -572,6 +572,29 @@ apuntada en `docs/servidor.md`. Le aplica lo mismo que a `SUPABASE_SERVICE_KEY`:
 navegador.**
 
 ---
+
+### 9.bis El archivo subido no se guarda **(decidido el 14/09/2026)**
+
+El PDF o la foto solo se usan **una vez**, mientras el modelo lee la carta.
+Después todo sale del borrador de la fila. Aun así nadie los borraba —el
+limpiador no conoce esta tabla y tiene `cartas/` fuera a propósito—, y el
+14/09/2026 había **cinco PDF de 24 MB**: cuatro intentos de la carta de A Ojo
+Cerrado del día del estreno (uno colgado por el fallo de `sql/22`, dos con
+error y el bueno) y la de Galé.
+
+Se borra al **terminar**: al aplicar (solo si la fila quedó marcada), al
+descartar y al fallar la lectura. Mientras está en revisión se conserva.
+
+**Por qué no guardarlo 30 días**, que fue la primera propuesta: no hay dónde
+verlo —el panel no tiene historial y en la consola del servidor no se abre un
+PDF—, y para lo que serviría, que un restaurante diga «se importó mal», el
+original lo tiene el propio restaurante. Tampoco se vuelve a leer: la
+importación **añade y nunca reemplaza**, así que repetirla duplicaría la
+carta; lo que se corrige son los platos, en el panel. Si algún día hay muchas
+importaciones y hace falta un historial con el original, se construye entonces.
+
+Ese día se vio además que `/uploads/cartas/` **se servía por URL pública**. Pasó
+a `CARPETAS_PRIVADAS`, como `masters` y `originales`.
 
 ## 10. Lo que falta decidir
 

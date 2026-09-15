@@ -51,9 +51,9 @@ function conFila(fila, resto = CON_LLAVE) {
 
 beforeEach(() => { reiniciar(); });
 
-// Las subidas que salen bien dejan el archivo en el disco a propósito: la fila
-// lo referencia para poder repetir la extracción. En las pruebas eso es basura,
-// y el limpiador no la recoge porque 'cartas' no está en su lista.
+// Una subida que queda en revisión deja el archivo en el disco hasta que la
+// importación termina (ver 'el archivo de la carta'). En las pruebas eso es
+// basura, y el limpiador no la recoge porque 'cartas' no está en su lista.
 const CARPETA = path.join(__dirname, '..', 'uploads', 'cartas');
 const YA_ESTABAN = new Set(fs.existsSync(CARPETA) ? fs.readdirSync(CARPETA) : []);
 after(() => {
@@ -504,5 +504,111 @@ describe('elegir modelo es cosa del superadmin', () => {
 		assert.ok(r.body.modelos.length >= 2);
 		assert.ok(r.body.por_defecto.texto);
 		for (const m of r.body.modelos) assert.ok(m.precio, `${m.id} sin precio`);
+	});
+});
+
+describe('el archivo de la carta · se borra al terminar la importación', () => {
+	// Solo se usa mientras el modelo lee la carta. Antes nadie lo borraba: el
+	// 14/09/2026 había cinco PDF de 24 MB en el servidor, cuatro de ellos
+	// intentos de la misma carta. Se decidió no guardarlo para consultarlo:
+	// el panel no tiene dónde enseñarlo y el original lo tiene el restaurante.
+
+	// Un archivo de verdad en cartas/, con nombre único por ejecución: la
+	// carpeta la comparten todos los ficheros de prueba.
+	function cartaEnDisco(etiqueta) {
+		const nombre = `verif-${etiqueta}-${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
+		fs.mkdirSync(CARPETA, { recursive: true });
+		fs.writeFileSync(path.join(CARPETA, nombre), '%PDF-1.4 prueba');
+		return { relativa: `cartas/${nombre}`, abs: path.join(CARPETA, nombre) };
+	}
+
+	const BORRADOR = { categorias: [{ nombre: 'CALDOS', platos: [{ nombre: 'CALDO', precio_numerico: 10000 }] }] };
+
+	// Una importación lista para aplicar. 'fallaMarcar' hace que el update que
+	// la marca como aplicada devuelva error.
+	function conImportacionLista(archivo, { fallaMarcar = false } = {}) {
+		conTabla((st) => {
+			if (st.tabla === 'importaciones_carta') {
+				if (st.op === 'select') return { data: { id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'listo', borrador: BORRADOR, archivo }, error: null };
+				if (st.op === 'update' && fallaMarcar) return { data: null, error: { message: 'fallo simulado' } };
+				return { data: {}, error: null };
+			}
+			if (st.tabla === 'categorias' && st.op === 'insert')
+				return { data: st.payload.map((c, i) => ({ id: `nueva-${i}`, nombre: c.nombre })), error: null };
+			return { data: [], error: null };
+		});
+	}
+
+	test('si la lectura falla, el archivo subido no se queda en el disco', async () => {
+		conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'pendiente' });
+		const r = await subir(CARTA_PDF, 'carta.pdf');
+		assert.equal(r.status, 502);
+
+		// El nombre lo pone el servidor; se lee de la fila que creó.
+		const creada = llamadas.find((l) => l.tabla === 'importaciones_carta' && l.op === 'insert');
+		const archivo = creada.payload[0].archivo;
+		assert.match(archivo, /^cartas\//);
+		assert.equal(fs.existsSync(path.join(CARPETA, path.basename(archivo))), false, `${archivo} debe borrarse`);
+	});
+
+	test('al aplicarla se borra', async () => {
+		const carta = cartaEnDisco('aplicar');
+		conImportacionLista(carta.relativa);
+		const r = await pedir('POST', `/api/importaciones/${IMPORTACION}/aplicar`, {}, tokenCliente);
+		assert.equal(r.status, 200);
+		assert.equal(fs.existsSync(carta.abs), false);
+	});
+
+	test('si no quedó marcada como aplicada, el archivo se queda', async () => {
+		// Una fila que no dice 'aplicado' todavía parece viva: dejarla sin
+		// archivo sería añadir un estado raro a otro.
+		const carta = cartaEnDisco('sin-marcar');
+		try {
+			conImportacionLista(carta.relativa, { fallaMarcar: true });
+			const r = await pedir('POST', `/api/importaciones/${IMPORTACION}/aplicar`, {}, tokenCliente);
+			assert.ok(r.body.aviso, 'avisa de que no quedó marcada');
+			assert.equal(fs.existsSync(carta.abs), true);
+		} finally {
+			try { fs.unlinkSync(carta.abs); } catch {}
+		}
+	});
+
+	test('al descartarla se borra, y la fila se queda', async () => {
+		const carta = cartaEnDisco('descartar');
+		conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'listo', archivo: carta.relativa });
+		const r = await pedir('DELETE', `/api/importaciones/${IMPORTACION}`, null, tokenCliente);
+		assert.equal(r.status, 200);
+		assert.equal(fs.existsSync(carta.abs), false);
+		assert.equal(llamadas.filter((l) => l.tabla === 'importaciones_carta' && l.op === 'delete').length, 0, 'la fila cuenta el cupo');
+	});
+
+	test('mientras está en revisión no se toca', async () => {
+		const carta = cartaEnDisco('revision');
+		try {
+			conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'listo', archivo: carta.relativa });
+			await pedir('PUT', `/api/importaciones/${IMPORTACION}`, { borrador: BORRADOR }, tokenCliente);
+			await pedir('GET', `/api/importaciones/${IMPORTACION}`, null, tokenCliente);
+			assert.equal(fs.existsSync(carta.abs), true);
+		} finally {
+			try { fs.unlinkSync(carta.abs); } catch {}
+		}
+	});
+
+	test('una ruta fuera de cartas/ no se borra aunque la fila la nombre', async () => {
+		// La columna la escribe el servidor, pero si algún día llegara otra cosa
+		// —una migración, una edición a mano— no puede servir para borrar la
+		// foto de un plato.
+		const raiz = path.join(__dirname, '..', 'uploads');
+		const nombre = `verif-ajeno-${Date.now()}.jpg`;
+		const foto = path.join(raiz, 'productos', nombre);
+		fs.mkdirSync(path.dirname(foto), { recursive: true });
+		fs.writeFileSync(foto, 'foto');
+		try {
+			conFila({ id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'listo', archivo: `productos/${nombre}` });
+			await pedir('DELETE', `/api/importaciones/${IMPORTACION}`, null, tokenCliente);
+			assert.equal(fs.existsSync(foto), true);
+		} finally {
+			try { fs.unlinkSync(foto); } catch {}
+		}
 	});
 });
