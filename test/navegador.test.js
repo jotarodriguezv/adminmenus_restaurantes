@@ -9,6 +9,14 @@ const vm = require('vm');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 
+// El marcado y el JavaScript del panel están en index.html; su CSS, en panel.css
+// desde el 15/09/2026 (paso 1 de partirlo por pestañas). Las pruebas que buscan
+// una regla de estilo junto a un trozo de marcado leen los dos, igual que antes
+// leían el archivo único: ningún selector de panel.css aparece en index.html,
+// así que juntarlos no crea coincidencias falsas.
+const codigoDelPanel = () => ['index.html', 'panel.css']
+	.map(a => fs.readFileSync(path.join(PUBLIC, a), 'utf8')).join('\n');
+
 // Extrae el trozo de fuente entre dos marcas y lo evalúa en un contexto con
 // los stubs que necesite.
 //
@@ -3277,7 +3285,7 @@ describe('los avisos usan una variable de color que existe', () => {
 	// --warning no existe: solo está definida --warn. Un var() sin definir hace
 	// que la declaración se descarte y el texto herede el color de al lado, o
 	// sea que el aviso salía igual que el texto normal. Comprobado en navegador.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 
 	test('nadie escribe var(--warning)', () => {
 		assert.ok(!src.includes('var(--warning)'),
@@ -3293,7 +3301,7 @@ describe('la pista "o arrástralo aquí" · sin prometer nada al teléfono', () 
 	// La pista se esconde donde no hay ratón. Eso la hace útil y la hace
 	// peligrosa a la vez: lo que se meta dentro desaparece para la mayoría de
 	// los usuarios, que entran desde el móvil.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 	const pistas = [...src.matchAll(/class="pista-arrastre"[^>]*>([^<]*)</g)].map(m => m[1]);
 
 	test('todas las zonas donde se puede soltar lo anuncian', () => {
@@ -4843,7 +4851,7 @@ describe('las estadísticas no concluyen más de lo que los datos permiten', () 
 describe('las pestañas avisan de que hay más fuera de la pantalla', () => {
 	// M1 en docs/revision-ux.md. A 375 px, 519 px de pestañas y la barra escondida
 	// a mano: la última quedaba 124 px fuera sin nada que lo dijera.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 	const { bordesConContenido } = cargar('index.html', 'function bordesConContenido', 'function marcarBordesDeTabs', {});
 
 	test('al principio de un carril más ancho que la pantalla, queda contenido a la derecha', () => {
@@ -4888,7 +4896,7 @@ describe('las pestañas avisan de que hay más fuera de la pantalla', () => {
 describe('la fila de categoría cabe en un móvil', () => {
 	// M3 en docs/revision-ux.md. A 375 px la fila medía 326 px dentro de una caja de
 	// 307, y la única regla móvil que la tocaba ENCOGÍA el botón de borrar.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 	const bloqueMovil = (() => {
 		const i = src.indexOf('@media(max-width:680px){');
 		assert.ok(i > 0, 'no se encontró el bloque de móvil');
@@ -4951,7 +4959,7 @@ describe('en vista clara, el acento sobre su fondo tenue se lee', () => {
 	// puesto— era lo menos legible de la pantalla: verde #0b8850 sobre su propio
 	// fondo al 10 %, 3,55-3,97 según dónde. Se calcula con la paleta del archivo,
 	// no con números copiados: si alguien retoca un color, la cuenta cambia sola.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 	const bloque = sel => src.slice(src.indexOf(sel), src.indexOf('}', src.indexOf(sel)));
 	const claro = bloque(':root[data-theme="light"] {');
 	const oscuro = bloque(':root {');
@@ -5307,7 +5315,7 @@ describe('el login: textos claros y la vista clara del sistema', () => {
 // ═══════════════════════════════════════════════════════════════
 describe('la lista del superadmin: el rojo solo para eliminar, y el estado no parece un botón', () => {
 	// S2 y S3 en docs/revision-ux.md.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 
 	function pintarLista(restos) {
 		const tarjetas = [];
@@ -5635,7 +5643,7 @@ describe('la pestaña Pedidos se guarda de una vez', () => {
 // ═══════════════════════════════════════════════════════════════
 describe('el carril de categorías avisa de que hay más, y la rueda no se acelera', () => {
 	// P5 en docs/revision-ux.md: 21 categorías y 8 a la vista, sin aviso.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 
 	test('el carril difumina su borde como las pestañas', () => {
 		assert.match(src, /\.tabs\.hay-mas-derecha,\.cat-filter\.hay-mas-derecha\{/);
@@ -5679,7 +5687,7 @@ describe('el carril de categorías avisa de que hay más, y la rueda no se acele
 // ═══════════════════════════════════════════════════════════════
 describe('la dirección de la carta se lee entera en la pestaña QR', () => {
 	// M2 en docs/revision-ux.md: un campo de 232 px en móvil la cortaba.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 
 	test('es un enlace que parte línea, no un campo de una sola línea', () => {
 		assert.match(src, /<a id="qrEnlace" class="qr-enlace" target="_blank" rel="noopener"><\/a>/);
@@ -5848,7 +5856,7 @@ describe('el modal de categoría avisa de una casi repetida', () => {
 describe('las categorías se reordenan arrastrando', () => {
 	// C1 en docs/revision-ux.md: 20 clics para subir la última de 21, y la fila
 	// se escapaba del puntero en cada uno.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 	const TRAMO = [['async function enTandas', 'function ordenProductosModo'], ['async function moveCat', '// ── ELIMINAR']];
 	const cats = () => ['a', 'b', 'c', 'd'].map((id, i) => ({ id, nombre: id.toUpperCase(), orden: i }));
 
