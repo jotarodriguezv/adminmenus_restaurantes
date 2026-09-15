@@ -6110,3 +6110,85 @@ describe('el formulario de crear restaurante va plegado', () => {
 		assert.match(crear, /pin\.length>10/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('las redes sociales las edita el restaurante, en Ajustes', () => {
+	// 15/09/2026: primer paso de abrir partes de Apariencia al restaurante
+	// (CLAUDE.md). Las redes salen de Apariencia y viven solo en Ajustes: dos
+	// pantallas guardando las mismas claves se pisarían entre ellas.
+	const src = codigoDelPanel();
+
+	test('Apariencia ya no las lee ni las guarda', () => {
+		assert.doesNotMatch(src, /apSocial/, 'no queda ningún campo de redes en Apariencia');
+		const recolectar = src.match(/function recolectarApariencia\(\) \{[\s\S]*?\n\}/)[0];
+		assert.doesNotMatch(recolectar, /social_/, 'guardar Apariencia pisaría lo que cambió el restaurante');
+	});
+
+	test('la pestaña se ve para el restaurante, y abrirla la pinta', () => {
+		const boton = src.match(/<button[^>]*id="tabBtnAjustes"[^>]*>/)[0];
+		assert.doesNotMatch(boton, /display:\s*none/, 'no puede nacer escondida: es del restaurante');
+		const cambiar = src.match(/function switchTab\(tab, btn\) \{[\s\S]*?\n\}/)[0];
+		assert.match(cambiar, /'tabAjustes'/);
+		assert.match(cambiar, /if \(tab === 'ajustes'\) renderAjustes\(\);/);
+		assert.doesNotMatch(cambiar.split('\n')[1], /ajustes/, 'no se corta para el restaurante como Apariencia');
+	});
+
+	function montar(atributos = {}, apiFetch) {
+		const campos = {};
+		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
+		const avisos = [];
+		const ctx = cargar('ajustes.js', '// ── REDES SOCIALES', null, {
+			document: { getElementById: $ },
+			state: { restaurante: { id: 'r1', atributos } },
+			showToast: (m, t) => avisos.push([t, m]),
+			apiFetch, Object,
+		});
+		return { ctx, campos: $, avisos };
+	}
+
+	test('pinta lo guardado y recoge limpio', () => {
+		const { ctx, campos } = montar({ social_bar: true, social_instagram: 'https://instagram.com/x', social_whatsapp: '573001234567' });
+		ctx.renderAjustes();
+		assert.equal(campos('ajSocialBar').checked, true);
+		assert.equal(campos('ajSocialInstagram').value, 'https://instagram.com/x');
+		assert.equal(campos('ajSocialFacebook').value, '');
+
+		campos('ajSocialTiktok').value = '  https://tiktok.com/@x  ';
+		campos('ajSocialWhatsapp').value = '+57 300 123 4567';
+		const r = ctx.recolectarRedes();
+		assert.equal(r.social_tiktok, 'https://tiktok.com/@x');
+		assert.equal(r.social_whatsapp, '573001234567');
+		assert.deepEqual(Object.keys(r).sort(), ['social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
+	});
+
+	test('guardar manda solo las redes y deja el estado al día', async () => {
+		const peticiones = [];
+		const { ctx, campos, avisos } = montar({ nav: 'topnav' }, async (metodo, ruta, cuerpo) => {
+			peticiones.push({ metodo, ruta, cuerpo });
+			return { id: 'r1', atributos: { nav: 'topnav', ...cuerpo.atributos } };
+		});
+		ctx.renderAjustes();
+		campos('ajSocialBar').checked = true;
+		campos('ajSocialInstagram').value = 'https://instagram.com/bonzas';
+		await ctx.saveAjustes();
+
+		assert.equal(peticiones.length, 1);
+		assert.equal(peticiones[0].metodo, 'PATCH');
+		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
+		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['atributos'], 'nada fuera de atributos');
+		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k => k.startsWith('social_')));
+		assert.equal(ctx.state.restaurante.atributos.social_instagram, 'https://instagram.com/bonzas');
+		assert.equal(campos('ajustesStatus').textContent, '✓ Guardado');
+		assert.deepEqual(avisos, [['success', 'Ajustes guardados']]);
+	});
+
+	test('si el servidor lo rechaza, se dice el motivo junto al botón', async () => {
+		const { ctx, campos, avisos } = montar({}, async () => {
+			throw new Error('El enlace de Facebook tiene que ser una dirección completa, empezando por https://');
+		});
+		ctx.renderAjustes();
+		await ctx.saveAjustes();
+		assert.match(campos('ajustesStatus').textContent, /Facebook/);
+		assert.equal(avisos[0][0], 'error');
+	});
+});
