@@ -377,6 +377,24 @@ Cuesta **diez segundos** (9 s → 19 s). No es precio para nadie.
 quita la condición que lo provoca; no arregla el ejecutor. Si vuelve a aparecer
 con un solo hijo, la hipótesis era falsa y hay que volver aquí.
 
+### 14/09/2026 — volvió con un solo hijo: la hipótesis era falsa. **Pendiente.**
+
+Con `--test-concurrency=1` ya puesto, en las últimas 25 ejecuciones hubo **dos
+fallos completos** (el reintento también cayó: un merge a `main` y el PR #131,
+que solo tocaba un script de bash) y **al menos dos más** salvados por el
+reintento. Misma firma de siempre: `api.test.js`, `uncaughtException`,
+`Unable to deserialize cloned data`, y el recuento bajando de 1033 a 995.
+Relanzado, pasó en verde.
+
+Así que la concurrencia **no** era la causa, o no la única, y va a más. Queda
+para una sesión dedicada, empezando por **reproducir** —en Linux y bajo carga,
+que es donde aparece— antes de tocar nada.
+
+Mientras tanto, la regla práctica: un PR en rojo **con ese mensaje y menos de
+1033 pruebas** se relanza (*Re-run failed jobs*); con el recuento completo, el
+fallo es real. Lo que NO hacer sigue igual que abajo: ni más reintentos ni bajar
+de Node 22 — lo volvió a proponer Copilot al analizar el fallo del #131.
+
 **Lo que NO se hizo, y conviene no hacer:**
 
 - **Más reintentos.** Lo propuso un análisis automático. Esconde más un fallo
