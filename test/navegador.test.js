@@ -4138,7 +4138,7 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 		const caja = { style: {} };
 		const estado = { restaurante: { atributos: { nav: 'carrito' } } };
 		const ctx = cargar('index.html',
-			[...reglas, ['function actualizarAvisoPedidos', 'async function savePedidos']],
+			[...reglas, ['pedidos.js', 'function actualizarAvisoPedidos', 'async function savePedidos']],
 			{ String, state: estado, planActual: () => ({}), document: { getElementById: () => caja } });
 		ctx.actualizarAvisoPedidos();
 		assert.equal(caja.style.display, 'block', 'sin número el aviso no se enseña');
@@ -4149,7 +4149,7 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 
 	test('guardar el número vuelve a evaluar el aviso', () => {
 		// Si no, se guarda el número y el aviso rojo sigue ahí hasta recargar.
-		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const src = fs.readFileSync(path.join(PUBLIC, 'pedidos.js'), 'utf8');
 		const cuerpo = src.match(/async function savePedidos\(\)\s*\{[\s\S]*?\n\}/);
 		assert.ok(cuerpo, 'no se encontró savePedidos');
 		assert.match(cuerpo[0], /actualizarAvisoPedidos\(\)/);
@@ -5609,7 +5609,7 @@ describe('la pestaña Pedidos se guarda de una vez', () => {
 		};
 		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
 		const peticiones = [], avisos = [];
-		const ctx = cargar('index.html', 'function recolectarMetodosPago', '// ── FUNCIONES SUPERADMIN', {
+		const ctx = cargar('pedidos.js', 'function recolectarMetodosPago', null, {
 			document: { getElementById: $ }, state: { restaurante: { id: 'r1', atributos: {} } },
 			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push({ metodo, ruta, cuerpo }); return { id: 'r1', atributos: cuerpo.atributos }; },
 			actualizarAvisoPedidos() {}, showToast: (m, t) => avisos.push({ m, t }),
@@ -5680,7 +5680,7 @@ describe('el carril de categorías avisa de que hay más, y la rueda no se acele
 		const escuchas = {};
 		const carril = { dataset: {}, offsetLeft: 0, scrollLeft: 0,
 			addEventListener: (ev) => { escuchas[ev] = (escuchas[ev] || 0) + 1; } };
-		const ctx = cargar('index.html', 'function initCatFilterDrag', '// ── PEDIDOS', {
+		const ctx = cargar('index.html', 'function initCatFilterDrag', '// ── FUNCIONES SUPERADMIN', {
 			document: { getElementById: () => carril },
 			window: { addEventListener() {} }, marcarBordes() {},
 		});
