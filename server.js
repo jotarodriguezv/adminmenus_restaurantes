@@ -730,7 +730,49 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // pestaña Ajustes del restaurante. Van validadas en validarRedes(): hasta
 // entonces solo las escribía el superadmin.
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv',
-  'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp'];
+  'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
+  'filtros_disponibles'];
+
+// ── FILTROS Y ETIQUETAS ───────────────────────────────────────
+// Lo que el restaurante ofrece como filtro en su carta. Entró en la lista del
+// cliente el mismo 15/09/2026 que las redes, y por lo mismo se valida aquí para
+// los dos roles.
+//
+// La carta y el panel ya escapan el nombre al pintarlo (esc() y textContent),
+// así que esto no es la defensa contra HTML metido en un nombre. Es lo que
+// impide guardar lo que no tiene forma de filtro: un identificador con el que
+// los platos ya no casarían, un nombre vacío que sale como un chip en blanco, o
+// cien filtros que convierten la fila de la carta en una pared.
+//
+// Se descarta lo que sobra de cada filtro: solo viajan id, label y emoji.
+const FILTROS_MAX = 40;
+const FILTRO_ID = /^[a-z0-9_]{1,60}$/;
+
+function validarFiltros(atributos) {
+  if (!('filtros_disponibles' in atributos)) return null;
+  const lista = atributos.filtros_disponibles;
+  if (!Array.isArray(lista)) return 'Los filtros tienen que llegar como una lista';
+  if (lista.length > FILTROS_MAX) return `Hay más de ${FILTROS_MAX} filtros; quita alguno`;
+
+  const vistos = new Set();
+  const limpios = [];
+  for (const f of lista) {
+    const id = String(f?.id ?? '');
+    const label = String(f?.label ?? '').trim();
+    const emoji = String(f?.emoji ?? '').trim();
+    if (!FILTRO_ID.test(id)) return 'Uno de los filtros tiene un identificador que no vale';
+    if (!label) return 'Un filtro no puede quedarse sin nombre';
+    if (label.length > 40) return `El filtro «${label.slice(0, 20)}…» tiene un nombre demasiado largo`;
+    // Un emoji con modificadores (piel, familia, bandera) ocupa varias unidades.
+    if (emoji.length > 16) return `El emoji del filtro «${label}» no es un emoji`;
+    // Repetido: se queda el primero. Dos chips iguales en la carta no aportan nada.
+    if (vistos.has(id)) continue;
+    vistos.add(id);
+    limpios.push({ id, label, emoji });
+  }
+  atributos.filtros_disponibles = limpios;
+  return null;
+}
 
 // ── REDES SOCIALES ────────────────────────────────────────────
 // Validan lo que llega, y lo arreglan cuando el arreglo es obvio. Se aplica a
@@ -932,8 +974,8 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
       ));
     }
 
-    const errorRedes = validarRedes(entrantes);
-    if (errorRedes) return res.status(400).json({ error: errorRedes });
+    const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes);
+    if (errorAjustes) return res.status(400).json({ error: errorAjustes });
 
     body.atributos = { ...(actual?.atributos || {}), ...entrantes };
 

@@ -72,7 +72,7 @@ corregir el documento en la misma tarea.
   hace que la carta muestre uno y el carrito cobre otro. Ya pasó.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.
 - `public/ajustes.js` — la pestaña Ajustes: lo que el restaurante configura de
-  su carta. Hoy, las redes sociales.
+  su carta. Hoy, las redes sociales y los filtros y etiquetas.
 - `parada.js` — qué hace el panel al recibir `SIGTERM` en cada despliegue: deja
   de aceptar conexiones, deja terminar las abiertas, la cola de video suelta su
   trabajo y se sale antes de los 10 s de Docker. **Quitarlo devuelve el
@@ -505,7 +505,7 @@ queda y lo que se abre:
 | Qué | Quién | Claves en `atributos` |
 |---|---|---|
 | **Datos del restaurante** (nombre, slug) | **solo superadmin**, lo dijo expresamente | — |
-| **Filtros y etiquetas** | el restaurante | `filtros_disponibles` |
+| ~~**Filtros y etiquetas**~~ **Hecho el 15/09/2026**, pestaña Ajustes | el restaurante | `filtros_disponibles` |
 | ~~**Redes sociales**~~ **Hecho el 15/09/2026**, pestaña Ajustes | el restaurante | `social_bar`, `social_facebook`, `social_instagram`, `social_tiktok`, `social_whatsapp` |
 | **Carrito activable o desactivable** | el restaurante | `carrito` |
 | Plan, modelo, colores, tipografía, CSS, dominio, zona horaria… | superadmin, **sin decidir todavía** | — |
@@ -517,15 +517,19 @@ queda y lo que se abre:
    pagos, QR, orden de productos y TV. Abrir algo es añadir sus claves ahí
    —y a `ATRIBUTOS_SEGUN_PLAN` si depende del plan—, **no** solo enseñar el
    formulario: esconder o enseñar una pantalla no cambia lo que acepta la API.
-2. **El carrito y los filtros no existen en todas las plantillas.** En
-   `vmenus-app`, el carrito solo lo pintan `carrito` (siempre), `video` y
-   `vertical` (con plan e interruptor); los filtros, `carrito`, `explorar`,
-   `video` y `vertical`. **Topnav y Sidebar no tienen ninguno de los dos**, y
-   son justo los dos clientes reales: Bonzas es Topnav y Malparados Sidebar,
-   los dos en plan Completo con `carrito: false`. Darles el interruptor sin
-   más sería un botón que no hace nada en su carta. Para ellos hace falta
-   **llevar el carrito y los filtros a esas plantillas**, que es trabajo en
-   `vmenus-app` y lo más grande de todo esto.
+2. **El carrito no existe en todas las plantillas.** En `vmenus-app` solo lo
+   pintan `carrito` (siempre), `video` y `vertical` (con plan e interruptor).
+   **Topnav y Sidebar no lo tienen**, y son justo los dos clientes reales:
+   Bonzas es Topnav y Malparados Sidebar, los dos en plan Completo con
+   `carrito: false`. Darles el interruptor sin más sería un botón que no hace
+   nada en su carta: para ellos hace falta **llevar el carrito a esas
+   plantillas**, que es trabajo en `vmenus-app` y lo más grande de todo esto.
+
+   **Corregido el 15/09/2026:** aquí ponía que los filtros tampoco existían en
+   Topnav y Sidebar, y era falso. `core/menu.js`, el `buildMenu` que comparten,
+   llama a `montarChips`, así que los filtros salen en **los seis modelos** (A4
+   ya lo había comprobado). Visto en producción ese día: la carta de Bonzas
+   enseña «🌶 Picante» y al pulsarlo deja solo el jalapeño.
 3. **El carrito es de plan**: Vitrina no lo tiene. El interruptor del
    restaurante tiene que respetarlo en el servidor, igual que el QR y la TV.
 4. Las **redes sociales** sí salen en todas las plantillas (`core/menu.js`): es
@@ -536,8 +540,12 @@ queda y lo que se abre:
    abra después va ahí. Cada dato vive en **un solo sitio**: al pasar a Ajustes
    se quita de Apariencia, o las dos pantallas se pisarían al guardar.
 6. **Lo que llega del restaurante se valida en el servidor**, no solo en el
-   formulario: `validarRedes()` (enlaces `http(s)://`, WhatsApp de 8 a 15
-   dígitos) se aplica a los dos roles. Lo siguiente que se abra necesita la suya.
+   formulario, y para los dos roles: `validarRedes()` (enlaces `http(s)://`,
+   WhatsApp de 8 a 15 dígitos) y `validarFiltros()` (lista de hasta 40,
+   identificadores `[a-z0-9_]`, nombre de 1 a 40, solo `id`, `label` y
+   `emoji`, sin repetidos). Lo siguiente que se abra necesita la suya. El
+   nombre de un filtro lo pintan la carta y el panel escapado (`esc()` o
+   `textContent`); comprobado en los seis modelos y en el panel antes de abrirlo.
 
 ### Decisión abierta: la sesión caduca en seco a las 8 horas
 

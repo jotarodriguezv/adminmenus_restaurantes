@@ -1692,3 +1692,70 @@ describe('redes sociales · las edita el restaurante, con validación', () => {
 		assert.equal(g.nav, 'topnav', 'el modelo no lo cambia el restaurante');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('filtros y etiquetas · los elige el restaurante, con validación', () => {
+	// 15/09/2026, con las redes: pasan de Apariencia a Ajustes. Lo que llega se
+	// deja en la forma que la carta sabe usar, lo mande quien lo mande.
+	const guardar = (filtros_disponibles, token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { nav: 'topnav' } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos: { filtros_disponibles } }, token);
+	};
+
+	test('el restaurante guarda sus filtros, del catálogo y personalizados', async () => {
+		const r = await guardar([
+			{ id: 'picante', label: 'Picante', emoji: '🌶' },
+			{ id: 'custom_sin_cebolla', label: ' SIN CEBOLLA ', emoji: '' },
+		]);
+		assert.equal(r.status, 200);
+		assert.deepEqual(S.ultimaEscritura('restaurantes').atributos.filtros_disponibles, [
+			{ id: 'picante', label: 'Picante', emoji: '🌶' },
+			{ id: 'custom_sin_cebolla', label: 'SIN CEBOLLA', emoji: '' },
+		]);
+	});
+
+	test('solo viajan id, nombre y emoji, y un repetido no entra dos veces', async () => {
+		await guardar([
+			{ id: 'frio', label: 'Frío', emoji: '❄️', color: 'red', onclick: 'x' },
+			{ id: 'frio', label: 'Otro frío', emoji: '' },
+		]);
+		assert.deepEqual(S.ultimaEscritura('restaurantes').atributos.filtros_disponibles,
+			[{ id: 'frio', label: 'Frío', emoji: '❄️' }]);
+	});
+
+	test('una lista vacía es válida: la carta se queda sin filtros', async () => {
+		const r = await guardar([]);
+		assert.equal(r.status, 200);
+		assert.deepEqual(S.ultimaEscritura('restaurantes').atributos.filtros_disponibles, []);
+	});
+
+	test('un identificador con el que los platos ya no casarían se rechaza', async () => {
+		for (const id of ['Picante', 'sin gluten', '../x', '', 'a'.repeat(61)]) {
+			const r = await guardar([{ id, label: 'Algo', emoji: '' }]);
+			assert.equal(r.status, 400, `aceptó el id ${JSON.stringify(id)}`);
+			assert.equal(S.ultimaEscritura('restaurantes'), null);
+		}
+	});
+
+	test('sin nombre, con un nombre larguísimo o con un "emoji" de texto, no', async () => {
+		assert.equal((await guardar([{ id: 'x', label: '   ', emoji: '' }])).status, 400);
+		assert.match((await guardar([{ id: 'x', label: 'a'.repeat(41), emoji: '' }])).body.error, /demasiado largo/);
+		assert.equal((await guardar([{ id: 'x', label: 'X', emoji: 'esto no es un emoji' }])).status, 400);
+	});
+
+	test('más de 40 filtros no caben en la carta', async () => {
+		const muchos = Array.from({ length: 41 }, (_, i) => ({ id: `f${i}`, label: `F${i}`, emoji: '' }));
+		const r = await guardar(muchos);
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /40/);
+	});
+
+	test('algo que no es una lista no se guarda', async () => {
+		assert.equal((await guardar({ id: 'picante' })).status, 400);
+	});
+
+	test('también frena al superadmin', async () => {
+		assert.equal((await guardar([{ id: 'MAL', label: 'x', emoji: '' }], tokenAdmin)).status, 400);
+	});
+});
