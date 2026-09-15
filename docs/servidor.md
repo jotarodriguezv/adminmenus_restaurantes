@@ -528,8 +528,19 @@ servir dentro del VPS más barato de Hostinger.**
   (52 %). Detalle en el registro de cambios.
 - ~~Que no vuelva a acumularse~~ — **hecho el 14/09/2026**: historial de Swarm
   a 2 y limpieza semanal en cron (§4). Probada a mano: los 16 servicios en
-  `1/1` después. **Pendiente de mirar tras el primer domingo** (20/09/2026):
-  `tail -20 /var/log/docker-limpieza.log` y `df -h /`.
+  `1/1` después.
+- **Revisar la limpieza el lunes 21/09/2026**, el día después de su primera
+  corrida sola (domingo 20, 6:00 UTC). En el anfitrión:
+
+  ```bash
+  tail -20 /var/log/docker-limpieza.log; df -h /; docker service ls --format '{{.Name}}\t{{.Replicas}}'
+  ```
+
+  Lo esperado: una entrada con fecha del 20 que termine en
+  `Total reclaimed space`, el disco igual o por debajo de los 25 GB del
+  14/09 y **todos los servicios en `1/1`**. Si el log está vacío, cron no la
+  lanzó; si algún servicio está en `0/1`, mirar antes que nada si le falta la
+  imagen (`docker service ps <servicio> --no-trunc`).
 - **794 MB en volúmenes sin usar.** Probablemente de la boda y de las cartas
   borradas, pero pueden tener datos: repasar uno a uno, no `volume prune`.
 - ~~Docker mata el panel en cada despliegue~~ — **hecho y confirmado en el
