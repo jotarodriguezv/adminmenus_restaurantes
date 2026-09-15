@@ -491,6 +491,47 @@ evaluarlo con su equipo antes de seguir añadiendo.
 **No empezar nada más de horarios o calendario sin que él lo pida.** Lo que
 venga después sale de esa evaluación, no de seguir la lista.
 
+### Decisión: abrir partes de Apariencia al restaurante
+
+**Tomada por el usuario el 15/09/2026, al revisar A3.** Solo anotada: **no
+implementar nada hasta que lo pida**, y «poco a poco», una cosa cada vez.
+
+Cambia una decisión anterior: hasta ahora Apariencia era entera del superadmin
+(`switchTab` corta si `state.rol !== 'admin'`, decisión del 09/09/2026). Lo que
+queda y lo que se abre:
+
+| Qué | Quién | Claves en `atributos` |
+|---|---|---|
+| **Datos del restaurante** (nombre, slug) | **solo superadmin**, lo dijo expresamente | — |
+| **Filtros y etiquetas** | el restaurante | `filtros_disponibles` |
+| **Redes sociales** | el restaurante | `social_bar`, `social_facebook`, `social_instagram`, `social_tiktok`, `social_whatsapp` |
+| **Carrito activable o desactivable** | el restaurante | `carrito` |
+| Plan, modelo, colores, tipografía, CSS, dominio, zona horaria… | superadmin, **sin decidir todavía** | — |
+
+**Lo que hay que saber antes de empezar**, comprobado ese día:
+
+1. **El servidor ya filtra lo que puede cambiar un cliente**:
+   `ATRIBUTOS_CLIENTE_PERMITIDOS` en `server.js`. Hoy son toppings, pedidos,
+   pagos, QR, orden de productos y TV. Abrir algo es añadir sus claves ahí
+   —y a `ATRIBUTOS_SEGUN_PLAN` si depende del plan—, **no** solo enseñar el
+   formulario: esconder o enseñar una pantalla no cambia lo que acepta la API.
+2. **El carrito y los filtros no existen en todas las plantillas.** En
+   `vmenus-app`, el carrito solo lo pintan `carrito` (siempre), `video` y
+   `vertical` (con plan e interruptor); los filtros, `carrito`, `explorar`,
+   `video` y `vertical`. **Topnav y Sidebar no tienen ninguno de los dos**, y
+   son justo los dos clientes reales: Bonzas es Topnav y Malparados Sidebar,
+   los dos en plan Completo con `carrito: false`. Darles el interruptor sin
+   más sería un botón que no hace nada en su carta. Para ellos hace falta
+   **llevar el carrito y los filtros a esas plantillas**, que es trabajo en
+   `vmenus-app` y lo más grande de todo esto.
+3. **El carrito es de plan**: Vitrina no lo tiene. El interruptor del
+   restaurante tiene que respetarlo en el servidor, igual que el QR y la TV.
+4. Las **redes sociales** sí salen en todas las plantillas (`core/menu.js`): es
+   lo más fácil de abrir y lo que menos riesgo tiene. Son datos públicos, así
+   que vivir en `restaurantes.atributos` está bien.
+5. La pestaña del cliente que las reciba no está decidida: una nueva, o repartir
+   cada cosa donde encaje (el carrito, junto a Pedidos).
+
 ### Decisión abierta: la sesión caduca en seco a las 8 horas
 
 **Marcado el 14/09/2026. La decide el equipo del usuario.** No implementar nada

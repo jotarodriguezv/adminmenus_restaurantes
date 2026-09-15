@@ -370,12 +370,30 @@ clientes») y que el del panel diga que es solo tuyo («Ver aquí ordenado por»
 
 ## P2 · Cien productos pintados de una sola vez · **Media**
 
-- [ ] Pendiente
+- [x] **Cerrado sin cambios el 15/09/2026, con medición.**
 
 `#productList` tiene las 100 filas en el DOM, cada una con su miniatura, su
 interruptor y sus dos botones. Sin paginación ni carga progresiva. En esta
 carta ya son 100; el buscador y los filtros de categoría ayudan, pero el coste
 se paga igual al entrar en la pestaña.
+
+> **Medido, no es un problema.** `renderProducts()` más la maquetación, en el
+> navegador con el `server.js` real, 21 categorías y platos con miniatura,
+> mediana de cinco pasadas:
+>
+> | Platos | Nodos | Tiempo |
+> |---|---|---|
+> | 100 | 1.500 | **18 ms** |
+> | 300 | 4.500 | 43 ms |
+> | 1.000 | 15.000 | 143 ms |
+>
+> Buscar sobre 100 repinta en 10 ms. En un móvil de gama media cabe esperar
+> unas cuatro veces más —unos 70 ms con 100 platos—, todavía por debajo de lo
+> que se percibe. Y el coste que sí pesaba, bajar cien miniaturas al entrar,
+> ya estaba resuelto: las `<img>` llevan `loading="lazy"`.
+>
+> La carta más grande tiene 98 platos. **Revisarlo si algún restaurante pasa
+> de ~300**, que es donde empezaría a notarse en un móvil.
 
 ## P3 · Dos categorías «Hamburguesas» y «HAMBURGUESA» conviviendo · **Media**
 
@@ -636,11 +654,18 @@ guardado. Si sales ahora se pierden». Aquí no.
 
 ## A3 · Cuatro pantallas y media de formulario seguido · **Media**
 
-- [ ] Pendiente
+- [ ] Pendiente — **cambia de naturaleza el 15/09/2026**, ver abajo
 
 39 campos en una sola columna sin secciones plegables ni índice. Están
 agrupados en tarjetas con título, que ayuda, pero para llegar al CSS
 personalizado o a las redes hay que recorrerlo todo.
+
+> **No se arregla con un índice ni con secciones plegables.** Al proponérselo,
+> el usuario decidió **desmontar la pestaña**: parte de lo que hoy está en
+> Apariencia lo va a poder cambiar el propio restaurante. El formulario se
+> acortará al sacar esas secciones, así que ordenarlo ahora sería trabajo tirado.
+> La decisión y lo que implica están en `CLAUDE.md`, «Decisión: abrir partes de
+> Apariencia al restaurante».
 
 ## A4 · Lo que no aplica al modelo se queda en pantalla, solo rotulado · **Media**
 
@@ -1107,9 +1132,14 @@ del panel: ~~F2, P6~~ · ~~C2, C3~~ · ~~TP1 + TP2~~ · ~~L3 + L4 + L5~~ · ~~S2
 - ~~**B3, segunda mitad**~~ — **casilla por categoría** «no hace falta abrir la ficha».
 - **A3 + ~~A4~~ + ~~S4~~ + S6** — el usuario no tiene opinión. Hechos **S4 y A4**, como se recomendó;
   pequeños; A3 y S6 cuando el equipo los eche en falta. Al final del grupo.
+  **15/09/2026:** S6 se hace, con lo que el usuario dijo usar a diario a la
+  vista; **A3 se convierte en abrir partes de Apariencia al restaurante**
+  (`CLAUDE.md`), solo anotado.
 
 **Grupo 5 · se dejan:** **T2** y **P2** cambian la arquitectura del panel sin un
 problema real hoy; revisarlos si el panel se vuelve lento. **LP2**, descartado.
+**15/09/2026:** ~~P2~~ medido y cerrado (18 ms con 100 platos); T2 lo resuelve el
+paso 5 de partir `index.html`.
 
 ## Una observación sobre el código, no sobre la UX
 
