@@ -201,7 +201,40 @@ paso, con las pruebas en verde y la pestaña mirada en el navegador:
 | 4 | Las más enlazadas: Productos, Categorías, Apariencia | medio |
 | 5 | El superadmin a su archivo, cargado solo con sesión de admin (resuelve T2) | medio |
 
-Las pruebas de `navegador.test.js` leen tramos de `index.html` con `cargar()`;
+### ⏸ En pausa desde el 15/09/2026, antes del paso 4
+
+**Decidido por el usuario.** Los pasos 1–3 entraron en producción el mismo día
+—ocho archivos nuevos—, y el paso 4 toca las pestañas más enlazadas. Primero se
+usa el panel unos días. **No empezar el paso 4 sin que el usuario lo pida.**
+
+**Qué vigilar mientras tanto**, porque es lo que podría haber roto una
+mudanza que las pruebas no ven:
+
+- Un error de JavaScript al abrir el panel o una pestaña (consola del
+  navegador): típicamente un nombre declarado en dos archivos, o algo que un
+  archivo usa al cargar y todavía no existe.
+- Una pestaña que se queda en blanco o un botón que no hace nada: un `onclick`
+  que llama a una función que ya no está donde se buscaba.
+- En el navegador del restaurante, un panel viejo en caché. `public/` se sirve
+  con `max-age=0`, así que no debería pasar; si pasa, recargar.
+
+**Cómo se hizo cada mudanza, para retomarlo igual** (PRs #138–#145):
+
+1. Antes de mover, por sección: qué se ejecuta al cargar (debe ser nada),
+   qué nombres usa código de fuera y **cuándo** (al cargar no vale; al usar,
+   sí), qué pruebas tienen marcas dentro y qué constantes de nivel superior
+   dependen de algo de fuera.
+2. Mover **tal cual**, de un título `// ── ` al siguiente, con cabecera que
+   diga qué es y qué comparte con otros archivos.
+3. `<script src>` detrás de los ya movidos y **antes** del script principal.
+4. Pruebas: contar las de `navegador.test.js` antes y después (**548**);
+   `cargar()` con el archivo por trozo; lecturas del código con
+   `codigoDelPanel()` cuando mezclan archivos; y comprobar que una
+   comprobación negativa sigue fallando si se le mete el error a propósito.
+5. Navegador con el `server.js` real y `apiFetch` sustituido por datos
+   inventados: pintar la pestaña, usar un control y guardar, sin errores.
+
+Las pruebas de `navegador.test.js` leen tramos del panel con `cargar()`;
 al mover una función hay que cambiar el archivo en su llamada (`cargar('qr.js',
 …)` ya lo hace). Son unas 91 llamadas, trabajo mecánico.
 
