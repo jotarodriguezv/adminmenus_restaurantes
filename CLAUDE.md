@@ -422,6 +422,34 @@ evaluarlo con su equipo antes de seguir añadiendo.
 **No empezar nada más de horarios o calendario sin que él lo pida.** Lo que
 venga después sale de esa evaluación, no de seguir la lista.
 
+### Decisión abierta: la sesión caduca en seco a las 8 horas
+
+**Marcado el 14/09/2026. La decide el equipo del usuario.** No implementar nada
+hasta que lo digan.
+
+Cómo es hoy: el login firma un JWT de **8 h fijas desde que se entra** —no se
+renueva usándolo— y el panel lo guarda en `sessionStorage`, así que cerrar la
+pestaña ya cierra la sesión. Pasadas las 8 h la pestaña **parece abierta**, pero
+la primera petición devuelve 401 y `apiFetch` llama a `logout()`.
+
+**El problema no es de seguridad, es perder trabajo.** Quien lleva un rato
+escribiendo la descripción de un plato y pulsa guardar justo después de las 8 h
+acaba en el login sin aviso, y lo escrito se pierde. Afecta igual a los
+restaurantes, que usan la misma sesión.
+
+Sobre la seguridad se concluyó que **acortar la sesión no es la respuesta**: el
+riesgo de una pestaña abierta es que otra persona use el equipo, y eso lo tapa
+bloquear el computador, no una sesión de 2 h que obliga a entrar más veces.
+
+Las dos opciones puestas sobre la mesa:
+
+1. **Avisar antes de caducar** («tu sesión caduca en 5 minutos, guarda lo que
+   estés editando»). Solo frontend: el panel ya tiene el token y puede leer su
+   `exp`.
+2. **Renovar mientras se usa** (caduca tras X tiempo sin actividad, no a las 8 h
+   del login). Mejor para quien trabaja y cierra antes una pestaña olvidada,
+   pero toca servidor y panel.
+
 ### Decisión abierta: ¿avisar o impedir salir con un video a medias?
 
 **Marcado el 3 de septiembre de 2026. La decide el equipo del usuario, no
