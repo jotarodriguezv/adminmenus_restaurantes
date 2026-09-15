@@ -72,7 +72,7 @@ corregir el documento en la misma tarea.
   hace que la carta muestre uno y el carrito cobre otro. Ya pasó.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.
 - `public/ajustes.js` — la pestaña Ajustes: lo que el restaurante configura de
-  su carta. Hoy, las redes sociales y los filtros y etiquetas.
+  su carta. Hoy, el carrito, las redes sociales y los filtros y etiquetas.
 - `parada.js` — qué hace el panel al recibir `SIGTERM` en cada despliegue: deja
   de aceptar conexiones, deja terminar las abiertas, la cola de video suelta su
   trabajo y se sale antes de los 10 s de Docker. **Quitarlo devuelve el
@@ -507,7 +507,7 @@ queda y lo que se abre:
 | **Datos del restaurante** (nombre, slug) | **solo superadmin**, lo dijo expresamente | — |
 | ~~**Filtros y etiquetas**~~ **Hecho el 15/09/2026**, pestaña Ajustes | el restaurante | `filtros_disponibles` |
 | ~~**Redes sociales**~~ **Hecho el 15/09/2026**, pestaña Ajustes | el restaurante | `social_bar`, `social_facebook`, `social_instagram`, `social_tiktok`, `social_whatsapp` |
-| **Carrito activable o desactivable** | el restaurante | `carrito` |
+| ~~**Carrito activable o desactivable**~~ **Hecho el 15/09/2026**, pestaña Ajustes, con vmenus-app#28 | el restaurante | `carrito` |
 | Plan, modelo, colores, tipografía, CSS, dominio, zona horaria… | superadmin, **sin decidir todavía** | — |
 
 **Lo que hay que saber antes de empezar**, comprobado ese día:
@@ -517,21 +517,32 @@ queda y lo que se abre:
    pagos, QR, orden de productos y TV. Abrir algo es añadir sus claves ahí
    —y a `ATRIBUTOS_SEGUN_PLAN` si depende del plan—, **no** solo enseñar el
    formulario: esconder o enseñar una pantalla no cambia lo que acepta la API.
-2. **El carrito no existe en todas las plantillas.** En `vmenus-app` solo lo
-   pintan `carrito` (siempre), `video` y `vertical` (con plan e interruptor).
-   **Topnav y Sidebar no lo tienen**, y son justo los dos clientes reales:
-   Bonzas es Topnav y Malparados Sidebar, los dos en plan Completo con
-   `carrito: false`. Darles el interruptor sin más sería un botón que no hace
-   nada en su carta: para ellos hace falta **llevar el carrito a esas
-   plantillas**, que es trabajo en `vmenus-app` y lo más grande de todo esto.
+2. **El carrito no existía en todas las plantillas.** En `vmenus-app` solo lo
+   pintaban `carrito` (siempre), `video` y `vertical` (con plan e
+   interruptor); **Topnav y Sidebar no**, y son Bonzas y Malparados. **Hecho el
+   15/09/2026 en vmenus-app#28**: botón flotante en Topnav, el de la cabecera en
+   Sidebar, un «+» en cada plato y otro en la ficha, decidido con el usuario. La
+   regla plan + interruptor quedó en una sola función, `carritoEncendido()`, y
+   la lista del panel es `MODELOS_CARRITO_OPCIONAL` (`video`, `vertical`,
+   `topnav`, `sidebar`). **Explorar sigue sin carrito.**
+
+   **El orden de despliegue importa:** primero la carta, después el panel. Con
+   `carrito: false` la carta nueva se pinta igual que antes; al revés, un
+   restaurante podría encender un carrito que su carta aún no pinta.
 
    **Corregido el 15/09/2026:** aquí ponía que los filtros tampoco existían en
    Topnav y Sidebar, y era falso. `core/menu.js`, el `buildMenu` que comparten,
    llama a `montarChips`, así que los filtros salen en **los seis modelos** (A4
    ya lo había comprobado). Visto en producción ese día: la carta de Bonzas
    enseña «🌶 Picante» y al pulsarlo deja solo el jalapeño.
-3. **El carrito es de plan**: Vitrina no lo tiene. El interruptor del
-   restaurante tiene que respetarlo en el servidor, igual que el QR y la TV.
+3. **El carrito es de plan**: Vitrina no lo tiene. Lo respeta el servidor con
+   `ATRIBUTOS_SEGUN_PLAN.carrito`, igual que el QR y la TV, y lo guarda como
+   booleano. El interruptor solo se ofrece donde el modelo y el plan lo permiten;
+   en el resto la tarjeta dice por qué no.
+
+   **Encenderlo no basta para recibir pedidos**: hace falta el número de
+   WhatsApp en la pestaña Pedidos, que aparece al guardar. Ni Bonzas ni
+   Malparados lo tenían el 15/09/2026, y Ajustes lo avisa.
 4. Las **redes sociales** sí salen en todas las plantillas (`core/menu.js`): es
    lo más fácil de abrir y lo que menos riesgo tiene. Son datos públicos, así
    que vivir en `restaurantes.atributos` está bien.

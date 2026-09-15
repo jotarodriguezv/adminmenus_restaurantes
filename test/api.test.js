@@ -1759,3 +1759,36 @@ describe('filtros y etiquetas · los elige el restaurante, con validación', () 
 		assert.equal((await guardar([{ id: 'MAL', label: 'x', emoji: '' }], tokenAdmin)).status, 400);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('carrito · lo enciende el restaurante, si su plan lo incluye', () => {
+	// 15/09/2026: el interruptor pasa a Ajustes y topnav y sidebar ya pintan
+	// carrito (vmenus-app#28). El plan manda: Vitrina no tiene pedidos.
+	const guardar = (carrito, plan = 'completo', token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { nav: 'topnav', plan } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos: { carrito } }, token);
+	};
+
+	test('con un plan que lo incluye, el restaurante lo enciende y lo apaga', async () => {
+		await guardar(true);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.carrito, true);
+		await guardar(false);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.carrito, false);
+	});
+
+	test('con Vitrina no llega a guardarse', async () => {
+		await guardar(true, 'vitrina');
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.carrito, undefined);
+	});
+
+	test('un "true" de texto no enciende nada: el interruptor es un booleano', async () => {
+		await guardar('true');
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.carrito, false);
+	});
+
+	test('el superadmin lo sigue pudiendo poner en cualquier plan', async () => {
+		await guardar(true, 'vitrina', tokenAdmin);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.carrito, true);
+	});
+});

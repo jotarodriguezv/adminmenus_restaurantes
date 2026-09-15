@@ -126,7 +126,7 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] En el móvil, el selector de fechas no se parte. [M7 · #98]
 - [ ] En vista clara, los chips y botones de color de acento se leen bien. [CL4 · #98]
 
-## 11.bis Ajustes (redes sociales, filtros y etiquetas)
+## 11.bis Ajustes (carrito, redes sociales, filtros y etiquetas)
 
 - [ ] Como **restaurante**, la pestaña «Ajustes» aparece y trae las redes que ya estaban guardadas. [15/09/2026]
 - [ ] Cambiar una red y guardar: sale «✓ Guardado» y la carta pública enseña el enlace nuevo. [15/09/2026]
@@ -137,6 +137,10 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] Pulsar chips sin guardar y recargar: vuelve lo que estaba guardado. [15/09/2026]
 - [ ] Sin ningún filtro, la ficha de un plato en modelo Explorar dice «Actívalos en la pestaña Ajustes», a los dos roles y sin enlace a WhatsApp. [15/09/2026]
 - [ ] Como **superadmin**, Apariencia ya no tiene «Filtros y etiquetas». [15/09/2026]
+- [ ] **Solo después de desplegar vmenus-app#28.** Como restaurante Topnav o Sidebar, en Ajustes encender «Pedidos desde la carta»: avisa de que falta el número y, al guardar, aparecen las pestañas Pedidos y Toppings. [15/09/2026]
+- [ ] Con el número puesto en Pedidos, en la carta pública: botón del pedido (flotante en Topnav, en la cabecera en Sidebar), «+» en cada plato y en la ficha, y el pedido llega a WhatsApp. [15/09/2026]
+- [ ] Apagarlo y guardar: la carta vuelve a ser como antes y las pestañas Pedidos y Toppings desaparecen si no hay toppings. [15/09/2026]
+- [ ] En un restaurante Explorar, o con plan Vitrina, la tarjeta no ofrece el interruptor y dice por qué. [15/09/2026]
 
 ## 12. Pantalla TV
 

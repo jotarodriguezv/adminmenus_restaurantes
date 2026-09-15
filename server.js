@@ -731,7 +731,7 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // entonces solo las escribía el superadmin.
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
-  'filtros_disponibles'];
+  'filtros_disponibles', 'carrito'];
 
 // ── FILTROS Y ETIQUETAS ───────────────────────────────────────
 // Lo que el restaurante ofrece como filtro en su carta. Entró en la lista del
@@ -819,7 +819,9 @@ function validarRedes(atributos) {
 // esta clave guardada, tv.html deja la pantalla en reposo. Esconder la pestaña
 // en el panel no impide una llamada directa a la API — la misma razón por la
 // que ya se repite el chequeo del QR y de los videos.
-const ATRIBUTOS_SEGUN_PLAN = { qr: 'qr_disenador', tv: 'tv' };
+// 'carrito' desde el 15/09/2026: el restaurante lo enciende en Ajustes, pero solo
+// si su plan incluye pedidos. Vitrina no.
+const ATRIBUTOS_SEGUN_PLAN = { qr: 'qr_disenador', tv: 'tv', carrito: 'carrito' };
 
 // 'promociones' es un NÚMERO y no una bandera, y por eso vive aquí y no como
 // una constante ni como un 'check' en la tabla: el día que se quiera vender
@@ -974,6 +976,9 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
       ));
     }
 
+    // Un interruptor es un booleano: un "false" de texto es verdadero para
+    // cualquier if, y encendería un carrito que el restaurante apagó.
+    if ('carrito' in entrantes) entrantes.carrito = entrantes.carrito === true;
     const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes);
     if (errorAjustes) return res.status(400).json({ error: errorAjustes });
 

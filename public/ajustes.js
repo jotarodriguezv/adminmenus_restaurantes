@@ -1,9 +1,9 @@
 // La pestaña Ajustes: lo que el propio restaurante configura de su carta.
 //
 // Nació el 15/09/2026 con las redes sociales y, el mismo día, los filtros y
-// etiquetas: las dos cosas estaban en Apariencia, solo para el superadmin. Es
-// abrir partes de Apariencia al restaurante (CLAUDE.md, «Decisión: abrir partes
-// de Apariencia al restaurante»); detrás vendrá el interruptor del carrito.
+// etiquetas y el interruptor del carrito: las tres cosas estaban en Apariencia,
+// solo para el superadmin. Es abrir partes de Apariencia al restaurante
+// (CLAUDE.md, «Decisión: abrir partes de Apariencia al restaurante»).
 //
 // El superadmin la ve igual que el restaurante: un solo sitio para cada dato.
 // Tenerlo también en Apariencia volvería a abrir el problema que el servidor ya
@@ -19,8 +19,8 @@
 // no se puede repetir aquí un nombre que ya exista en otro archivo del panel.
 
 // ── PINTAR, RECOGER Y GUARDAR ─────────────────────────────────
-// Un solo botón para las dos secciones: son del mismo formulario y del mismo
-// PATCH, y dos botones harían creer que guardar uno guarda también el otro.
+// Un solo botón para todas las secciones: son del mismo formulario y del mismo
+// PATCH, y varios botones harían creer que guardar uno guarda también los otros.
 const REDES_CAMPOS = {
   social_instagram: 'ajSocialInstagram',
   social_facebook:  'ajSocialFacebook',
@@ -36,13 +36,20 @@ function renderAjustes() {
   // Una copia: los chips la cambian al pulsarlos, y hasta guardar no es de verdad.
   state.filtrosDisponibles = Array.isArray(at.filtros_disponibles) ? [...at.filtros_disponibles] : [];
   renderFiltrosCatalogo();
+  document.getElementById('ajCarrito').checked = !!at.carrito;
+  pintarNotaCarrito();
   const st = document.getElementById('ajustesStatus');
   st.textContent = ''; st.style.color = 'var(--text-muted)';
 }
 
 function recolectarAjustes() {
   const valor = id => document.getElementById(id).value.trim();
+  // El carrito solo viaja si aquí se puede decidir. Mandarlo siempre apagaría el
+  // de un restaurante cuyo interruptor está escondido: el servidor lo filtraría
+  // por plan, pero no por modelo.
+  const carrito = puedeElegirCarrito() ? { carrito: document.getElementById('ajCarrito').checked } : {};
   return {
+    ...carrito,
     filtros_disponibles: state.filtrosDisponibles,
     social_bar: document.getElementById('ajSocialBar').checked,
     social_instagram: valor('ajSocialInstagram'),
@@ -64,8 +71,14 @@ async function saveAjustes() {
     if (!data) return;   // sesión caducada: apiFetch ya llevó al login
     state.restaurante = data;
     renderAjustes();
-    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
-    showToast('Ajustes guardados', 'success');
+    // Encender el carrito hace aparecer las pestañas Pedidos y Toppings, y sin
+    // repintarlas habría que recargar para llegar a poner el número.
+    ajustarPestanasAlModelo();
+    const faltaNumero = cartaTieneCarrito(data.atributos, planActual()) && !recibePedidos(data.atributos);
+    st.textContent = faltaNumero ? '✓ Guardado · falta el número de WhatsApp en la pestaña Pedidos' : '✓ Guardado';
+    st.style.color = faltaNumero ? 'var(--warn)' : 'var(--success)';
+    showToast(faltaNumero ? 'Guardado. Ahora pon en Pedidos el número al que llegan los pedidos' : 'Ajustes guardados',
+              faltaNumero ? 'info' : 'success');
   } catch (e) {
     // El motivo lo escribe el servidor para quien lo lee: «El enlace de
     // Instagram tiene que empezar por https://», «Hay más de 40 filtros».
@@ -161,4 +174,43 @@ function agregarFiltroCustom() {
   state.filtrosDisponibles.push({ id: base, label, emoji });
   labelEl.value = ''; emojiEl.value = '';
   renderFiltrosCatalogo();
+}
+
+// ── PEDIDOS DESDE LA CARTA ────────────────────────────────────
+// El interruptor que antes estaba en Apariencia, solo para video y vertical.
+// Desde el 15/09/2026 la carta también sabe pintar el carrito en topnav y sidebar
+// (vmenus-app#28), y lo decide el propio restaurante.
+//
+// Se ofrece donde puede hacer algo: plan con pedidos y un modelo que lo tenga
+// como opción (MODELOS_CARRITO_OPCIONAL, en index.html, la misma lista que la
+// pestaña Pedidos y los avisos). En el resto la tarjeta dice por qué no, en vez
+// de desaparecer: quien viene a buscar el carrito tiene que saber qué le falta.
+function puedeElegirCarrito() {
+  const nav = state.restaurante?.atributos?.nav || MODELO_POR_DEFECTO;
+  return !!planActual().carrito && MODELOS_CARRITO_OPCIONAL.includes(nav);
+}
+
+function pintarNotaCarrito() {
+  const at = state.restaurante?.atributos || {};
+  const nav = at.nav || MODELO_POR_DEFECTO;
+  const nota = document.getElementById('ajCarritoNota');
+  const puede = puedeElegirCarrito();
+  document.getElementById('ajCarritoInterruptor').style.display = puede ? '' : 'none';
+  nota.style.color = 'var(--text-muted)';
+
+  if (nav === 'carrito') {
+    nota.textContent = 'Tu carta es de pedidos: el carrito está siempre encendido. El número de WhatsApp y los métodos de pago se configuran en la pestaña Pedidos.';
+  } else if (!planActual().carrito) {
+    nota.textContent = 'Tu plan no incluye pedidos desde la carta.';
+  } else if (!puede) {
+    nota.textContent = 'El modelo de tu carta no tiene carrito de pedidos.';
+  } else if (!document.getElementById('ajCarrito').checked) {
+    nota.textContent = 'Enciéndelo y tus clientes podrán armar su pedido desde la carta y enviártelo por WhatsApp.';
+  } else if (recibePedidos(at)) {
+    nota.textContent = 'Tus clientes arman su pedido en la carta y te llega por WhatsApp. El número y los métodos de pago están en la pestaña Pedidos.';
+  } else {
+    // Encendido sin número: la carta deja armar el pedido y no lo deja enviar.
+    nota.textContent = 'Al guardar aparece la pestaña Pedidos: pon ahí el número de WhatsApp al que llegan. Sin él, tus clientes podrán armar el pedido pero no enviarlo.';
+    nota.style.color = 'var(--warn)';
+  }
 }
