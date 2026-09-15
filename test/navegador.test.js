@@ -378,7 +378,7 @@ describe('programacionDelFormulario · lo que la tarjeta manda a guardar', () =>
 			value: typeof valores[c.slice(1)] === 'string' ? valores[c.slice(1)] : '',
 		}),
 	});
-	const fn = () => cargar('index.html',
+	const fn = () => cargar('promocion.js',
 		[['function programacionDelFormulario', 'async function guardarPromo']], {});
 
 	test('con el interruptor apagado no manda nada', () => {
@@ -405,7 +405,7 @@ describe('programacionDelFormulario · lo que la tarjeta manda a guardar', () =>
 		// "programada", quitándole el turno a las de fondo sin motivo. Se
 		// comporta igual (sale siempre), así que se guarda como tal.
 		const ctx = cargar('index.html',
-			[['function programacionDelFormulario', 'async function guardarPromo'],
+			[['promocion.js', 'function programacionDelFormulario', 'async function guardarPromo'],
 			 ['function zonaRestaurante', 'function describirHorario']],
 			{ state: {}, Intl, Date, RegExp, String, Array, parseInt });
 		const r = ctx.programacionParaGuardar(caja({ 'p-prog': true }), new Set());
@@ -414,7 +414,7 @@ describe('programacionDelFormulario · lo que la tarjeta manda a guardar', () =>
 
 	test('pero con un solo día sí se guarda entera', () => {
 		const ctx = cargar('index.html',
-			[['function programacionDelFormulario', 'async function guardarPromo'],
+			[['promocion.js', 'function programacionDelFormulario', 'async function guardarPromo'],
 			 ['function zonaRestaurante', 'function describirHorario']],
 			{ state: {}, Intl, Date, RegExp, String, Array, parseInt });
 		const r = ctx.programacionParaGuardar(caja({ 'p-prog': true }), new Set([2]));
@@ -1680,7 +1680,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			// cartelera: los días de la semana se leen igual en los dos sitios.
 			// Hasta renderPromociones: programacionDe la usan también las
 			// miniaturas de imágenes sueltas de la pestaña del televisor.
-			['const DIAS_PROMO', 'async function renderPromociones'],
+			['promocion.js', 'const DIAS_PROMO', 'async function renderPromociones'],
 			['tv.js', 'const TV_POR_DEFECTO', null],
 		], {
 			state: {
@@ -4654,8 +4654,8 @@ describe('los avisos no mandan al cliente a pestañas que no ve', () => {
 describe('con «Activa» apagada, los destinos de la promoción se ven sin efecto', () => {
 	// B2 en docs/revision-ux.md. Los tres interruptores eran iguales, y apagando
 	// «Activa» seguían «En la carta» y «En el televisor» encendidos a la vista.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
-	const { atenuarDestinos } = cargar('index.html', 'function atenuarDestinos', 'function programacionDelFormulario', {});
+	const src = codigoDelPanel();
+	const { atenuarDestinos } = cargar('promocion.js', 'function atenuarDestinos', 'function programacionDelFormulario', {});
 
 	function caja(activa) {
 		const destinos = [{ style: {}, title: '' }, { style: {}, title: '' }];
