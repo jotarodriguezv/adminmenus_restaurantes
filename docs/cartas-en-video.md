@@ -485,9 +485,9 @@ que una fuerza bruta contra el login degrada las cartas aunque no acierte nunca.
 
 **Qué hacer, por orden:**
 
-1. **Alargar `PIN_ADMIN`.** No lo teclea nadie en un móvil durante el servicio, así
-   que puede ser una frase de 20+ caracteres. Elimina la fuerza bruta para esa cuenta
-   independientemente del resto. Coste: cero.
+1. ~~**Alargar `PIN_ADMIN`.**~~ **Hecho el 14/09/2026**, con 10 caracteres al azar
+   y no una frase de 20+: el campo del login no admite más de 10. Ver la
+   checklist (§11).
 2. **Limitar `/api/login`.** Reutilizar `dentroDelLimite` con un tope mucho más bajo
    que el de `/api/track` (5-10 por minuto, no 120) y contando por IP **y** por slug,
    para que atacar a un restaurante no bloquee a los demás. ~15 líneas.
@@ -1271,7 +1271,22 @@ Estado a agosto de 2026. Pensada para copiar y pegar.
       `restaurantes.atributos` tras confirmar el panel desplegado. La fuga
       queda cerrada: lo que hoy viaja al navegador de un comensal es solo
       apariencia, redes y datos de pedido — nada de cobranza
-- [ ] **Alargar `PIN_ADMIN`** a una frase de 20+ caracteres. No lo teclea nadie en móvil; no hay razón para que sea corto
+- [x] **Alargar `PIN_ADMIN`** (14/09/2026). Eran **6 números**: con el límite de
+      10 fallos cada 15 min por IP, ~3 años desde una IP pero **~10 días con
+      100**. Ahora son **10 caracteres al azar** (mayúsculas, minúsculas y
+      dígitos, sin los que se confunden), generados en el servidor para que no
+      pasaran por ningún chat. Comprobado entrando en incógnito.
+
+      **La casilla decía «frase de 20+» y eso habría dejado fuera al
+      superadmin:** el campo del login tiene `maxlength="10"`
+      (`#pinInput`) y el navegador corta lo que se escribe. Con el límite de
+      intentos, 10 al azar son ~8·10¹⁷ combinaciones y basta. Si algún día se
+      quiere más largo, primero hay que subir ese `maxlength`.
+
+      Dos cosas vistas de paso: el contador de fallos vive en memoria y **se
+      reinicia con cada despliegue**, y cambiar el PIN **no cierra las sesiones
+      abiertas** (el token es un JWT de 8 h firmado con `JWT_SECRET`; para echar
+      a todos habría que cambiar ese secreto)
 
 ### Cartas públicas (no es video, pero está abierto)
 
