@@ -3559,8 +3559,8 @@ describe('importar la carta · lo que se le enseña antes de crear nada', () => 
 	// 2. Estas pruebas son lo único que lo impide.
 	const importacion = require('../importacion.js');
 
-	const panel = () => cargar('index.html',
-		[['// ── IMPORTAR LA CARTA ─', '// ── DIRECCIÓN PÚBLICA DEL MENÚ ─']], {});
+	const panel = () => cargar('importar.js',
+		[['// ── IMPORTAR LA CARTA ─', null]], {});
 
 	const NOMBRES = [
 		'POSTRES', 'postres', '  Póstres  ', 'Café', 'CAFE', 'Bebidas   calientes',
@@ -3657,8 +3657,8 @@ describe('importar la carta · lo que se manda es lo que se ve', () => {
 		};
 	}
 
-	const leer = bloques => cargar('index.html',
-		[['// ── IMPORTAR LA CARTA ─', '// ── DIRECCIÓN PÚBLICA DEL MENÚ ─']],
+	const leer = bloques => cargar('importar.js',
+		[['// ── IMPORTAR LA CARTA ─', null]],
 		{ document: pantalla(bloques) }).impBorradorDelFormulario();
 
 	test('recoge lo que hay en los campos', () => {
@@ -3687,8 +3687,8 @@ describe('importar la carta · los platos que el restaurante ya tiene', () => {
 	// Importar AÑADE y no reemplaza. Sin avisar, meterle su propia carta a un
 	// restaurante que ya tiene menú se lo duplica entero — y la pantalla no
 	// diría nada. Bonzas son 97 platos: 97 duplicados que deshacer a mano.
-	const panel = extra => cargar('index.html',
-		[['// ── IMPORTAR LA CARTA ─', '// ── DIRECCIÓN PÚBLICA DEL MENÚ ─']],
+	const panel = extra => cargar('importar.js',
+		[['// ── IMPORTAR LA CARTA ─', null]],
 		Object.assign({ state: { productos: [] } }, extra));
 
 	const conProductos = nombres => panel({ state: { productos: nombres.map(n => ({ nombre: n })) } });
@@ -3726,8 +3726,8 @@ describe('importar la carta · una categoría que se parece a otra que ya existe
 	// Pasó en la primera importación real: el restaurante tenía 'Hamburguesas'
 	// y el PDF decía 'HAMBURGUESA'. Se crearon las dos y la carta acabó con dos
 	// secciones de lo mismo.
-	const panel = () => cargar('index.html',
-		[['// ── IMPORTAR LA CARTA ─', '// ── DIRECCIÓN PÚBLICA DEL MENÚ ─']],
+	const panel = () => cargar('importar.js',
+		[['// ── IMPORTAR LA CARTA ─', null]],
 		{ state: { productos: [], categorias: [] } });
 
 	test('singular y plural comparten raíz', () => {
@@ -3747,8 +3747,8 @@ describe('importar la carta · una categoría que se parece a otra que ya existe
 		// impTotales sigue comparando por el nombre completo: 'HAMBURGUESA'
 		// cuenta como nueva aunque exista 'Hamburguesas'. Juntarlas sin que
 		// nadie lo vea movería platos de sitio.
-		const ctx = cargar('index.html',
-			[['// ── IMPORTAR LA CARTA ─', '// ── DIRECCIÓN PÚBLICA DEL MENÚ ─']],
+		const ctx = cargar('importar.js',
+			[['// ── IMPORTAR LA CARTA ─', null]],
 			{ state: { productos: [], categorias: [{ id: 'c1', nombre: 'Hamburguesas' }] } });
 		const t = ctx.impTotales({ categorias: [{ nombre: 'HAMBURGUESA', platos: [{ nombre: 'DOBLE' }] }] },
 			[{ id: 'c1', nombre: 'Hamburguesas' }]);
@@ -5810,8 +5810,8 @@ describe('el modal de categoría avisa de una casi repetida', () => {
 	function montar({ id = '', nombre = '', productos = [] } = {}) {
 		const campos = { editCatId: { value: id }, editCatNombre: { value: nombre }, catParecida: { hidden: true, textContent: '' } };
 		const ctx = cargar('index.html', [
-			['function impNormalizar', 'const IMP_SIN_CATEGORIA'],
-			['function impRaiz', 'function impTotales'],
+			['importar.js', 'function impNormalizar', 'const IMP_SIN_CATEGORIA'],
+			['importar.js', 'function impRaiz', 'function impTotales'],
 			['// ── CATEGORÍA CASI REPETIDA (P3)', 'async function saveCat'],
 		], { document: { getElementById: i => campos[i] }, state: { categorias: CATS, productos } });
 		return { ctx, campos };
