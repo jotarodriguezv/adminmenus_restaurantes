@@ -584,28 +584,8 @@
 						</div>
 					</div>
 
-					<!-- FILTROS Y ETIQUETAS. El rótulo decía «solo modelo explorar», y ya no
-					     era verdad: core/filtros.js de la carta los pinta en los seis modelos.
-					     Visto al aplicar A4, que proponía esconderlo: habría quitado una función
-					     que funciona. Las insignias de cada plato sí siguen siendo de explorar. -->
-					<div class="section-card" id="apFiltrosCard">
-						<div class="section-title">Filtros y etiquetas</div>
-						<p style="font-size:12px;color:var(--text-muted);margin:-4px 0 14px;line-height:1.5">
-							Activa los filtros que tus clientes podrán usar para explorar el menú. Luego, en cada producto, marcas cuáles aplican. En la página solo aparecen los filtros que tengan al menos un producto.
-						</p>
-						<div id="apFiltrosCatalogo"></div>
-						<div class="form-group" style="margin-top:16px;margin-bottom:0">
-							<label for="apFiltroCustomLabel" class="form-label">Filtro personalizado <span style="color:var(--text-dim)">(nombre + emoji)</span></label>
-							<div style="display:flex;gap:8px;align-items:center;">
-								<input type="text" class="form-input" id="apFiltroCustomLabel" placeholder="Ej: Sin cebolla" style="flex:1">
-								<input type="text" class="form-input" id="apFiltroCustomEmoji" placeholder="🧅" maxlength="4" style="width:70px;text-align:center">
-								<button type="button" class="btn-sm accent" onclick="agregarFiltroCustom()" style="white-space:nowrap">+ Añadir</button>
-							</div>
-						</div>
-					</div>
-
-					<!-- Las redes sociales se mudaron a la pestaña Ajustes el 15/09/2026:
-					     las edita el propio restaurante. -->
+					<!-- «Filtros y etiquetas» y las redes sociales se mudaron a la pestaña
+					     Ajustes el 15/09/2026: los configura el propio restaurante. -->
 
 					<div class="section-card">
 						<div class="section-title">CSS personalizado <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(avanzado, casos especiales)</span></div>
@@ -1239,6 +1219,24 @@
 							<input type="tel" class="form-input" id="ajSocialWhatsapp" placeholder="573001234567" autocomplete="off">
 						</div>
 					</div>
+					<!-- Los filtros los pintan los seis modelos de la carta (core/filtros.js en
+					     vmenus-app), no solo explorar. Las insignias de cada plato sí siguen
+					     siendo de explorar, y por eso no están aquí. -->
+					<div class="section-card" id="ajFiltrosCard">
+						<div class="section-title">Filtros y etiquetas</div>
+						<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
+							Elige los filtros que tus clientes podrán usar en la carta (vegetariano, picante…). Después, en la ficha de cada plato, marca cuáles cumple. En la carta solo aparecen los que tengan al menos un plato.
+						</p>
+						<div id="ajFiltrosCatalogo"></div>
+						<div class="form-group" style="margin-top:16px;margin-bottom:0">
+							<label for="ajFiltroCustomLabel" class="form-label">Filtro personalizado <span style="color:var(--text-dim)">(nombre y emoji)</span></label>
+							<div style="display:flex;gap:8px;align-items:center;">
+								<input type="text" class="form-input" id="ajFiltroCustomLabel" placeholder="Ej: Sin cebolla" maxlength="40" style="flex:1">
+								<input type="text" class="form-input" id="ajFiltroCustomEmoji" placeholder="🧅" maxlength="4" style="width:70px;text-align:center" aria-label="Emoji del filtro">
+								<button type="button" class="btn-sm accent" onclick="agregarFiltroCustom()" style="white-space:nowrap">+ Añadir</button>
+							</div>
+						</div>
+					</div>
 					<div style="text-align:right;">
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveAjustes()">Guardar ajustes</button>
 					</div>
@@ -1751,7 +1749,7 @@
 					<div class="form-group" id="editFiltrosGroup" style="display:none">
 						<label class="form-label">Filtros que aplican <span style="color:var(--text-dim)">(el cliente los usa para filtrar la carta)</span></label>
 						<div id="editFiltrosChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-						<div id="editFiltrosVacio" style="font-size:11px;color:var(--text-dim);display:none">Sin filtros activados. Actívalos en Apariencia → Filtros y etiquetas.</div>
+						<div id="editFiltrosVacio" style="font-size:11px;color:var(--text-dim);display:none">Tu carta todavía no tiene filtros. Actívalos en la pestaña Ajustes → Filtros y etiquetas.</div>
 					</div>
 					<div class="form-group" id="editBadgesGroup" style="display:none">
 						<label class="form-label">Destacados <span style="color:var(--text-dim)">(insignias del producto)</span></label>
@@ -2385,11 +2383,9 @@ const AYUDA_SEGUN_QUIEN_MIRA = {
     cliente: 'Todavía no tienes logo en tu carta. Envíanoslo y lo subimos por ti:',
     pedido: 'Hola, quiero poner el logo de mi restaurante en la carta',
   },
-  editFiltrosVacio: {
-    admin: 'Sin filtros activados. Actívalos en Apariencia → Filtros y etiquetas.',
-    cliente: 'Tu carta todavía no tiene filtros (vegano, picante…). Los activamos nosotros:',
-    pedido: 'Hola, quiero activar filtros en mi carta',
-  },
+  // editFiltrosVacio salió de aquí el 15/09/2026: los filtros se activan en
+  // Ajustes, que ven los dos, así que el aviso es el mismo para todos y está
+  // escrito en el marcado.
 };
 
 function pintarAyudaSegunQuienMira(esAdmin) {
@@ -2797,7 +2793,7 @@ function openNewProductModal() {
 // Lee/escribe state.prodFiltros (array de ids) y state.prodBadges
 // ({popular,chef,nuevo}). Solo se muestra si el restaurante está en
 // modelo explorar. Los chips de filtros salen de los que el
-// restaurante activó en Apariencia.
+// restaurante activó en Ajustes (antes, en Apariencia).
 function renderProdFiltrosBadges() {
 	const esExplorar = (state.restaurante?.atributos?.nav === 'explorar');
 	const disponibles = state.restaurante?.atributos?.filtros_disponibles || [];
@@ -5807,9 +5803,6 @@ function renderApariencia() {
     (planActual().carrito && esModeloDeVideo(at.nav)) ? 'flex' : 'none';
   document.getElementById('apMostrarHero').checked = !!at.mostrar_hero;
 
-  state.filtrosDisponibles = Array.isArray(at.filtros_disponibles) ? [...at.filtros_disponibles] : [];
-  renderFiltrosCatalogo();
-
   document.getElementById('apCssCustom').value = at.css_custom || '';
 
   renderPlan();   // después del modelo de nav: el resumen lo consulta
@@ -5818,95 +5811,6 @@ function renderApariencia() {
   fotoApariencia = aparienciaActual();
   limpiarEstado('apArienciaStatus');
   marcarPendientes();
-}
-
-// ── FILTROS (catálogo del restaurante, modelo explorar) ────────
-// Un filtro está "activo" si su id está en state.filtrosDisponibles.
-function filtroActivo(id) {
-  return state.filtrosDisponibles.some(f => f.id === id);
-}
-
-function renderFiltrosCatalogo() {
-  const cont = document.getElementById('apFiltrosCatalogo');
-  if (!cont) return;
-  cont.innerHTML = '';
-
-  // Grupos del catálogo curado
-  CATALOGO_FILTROS.forEach(grupo => {
-    const wrap = document.createElement('div');
-    wrap.style.marginBottom = '14px';
-    const titulo = document.createElement('div');
-    titulo.style.cssText = 'font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;';
-    titulo.textContent = grupo.grupo;
-    wrap.appendChild(titulo);
-
-    const chips = document.createElement('div');
-    chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
-    grupo.items.forEach(item => {
-      chips.appendChild(chipFiltro(item, filtroActivo(item.id)));
-    });
-    wrap.appendChild(chips);
-    cont.appendChild(wrap);
-  });
-
-  // Filtros personalizados que el restaurante creó (no están en el catálogo)
-  const custom = state.filtrosDisponibles.filter(f =>
-    !CATALOGO_FILTROS.some(g => g.items.some(i => i.id === f.id))
-  );
-  if (custom.length) {
-    const wrap = document.createElement('div');
-    wrap.style.marginBottom = '4px';
-    const titulo = document.createElement('div');
-    titulo.style.cssText = 'font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;';
-    titulo.textContent = 'Personalizados';
-    wrap.appendChild(titulo);
-    const chips = document.createElement('div');
-    chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
-    custom.forEach(item => chips.appendChild(chipFiltro(item, true, true)));
-    wrap.appendChild(chips);
-    cont.appendChild(wrap);
-  }
-}
-
-// Un "chip" clicable que activa/desactiva un filtro del catálogo.
-// Para filtros personalizados (esCustom) el chip los quita del catálogo.
-function chipFiltro(item, activo, esCustom) {
-  const chip = document.createElement('button');
-  chip.type = 'button';
-  chip.style.cssText =
-    'display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;cursor:pointer;' +
-    'font-size:12px;font-family:inherit;transition:all .15s;border:1px solid ' +
-    (activo ? 'var(--accent)' : 'var(--border)') + ';' +
-    'background:' + (activo ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'transparent') + ';' +
-    'color:' + (activo ? 'var(--accent)' : 'var(--text-muted)') + ';';
-  chip.innerHTML = `<span>${esc(item.emoji || '')}</span><span>${esc(item.label)}</span>` +
-    (esCustom ? '<span style="opacity:.6;margin-left:2px">✕</span>' : (activo ? '<span style="margin-left:2px">✓</span>' : ''));
-  chip.onclick = () => {
-    if (esCustom) {
-      // quitar el filtro custom del catálogo
-      state.filtrosDisponibles = state.filtrosDisponibles.filter(f => f.id !== item.id);
-    } else if (activo) {
-      state.filtrosDisponibles = state.filtrosDisponibles.filter(f => f.id !== item.id);
-    } else {
-      state.filtrosDisponibles.push({ id: item.id, label: item.label, emoji: item.emoji });
-    }
-    renderFiltrosCatalogo();
-  };
-  return chip;
-}
-
-function agregarFiltroCustom() {
-  const labelEl = document.getElementById('apFiltroCustomLabel');
-  const emojiEl = document.getElementById('apFiltroCustomEmoji');
-  const label = labelEl.value.trim();
-  const emoji = emojiEl.value.trim();
-  if (!label) { showToast('Escribe el nombre del filtro', 'error'); return; }
-  // id estable a partir del label
-  const base = 'custom_' + label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  if (state.filtrosDisponibles.some(f => f.id === base)) { showToast('Ese filtro ya existe', 'error'); return; }
-  state.filtrosDisponibles.push({ id: base, label, emoji });
-  labelEl.value = ''; emojiEl.value = '';
-  renderFiltrosCatalogo();
 }
 
 async function handleLogoUpload(input) {
@@ -6013,9 +5917,8 @@ function recolectarApariencia() {
       carrito: document.getElementById('apCarrito').checked,
       mostrar_hero: document.getElementById('apMostrarHero').checked,
       portada_activa: document.getElementById('apPortadaActiva').checked,
-      filtros_disponibles: state.filtrosDisponibles,
-      // Sin las redes sociales, a propósito: viven en Ajustes (ajustes.js) desde
-      // el 15/09/2026. Si volvieran aquí, guardar Apariencia pisaría con la
+      // Sin filtros ni redes sociales, a propósito: viven en Ajustes (ajustes.js)
+      // desde el 15/09/2026. Si volvieran aquí, guardar Apariencia pisaría con la
       // copia cargada al entrar lo que el restaurante acabara de cambiar.
       css_custom: document.getElementById('apCssCustom').value,
     }

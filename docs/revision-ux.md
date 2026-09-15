@@ -1813,7 +1813,7 @@ tiene ocultas:
 |---|---|---|
 | QR → Logo al centro | «Este restaurante no tiene logo. **Súbelo en la pestaña Apariencia**.» | no la ve |
 | Modal de producto → Personalización | «Este negocio todavía no tiene toppings. **Créalos en la pestaña Toppings** y vuelve aquí.» | no la ve |
-| Modal de producto → Filtros | «Sin filtros activados. **Actívalos en Apariencia → Filtros y etiquetas**.» | no la ve |
+| Modal de producto → Filtros | «Sin filtros activados. **Actívalos en Apariencia → Filtros y etiquetas**.» | no la ve · **15/09/2026:** ya sí; los filtros están en Ajustes y el aviso lo dice |
 
 Lo irónico es que **son los mensajes buenos** — el patrón que se echa en falta
 en F1. Están bien escritos y dicen exactamente dónde ir; el problema es que

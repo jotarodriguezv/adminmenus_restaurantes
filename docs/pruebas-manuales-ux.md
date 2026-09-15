@@ -126,13 +126,17 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] En el móvil, el selector de fechas no se parte. [M7 · #98]
 - [ ] En vista clara, los chips y botones de color de acento se leen bien. [CL4 · #98]
 
-## 11.bis Ajustes (redes sociales)
+## 11.bis Ajustes (redes sociales, filtros y etiquetas)
 
 - [ ] Como **restaurante**, la pestaña «Ajustes» aparece y trae las redes que ya estaban guardadas. [15/09/2026]
 - [ ] Cambiar una red y guardar: sale «✓ Guardado» y la carta pública enseña el enlace nuevo. [15/09/2026]
 - [ ] Un enlace sin `https://` (`facebook.com/x`) no se guarda y el motivo sale junto al botón. [15/09/2026]
 - [ ] Un WhatsApp escrito con `+` y espacios se guarda solo con los números. [15/09/2026]
 - [ ] Como **superadmin**, Apariencia ya no tiene la sección de redes; están en Ajustes. [15/09/2026]
+- [ ] Como **restaurante**, en Ajustes → Filtros y etiquetas: marcar uno del catálogo y crear uno personalizado, guardar, marcarlo en la ficha de un plato, y en la carta pública sale el chip y filtra. [15/09/2026]
+- [ ] Pulsar chips sin guardar y recargar: vuelve lo que estaba guardado. [15/09/2026]
+- [ ] Sin ningún filtro, la ficha de un plato en modelo Explorar dice «Actívalos en la pestaña Ajustes», a los dos roles y sin enlace a WhatsApp. [15/09/2026]
+- [ ] Como **superadmin**, Apariencia ya no tiene «Filtros y etiquetas». [15/09/2026]
 
 ## 12. Pantalla TV
 

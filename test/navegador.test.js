@@ -4614,7 +4614,7 @@ describe('los avisos no mandan al cliente a pestañas que no ve', () => {
 	test('al cliente no se le nombra Apariencia, y se le da el WhatsApp', () => {
 		const { ctx, nodos } = montar();
 		ctx.pintarAyudaSegunQuienMira(false);
-		for (const id of ['qrSinLogo', 'editFiltrosVacio']) {
+		for (const id of ['qrSinLogo']) {
 			assert.doesNotMatch(nodos[id].textContent, /Apariencia/, `${id} manda al cliente a Apariencia`);
 			const enlace = nodos[id].hijos[0];
 			assert.ok(enlace, `${id} no ofrece a quién pedirlo`);
@@ -4628,8 +4628,17 @@ describe('los avisos no mandan al cliente a pestañas que no ve', () => {
 		ctx.pintarAyudaSegunQuienMira(false);   // aunque antes se pintara para un cliente
 		ctx.pintarAyudaSegunQuienMira(true);
 		assert.match(nodos.qrSinLogo.textContent, /pestaña Apariencia/);
-		assert.match(nodos.editFiltrosVacio.textContent, /Apariencia → Filtros/);
 		assert.equal(nodos.qrSinLogo.hijos.length, 0);
+	});
+
+	test('el aviso de filtros vacíos manda a Ajustes, igual para los dos', () => {
+		// 15/09/2026: los filtros se activan en Ajustes, que ven los dos roles. Ya no
+		// hay que pedirlos por WhatsApp ni una rama para cada uno.
+		const { ctx, nodos } = montar();
+		ctx.pintarAyudaSegunQuienMira(false);
+		assert.equal(nodos.editFiltrosVacio, undefined, 'la ayuda por rol ya no lo toca');
+		assert.match(src, /<div id="editFiltrosVacio"[^>]*>[^<]*pestaña Ajustes → Filtros y etiquetas/);
+		assert.doesNotMatch(src, /Los activamos nosotros/);
 	});
 
 	test('se pinta donde se decide si se ve Apariencia', () => {
@@ -6078,7 +6087,9 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 	});
 
 	test('los filtros no se esconden ni dicen que son de explorar: los pintan todos los modelos', () => {
-		assert.match(src, /<div class="section-card" id="apFiltrosCard">\s*<div class="section-title">Filtros y etiquetas<\/div>/);
+		// Desde el 15/09/2026, en la pestaña Ajustes y no en Apariencia.
+		assert.match(src, /<div class="section-card" id="ajFiltrosCard">\s*<div class="section-title">Filtros y etiquetas<\/div>/);
+		assert.doesNotMatch(src, /apFiltros/);
 		assert.doesNotMatch(src, /\(solo modelo explorar\)<\/span><\/div>/);
 		const ajustar = src.match(/function ajustarEstiloAlModelo\(\) \{[\s\S]*?\n\}/)[0];
 		assert.doesNotMatch(ajustar, /apFiltrosCard/);
@@ -6137,8 +6148,9 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		const campos = {};
 		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
 		const avisos = [];
-		const ctx = cargar('ajustes.js', '// ── REDES SOCIALES', null, {
+		const ctx = cargar('ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS', {
 			document: { getElementById: $ },
+			renderFiltrosCatalogo: () => {},
 			state: { restaurante: { id: 'r1', atributos } },
 			showToast: (m, t) => avisos.push([t, m]),
 			apiFetch, Object,
@@ -6155,13 +6167,13 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 
 		campos('ajSocialTiktok').value = '  https://tiktok.com/@x  ';
 		campos('ajSocialWhatsapp').value = '+57 300 123 4567';
-		const r = ctx.recolectarRedes();
+		const r = ctx.recolectarAjustes();
 		assert.equal(r.social_tiktok, 'https://tiktok.com/@x');
 		assert.equal(r.social_whatsapp, '573001234567');
-		assert.deepEqual(Object.keys(r).sort(), ['social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
+		assert.deepEqual(Object.keys(r).sort(), ['filtros_disponibles', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
 	});
 
-	test('guardar manda solo las redes y deja el estado al día', async () => {
+	test('guardar manda solo lo de Ajustes y deja el estado al día', async () => {
 		const peticiones = [];
 		const { ctx, campos, avisos } = montar({ nav: 'topnav' }, async (metodo, ruta, cuerpo) => {
 			peticiones.push({ metodo, ruta, cuerpo });
@@ -6176,7 +6188,8 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.equal(peticiones[0].metodo, 'PATCH');
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['atributos'], 'nada fuera de atributos');
-		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k => k.startsWith('social_')));
+		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k => k.startsWith('social_') || k === 'filtros_disponibles'),
+			'solo las claves de Ajustes');
 		assert.equal(ctx.state.restaurante.atributos.social_instagram, 'https://instagram.com/bonzas');
 		assert.equal(campos('ajustesStatus').textContent, '✓ Guardado');
 		assert.deepEqual(avisos, [['success', 'Ajustes guardados']]);
@@ -6190,5 +6203,41 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		await ctx.saveAjustes();
 		assert.match(campos('ajustesStatus').textContent, /Facebook/);
 		assert.equal(avisos[0][0], 'error');
+	});
+
+	test('los filtros se pintan desde lo guardado, sobre una copia', () => {
+		const guardados = [{ id: 'picante', label: 'Picante', emoji: '🌶' }];
+		const { ctx } = montar({ filtros_disponibles: guardados });
+		ctx.renderAjustes();
+		assert.equal(JSON.stringify(ctx.state.filtrosDisponibles), JSON.stringify(guardados));
+		ctx.state.filtrosDisponibles.push({ id: 'frio', label: 'Frío', emoji: '❄️' });
+		assert.equal(guardados.length, 1, 'tocar un chip no cambia lo guardado hasta pulsar Guardar');
+	});
+
+	test('añadir, marcar y quitar filtros cambia lo que se va a guardar', () => {
+		const campos = {};
+		const $ = id => (campos[id] ||= { value: '', style: {}, innerHTML: '', appendChild() {} });
+		const chips = [];
+		const nodo = () => { const n = { style: {}, innerHTML: '', textContent: '', hijos: [], appendChild(h) { this.hijos.push(h); if (h.onclick) chips.push(h); return h; } }; return n; };
+		const avisos = [];
+		const ctx = cargar('ajustes.js', '// ── FILTROS Y ETIQUETAS', null, {
+			document: { getElementById: $, createElement: nodo },
+			state: { filtrosDisponibles: [] },
+			CATALOGO_FILTROS: [{ grupo: 'Picante', items: [{ id: 'picante', label: 'Picante', emoji: '🌶' }] }],
+			esc: x => String(x), showToast: (m, t) => avisos.push([t, m]),
+		});
+		ctx.renderFiltrosCatalogo();
+		chips.find(c => c.innerHTML.includes('Picante')).onclick();
+		assert.deepEqual(ctx.state.filtrosDisponibles.map(f => f.id), ['picante']);
+
+		$('ajFiltroCustomLabel').value = 'Sin cebolla';
+		$('ajFiltroCustomEmoji').value = '🧅';
+		ctx.agregarFiltroCustom();
+		assert.deepEqual(ctx.state.filtrosDisponibles.map(f => f.id), ['picante', 'custom_sin_cebolla']);
+
+		$('ajFiltroCustomLabel').value = 'Sin Cebolla';
+		ctx.agregarFiltroCustom();
+		assert.equal(ctx.state.filtrosDisponibles.length, 2, 'el mismo nombre con otras mayúsculas no se duplica');
+		assert.deepEqual(avisos.at(-1), ['error', 'Ese filtro ya existe']);
 	});
 });
