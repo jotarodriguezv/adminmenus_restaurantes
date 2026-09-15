@@ -566,11 +566,10 @@ servir dentro del VPS más barato de Hostinger.**
   misma corrida: `promos 3 / 2 ❌`, por una imagen subida a las 21:45 UTC con
   la copia de las 04:30. El respaldo estaba bien; la prueba mandó igual el aviso
   rojo a healthchecks. Pasaría también en la corrida mensual (10:00 UTC) con
-  cualquier subida de madrugada en Colombia. **Arreglado en el repositorio el
-  14/09/2026:** solo cuenta y compara lo anterior al inicio de la instantánea,
-  y lo posterior sale como `(+N posteriores a la copia)`. **Falta en el
-  servidor:** `docker cp` y una corrida, que debe salir en verde y poner el
-  check de nuevo en verde.
+  cualquier subida de madrugada en Colombia. **Arreglado el 14/09/2026 (PR
+  #133) y confirmado en el servidor:** solo cuenta y compara lo anterior al
+  inicio de la instantánea. Corrida real: `promos 2 / 2 ✅ (+1 posteriores a la
+  copia)`, 9 carpetas idénticas byte a byte y código 0.
 - **Cinco PDF de `cartas/` del mismo tamaño (24 MB), subidos en días
   distintos.** Huele a la misma carta importada varias veces. Mirar si
   `cartas/` se queda con los originales después de importar y si el limpiador
