@@ -546,10 +546,12 @@ servir dentro del VPS más barato de Hostinger.**
 - **La salida por IPv6 no respondió** a Docker Hub (`i/o timeout` hacia una
   dirección `2600:…`) al intentar bajar una imagen. Hoy no rompe nada; mirar si
   el día que un despliegue falle bajando imágenes.
-- **La comparación byte a byte de la prueba ya no mira ningún video.** Coge los
-  cinco archivos más grandes suponiendo que son videos, y el 14/09/2026 fueron
-  cinco PDF de `cartas/` de 24 MB cada uno. Los videos solo se comprueban por
-  número de archivos. Arreglo probable: muestrear por carpeta, no por tamaño.
+- **La comparación byte a byte de la prueba no miraba ningún video.** Cogía los
+  cinco archivos más grandes suponiendo que serían videos, y el 14/09/2026
+  fueron cinco PDF de `cartas/`. **Arreglado en el repositorio el 14/09/2026:**
+  ahora compara el más grande de cada carpeta, así que masters y videos entran
+  siempre. **Falta en el servidor:** el `docker cp` del §2.bis tras el
+  despliegue, y una corrida a mano para ver la tabla nueva.
 - **Cinco PDF de `cartas/` del mismo tamaño (24 MB), subidos en días
   distintos.** Huele a la misma carta importada varias veces. Mirar si
   `cartas/` se queda con los originales después de importar y si el limpiador
