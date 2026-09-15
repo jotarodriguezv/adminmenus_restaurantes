@@ -222,13 +222,14 @@ MAILTO=verificameco@gmail.com
 
 # El día 1 de cada mes, restaurar de verdad y comparar bytes.
 0 10 1 * * /opt/menus/respaldo/probar-restauracion.sh >> /var/log/respaldo-prueba.log 2>&1 || tail -20 /var/log/respaldo-prueba.log
+0 6 * * 0 { date; docker image prune -f; docker builder prune -f --filter until=168h; } >> /var/log/docker-limpieza.log 2>&1
 ```
 
 Copiado del servidor el 14/09/2026. La línea mensual está puesta desde el
 29/08/2026; aquí se decía que no, y el checklist de `docs/cartas-en-video.md`
 que sí. Tenía razón el checklist.
 
-> El `|| tail` del final no es adorno. Cron solo manda correo cuando un trabajo
+> El `|| tail` de la línea mensual no es adorno. Cron solo manda correo cuando un trabajo
 > **escribe algo**, y mandarlo todo al log significa que cron no ve nada — ni
 > cuando va bien ni cuando va mal. Sería una comprobación mensual que el día que
 > falle no se lo cuenta a nadie: exactamente el modo de fallo del que avisa
@@ -281,6 +282,34 @@ Dentro del contenedor del panel corren además, sin cron, arrancados por
 
 - **La cola de conversión de video** — mira si hay trabajos pendientes cada 15 s.
 - **El limpiador de huérfanos** — cada 24 h, la primera a los 5 min de arrancar.
+
+### La limpieza semanal de Docker
+
+Añadida el 14/09/2026, junto con `docker swarm update --task-history-limit 2`
+(antes 5). Domingos 6:00 UTC, lejos del respaldo y de la prueba mensual.
+
+Cada despliegue deja la imagen anterior sin etiqueta (~300 MB en el panel), y
+Swarm guardaba 5 contenedores parados por servicio que la retenían. Así se
+llegó a 35 GB usados. Ahora quedan el contenedor en marcha y uno anterior, y el
+domingo se borra lo que ya no retiene nadie.
+
+> **Por qué `image prune` y no `image prune -a`, ni la limpieza diaria de
+> Dokploy** (*Settings → Web Server*, apagada y así se queda):
+>
+> `-a` borra toda imagen que no use un contenedor **en marcha**. Un servicio que
+> se cae un momento pierde su imagen y ya no puede volver a arrancar — que es el
+> síntoma que tuvo vtalent: imagen desaparecida y `pull access denied`.
+>
+> Sin `-a` solo se borran imágenes **sin etiqueta y sin ningún contenedor**, ni
+> siquiera parado. Tampoco vale borrar «lo sin etiqueta» a mano por ID: el
+> 14/09/2026 aparecían sin etiqueta **Dokploy (3,1 GB), su Postgres y su Redis**,
+> todos en marcha, porque se descargaron por huella y no por etiqueta.
+> `image prune` lo comprueba; un `docker rmi` a ciegas se habría llevado el
+> gestor del servidor.
+>
+> Que diga `Total reclaimed space: 0B` borrando imágenes del panel no es un
+> fallo: comparten casi todas las capas con la actual (Node, ffmpeg,
+> dependencias) y lo único propio es el código.
 
 ---
 
@@ -497,10 +526,10 @@ servir dentro del VPS más barato de Hostinger.**
   `/root/.respaldo.env`. Probada en los dos sentidos, con correo en ambos.
 - ~~`docker system df`~~ — **hecho el 14/09/2026.** De 35 GB usados a 25 GB
   (52 %). Detalle en el registro de cambios.
-- **Que no vuelva a acumularse.** Swarm guarda 5 tareas por servicio
-  (`Task History Retention Limit: 5`) y cada una retiene su imagen: ~300 MB por
-  despliegue del panel. Opciones, sin decidir: la limpieza diaria de Docker de
-  Dokploy (*Settings → Server*), o `docker swarm update --task-history-limit 2`.
+- ~~Que no vuelva a acumularse~~ — **hecho el 14/09/2026**: historial de Swarm
+  a 2 y limpieza semanal en cron (§4). Probada a mano: los 16 servicios en
+  `1/1` después. **Pendiente de mirar tras el primer domingo** (20/09/2026):
+  `tail -20 /var/log/docker-limpieza.log` y `df -h /`.
 - **794 MB en volúmenes sin usar.** Probablemente de la boda y de las cartas
   borradas, pero pueden tener datos: repasar uno a uno, no `volume prune`.
 - ~~Docker mata el panel en cada despliegue~~ — **hecho y confirmado en el
