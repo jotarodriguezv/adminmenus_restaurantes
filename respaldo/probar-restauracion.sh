@@ -112,19 +112,48 @@ restic restore latest --tag uploads --target "$DESTINO" >/dev/null
 RAIZ="$DESTINO$CARPETA"
 [ -d "$RAIZ" ] || { echo "❌ la copia no contiene $CARPETA"; exit 1; }
 
+# ── Solo lo que existía cuando se hizo la copia ──────────────────────────
+# Lo subido DESPUÉS de la última instantánea no puede estar en ella, y no es un
+# fallo del respaldo: entra en la de la noche siguiente. Contarlo daba falsas
+# alarmas. Se vio el 14/09/2026: una imagen de promoción subida a las 21:45 UTC,
+# diecisiete horas después de la copia de las 04:30, puso la prueba en rojo y
+# mandó el aviso a healthchecks con la copia perfectamente bien.
+#
+# Y no es un caso raro. La prueba mensual corre a las 10:00 UTC, cinco horas y
+# media después del respaldo; cualquier subida de madrugada en Colombia entre
+# medias la habría hecho fallar. Una prueba a mano durante el día, casi seguro.
+#
+# Se usa la hora de INICIO de la instantánea. Lo que se tocó mientras corría
+# puede estar o no, así que no se da por hecho: cuenta solo lo anterior.
+#
+# Si no se puede leer esa hora, se cuenta todo como antes y se avisa: mejor una
+# posible falsa alarma que dejar de comprobar.
+INSTANTANEA=$(restic snapshots latest --tag uploads --json 2>/dev/null \
+  | grep -o '"time":"[^"]*"' | head -1 | cut -d'"' -f4) || INSTANTANEA=""
+if [ -n "$INSTANTANEA" ]; then
+  ANTERIORES=(! -newermt "$INSTANTANEA")
+  echo "── La última copia empezó el $INSTANTANEA; lo posterior no cuenta"
+else
+  ANTERIORES=()
+  echo "⚠ No se pudo leer la hora de la copia; se cuenta todo, y lo subido después dará falso fallo"
+fi
+
 echo
 echo "── Archivos por carpeta"
 printf '%-14s %8s %8s\n' 'carpeta' 'servidor' 'copia'
 FALLOS=0
 for d in "$CARPETA"/*/; do
   n=$(basename "$d")
-  vivos=$(find "$d" -type f 2>/dev/null | wc -l)
+  vivos=$(find "$d" -type f "${ANTERIORES[@]}" 2>/dev/null | wc -l)
+  nuevos=$(( $(find "$d" -type f 2>/dev/null | wc -l) - vivos ))
   copia=$(find "$RAIZ/$n" -type f 2>/dev/null | wc -l)
   printf '%-14s %8s %8s' "$n" "$vivos" "$copia"
   # La copia puede tener MÁS archivos que el servidor y estar bien: son los que
   # se borraron después de la última instantánea, y conservarlos es justamente
   # la gracia. Lo que no puede es tener MENOS.
-  if [ "$copia" -lt "$vivos" ]; then echo "  ❌ faltan $((vivos - copia))"; FALLOS=1; else echo "  ✅"; fi
+  if [ "$copia" -lt "$vivos" ]; then printf '  ❌ faltan %s' "$((vivos - copia))"; FALLOS=1; else printf '  ✅'; fi
+  [ "$nuevos" -gt 0 ] && printf '  (+%s posteriores a la copia)' "$nuevos"
+  echo
 done
 
 echo
@@ -159,7 +188,7 @@ echo "── Contenido, no solo nombres"
 # 'awk' lee hasta el final y no cierra nada: 0 de 60 en las dos condiciones.
 # Por carpeta sigue valiendo: la tubería es la misma, solo que una por carpeta.
 MUESTRA=$(for d in "$CARPETA"/*/; do
-  find "$d" -type f -printf '%s\t%p\n' 2>/dev/null | sort -rn | awk -F'\t' 'NR==1 {print $2}'
+  find "$d" -type f "${ANTERIORES[@]}" -printf '%s\t%p\n' 2>/dev/null | sort -rn | awk -F'\t' 'NR==1 {print $2}'
 done)
 [ -n "$MUESTRA" ] || { echo "no hay archivos que comparar"; exit 1; }
 while IFS= read -r f; do
