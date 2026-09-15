@@ -197,7 +197,7 @@ paso, con las pruebas en verde y la pestaña mirada en el navegador:
 | 0 | **Desde ya:** lo nuevo no entra en `index.html`, va a su propio archivo | ninguno |
 | ~~1~~ | ~~El CSS a `panel.css`~~ **Hecho el 15/09/2026** (719 líneas; `index.html` a 9.852) | muy bajo |
 | ~~2~~ | ~~Lo común: sesión, `apiFetch`, avisos, ventanas, `esc`~~ **Hecho el 15/09/2026** en `comun.js` (`index.html` a 9.744) | bajo |
-| 3 | Una pestaña por PR, las más aisladas primero: ~~Estadísticas~~ (`estadisticas.js`), ~~TV~~ (`tv.js`), ~~Promoción~~ (`promocion.js`), ~~Importar~~ (`importar.js`), Toppings, Pedidos | bajo |
+| 3 | Una pestaña por PR, las más aisladas primero: ~~Estadísticas~~ (`estadisticas.js`), ~~TV~~ (`tv.js`), ~~Promoción~~ (`promocion.js`), ~~Importar~~ (`importar.js`), ~~Toppings~~ (`toppings.js`), Pedidos | bajo |
 | 4 | Las más enlazadas: Productos, Categorías, Apariencia | medio |
 | 5 | El superadmin a su archivo, cargado solo con sesión de admin (resuelve T2) | medio |
 
