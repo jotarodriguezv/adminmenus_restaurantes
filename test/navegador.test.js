@@ -1575,14 +1575,22 @@ describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
 		assert.equal(conAtributos({ tv: { activa: true } }, { carrito: true, tv: false }).tv, 'block');
 	});
 
-	test('topnav, sidebar y explorar no tienen Pedidos aunque el interruptor esté puesto', () => {
-		// PE3. Sus cartas no llaman a activarCarrito(): la pestaña servía para
-		// configurar un WhatsApp al que nunca iba a llegar un pedido.
-		for (const nav of ['topnav', 'sidebar', 'explorar', undefined]) {
+	test('explorar no tiene Pedidos aunque el interruptor esté puesto', () => {
+		// PE3. Su carta no llama a activarCarrito(): la pestaña servía para
+		// configurar un WhatsApp al que nunca iba a llegar un pedido. Topnav y
+		// Sidebar salieron de esta lista el 15/09/2026 (vmenus-app#28).
+		for (const nav of ['explorar']) {
 			const r = conAtributos({ nav, carrito: true });
 			assert.equal(r.pedidos, 'none', `${nav ?? 'sin modelo'} enseña Pedidos`);
 			assert.equal(r.toppings, 'none', `${nav ?? 'sin modelo'} enseña Toppings sin tener datos`);
 		}
+	});
+
+	test('topnav y sidebar, con el interruptor, sí las tienen desde el 15/09/2026', () => {
+		for (const nav of ['topnav', 'sidebar', undefined])
+			assert.equal(conAtributos({ nav, carrito: true }).pedidos, 'block', nav ?? 'sin modelo');
+		for (const nav of ['topnav', 'sidebar'])
+			assert.equal(conAtributos({ nav, carrito: false }).pedidos, 'none', `${nav} sin interruptor`);
 	});
 
 	test('vertical con plan e interruptor sí las tiene, como indigo', () => {
@@ -4099,18 +4107,24 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 		assert.equal(r.cartaTieneCarrito({ nav: 'video', carrito: true }, {}), false);
 	});
 
-	test('Topnav, Sidebar y Explorar no tienen carrito aunque plan e interruptor digan que sí', () => {
-		// El caso que lo justifica todo. La pestaña Pedidos sí se enciende para
-		// ellos, pero en la carta ninguno llama a activarCarrito(): avisar de que
-		// no reciben pedidos sería una falsa alarma.
+	test('Explorar no tiene carrito aunque plan e interruptor digan que sí', () => {
+		// El caso que lo justifica todo: en la carta no llama a activarCarrito(), y
+		// avisar de que no recibe pedidos sería una falsa alarma.
+		assert.equal(regla().cartaTieneCarrito({ nav: 'explorar', carrito: true }, CON_CARRITO), false);
+	});
+
+	test('Topnav y Sidebar, como Video: con plan e interruptor (vmenus-app#28)', () => {
 		const r = regla();
-		for (const nav of ['topnav', 'sidebar', 'explorar']) {
-			assert.equal(r.cartaTieneCarrito({ nav, carrito: true }, CON_CARRITO), false, nav);
+		for (const nav of ['topnav', 'sidebar']) {
+			assert.equal(r.cartaTieneCarrito({ nav, carrito: true }, CON_CARRITO), true, nav);
+			assert.equal(r.cartaTieneCarrito({ nav, carrito: false }, CON_CARRITO), false, `${nav} sin interruptor`);
+			assert.equal(r.cartaTieneCarrito({ nav, carrito: true }, {}), false, `${nav} sin plan`);
 		}
 	});
 
-	test('sin modelo elegido cuenta como el modelo por defecto, que no tiene carrito', () => {
-		assert.equal(regla().cartaTieneCarrito({ carrito: true }, CON_CARRITO), false);
+	test('sin modelo elegido cuenta como el modelo por defecto, Topnav', () => {
+		assert.equal(regla().cartaTieneCarrito({ carrito: true }, CON_CARRITO), true);
+		assert.equal(regla().cartaTieneCarrito({}, CON_CARRITO), false);
 	});
 
 	test('recibePedidos limpia el número igual que la carta', () => {
@@ -4130,8 +4144,13 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 		assert.equal(aviso().avisoPedidosHtml({ atributos: { nav: 'carrito', whatsapp_pedidos: '573001234567' } }), '');
 	});
 
-	test('ni a un Topnav con el interruptor encendido, que no tiene carrito', () => {
-		assert.equal(aviso().avisoPedidosHtml({ atributos: { nav: 'topnav', carrito: true }, _plan: CON_CARRITO }), '');
+	test('ni a un Explorar con el interruptor encendido, que no tiene carrito', () => {
+		assert.equal(aviso().avisoPedidosHtml({ atributos: { nav: 'explorar', carrito: true }, _plan: CON_CARRITO }), '');
+	});
+
+	test('a un Topnav con el carrito encendido y sin número, sí', () => {
+		// Desde vmenus-app#28 su carta deja armar el pedido: sin número, no enviarlo.
+		assert.notEqual(aviso().avisoPedidosHtml({ atributos: { nav: 'topnav', carrito: true }, _plan: CON_CARRITO }), '');
 	});
 
 	test('la pestaña Pedidos enciende y apaga el aviso', () => {
@@ -5593,10 +5612,14 @@ describe('la insignia de pedidos dice lo que la carta tiene, no lo que el plan p
 		assert.equal(pedidos({ nav: 'video', plan: 'video', carrito: false }), '🛒 pedidos apagados');
 	});
 
-	test('Topnav, Sidebar y Explorar no lo nombran: no hay interruptor que encender (bonzas)', () => {
-		for (const nav of ['topnav', 'sidebar', 'explorar', null]) {
-			assert.equal(pedidos({ nav, plan: 'completo', carrito: false }), null, `${nav} lleva la insignia`);
-		}
+	test('Explorar no lo nombra: no hay interruptor que encender', () => {
+		assert.equal(pedidos({ nav: 'explorar', plan: 'completo', carrito: false }), null);
+	});
+
+	test('Topnav y Sidebar, desde que tienen interruptor, dicen si está apagado (bonzas, malparados)', () => {
+		for (const nav of ['topnav', 'sidebar', null])
+			assert.equal(pedidos({ nav, plan: 'completo', carrito: false }), '🛒 pedidos apagados', String(nav));
+		assert.equal(pedidos({ nav: 'topnav', plan: 'completo', carrito: true }), '🛒 pedidos');
 	});
 });
 
@@ -6151,6 +6174,9 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		const ctx = cargar('ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS', {
 			document: { getElementById: $ },
 			renderFiltrosCatalogo: () => {},
+			pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
+			ajustarPestanasAlModelo: () => {}, cartaTieneCarrito: () => false,
+			planActual: () => ({}), recibePedidos: () => false,
 			state: { restaurante: { id: 'r1', atributos } },
 			showToast: (m, t) => avisos.push([t, m]),
 			apiFetch, Object,
@@ -6239,5 +6265,98 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		ctx.agregarFiltroCustom();
 		assert.equal(ctx.state.filtrosDisponibles.length, 2, 'el mismo nombre con otras mayúsculas no se duplica');
 		assert.deepEqual(avisos.at(-1), ['error', 'Ese filtro ya existe']);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('el carrito lo enciende el restaurante, en Ajustes', () => {
+	// 15/09/2026, con vmenus-app#28: topnav y sidebar ya pintan carrito, y el
+	// interruptor pasa de Apariencia (solo video y vertical) a Ajustes.
+	const src = codigoDelPanel();
+
+	test('Apariencia ya no tiene el interruptor ni lo guarda', () => {
+		assert.doesNotMatch(src, /apCarrito/);
+		const recolectar = src.match(/function recolectarApariencia\(\) \{[\s\S]*?\n\}/)[0];
+		assert.doesNotMatch(recolectar, /carrito:/);
+	});
+
+	function montar(atributos, { plan = { carrito: true }, recibe = false } = {}) {
+		const campos = {};
+		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
+		const ctx = cargar('index.html', [
+			['const MODELO_POR_DEFECTO', 'function esModeloDeVideo'],
+			['const MODELOS_CARRITO_OPCIONAL', 'function cartaTieneCarrito'],
+			['ajustes.js', '// ── PEDIDOS DESDE LA CARTA', null],
+		], {
+			document: { getElementById: $ },
+			state: { restaurante: { id: 'r1', atributos } },
+			planActual: () => plan, recibePedidos: () => recibe,
+		});
+		return { ctx, $ };
+	}
+
+	test('en topnav y sidebar con plan, se ofrece el interruptor', () => {
+		for (const nav of ['topnav', 'sidebar', 'video', 'vertical', undefined]) {
+			const { ctx, $ } = montar({ nav });
+			assert.equal(ctx.puedeElegirCarrito(), true, nav ?? 'sin modelo');
+			ctx.pintarNotaCarrito();
+			assert.equal($('ajCarritoInterruptor').style.display, '', `${nav} esconde el interruptor`);
+			assert.match($('ajCarritoNota').textContent, /Enciéndelo/);
+		}
+	});
+
+	test('donde no se puede, se esconde el interruptor y se dice por qué', () => {
+		const casos = [
+			[{ nav: 'carrito' }, {}, /siempre encendido/],
+			[{ nav: 'explorar' }, {}, /no tiene carrito/],
+			[{ nav: 'topnav' }, { plan: { carrito: false } }, /plan no incluye/],
+		];
+		for (const [at, opciones, motivo] of casos) {
+			const { ctx, $ } = montar(at, opciones);
+			assert.equal(ctx.puedeElegirCarrito(), false, JSON.stringify(at));
+			ctx.pintarNotaCarrito();
+			assert.equal($('ajCarritoInterruptor').style.display, 'none');
+			assert.match($('ajCarritoNota').textContent, motivo);
+		}
+	});
+
+	test('encendido sin número avisa de que falta, y con número no', () => {
+		let { ctx, $ } = montar({ nav: 'topnav' });
+		$('ajCarrito').checked = true;
+		ctx.pintarNotaCarrito();
+		assert.match($('ajCarritoNota').textContent, /pestaña Pedidos/);
+		assert.equal($('ajCarritoNota').style.color, 'var(--warn)');
+
+		({ ctx, $ } = montar({ nav: 'topnav' }, { recibe: true }));
+		$('ajCarrito').checked = true;
+		ctx.pintarNotaCarrito();
+		assert.notEqual($('ajCarritoNota').style.color, 'var(--warn)');
+	});
+
+	test('recoger manda el carrito solo si el interruptor se podía usar', () => {
+		const recoger = (atributos, marcado) => {
+			const campos = {};
+			const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
+			const ctx = cargar('index.html', [
+				['const MODELO_POR_DEFECTO', 'function esModeloDeVideo'],
+				['const MODELOS_CARRITO_OPCIONAL', 'function cartaTieneCarrito'],
+				['ajustes.js', 'function recolectarAjustes', 'async function saveAjustes'],
+				['ajustes.js', 'function puedeElegirCarrito', 'function pintarNotaCarrito'],
+			], { document: { getElementById: $ }, state: { restaurante: { atributos }, filtrosDisponibles: [] }, planActual: () => ({ carrito: true }) });
+			$('ajCarrito').checked = marcado;
+			return ctx.recolectarAjustes();
+		};
+		assert.equal(recoger({ nav: 'sidebar' }, true).carrito, true);
+		assert.equal(recoger({ nav: 'sidebar' }, false).carrito, false);
+		// En el modelo carrito el interruptor está escondido y marcado a false:
+		// mandarlo apagaría nada, pero dejaría un 'false' que no decidió nadie.
+		assert.equal('carrito' in recoger({ nav: 'carrito' }, false), false);
+		assert.equal('carrito' in recoger({ nav: 'explorar' }, false), false);
+	});
+
+	test('al guardar se repintan las pestañas, para que aparezca Pedidos', () => {
+		const guardar = src.match(/async function saveAjustes\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(guardar, /ajustarPestanasAlModelo\(\);/);
+		assert.match(guardar, /falta el número de WhatsApp/);
 	});
 });

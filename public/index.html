@@ -573,10 +573,7 @@
 							<label for="apSubtitulo" class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(frase debajo del nombre)</span></label>
 							<input type="text" class="form-input" id="apSubtitulo" placeholder="Carta Digital · 2026">
 						</div>
-						<div class="form-group" id="apCarritoFila" style="margin-top:14px;margin-bottom:0;display:none;align-items:center;justify-content:space-between;gap:10px;">
-							<label for="apCarrito" class="form-label" style="margin-bottom:0">Carrito de pedidos <span style="color:var(--text-dim)">(el cliente arma su pedido y lo envía por WhatsApp)</span></label>
-							<label class="toggle"><input type="checkbox" id="apCarrito"><span class="toggle-slider"></span></label>
-						</div>
+						<!-- El interruptor del carrito se mudó a Ajustes el 15/09/2026. -->
 						<!-- Solo sidebar y carrito lo leen (A4); en topnav sale siempre. -->
 						<div class="form-group" id="apHeroFila" style="margin-top:14px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
 							<label for="apMostrarHero" class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo, nombre y subtítulo bajo la cabecera)</span></label>
@@ -1192,6 +1189,18 @@
 				     Apariencia; ahí irán también los filtros y el interruptor del
 				     carrito (CLAUDE.md, «Decisión: abrir partes de Apariencia»). -->
 				<div id="tabAjustes" class="hidden">
+					<!-- El carrito, desde el 15/09/2026. Solo se ofrece donde la carta sabe
+					     pintarlo y el plan lo incluye; en el resto, la tarjeta explica por qué no. -->
+					<div class="section-card" id="ajCarritoCard">
+						<div class="section-header">
+							<div class="section-title">Pedidos desde la carta</div>
+							<label class="toggle" id="ajCarritoInterruptor" title="Carrito de pedidos">
+								<input type="checkbox" id="ajCarrito" aria-label="Carrito de pedidos" onchange="pintarNotaCarrito()"><span class="toggle-slider"></span>
+							</label>
+						</div>
+						<p id="ajCarritoNota" style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.5"></p>
+					</div>
+
 					<div class="section-card">
 						<div class="section-header">
 							<div class="section-title">Redes sociales</div>
@@ -2346,21 +2355,20 @@ function esModeloDeVideo(nav) { return MODELOS_VIDEO.includes(nav); }
 // ── ¿LA CARTA TIENE CARRITO DE VERDAD? ────────────────────────
 // La usan los avisos de «no recibe pedidos» y, desde PE3, las pestañas de
 // ajustarPestanasAlModelo(). Hasta entonces aquellas tenían su propia regla
-// —plan + interruptor en CUALQUIER modelo— y las dos discrepaban. En la carta
-// solo tres temas llaman a activarCarrito():
-// temas/carrito.js siempre, y temas/video.js y temas/vertical.js si hay plan e
-// interruptor. Topnav, Sidebar y Explorar no tienen carrito, digan lo que digan
-// el plan y el interruptor.
+// —plan + interruptor en CUALQUIER modelo— y las dos discrepaban. En la carta:
+// temas/carrito.js lo enciende siempre, y video, vertical, topnav y sidebar si
+// hay plan e interruptor (carritoEncendido() en core/carrito.js). Explorar no
+// tiene carrito, digan lo que digan el plan y el interruptor.
 //
 // Los avisos de «no recibe pedidos» usan ESTA regla y no aquella: avisarle a un
-// restaurante Topnav de que sus clientes no pueden enviar el pedido sería falso,
-// porque su carta ni siquiera deja armarlo.
+// restaurante Explorar de que sus clientes no pueden enviar el pedido sería
+// falso, porque su carta ni siquiera deja armarlo.
 //
-// MODELOS_CARRITO_OPCIONAL coincide hoy con MODELOS_VIDEO, pero no es el mismo
-// concepto y no se atan: si mañana un modelo de fotos gana carrito, cambia esta
-// lista y no aquella. Y si en vmenus-app otro tema empieza a llamar a
+// Topnav y Sidebar entraron el 15/09/2026, con vmenus-app#28: son Bonzas y
+// Malparados. MODELOS_CARRITO_OPCIONAL ya no coincide con MODELOS_VIDEO, que es
+// justo por lo que nunca se ataron. Si en vmenus-app otro tema empieza a llamar a
 // activarCarrito(), hay que añadirlo aquí.
-const MODELOS_CARRITO_OPCIONAL = ['video', 'vertical'];
+const MODELOS_CARRITO_OPCIONAL = ['video', 'vertical', 'topnav', 'sidebar'];
 function cartaTieneCarrito(atributos, plan) {
   const nav = atributos?.nav || MODELO_POR_DEFECTO;
   if (nav === 'carrito') return true;
@@ -5795,12 +5803,6 @@ function renderApariencia() {
   document.getElementById('apEstilo').value = at.estilo || 'clasico';
   ajustarEstiloAlModelo();
   document.getElementById('apSubtitulo').value = at.subtitulo || '';
-  document.getElementById('apCarrito').checked = !!at.carrito;
-  // El interruptor solo aparece si el plan lo incluye Y el modelo sabe
-  // pintarlo. El modelo 'carrito' ya es un carrito entero: ofrecerle
-  // encenderlo no significaría nada.
-  document.getElementById('apCarritoFila').style.display =
-    (planActual().carrito && esModeloDeVideo(at.nav)) ? 'flex' : 'none';
   document.getElementById('apMostrarHero').checked = !!at.mostrar_hero;
 
   document.getElementById('apCssCustom').value = at.css_custom || '';
@@ -5914,10 +5916,9 @@ function recolectarApariencia() {
       url_modo: document.getElementById('apUrlModo').value,
       zona_horaria: document.getElementById('apZonaHoraria').value,
       subtitulo: document.getElementById('apSubtitulo').value.trim(),
-      carrito: document.getElementById('apCarrito').checked,
       mostrar_hero: document.getElementById('apMostrarHero').checked,
       portada_activa: document.getElementById('apPortadaActiva').checked,
-      // Sin filtros ni redes sociales, a propósito: viven en Ajustes (ajustes.js)
+      // Sin filtros, redes sociales ni carrito, a propósito: viven en Ajustes (ajustes.js)
       // desde el 15/09/2026. Si volvieran aquí, guardar Apariencia pisaría con la
       // copia cargada al entrar lo que el restaurante acabara de cambiar.
       css_custom: document.getElementById('apCssCustom').value,
@@ -6474,10 +6475,10 @@ function fichaPlanHtml(r) {
   //    llevaba siendo Topnav y con el carrito apagado, y el propio panel ni le
   //    enseñaba la pestaña Pedidos (X1). Mismo criterio que la IA de abajo: se
   //    nombra solo donde podría existir. Todos los planes incluyen carrito, así
-  //    que eso no distingue nada; lo que distingue es el modelo. En Video y
-  //    Vertical es un interruptor y se dice si está apagado. En Topnav, Sidebar y
-  //    Explorar no se puede tener sin cambiar de modelo, y ahí «apagado» sugeriría
-  //    un interruptor que no existe: no se nombra.
+  //    que eso no distingue nada; lo que distingue es el modelo. En Video,
+  //    Vertical, Topnav y Sidebar es un interruptor y se dice si está apagado. En
+  //    Explorar no se puede tener sin cambiar de modelo, y ahí «apagado»
+  //    sugeriría un interruptor que no existe: no se nombra.
   if (cartaTieneCarrito(r?.atributos, plan)) partes.push(et('🛒 pedidos'));
   else if (plan.carrito && MODELOS_CARRITO_OPCIONAL.includes(modelo)) partes.push(et('🛒 pedidos apagados', 'apagada'));
 

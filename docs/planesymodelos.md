@@ -75,14 +75,17 @@ plan se ve guardándolo.
 
 El modelo decide la forma de la carta. Cada plan permite unos cuantos.
 
-| Modelo | Qué es | Enseña |
-|---|---|---|
-| `topnav` | Categorías arriba | fotos |
-| `sidebar` | Categorías al lado | fotos |
-| `explorar` | Buscador y filtros | fotos |
-| `carrito` | Pedido como página entera | fotos |
-| `video` | Columna de tarjetas **16:9** | video |
-| `vertical` | Pantalla completa **9:16**, un plato por deslizamiento | video |
+| Modelo | Qué es | Enseña | Carrito |
+|---|---|---|---|
+| `topnav` | Categorías arriba | fotos | interruptor (desde el 15/09/2026) |
+| `sidebar` | Categorías al lado | fotos | interruptor (desde el 15/09/2026) |
+| `explorar` | Buscador y filtros | fotos | no |
+| `carrito` | Pedido como página entera | fotos | siempre |
+| `video` | Columna de tarjetas **16:9** | video | interruptor |
+| `vertical` | Pantalla completa **9:16**, un plato por deslizamiento | video | interruptor |
+
+«Interruptor» quiere decir que hace falta un plan con pedidos **y**
+`atributos.carrito`, que el restaurante enciende en **Ajustes**.
 
 Sin modelo asignado, `topnav`.
 
