@@ -313,11 +313,23 @@ es cosa de una vez al mes; la lista es a lo que entras siempre.
 
 ## S6 · Setenta controles en una pantalla · **Baja**
 
-- [ ] Pendiente
+- [x] **Aplicado el 15/09/2026.**
 
 Siete por restaurante por diez restaurantes. Las tres de uso diario
 (`Editar menú`, `Ver carta`, `✓ Pagó`) pesan lo mismo que `Cambiar PIN` o
 `Eliminar`, que son de mes en mes.
+
+> **Lo que se hizo.** A la vista quedan **Editar menú, Ver carta y ✓ Pagó**, que
+> son los que el usuario dijo usar a diario. Suspender o Activar, el interruptor
+> de IA, Cambiar PIN y Eliminar van dentro de **«⋯ Más»**, un `<details>`: se
+> abre con teclado sin código de accesibilidad propio. `vigilarMenusMas()` lo
+> cierra al pulsar fuera, con Escape y al abrir el de otro restaurante, y
+> elegir una acción también lo cierra.
+>
+> Eliminar sigue siendo el único rojo (S2), ahora dentro del menú. En móvil el
+> desplegable abre hacia la derecha: con la fila alineada a la izquierda,
+> «⋯ Más» puede caer al principio de una línea. Medido a 375 px: dentro de la
+> pantalla, y los botones pasan de tres o cuatro filas a dos.
 
 ## Lo que está bien y conviene no perder al tocar esto
 
