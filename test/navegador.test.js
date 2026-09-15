@@ -9,13 +9,18 @@ const vm = require('vm');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 
-// El marcado y el JavaScript del panel están en index.html; su CSS, en panel.css
-// desde el 15/09/2026 (paso 1 de partirlo por pestañas). Las pruebas que buscan
-// una regla de estilo junto a un trozo de marcado leen los dos, igual que antes
-// leían el archivo único: ningún selector de panel.css aparece en index.html,
-// así que juntarlos no crea coincidencias falsas.
-const codigoDelPanel = () => ['index.html', 'panel.css']
-	.map(a => fs.readFileSync(path.join(PUBLIC, a), 'utf8')).join('\n');
+// El panel era un solo index.html y desde el 15/09/2026 se está partiendo en
+// archivos: panel.css, comun.js y uno por pestaña. Esto los junta todos, en el
+// orden en que el navegador los pide —marcado, estilos y scripts—, para las
+// pruebas que leen el código como texto.
+//
+// Las comprobaciones NEGATIVAS («nadie escribe var(--warning)») tienen que
+// usar esto y no un archivo suelto: contra index.html solo, pasarían siempre en
+// cuanto el código que vigilan se mudara a otro archivo, sin que nada avisara.
+const codigoDelPanel = () => [
+	'index.html', 'panel.css',
+	...fs.readdirSync(PUBLIC).filter(a => a.endsWith('.js')).sort(),
+].map(a => fs.readFileSync(path.join(PUBLIC, a), 'utf8')).join('\n');
 
 // Extrae el trozo de fuente entre dos marcas y lo evalúa en un contexto con
 // los stubs que necesite.
@@ -26,19 +31,24 @@ const codigoDelPanel = () => ['index.html', 'panel.css']
 // función bajo prueba llamaría a algo que no existe. Se prefiere esto a
 // copiar el ayudante al test: una copia se queda atrás sin avisar y entonces
 // la prueba pasa contra código que ya no se despliega.
+//
+// Un par puede llevar delante su propio archivo —['tv.js', 'const X', null]—
+// para juntar en un mismo contexto trozos de varios archivos del panel, que en
+// el navegador comparten las declaraciones de nivel superior.
 function cargar(archivo, desde, hasta, contexto = {}) {
-	const src = fs.readFileSync(path.join(PUBLIC, archivo), 'utf8');
 	const pares = Array.isArray(desde) ? desde : [[desde, hasta]];
 	const ctx = vm.createContext(Array.isArray(desde) ? (hasta || {}) : contexto);
 
-	for (const [ini, fin] of pares) {
+	for (const par of pares) {
+		const [de, ini, fin] = par.length === 3 ? par : [archivo, ...par];
+		const src = fs.readFileSync(path.join(PUBLIC, de), 'utf8');
 		const i = src.indexOf(ini);
-		assert.notEqual(i, -1, `no se encontró "${ini}" en ${archivo} — ¿se renombró?`);
+		assert.notEqual(i, -1, `no se encontró "${ini}" en ${de} — ¿se renombró?`);
 		const f = fin ? src.indexOf(fin, i) : src.length;
 		// Sin esto, una marca de fin que ya no está —porque su código se movió a
 		// otro archivo— daba -1, y slice(i, -1) cargaba el archivo casi entero sin
 		// avisar. Pasó a ser un riesgo real al partir index.html en archivos.
-		assert.notEqual(f, -1, `no se encontró "${fin}" después de "${ini}" en ${archivo} — ¿se movió?`);
+		assert.notEqual(f, -1, `no se encontró "${fin}" después de "${ini}" en ${de} — ¿se movió?`);
 		vm.runInContext(src.slice(i, f), ctx);
 	}
 	return ctx;
@@ -122,7 +132,7 @@ describe('la vista previa de la cartelera', () => {
 			btnVistaPrevia:   { textContent: '' },
 			btnRecargarPrevia:{ style: {} },
 		};
-		const ctx = cargar('index.html',
+		const ctx = cargar('tv.js',
 			[['const TV_ANCHO_PREVIA', 'async function saveTV']],
 			{ document: { getElementById: id => campos[id] }, Math, Date, Number });
 		return { ctx, campos };
@@ -1671,7 +1681,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			// Hasta renderPromociones: programacionDe la usan también las
 			// miniaturas de imágenes sueltas de la pestaña del televisor.
 			['const DIAS_PROMO', 'async function renderPromociones'],
-			['const TV_POR_DEFECTO', '// ── PEDIDOS (WhatsApp'],
+			['tv.js', 'const TV_POR_DEFECTO', null],
 		], {
 			state: {
 				promociones: opciones.promociones || [],
@@ -5587,7 +5597,7 @@ describe('los avisos de la dirección del menú no se contradicen', () => {
 describe('la pestaña Pedidos se guarda de una vez', () => {
 	// PE2 en docs/revision-ux.md: «Guardar» para el número y «Guardar métodos de
 	// pago» para lo demás. Los dos van a restaurantes.atributos: una petición.
-	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const src = codigoDelPanel();
 
 	function montar({ whatsapp = '573001234567', nequi = { activo: false, telefono: '', titular: '' } } = {}) {
 		const campos = {
