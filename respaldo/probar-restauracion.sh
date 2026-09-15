@@ -130,7 +130,14 @@ done
 echo
 echo "── Contenido, no solo nombres"
 # Se comparan de verdad unos cuantos archivos: que el nombre esté no prueba que
-# los bytes estén. Se cogen los más grandes, que son los videos.
+# los bytes estén. Se coge EL MÁS GRANDE DE CADA CARPETA.
+#
+# Antes eran los cinco más grandes de todo uploads/, suponiendo que serían los
+# videos. Dejó de ser verdad sin que nada lo dijera: el 14/09/2026 los cinco
+# fueron PDF de cartas/ de 24 MB, y ningún video ni master se comparó byte a
+# byte. Por carpeta no depende de qué tipo de archivo pese más este mes: cada
+# tipo tiene al menos un representante, y los masters —lo único que no se puede
+# volver a generar— entran siempre que haya alguno.
 #
 # El recorte lo hace awk y no 'head -5' a propósito. 'head' se va en cuanto
 # tiene sus cinco líneas y le cierra la tubería a 'sort', que muere de SIGPIPE
@@ -150,7 +157,10 @@ echo "── Contenido, no solo nombres"
 # se murió aquí, minutos después y sin tocar nada.
 #
 # 'awk' lee hasta el final y no cierra nada: 0 de 60 en las dos condiciones.
-MUESTRA=$(find "$CARPETA" -type f -printf '%s\t%p\n' 2>/dev/null | sort -rn | awk -F'\t' 'NR<=5 {print $2}')
+# Por carpeta sigue valiendo: la tubería es la misma, solo que una por carpeta.
+MUESTRA=$(for d in "$CARPETA"/*/; do
+  find "$d" -type f -printf '%s\t%p\n' 2>/dev/null | sort -rn | awk -F'\t' 'NR==1 {print $2}'
+done)
 [ -n "$MUESTRA" ] || { echo "no hay archivos que comparar"; exit 1; }
 while IFS= read -r f; do
   copia="$RAIZ${f#"$CARPETA"}"
