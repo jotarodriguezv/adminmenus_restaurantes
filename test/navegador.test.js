@@ -3056,7 +3056,7 @@ describe('agruparVisitas · la gráfica no puede pintar una barra por día', () 
 	// 2.431 barras: unos 41.000 px de scroll horizontal que nadie recorre. Y
 	// el `Math.max(1, ...dias)` recibía un argumento por día, así que un rango
 	// bastante antiguo lo hacía reventar.
-	const ctx = () => cargar('index.html', [
+	const ctx = () => cargar('estadisticas.js', [
 		['function fmtISO', 'function hoyEnZona'],
 		['const MAX_BARRAS_VISITAS', 'function renderGraficaVisitas'],
 	], {});
@@ -4707,7 +4707,7 @@ describe('las estadísticas no concluyen más de lo que los datos permiten', () 
 	});
 	function montar(productos = [], categorias = []) {
 		const nodos = {};
-		const ctx = cargar('index.html', [
+		const ctx = cargar('estadisticas.js', [
 			['// ── MÁS AGREGADOS AL CARRITO', '// ── HORAS DE MAYOR TRÁFICO'],
 			['// ── PLATOS QUE NADIE ABRIÓ', 'function renderKpis'],
 		], {
@@ -4733,7 +4733,7 @@ describe('las estadísticas no concluyen más de lo que los datos permiten', () 
 	});
 
 	test('el indicador ya no se llama tasa ni lleva %', () => {
-		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const src = fs.readFileSync(path.join(PUBLIC, 'estadisticas.js'), 'utf8');
 		const kpis = src.match(/function renderKpis\(data\) \{[\s\S]*?\n\}/)[0];
 		assert.doesNotMatch(kpis, /tasaInteraccion|Tasa de interacción/);
 		assert.match(kpis, /Clics por visita/);
@@ -4845,7 +4845,7 @@ describe('las estadísticas no concluyen más de lo que los datos permiten', () 
 	});
 
 	test('cargarEstadisticas pasa las visitas y los platos a la sección', () => {
-		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const src = fs.readFileSync(path.join(PUBLIC, 'estadisticas.js'), 'utf8');
 		assert.match(src, /renderIgnorados\(data\.nuncaAbiertos \|\| \[\], data\.totalVisitas, platosQueSeAbren\(\), categoriasSinAbrir\(\)\)/);
 		assert.match(src, /avisoPocosDatos\(data\.totalVisitas\);/);
 	});
@@ -5670,7 +5670,7 @@ describe('el carril de categorías avisa de que hay más, y la rueda no se acele
 		const escuchas = {};
 		const carril = { dataset: {}, offsetLeft: 0, scrollLeft: 0,
 			addEventListener: (ev) => { escuchas[ev] = (escuchas[ev] || 0) + 1; } };
-		const ctx = cargar('index.html', 'function initCatFilterDrag', '// ── ESTADÍSTICAS', {
+		const ctx = cargar('index.html', 'function initCatFilterDrag', '// ── TOPPINGS', {
 			document: { getElementById: () => carril },
 			window: { addEventListener() {} }, marcarBordes() {},
 		});
