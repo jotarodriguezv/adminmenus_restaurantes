@@ -130,6 +130,20 @@ describe('12 · las carpetas privadas no se sirven por HTTP', () => {
 
     fs.unlinkSync(crudo);
   });
+
+  test('cartas tampoco', async () => {
+    // El PDF o la foto que se sube para importar la carta. Hasta el 14/09/2026
+    // se servía a cualquiera con la URL; se comprobó contra producción.
+    const carta = path.join(raiz, 'cartas', `verif-carta-${Date.now()}.pdf`);
+    fs.mkdirSync(path.dirname(carta), { recursive: true });
+    fs.writeFileSync(carta, '%PDF-1.4 prueba');
+    try {
+      const r = await S.pedirTexto(`/uploads/cartas/${path.basename(carta)}`);
+      assert.equal(r.status, 404);
+    } finally {
+      fs.unlinkSync(carta);
+    }
+  });
 });
 
 describe('11 · una petición sin Content-Type no revienta la ruta', () => {
