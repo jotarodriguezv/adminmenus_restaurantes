@@ -541,8 +541,32 @@ servir dentro del VPS más barato de Hostinger.**
   14/09 y **todos los servicios en `1/1`**. Si el log está vacío, cron no la
   lanzó; si algún servicio está en `0/1`, mirar antes que nada si le falta la
   imagen (`docker service ps <servicio> --no-trunc`).
-- **794 MB en volúmenes sin usar.** Probablemente de la boda y de las cartas
-  borradas, pero pueden tener datos: repasar uno a uno, no `volume prune`.
+- ~~794 MB en volúmenes sin usar~~ — **revisados el 15/09/2026 y se conservan
+  a propósito.** No eran de la boda ni de las cartas borradas (esas no usaban
+  volúmenes). Son 20, de apps que ya no corren:
+
+  | Qué | Volúmenes | Tamaño | Dentro |
+  |---|---|---|---|
+  | Chatwoot, dos instalaciones (jun-2025 y abr-2026, proyectos `verificame-chatwoot-0qkdot` y `code`) | postgres, redis, storage | ~165 MB | conversaciones, contactos y adjuntos |
+  | Evolution API, dos instalaciones (mismas fechas) | postgres, redis, instances | ~233 MB | sesiones de WhatsApp |
+  | WordPress (`wordpress2026-wordpress-us0tss`) | `wp_app`, `wp_data` | ~324 MB | una web de pruebas y su MySQL |
+  | Restos de Dokploy | `dokploy-postgres`, `dokploy-docker-config`, `redis-data-volume` | ~65 MB | instalación antigua |
+  | Vacíos | 5 (`verificame-redis-*-data` y otros) | 4 KB c/u | nada |
+
+  **Por qué no se borran:** son menos del 2 % del disco; el usuario usó
+  Chatwoot y Evolution y exploró WordPress, así que tienen datos que podría
+  querer, y **no están en el respaldo** (restic solo copia `/opt/menus/uploads`).
+  Si se vuelve a desplegar una de esas apps con la misma configuración, Docker
+  reutiliza su volumen. Borrar los vacíos liberaría 20 KB.
+
+  **Los tres «de Dokploy» NO son los que usa.** Comprobado montaje por
+  montaje: Dokploy usa `dokploy-postgres-database` y `dokploy-redis`. Que uno
+  sin usar se llame `dokploy-postgres` es la trampa: nunca borrar por el nombre,
+  mirar los montajes con
+  `docker inspect $(docker ps -q --filter name=dokploy) --format '{{.Name}} → {{range .Mounts}}{{.Name}} {{end}}'`.
+
+  **Cuándo revisarlo:** si el disco pasa del 80 %. Empezar por WordPress o
+  Chatwoot, con copia comprimida previa (`tar czf`) guardada un mes.
 - ~~Docker mata el panel en cada despliegue~~ — **hecho y confirmado en el
   servidor el 14/09/2026** con `parada.js` (PR #125): al recibir `SIGTERM` deja
   de aceptar conexiones, deja terminar las abiertas y devuelve a la cola la
