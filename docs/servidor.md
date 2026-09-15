@@ -570,12 +570,12 @@ servir dentro del VPS más barato de Hostinger.**
   #133) y confirmado en el servidor:** solo cuenta y compara lo anterior al
   inicio de la instantánea. Corrida real: `promos 2 / 2 ✅ (+1 posteriores a la
   copia)`, 9 carpetas idénticas byte a byte y código 0.
-- **Cinco PDF de `cartas/` del mismo tamaño (24 MB).** Eran cuatro intentos de
-  la misma carta y la de otro restaurante, y no los borraba nadie. **Arreglado
-  en el repositorio el 14/09/2026:** la importación borra su archivo al
-  terminar, y `cartas/` ya no se sirve por URL (`docs/importar-carta.md`
-  §9.bis). **Falta en el servidor:** borrar a mano los cinco que ya estaban,
-  todos de importaciones terminadas.
+- ~~Cinco PDF de `cartas/` del mismo tamaño~~ — **hecho el 15/09/2026.** Era el
+  mismo archivo, 24.721.239 bytes, subido cinco veces: cuatro intentos de A Ojo
+  Cerrado y una prueba de subida en Galé (restaurante de prueba). La
+  importación ya borra su archivo al terminar y `cartas/` no se sirve por URL
+  (PR #135, `docs/importar-carta.md` §9.bis). Los cinco se borraron a mano por
+  nombre (~120 MB) y la fila colgada del 07/09 pasó a `error`.
 - **La base de datos la respalda Supabase**, no esto. Conviene mirar qué
   retención da el plan contratado, que no es la misma en el gratuito.
 - **Los archivos de menos de un día no están en ninguna copia.** Un video subido
