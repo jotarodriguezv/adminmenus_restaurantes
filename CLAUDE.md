@@ -76,7 +76,13 @@ corregir el documento en la misma tarea.
   trabajo y se sale antes de los 10 s de Docker. **Quitarlo devuelve el
   `Exited (137)`** y las conversiones colgadas en "convirtiendo" hasta hora y
   media, que es lo que había hasta el 14/09/2026.
-- `public/` — el panel (HTML + JS servidos tal cual). Los estilos están en
+- `public/` — el panel (HTML + JS servidos tal cual). Lo que usan todas las
+  pestañas —`esc`, `formatPrecio`, `token` y `state`, `apiFetch`, las ventanas
+  y los avisos— está en `public/comun.js`, que se carga antes del script
+  principal: en scripts clásicos las declaraciones de nivel superior se
+  comparten entre archivos, así que **no puede repetirse ningún nombre** entre
+  ellos. `cargar()` en las pruebas recibe el archivo donde vive cada función.
+  Los estilos están en
   `public/panel.css` desde el 15/09/2026; las pruebas que buscan una regla de
   estilo leen `index.html` y `panel.css` juntos con `codigoDelPanel()` en
   `navegador.test.js`.
@@ -186,7 +192,7 @@ paso, con las pruebas en verde y la pestaña mirada en el navegador:
 |---|---|---|
 | 0 | **Desde ya:** lo nuevo no entra en `index.html`, va a su propio archivo | ninguno |
 | ~~1~~ | ~~El CSS a `panel.css`~~ **Hecho el 15/09/2026** (719 líneas; `index.html` a 9.852) | muy bajo |
-| 2 | Lo común: sesión, `apiFetch`, avisos, ventanas, `esc` | bajo |
+| ~~2~~ | ~~Lo común: sesión, `apiFetch`, avisos, ventanas, `esc`~~ **Hecho el 15/09/2026** en `comun.js` (`index.html` a 9.744) | bajo |
 | 3 | Una pestaña por PR, las más aisladas primero: Estadísticas, TV, Promoción, Importar, Toppings, Pedidos | bajo |
 | 4 | Las más enlazadas: Productos, Categorías, Apariencia | medio |
 | 5 | El superadmin a su archivo, cargado solo con sesión de admin (resuelve T2) | medio |

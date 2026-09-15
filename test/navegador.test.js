@@ -35,6 +35,10 @@ function cargar(archivo, desde, hasta, contexto = {}) {
 		const i = src.indexOf(ini);
 		assert.notEqual(i, -1, `no se encontró "${ini}" en ${archivo} — ¿se renombró?`);
 		const f = fin ? src.indexOf(fin, i) : src.length;
+		// Sin esto, una marca de fin que ya no está —porque su código se movió a
+		// otro archivo— daba -1, y slice(i, -1) cargaba el archivo casi entero sin
+		// avisar. Pasó a ser un riesgo real al partir index.html en archivos.
+		assert.notEqual(f, -1, `no se encontró "${fin}" después de "${ini}" en ${archivo} — ¿se movió?`);
 		vm.runInContext(src.slice(i, f), ctx);
 	}
 	return ctx;
@@ -447,7 +451,7 @@ describe('hex6 · normaliza colores para el selector nativo', () => {
 
 // ═══════════════════════════════════════════════════════════════
 describe('esc · escapado en el panel', () => {
-	const { esc } = cargar('index.html', 'function esc(s)', 'let token =');
+	const { esc } = cargar('comun.js', 'function esc(s)', '// ── SESIÓN Y ESTADO');
 
 	test('el nombre de un producto no puede inyectar código', () => {
 		// Importa más que en el menú público: el superadmin abre el panel de
@@ -3519,7 +3523,7 @@ describe('compressImage · formato de salida y fallos que antes colgaban', () =>
 
 	const subir = async blob => {
 		let nombre = null;
-		const ctx = cargar('index.html', [['async function uploadImg', 'function openModal']], {
+		const ctx = cargar('index.html', [['async function uploadImg', '// ── ESCAPE CIERRA LAS VENTANAS']], {
 			FormData: class { append(_c, _b, n) { if (n) nombre = n; } },
 			apiFetch: async () => ({ url: 'https://panel/uploads/productos/x' }),
 		});
@@ -3925,7 +3929,7 @@ describe('«✓ Pagó» se puede deshacer', () => {
 	function montarToast() {
 		const toast = nodo();
 		const reloj = { pendiente: null };
-		const ctx = cargar('index.html', 'let toastTimer=null;', '// ── ESTADÍSTICAS', {
+		const ctx = cargar('comun.js', 'let toastTimer=null;', null, {
 			document: { getElementById: () => toast, createElement: () => nodo() },
 			setTimeout: (fn, ms) => { reloj.pendiente = { fn, ms }; return 1; },
 			clearTimeout: () => { reloj.pendiente = null; },
@@ -5666,7 +5670,7 @@ describe('el carril de categorías avisa de que hay más, y la rueda no se acele
 		const escuchas = {};
 		const carril = { dataset: {}, offsetLeft: 0, scrollLeft: 0,
 			addEventListener: (ev) => { escuchas[ev] = (escuchas[ev] || 0) + 1; } };
-		const ctx = cargar('index.html', 'function initCatFilterDrag', '// ── TOAST', {
+		const ctx = cargar('index.html', 'function initCatFilterDrag', '// ── ESTADÍSTICAS', {
 			document: { getElementById: () => carril },
 			window: { addEventListener() {} }, marcarBordes() {},
 		});
