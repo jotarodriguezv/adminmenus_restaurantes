@@ -100,6 +100,7 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 
 - [ ] Cada grupo dice qué es y cómo se llama en la carta: «Toppings sin costo (en la carta: «Toppings Platino»)». [TP1 · #101]
 - [ ] Con la pestaña vacía, explica para qué sirve y cómo empezar. [TP2 · #101]
+- [ ] Con toppings creados y **ningún plato que los ofrezca**, sale un aviso naranja arriba diciendo que en la carta no aparece ninguno; al marcar uno en la ficha de un plato, desaparece. [16/09/2026]
 
 ## 8. Pedidos
 
