@@ -1006,7 +1006,7 @@ async function saveTV() {
     intercalados: tvIntercaladosDelFormulario(),
   };
 
-  // De 'atributos', solo su clave: el servidor funde. Ver saveToppings.
+  // De 'atributos', solo su clave: el servidor funde. Ver recolectarAjustes.
   //
   // 'promo_en_tv' sigue siendo columna del restaurante y se deriva de la lista,
   // no de una casilla aparte: así no pueden discrepar. Es una propiedad de la

@@ -150,7 +150,6 @@
 				<button class="tab-btn" id="tabBtnAjustes" onclick="switchTab('ajustes',this)">Ajustes</button>
 				<button class="tab-btn" id="tabBtnApariencia" onclick="switchTab('apariencia',this)" style="display:none">Apariencia</button>
 				<button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
-				<button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
 				<button class="tab-btn" id="tabBtnTv" onclick="switchTab('tv',this)" style="display:none">Pantalla TV</button>
 				<button class="tab-btn" id="tabBtnImportar" onclick="switchTab('importar',this)" style="display:none">Importar carta</button>
 				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
@@ -593,45 +592,6 @@
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveApariencia()">Guardar apariencia</button>
 					</div>
 					<div id="apArienciaStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-				</div>
-
-				<!-- TAB TOPPINGS -->
-				<div id="tabToppings" class="hidden">
-					<!-- TP2: con todo vacío la pestaña eran tres «Sin elementos», y nada decía
-					     que un topping no sale en ninguna carta hasta que un plato lo ofrece. -->
-					<div id="toppingsGuia" class="section-card" style="display:none;font-size:13px;line-height:1.6;color:var(--text-muted)">
-						<strong style="color:var(--text)">Así funcionan los toppings.</strong>
-						Créalos aquí, en su grupo, y después márcalos en la ficha de cada plato que los lleve.
-						Un topping no sale en la carta hasta que algún plato lo ofrece; así la gaseosa no
-						pregunta por salsas y la hamburguesa sí.
-					</div>
-					<div class="section-card">
-						<div class="section-header">
-						  <!-- TP1: el nombre que se explica solo va primero; el de la carta, entre
-						       paréntesis, porque es lo que el dueño ve en su carta publicada. El mismo
-						       par se usa en la ficha del plato. -->
-						  <div class="section-title">Toppings sin costo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(en la carta: «Toppings Platino»)</span></div>
-						  <button class="btn-sm accent" onclick="addTopping('platino')">+ Añadir</button>
-						</div>
-						<div id="listToppingsPlatino" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
-					</div>
-					<div class="section-card">
-						<div class="section-header">
-							<div class="section-title">Toppings con costo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(en la carta: «Toppings Premium»)</span></div>
-							<button class="btn-sm accent" onclick="addTopping('premium')">+ Añadir</button>
-						</div>
-						<div id="listToppingsPremium" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
-					</div>
-					<div class="section-card">
-						<div class="section-header">
-							<div class="section-title">Salsas <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(sin costo adicional)</span></div>
-							<button class="btn-sm accent" onclick="addTopping('salsas')">+ Añadir</button>
-						</div>
-						<div id="listToppingsSalsas" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
-					</div>
-					<div style="text-align:right;">
-						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveToppings()">Guardar cambios</button>
-					</div>
 				</div>
 
 				<!-- TAB PROMO -->
@@ -1195,6 +1155,50 @@
 							</div>
 						</div>
 					</div>
+					<!-- Los toppings, que hasta el 16/09/2026 eran su propia pestaña. Se
+					     vinieron aquí con los pedidos y por lo mismo: encender el carrito
+					     hacía aparecer pestañas que nadie había pedido ni explicado. Salen
+					     también sin carrito si el restaurante ya tiene toppings creados: son
+					     datos suyos y tiene que poder verlos y borrarlos. -->
+					<div id="ajToppingsCuerpo" style="display:none">
+						<!-- TP2: con todo vacío la pestaña eran tres «Sin elementos», y nada decía
+						     que un topping no sale en ninguna carta hasta que un plato lo ofrece. -->
+						<div id="toppingsGuia" class="section-card" style="display:none;font-size:13px;line-height:1.6;color:var(--text-muted)">
+							<strong style="color:var(--text)">Así funcionan los toppings.</strong>
+							Créalos aquí, en su grupo, y después márcalos en la ficha de cada plato que los lleve.
+							Un topping no sale en la carta hasta que algún plato lo ofrece; así la gaseosa no
+							pregunta por salsas y la hamburguesa sí.
+						</div>
+						<!-- 16/09/2026: un topping que no ofrece ningún plato no sale en ninguna
+						     carta. Con el catálogo recién creado es lo normal —falta marcarlos—, y
+						     por eso esto no sale nunca con el catálogo vacío: ahí está la guía de
+						     arriba, que explica lo mismo sin sonar a error. -->
+						<div id="toppingsSinUso" style="display:none;margin-bottom:14px;padding:10px 12px;border-radius:var(--radius);background:var(--warn-dim);border:1px solid var(--warn);color:var(--warn);font-size:12px;line-height:1.6"></div>
+						<div class="section-card">
+							<div class="section-header">
+							  <!-- TP1: el nombre que se explica solo va primero; el de la carta, entre
+							       paréntesis, porque es lo que el dueño ve en su carta publicada. El mismo
+							       par se usa en la ficha del plato. -->
+							  <div class="section-title">Toppings sin costo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(en la carta: «Toppings Platino»)</span></div>
+							  <button class="btn-sm accent" onclick="addTopping('platino')">+ Añadir</button>
+							</div>
+							<div id="listToppingsPlatino" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
+						</div>
+						<div class="section-card">
+							<div class="section-header">
+								<div class="section-title">Toppings con costo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(en la carta: «Toppings Premium»)</span></div>
+								<button class="btn-sm accent" onclick="addTopping('premium')">+ Añadir</button>
+							</div>
+							<div id="listToppingsPremium" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
+						</div>
+						<div class="section-card">
+							<div class="section-header">
+								<div class="section-title">Salsas <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(sin costo adicional)</span></div>
+								<button class="btn-sm accent" onclick="addTopping('salsas')">+ Añadir</button>
+							</div>
+							<div id="listToppingsSalsas" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
+						</div>
+					</div>
 					<!-- Los filtros los pintan los seis modelos de la carta (core/filtros.js en
 					     vmenus-app), no solo explorar. Las insignias de cada plato sí siguen
 					     siendo de explorar, y por eso no están aquí. -->
@@ -1745,12 +1749,12 @@
 						<input type="text" class="form-input" id="editDescAvanzada">
 					</div>
 					<!-- Qué puede añadirle el cliente a ESTE plato. El catálogo es del
-					     negocio y vive en la pestaña Toppings; aquí solo se marca cuáles
+					     negocio y vive en la pestaña Ajustes; aquí solo se marca cuáles
 					     ofrece cada uno, porque una hamburguesa lleva de todo y una
 					     gaseosa no lleva nada. -->
 					<div class="form-group" id="personalizacionGroup" style="display:none">
 						<label class="form-label">Personalización <span style="color:var(--text-dim);font-weight:400">(qué puede añadirle el cliente a este plato)</span></label>
-						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene toppings. Créalos en la pestaña Toppings y vuelve aquí.</div>
+						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene toppings. Créalos en la pestaña Ajustes, bajo el carrito, y vuelve aquí.</div>
 						<div id="persPlatinoWrap" style="margin-top:8px;display:none">
 							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings sin costo (Platino)</div>
 							<div id="persPlatinoChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
@@ -2450,7 +2454,7 @@ function switchTab(tab, btn) {
   // En un móvil la pestaña pulsada puede estar medio fuera; se trae a la vista
   // para que se vea cuál está activa. 'nearest' no mueve la página en vertical.
   btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabTv','tabImportar','tabQr','tabEstadisticas','tabAjustes'].forEach(id=>{
+  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabAjustes'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
@@ -2902,7 +2906,7 @@ function nuevoIdTopping() {
 }
 
 // ── PERSONALIZACIÓN DEL PLATO ─────────────────────────────────
-// El catálogo de toppings es del negocio y vive en la pestaña Toppings.
+// El catálogo de toppings es del negocio y vive en la pestaña Ajustes.
 // Aquí se marca cuáles ofrece cada plato.
 //
 // Esta pieza no existía. El catálogo se guardaba en el restaurante y nada lo
@@ -2948,10 +2952,10 @@ function renderPersonalizacion() {
 	// Se enseña donde tiene sentido: negocios con carrito, o que ya arrastren
 	// catálogo de antes. Al resto no le dice nada.
 	//
-	// Con la regla de la carta, la misma que decide si sale la pestaña Toppings
-	// (PE3). Esta tenía la suya propia, la vieja, y desde que la pestaña cambió de
-	// regla un Topnav con el interruptor puesto veía «Créalos en la pestaña
-	// Toppings» con esa pestaña escondida. Ver CL1.
+	// Con la regla de la carta, la misma que decide si se enseñan los toppings en
+	// Ajustes (PE3, y hayQueEnsenarToppings desde el 16/09/2026). Esta tenía la
+	// suya propia, la vieja, y desde que aquella cambió un Topnav con el
+	// interruptor puesto veía «Créalos en…» con los toppings escondidos. Ver CL1.
 	const conCarrito = cartaTieneCarrito(state.restaurante?.atributos, planActual());
 	if (!conCarrito && !hayCatalogo) { grupo.style.display = 'none'; return; }
 	grupo.style.display = 'block';
@@ -5297,7 +5301,7 @@ async function guardarOrdenProductos({ deshaciendo = false } = {}) {
   if (modo === modoAnterior) return;
   try {
     if (modo === 'personalizado' && modoAnterior !== 'personalizado') await sembrarOrdenManual(modoAnterior);
-    // Solo su clave: el servidor funde. Ver el comentario de saveToppings.
+    // Solo su clave: el servidor funde. Ver el comentario de recolectarAjustes.
     const atributos = { orden_productos: modo };
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
     if (data) state.restaurante = data;
@@ -5862,7 +5866,7 @@ async function handlePortadaUpload(input) {
   try {
     const blob = await compressImage(file, 1600, .85);
     const url = await uploadImg(blob, 'portadas');
-    // Solo sus claves: el servidor funde. Ver el comentario de saveToppings.
+    // Solo sus claves: el servidor funde. Ver el comentario de recolectarAjustes.
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`,
       { atributos: { portada_url: url, portada_activa: true } });
     if (data) state.restaurante = data;
@@ -5886,7 +5890,7 @@ async function eliminarImagen(tipo) {
       await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { fondo_url: null });
       state.restaurante.fondo_url = null;
     } else if (tipo === 'portada') {
-      // Solo sus claves: el servidor funde. Ver el comentario de saveToppings.
+      // Solo sus claves: el servidor funde. Ver el comentario de recolectarAjustes.
       const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`,
         { atributos: { portada_url: null, portada_activa: false } });
       if (data) state.restaurante = data;
@@ -5907,7 +5911,7 @@ function recolectarApariencia() {
     // todas sus claves en cada guardado, así que no necesita el resto — y
     // arrastrarlo significaba reescribir el JSON entero con una copia vieja,
     // devolviendo a su valor anterior lo que otro hubiera cambiado mientras.
-    // Las funde el servidor. Ver el comentario de saveToppings.
+    // Las funde el servidor. Ver el comentario de recolectarAjustes.
     atributos: {
       color_surface: document.getElementById('apColorSurface').value.trim(),
       color_card: document.getElementById('apColorCard').value.trim(),
@@ -6027,19 +6031,13 @@ function renderPlan() {
 // encender el carrito y no ver aparecer la pestaña donde se pone el WhatsApp
 // deja al restaurante armando pedidos que no llegan a ningún sitio, sin
 // ninguna pista de que falta configurar algo. Pasó.
+// Qué pestañas se ven. De las que iban con el carrito ya no queda ninguna: el
+// 16/09/2026 los pedidos y los toppings se mudaron a Ajustes, donde los enseñan
+// pintarPedidos() y pintarToppings() con las mismas reglas que tenían aquí
+// —cartaTieneCarrito para el primero, y también «ya tiene toppings» para el
+// segundo—. Encender el carrito hacía aparecer dos pestañas sin que nadie las
+// explicara, que es justo lo que se quería quitar.
 function ajustarPestanasAlModelo() {
-  const attr = state.restaurante?.atributos || {};
-  // La misma regla que la carta, y no una propia. Antes bastaba plan +
-  // interruptor en CUALQUIER modelo, así que un Topnav con el interruptor puesto
-  // veía los campos de WhatsApp y métodos de pago para configurar algo que no
-  // hacía nada: su carta no deja armar un pedido. Ver PE3.
-  //
-  // Desde el 16/09/2026 los pedidos ya no son pestaña: están en Ajustes, dentro
-  // de la tarjeta del carrito, y los enseña pintarPedidos() con esa misma regla.
-  const hayCarrito = cartaTieneCarrito(attr, planActual());
-  const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
-
-  document.getElementById('tabBtnToppings').style.display = (hayCarrito || hasToppings) ? 'block' : 'none';
   // La cartelera es de pago. Esconder la pestaña es cortesía, no protección:
   // quien la quiera de verdad tiene que poder guardar 'tv', y eso lo filtra el
   // servidor por plan.

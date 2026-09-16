@@ -96,10 +96,14 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] Cambiar el modelo de página: la **Portada** solo aparece con Explorar; **Mostrar mensaje de bienvenida**, solo con Sidebar y Carrito; **Filtros y etiquetas**, siempre. [A4 · #118]
 - [ ] Los avisos de la dirección de la carta no se contradicen, y la dirección es un enlace que abre la carta para comprobarla. [A5 · #107]
 
-## 7. Toppings
+## 7. Toppings (desde el 16/09/2026, dentro de Ajustes)
 
+- [ ] Los tres grupos están **en Ajustes**, bajo los pedidos, y se guardan con el botón de Ajustes: no hay pestaña «Toppings». [16/09/2026]
+- [ ] Un restaurante **sin carrito pero con toppings creados** los sigue viendo ahí. [16/09/2026]
+- [ ] Borrar un topping que algún plato ofrece **pregunta antes de guardar**, y decir que no corta el guardado entero. [16/09/2026]
 - [ ] Cada grupo dice qué es y cómo se llama en la carta: «Toppings sin costo (en la carta: «Toppings Platino»)». [TP1 · #101]
 - [ ] Con la pestaña vacía, explica para qué sirve y cómo empezar. [TP2 · #101]
+- [ ] Con toppings creados y **ningún plato que los ofrezca**, sale un aviso naranja arriba diciendo que en la carta no aparece ninguno; al marcar uno en la ficha de un plato, desaparece. [16/09/2026]
 
 ## 8. Pedidos (desde el 16/09/2026, dentro de Ajustes)
 
@@ -143,7 +147,7 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] En un restaurante con **modelo Sidebar o Carrito**, los chips salen **debajo de la cabecera fija** y se pulsan: antes quedaban tapados por ella. [16/09/2026 · vmenus-app#29]
 - [ ] Con filtros elegidos y **ningún plato marcado**, Ajustes lo avisa en naranja y dice que se arregla en la ficha del plato; al marcar uno, la nota pasa a verde. [16/09/2026]
 - [ ] Apagar el interruptor de filtros y guardar: la carta deja de enseñar chips y, al volver a encenderlo, **los filtros elegidos siguen ahí**. [16/09/2026]
-- [ ] **Solo después de desplegar vmenus-app#28.** Como restaurante Topnav o Sidebar, en Ajustes encender «Carrito de compras»: avisa de que falta el número y, al guardar, aparecen los campos de pedidos y la pestaña Toppings. [15/09/2026]
+- [ ] **Solo después de desplegar vmenus-app#28.** Como restaurante Topnav o Sidebar, en Ajustes encender «Carrito de compras»: avisa de que falta el número y, al guardar, aparecen ahí mismo los campos de pedidos y los toppings. [15/09/2026]
 - [ ] Con el número puesto en Pedidos, en la carta pública: botón del pedido (flotante en Topnav, en la cabecera en Sidebar), «+» en cada plato y en la ficha, y el pedido llega a WhatsApp. [15/09/2026]
 - [ ] Apagarlo y guardar: la carta vuelve a ser como antes y las pestañas Pedidos y Toppings desaparecen si no hay toppings. [15/09/2026]
 - [ ] En un restaurante Explorar, o con plan Vitrina, la tarjeta no ofrece el interruptor y dice por qué. [15/09/2026]
