@@ -1,14 +1,19 @@
-// La pestaña Pedidos: el número de WhatsApp al que llegan y los métodos de pago.
+// Los pedidos: el número de WhatsApp al que llegan y los métodos de pago.
 //
 // Salió de public/index.html el 15/09/2026, paso 3 de partirlo por pestañas
 // (CLAUDE.md, «Partir public/index.html»). Se movió tal cual, sin cambiar lo
-// que hace. El marcado de la pestaña sigue en index.html.
+// que hace.
+//
+// El 16/09/2026 dejó de ser una pestaña: su marcado vive dentro de la tarjeta
+// del carrito, en Ajustes, y guarda con el botón de Ajustes. Aquí quedó lo que
+// lee y escribe los campos; el guardado está en ajustes.js, porque todo lo de
+// esa pantalla va en una sola petición.
 //
 // Se carga con un <script> clásico antes del script principal, como comun.js,
 // y comparte con él las declaraciones de nivel superior: no se puede repetir
 // aquí un nombre que ya exista en otro archivo del panel.
 
-// ── PEDIDOS (WhatsApp, modelo carrito) ─────────────────────────
+// ── PEDIDOS (WhatsApp, cartas con carrito) ─────────────────────
 function renderPedidos() {
   document.getElementById('pedidosWhatsapp').value = state.restaurante.atributos?.whatsapp_pedidos || '';
   actualizarAvisoPedidos();
@@ -78,47 +83,22 @@ function recolectarMetodosPago() {
   };
 }
 
-// Qué impide guardar la pestaña. Un método activo sin sus datos llega al
-// checkout con la instrucción en blanco: el cliente lo elige, ve «Nequi: — a
-// nombre de» y no sabe a dónde pagar. Mejor no dejar guardarlo que descubrirlo
-// con un pedido perdido. Y sin número no llega ningún pedido.
-function erroresDePedidos(whatsapp, mp) {
-  const errores = [];
-  if (!whatsapp) errores.push('el número de WhatsApp');
-  const incompletos = [
-    mp.nequi.activo       && (!mp.nequi.telefono || !mp.nequi.titular)             && 'Nequi',
-    mp.daviplata.activo   && (!mp.daviplata.telefono || !mp.daviplata.titular)     && 'Daviplata',
-    mp.bancolombia.activo && (!mp.bancolombia.numero_cuenta || !mp.bancolombia.titular) && 'Bancolombia',
-    mp.breb.activo        && !mp.breb.llave                                        && 'Bre-B',
+// Qué impide guardar. Un método activo sin sus datos llega al checkout con la
+// instrucción en blanco: el cliente lo elige, ve «Nequi: — a nombre de» y no
+// sabe a dónde pagar. Mejor no dejar guardarlo que descubrirlo con un pedido
+// perdido.
+//
+// El número de WhatsApp NO está aquí, y antes sí: era la pestaña Pedidos, a la
+// que solo se llegaba con el carrito ya encendido y guardado. Ahora el
+// interruptor y el número están en la misma pantalla, así que exigirlo
+// impediría el primer guardado —encender el carrito— por algo que todavía no se
+// ha podido escribir. Falta el número se avisa al guardar y en rojo dentro de
+// la tarjeta, que es lo que ya hacía actualizarAvisoPedidos().
+function metodosIncompletos(mp) {
+  return [
+    mp.nequi.activo       && (!mp.nequi.telefono || !mp.nequi.titular)                   && 'Nequi',
+    mp.daviplata.activo   && (!mp.daviplata.telefono || !mp.daviplata.titular)           && 'Daviplata',
+    mp.bancolombia.activo && (!mp.bancolombia.numero_cuenta || !mp.bancolombia.titular)  && 'Bancolombia',
+    mp.breb.activo        && !mp.breb.llave                                              && 'Bre-B',
   ].filter(Boolean);
-  if (incompletos.length) errores.push(`los datos de ${incompletos.join(', ')}`);
-  return errores;
-}
-
-async function savePedidos() {
-  const whatsapp_pedidos = document.getElementById('pedidosWhatsapp').value.trim().replace(/[^0-9]/g, '');
-  const metodos_pago = recolectarMetodosPago();
-  const st = document.getElementById('pedidosStatus');
-  const errores = erroresDePedidos(whatsapp_pedidos, metodos_pago);
-  if (errores.length) {
-    // «Falta el número» pero «Faltan los datos de Nequi»: concuerda con lo que falta.
-    const verbo = errores.length > 1 || errores[0].startsWith('los ') ? 'Faltan' : 'Falta';
-    const texto = `${verbo} ${errores.join(' y ')}`;
-    st.textContent = texto; st.style.color = 'var(--danger)';
-    showToast(texto, 'error');
-    return;
-  }
-  // Solo sus claves: el servidor funde. Ver el comentario de saveToppings.
-  const atributos = { whatsapp_pedidos, metodos_pago };
-  try {
-    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
-    if (data) state.restaurante = data;
-    document.getElementById('pedidosWhatsapp').value = whatsapp_pedidos;
-    actualizarAvisoPedidos();
-    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
-    showToast('Pedidos y pagos guardados', 'success');
-  } catch (e) {
-    st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)';
-    showToast('Error: ' + e.message, 'error');
-  }
 }

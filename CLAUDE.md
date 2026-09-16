@@ -531,6 +531,26 @@ queda y lo que se abre:
 | ~~**Carrito activable o desactivable**~~ **Hecho el 15/09/2026**, pestaña Ajustes, con vmenus-app#28 | el restaurante | `carrito` |
 | Plan, modelo, colores, tipografía, CSS, dominio, zona horaria… | superadmin, **sin decidir todavía** | — |
 
+**Hecho el 16/09/2026: Ajustes se quedó con todo lo del carrito.** Encender el
+carrito hacía aparecer dos pestañas nuevas —Pedidos y Toppings— sin que nada lo
+explicara, y «Pedidos» daba a entender que ahí se **ven** los pedidos, que es
+otra cosa y todavía no existe. Las dos se mudaron a la tarjeta del carrito, en
+Ajustes, y se guardan con su botón: todo eso escribe en
+`restaurantes.atributos`, así que va en una sola petición. Con ello el carrito
+ya no hace aparecer ninguna pestaña. La regla de cuándo se enseñan es la de
+siempre (`cartaTieneCarrito`, PE3), ahora en `carritoEnPantalla()` y
+`hayQueEnsenarToppings()` de `ajustes.js`.
+
+**Anotado el 16/09/2026, sin hacer todavía: «Apariencia» ya no se llama como lo
+que es.** Desde que las redes, los filtros y el carrito se fueron a Ajustes, lo
+que le queda es la configuración general del restaurante —nombre, slug, plan,
+modelo, dominio, zona horaria, colores—, y de eso solo lo último es apariencia.
+El usuario quiere **otro nombre y la primera posición del carril, incluso antes
+de Productos**, porque es la pestaña donde se monta un restaurante nuevo. Sin
+decidir el nombre; «Configuración» o «General» son los candidatos. Ojo al
+hacerlo: `switchTab` corta la pestaña si `state.rol !== 'admin'`, y hay pruebas
+que buscan `tabBtnApariencia` y el texto «Apariencia» en los avisos.
+
 **Lo que hay que saber antes de empezar**, comprobado ese día:
 
 1. **El servidor ya filtra lo que puede cambiar un cliente**:
