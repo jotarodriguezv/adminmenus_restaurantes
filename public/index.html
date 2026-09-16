@@ -5505,10 +5505,10 @@ function confirmDelete(tipo,id,nombre) {
   document.getElementById('confirmName').textContent=nombre;
   state.deleteAction={tipo,id};
 
-  // Borrar una categoría se lleva sus platos por delante: la clave ajena de
-  // productos.categoria_id es ON DELETE CASCADE. El aviso decía solo
-  // "¿seguro que quieres eliminar Entrantes?", y nadie que lea eso espera
-  // perder doce platos con sus fotos y sus videos.
+  // Retirar una categoría retira también sus platos. Desde sql/23 ya no se
+  // borran: se archivan, así que las ventas del POS que los nombran siguen
+  // completas y esto se puede deshacer. El aviso sigue existiendo porque
+  // desaparecer doce platos de la carta de golpe hay que verlo venir.
   const arrastre = document.getElementById('confirmArrastre');
   // Borrar una promoción NO borra su imagen del disco: puede estar
   // referenciada desde otra fila, y quien sabe si sobra es el limpiador. Se
@@ -5522,8 +5522,8 @@ function confirmDelete(tipo,id,nombre) {
       : 0;
     arrastre.style.display = afectados ? 'block' : 'none';
     arrastre.textContent = afectados === 1
-      ? '⚠ También se borrará el plato que hay dentro. No se puede recuperar.'
-      : `⚠ También se borrarán los ${afectados} platos que hay dentro. No se pueden recuperar.`;
+      ? '⚠ También se retirará el plato que hay dentro.'
+      : `⚠ También se retirarán los ${afectados} platos que hay dentro.`;
   }
 
   openModal('confirmModal');
@@ -5536,7 +5536,7 @@ async function executeDelete() {
       await apiFetch('DELETE',`/api/productos/${id}`);
       state.productos=state.productos.filter(p=>p.id!==id);
       renderCatFilter(); renderProducts();
-      showToast('Producto eliminado','success');
+      showToast('Producto retirado de la carta','success');
     } else if(tipo==='promocion') {
       await apiFetch('DELETE',`/api/promociones/${id}`);
       state.promociones=(state.promociones||[]).filter(x=>x.id!==id);
@@ -5545,12 +5545,12 @@ async function executeDelete() {
     } else {
       await apiFetch('DELETE',`/api/categorias/${id}`);
       state.categorias=state.categorias.filter(c=>c.id!==id);
-      // Sus productos se fueron con ella en la base de datos (CASCADE). Si no
-      // se quitan también de aquí, la lista sigue enseñando platos que ya no
-      // existen y el siguiente clic da un error sin sentido.
+      // Sus productos se archivaron con ella en la base (sql/23). Si no se
+      // quitan también de aquí, la lista sigue enseñando platos que la carta
+      // ya no muestra y el siguiente clic da un error sin sentido.
       state.productos=state.productos.filter(p=>p.categoria_id!==id);
       renderCatList(); renderCatFilter(); renderProducts();
-      showToast('Categoría eliminada','success');
+      showToast('Categoría retirada de la carta','success');
     }
     closeModal('confirmModal');
   } catch(e) { showToast('Error: '+e.message,'error'); }
