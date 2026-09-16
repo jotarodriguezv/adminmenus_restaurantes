@@ -109,6 +109,27 @@ corregir el documento en la misma tarea.
 - `sql/` — migraciones numeradas.
 - `respaldo/` — scripts de copia y restauración que se ejecutan en el servidor.
 
+## Borrar un plato lo archiva
+
+**Desde sql/23 (16/09/2026).** `DELETE /api/productos/:id` y
+`DELETE /api/categorias/:id` ya no borran: escriben `archivado_en`. Las listas
+del panel filtran `archivado_en is null`, así que para quien administra la
+carta no cambia nada.
+
+**Por qué:** V-POS comparte esta base, y cada línea de un pedido apunta al plato
+que se vendió. Si el plato se borra, o el borrado falla por la clave foránea
+—y entonces el panel no puede borrar nada— o la venta se queda sin nombre.
+
+Dos efectos que conviene no deshacer sin pensarlo:
+
+- **Las fotos ya no se borran** al retirar un plato: la fila sigue siendo su
+  dueña, y `limpieza.js` solo se lleva lo que no referencia nadie.
+- **Una categoría archiva sus platos a mano**, antes que a ella misma. Ya no hay
+  cascada que los arrastre.
+
+La carta no necesitó cambios: el filtro vive en la política de lectura, no en
+`vmenus-app`.
+
 ## El slug de un restaurante
 
 No es un nombre interno: es la URL pública y lo que va impreso en los QR. Un

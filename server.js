@@ -1418,7 +1418,10 @@ app.get('/api/categorias', auth, async (req, res) => {
   const rid = req.query.restaurante_id;
   if (!rid) return res.status(400).json({ error: 'Falta restaurante_id' });
   if (!canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
-  const { data, error } = await supabase.from('categorias').select('*').eq('restaurante_id', rid).order('orden');
+  // 'archivado_en is null' en todas las listas del panel: archivar tiene que
+  // verse igual que borraba antes. Ver sql/23.
+  const { data, error } = await supabase.from('categorias').select('*')
+    .eq('restaurante_id', rid).is('archivado_en', null).order('orden');
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
@@ -1474,22 +1477,21 @@ app.delete('/api/categorias/:id', auth, async (req, res) => {
   const { data: cat } = await supabase.from('categorias').select('restaurante_id').eq('id', req.params.id).single();
   if (!cat || !canAccessRestaurante(req.user, cat.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
 
-  // Antes del delete: después de la cascada ya no hay a quién preguntarle qué
-  // fotos eran suyas.
-  const { data: platos } = await supabase.from('productos')
-    .select('imagen_url').eq('categoria_id', req.params.id);
+  // Ya no hay cascada que se lleve los platos: se archivan con su categoría,
+  // a mano y antes que ella, para que no quede un plato apuntando a una
+  // categoría que la carta ya no muestra.
+  const ahora = new Date().toISOString();
+  const { data: platos, error: errorPlatos } = await supabase.from('productos')
+    .update({ archivado_en: ahora }).eq('categoria_id', req.params.id)
+    .is('archivado_en', null).select('id');
+  if (errorPlatos) return res.status(500).json({ error: errorPlatos.message });
 
-  const { error } = await supabase.from('categorias').delete().eq('id', req.params.id);
+  const { error } = await supabase.from('categorias')
+    .update({ archivado_en: ahora }).eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
 
-  // Solo después de que la base confirme el borrado: si fallara, estas fotos
-  // seguirían en uso.
-  for (const p of platos || []) {
-    const ruta = rutaLocalDeSubida(p.imagen_url);
-    if (ruta && fs.existsSync(ruta)) { try { fs.unlinkSync(ruta); } catch {} }
-  }
-
-  res.json({ ok: true, productos_borrados: platos?.length || 0 });
+  // Las fotos se quedan, por lo mismo que en el plato suelto.
+  res.json({ ok: true, productos_borrados: platos?.length || 0, archivado: true });
 });
 
 // ── PRECIO: UN SOLO DATO ESCRITO DOS VECES ────────────────────
@@ -1574,7 +1576,8 @@ app.get('/api/productos', auth, async (req, res) => {
   const rid = req.query.restaurante_id;
   if (!rid) return res.status(400).json({ error: 'Falta restaurante_id' });
   if (!canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
-  const { data, error } = await supabase.from('productos').select('*').eq('restaurante_id', rid).order('precio_numerico');
+  const { data, error } = await supabase.from('productos').select('*')
+    .eq('restaurante_id', rid).is('archivado_en', null).order('precio_numerico');
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
@@ -1671,26 +1674,20 @@ app.delete('/api/productos/:id/video', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Archiva el plato en vez de borrarlo (sql/23): las ventas del POS que lo
+// nombran tienen que seguir pudiendo decir qué se vendió, y su foto también
+// se conserva.
 app.delete('/api/productos/:id', auth, async (req, res) => {
   const { data: prod } = await supabase.from('productos').select('restaurante_id, imagen_url').eq('id', req.params.id).single();
   if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
-  // Borrar imagen del servidor si es local.
-  //
-  // Con rutaLocalDeSubida() y no partiendo la URL a mano. 'imagen_url' lo
-  // escribe el cliente —está en la lista de permitidos del PATCH—, así que un
-  // valor como 'https://x/uploads/../server.js' se convertía en un unlink
-  // sobre /app/server.js: el path.join de antes no comprobaba que el
-  // resultado siguiera dentro de uploads/.
-  //
-  // Es la misma función que usa el worker antes de darle un archivo a ffmpeg.
-  // Ya estaba escrita; esta ruta era la única que no la usaba.
-  const rutaImagen = rutaLocalDeSubida(prod.imagen_url);
-  if (rutaImagen && fs.existsSync(rutaImagen)) {
-    try { fs.unlinkSync(rutaImagen); } catch {}
-  }
-  const { error } = await supabase.from('productos').delete().eq('id', req.params.id);
+  // La foto YA NO se borra. El plato sigue existiendo, así que su archivo
+  // sigue teniendo dueño: borrarlo dejaría una venta vieja del POS apuntando
+  // a una imagen que no está. El limpiador de uploads/ solo se lleva lo que
+  // ya no referencia ninguna fila, y esta fila se queda.
+  const { error } = await supabase.from('productos')
+    .update({ archivado_en: new Date().toISOString() }).eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ ok: true });
+  res.json({ ok: true, archivado: true });
 });
 
 // ── PROMOCIONES ───────────────────────────────────────────────
