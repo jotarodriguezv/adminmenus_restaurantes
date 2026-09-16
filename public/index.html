@@ -147,6 +147,7 @@
 			<div class="tabs">
 				<button class="tab-btn active" onclick="switchTab('productos',this)">Productos</button>
 				<button class="tab-btn" onclick="switchTab('categorias',this)">Categorías</button>
+				<button class="tab-btn" id="tabBtnAjustes" onclick="switchTab('ajustes',this)">Ajustes</button>
 				<button class="tab-btn" id="tabBtnApariencia" onclick="switchTab('apariencia',this)" style="display:none">Apariencia</button>
 				<button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
 				<button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
@@ -155,7 +156,6 @@
 				<button class="tab-btn" id="tabBtnImportar" onclick="switchTab('importar',this)" style="display:none">Importar carta</button>
 				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
 				<button class="tab-btn" onclick="switchTab('estadisticas',this)">Estadísticas</button>
-				<button class="tab-btn" id="tabBtnAjustes" onclick="switchTab('ajustes',this)">Ajustes</button>
 			</div>
 			<div class="content">
 
@@ -1193,41 +1193,14 @@
 					     pintarlo y el plan lo incluye; en el resto, la tarjeta explica por qué no. -->
 					<div class="section-card" id="ajCarritoCard">
 						<div class="section-header">
-							<div class="section-title">Pedidos desde la carta</div>
-							<label class="toggle" id="ajCarritoInterruptor" title="Carrito de pedidos">
-								<input type="checkbox" id="ajCarrito" aria-label="Carrito de pedidos" onchange="pintarNotaCarrito()"><span class="toggle-slider"></span>
+							<div class="section-title">Carrito de compras</div>
+							<label class="toggle" id="ajCarritoInterruptor" title="Carrito de compras">
+								<input type="checkbox" id="ajCarrito" aria-label="Carrito de compras" onchange="pintarNotaCarrito()"><span class="toggle-slider"></span>
 							</label>
 						</div>
 						<p id="ajCarritoNota" style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.5"></p>
 					</div>
 
-					<div class="section-card">
-						<div class="section-header">
-							<div class="section-title">Redes sociales</div>
-							<label class="toggle" title="Enseñar la barra de redes en la carta">
-								<input type="checkbox" id="ajSocialBar" aria-label="Enseñar la barra de redes en la carta"><span class="toggle-slider"></span>
-							</label>
-						</div>
-						<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
-							Con el interruptor encendido, tu carta enseña botones a estas redes. Las que dejes vacías no salen.
-						</p>
-						<div class="form-group">
-							<label for="ajSocialInstagram" class="form-label">Instagram <span style="color:var(--text-dim)">(dirección completa)</span></label>
-							<input type="url" class="form-input" id="ajSocialInstagram" placeholder="https://instagram.com/tu_restaurante" autocomplete="off">
-						</div>
-						<div class="form-group">
-							<label for="ajSocialFacebook" class="form-label">Facebook <span style="color:var(--text-dim)">(dirección completa)</span></label>
-							<input type="url" class="form-input" id="ajSocialFacebook" placeholder="https://facebook.com/tu_restaurante" autocomplete="off">
-						</div>
-						<div class="form-group">
-							<label for="ajSocialTiktok" class="form-label">TikTok <span style="color:var(--text-dim)">(dirección completa)</span></label>
-							<input type="url" class="form-input" id="ajSocialTiktok" placeholder="https://tiktok.com/@tu_restaurante" autocomplete="off">
-						</div>
-						<div class="form-group" style="margin-bottom:0">
-							<label for="ajSocialWhatsapp" class="form-label">WhatsApp <span style="color:var(--text-dim)">(número con código de país)</span></label>
-							<input type="tel" class="form-input" id="ajSocialWhatsapp" placeholder="573001234567" autocomplete="off">
-						</div>
-					</div>
 					<!-- Los filtros los pintan los seis modelos de la carta (core/filtros.js en
 					     vmenus-app), no solo explorar. Las insignias de cada plato sí siguen
 					     siendo de explorar, y por eso no están aquí. -->
@@ -1260,6 +1233,33 @@
 							</div>
 						</div>
 						<p id="ajFiltrosNota" style="font-size:13px;margin:14px 0 0;line-height:1.5"></p>
+					</div>
+					<div class="section-card">
+						<div class="section-header">
+							<div class="section-title">Redes sociales</div>
+							<label class="toggle" title="Enseñar la barra de redes en la carta">
+								<input type="checkbox" id="ajSocialBar" aria-label="Enseñar la barra de redes en la carta"><span class="toggle-slider"></span>
+							</label>
+						</div>
+						<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
+							Con el interruptor encendido, tu carta enseña botones a estas redes. Las que dejes vacías no salen.
+						</p>
+						<div class="form-group">
+							<label for="ajSocialInstagram" class="form-label">Instagram <span style="color:var(--text-dim)">(dirección completa)</span></label>
+							<input type="url" class="form-input" id="ajSocialInstagram" placeholder="https://instagram.com/tu_restaurante" autocomplete="off">
+						</div>
+						<div class="form-group">
+							<label for="ajSocialFacebook" class="form-label">Facebook <span style="color:var(--text-dim)">(dirección completa)</span></label>
+							<input type="url" class="form-input" id="ajSocialFacebook" placeholder="https://facebook.com/tu_restaurante" autocomplete="off">
+						</div>
+						<div class="form-group">
+							<label for="ajSocialTiktok" class="form-label">TikTok <span style="color:var(--text-dim)">(dirección completa)</span></label>
+							<input type="url" class="form-input" id="ajSocialTiktok" placeholder="https://tiktok.com/@tu_restaurante" autocomplete="off">
+						</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label for="ajSocialWhatsapp" class="form-label">WhatsApp <span style="color:var(--text-dim)">(número con código de país)</span></label>
+							<input type="tel" class="form-input" id="ajSocialWhatsapp" placeholder="573001234567" autocomplete="off">
+						</div>
 					</div>
 					<div style="text-align:right;">
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveAjustes()">Guardar ajustes</button>

@@ -128,6 +128,7 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 
 ## 11.bis Ajustes (carrito, redes sociales, filtros y etiquetas)
 
+- [ ] Como **restaurante**, la pestaña «Ajustes» está **la tercera**, detrás de Categorías, y sus tarjetas van en este orden: Carrito de compras, Filtros y etiquetas, Redes sociales. [16/09/2026]
 - [ ] Como **restaurante**, la pestaña «Ajustes» aparece y trae las redes que ya estaban guardadas. [15/09/2026]
 - [ ] Cambiar una red y guardar: sale «✓ Guardado» y la carta pública enseña el enlace nuevo. [15/09/2026]
 - [ ] Un enlace sin `https://` (`facebook.com/x`) no se guarda y el motivo sale junto al botón. [15/09/2026]
@@ -140,7 +141,7 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] En un restaurante con **modelo Sidebar o Carrito**, los chips salen **debajo de la cabecera fija** y se pulsan: antes quedaban tapados por ella. [16/09/2026 · vmenus-app#29]
 - [ ] Con filtros elegidos y **ningún plato marcado**, Ajustes lo avisa en naranja y dice que se arregla en la ficha del plato; al marcar uno, la nota pasa a verde. [16/09/2026]
 - [ ] Apagar el interruptor de filtros y guardar: la carta deja de enseñar chips y, al volver a encenderlo, **los filtros elegidos siguen ahí**. [16/09/2026]
-- [ ] **Solo después de desplegar vmenus-app#28.** Como restaurante Topnav o Sidebar, en Ajustes encender «Pedidos desde la carta»: avisa de que falta el número y, al guardar, aparecen las pestañas Pedidos y Toppings. [15/09/2026]
+- [ ] **Solo después de desplegar vmenus-app#28.** Como restaurante Topnav o Sidebar, en Ajustes encender «Carrito de compras»: avisa de que falta el número y, al guardar, aparecen las pestañas Pedidos y Toppings. [15/09/2026]
 - [ ] Con el número puesto en Pedidos, en la carta pública: botón del pedido (flotante en Topnav, en la cabecera en Sidebar), «+» en cada plato y en la ficha, y el pedido llega a WhatsApp. [15/09/2026]
 - [ ] Apagarlo y guardar: la carta vuelve a ser como antes y las pestañas Pedidos y Toppings desaparecen si no hay toppings. [15/09/2026]
 - [ ] En un restaurante Explorar, o con plan Vitrina, la tarjeta no ofrece el interruptor y dice por qué. [15/09/2026]

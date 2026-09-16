@@ -6269,6 +6269,34 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('el orden de Ajustes y el nombre del carrito', () => {
+	// 16/09/2026, decidido con el usuario: lo que cambia la carta va primero y
+	// las redes al final, y «Pedidos desde la carta» pasa a «Carrito de compras»
+	// porque es lo que la gente reconoce sin que nadie se lo explique.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('la pestaña Ajustes va tercera, detrás de Categorías', () => {
+		// Estaba la última del carril, que en móvil hay que desplazar para ver.
+		const carril = src.match(/<div class="tabs">[\s\S]*?<\/div>/)[0];
+		const botones = [...carril.matchAll(/switchTab\('([a-z]+)'/g)].map(m => m[1]);
+		assert.equal(JSON.stringify(botones.slice(0, 3)), '["productos","categorias","ajustes"]');
+	});
+
+	test('dentro de Ajustes: carrito, filtros y las redes al final', () => {
+		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabQr"'));
+		const orden = [...tab.matchAll(/<div class="section-title">([^<]+)</g)].map(m => m[1]);
+		assert.equal(JSON.stringify(orden), '["Carrito de compras","Filtros y etiquetas","Redes sociales"]');
+		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('Redes sociales'), 'el botón de guardar, después de todas');
+	});
+
+	test('el interruptor del carrito se llama igual para un lector de pantalla', () => {
+		const tarjeta = src.slice(src.indexOf('id="ajCarritoCard"'), src.indexOf('id="ajCarritoNota"'));
+		assert.match(tarjeta, /aria-label="Carrito de compras"/);
+		assert.doesNotMatch(tarjeta, /Pedidos desde la carta/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('el interruptor de filtros y la nota que explica lo que se ve', () => {
 	// 16/09/2026. «Si no marcas ninguno, no salen» lo entiende quien hizo el
 	// panel; el restaurante ve una lista de chips y no sabe si aquello está
