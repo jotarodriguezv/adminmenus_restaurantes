@@ -5250,15 +5250,16 @@ describe('los grupos de toppings se llaman igual en la pestaña y en la ficha', 
 describe('la pestaña de toppings vacía explica para qué sirve', () => {
 	// TP2: tres «Sin elementos» y nada que dijera que un topping no sale en
 	// ninguna carta hasta que un plato lo ofrece.
-	function montar(catalogo) {
+	function montar(catalogo, productos = []) {
 		const nodos = {};
-		const nodo = () => ({ style: {}, innerHTML: '', appendChild() {}, querySelector: () => ({}) });
+		const nodo = () => ({ style: {}, innerHTML: '', textContent: '', appendChild() {}, querySelector: () => ({}) });
 		const ctx = cargar('toppings.js', 'function renderToppingList', 'const CONTENEDOR_TOPPING', {
 			toppingState: catalogo, esc: x => x, Number,
 			document: { getElementById: id => (nodos[id] ||= nodo()), createElement: nodo },
 		});
 		const guia = cargar('toppings.js', '// La guía sale mientras el catálogo esté entero vacío', 'function renderToppingList', {
-			toppingState: catalogo, document: { getElementById: id => (nodos[id] ||= nodo()) },
+			toppingState: catalogo, state: { productos },
+			document: { getElementById: id => (nodos[id] ||= nodo()) },
 		});
 		vm.runInContext('pintarGuiaToppings = globalThis.__guia;', Object.assign(ctx, { __guia: guia.pintarGuiaToppings }));
 		return { ctx, nodos, guia };
@@ -5277,6 +5278,46 @@ describe('la pestaña de toppings vacía explica para qué sirve', () => {
 		const { ctx, nodos } = montar(catalogo);
 		ctx.renderToppingList('listToppingsPlatino', 'platino');
 		assert.equal(nodos.toppingsGuia.style.display, 'none');
+	});
+
+	test('con toppings creados y ningún plato que los ofrezca, se avisa', () => {
+		// 16/09/2026, a la par que la nota de los filtros: es el mismo caso —lo
+		// configuraste y la carta no lo enseña— y desde el panel parece un fallo.
+		const catalogo = { platino: [{ id: 't1', nombre: 'Queso' }], premium: [], salsas: [{ id: 't2', nombre: 'Rosada' }] };
+		const { guia, nodos } = montar(catalogo, [{ id: 'p1', atributos: { personalizacion: { platino: [], premium: [], salsas: [] } } }]);
+		guia.pintarGuiaToppings();
+		assert.equal(nodos.toppingsSinUso.style.display, 'block');
+		assert.match(nodos.toppingsSinUso.textContent, /2 toppings creados/);
+		assert.match(nodos.toppingsSinUso.textContent, /Personalización/, 'y dice dónde se arregla');
+	});
+
+	test('con uno solo, la frase va en singular', () => {
+		const { guia, nodos } = montar({ platino: [{ id: 't1', nombre: 'Queso' }], premium: [], salsas: [] }, []);
+		guia.pintarGuiaToppings();
+		assert.match(nodos.toppingsSinUso.textContent, /un topping creado/);
+	});
+
+	test('basta con que un plato ofrezca uno para que el aviso no salga', () => {
+		const catalogo = { platino: [{ id: 't1', nombre: 'Queso' }], premium: [], salsas: [{ id: 't2', nombre: 'Rosada' }] };
+		const { guia, nodos } = montar(catalogo, [{ id: 'p1', atributos: { personalizacion: { platino: ['t1'], premium: [], salsas: [] } } }]);
+		guia.pintarGuiaToppings();
+		assert.equal(nodos.toppingsSinUso.style.display, 'none');
+	});
+
+	test('un plato viejo que guarda el NOMBRE cuenta igual', () => {
+		// Los anteriores a la migración llevan nombres dentro. Darlos por no
+		// usados sería avisar de un problema que no existe.
+		const catalogo = { platino: [{ id: 't1', nombre: 'Queso' }], premium: [], salsas: [] };
+		const { guia, nodos } = montar(catalogo, [{ id: 'p1', atributos: { personalizacion: { platino: ['Queso'], premium: [], salsas: [] } } }]);
+		guia.pintarGuiaToppings();
+		assert.equal(nodos.toppingsSinUso.style.display, 'none');
+	});
+
+	test('con el catálogo vacío no se avisa: de eso habla la guía', () => {
+		const { guia, nodos } = montar({ platino: [], premium: [], salsas: [] }, []);
+		guia.pintarGuiaToppings();
+		assert.equal(nodos.toppingsGuia.style.display, 'block');
+		assert.equal(nodos.toppingsSinUso.style.display, 'none', 'dos mensajes a la vez diciendo lo mismo');
 	});
 
 	test('la guía dice que el topping se asigna en la ficha del plato', () => {

@@ -42,6 +42,38 @@ function catalogoToppingsVacio(t) {
 function pintarGuiaToppings() {
   const guia = document.getElementById('toppingsGuia');
   if (guia) guia.style.display = catalogoToppingsVacio(toppingState) ? 'block' : 'none';
+  pintarAvisoSinUso();
+}
+
+// Un topping que no ofrece ningún plato no sale en ninguna carta, igual que un
+// filtro que ningún plato cumple. La pestaña lo cuenta arriba, pero eso se lee
+// una vez y el catálogo sigue ahí meses: quien lo creó y no lo marcó ve una
+// pestaña llena y una carta que no pregunta nada.
+//
+// Compara por identificador Y por nombre, como toppingsHuerfanos: un plato que
+// nadie haya vuelto a guardar desde la migración todavía lleva nombres dentro,
+// y darlo por no usado sería avisar de un problema que no existe.
+function toppingsSinUso(t = toppingState, productos = state.productos) {
+  const catalogo = [...t.platino, ...t.premium, ...t.salsas];
+  if (!catalogo.length) return 0;   // catálogo vacío: de eso habla la guía
+  const suyos = new Set();
+  for (const x of catalogo) { suyos.add(x.id); suyos.add(x.nombre); }
+  const alguno = (productos || []).some(p => {
+    const pers = p.atributos?.personalizacion;
+    if (!pers) return false;
+    return [...(pers.platino || []), ...(pers.premium || []), ...(pers.salsas || [])].some(n => suyos.has(n));
+  });
+  return alguno ? 0 : catalogo.length;
+}
+
+function pintarAvisoSinUso() {
+  const aviso = document.getElementById('toppingsSinUso');
+  if (!aviso) return;
+  const cuantos = toppingsSinUso();
+  aviso.style.display = cuantos ? 'block' : 'none';
+  aviso.textContent = cuantos === 1
+    ? 'Tienes un topping creado y ningún plato lo ofrece, así que en tu carta no aparece. Márcalo en la ficha de los platos que lo lleven, en «Personalización».'
+    : `Tienes ${cuantos} toppings creados y ningún plato los ofrece, así que en tu carta no aparece ninguno. Márcalos en la ficha de cada plato, en «Personalización».`;
 }
 
 function renderToppingList(containerId, tipo) {
@@ -201,6 +233,7 @@ async function saveToppings() {
     if (data) state.restaurante = data;
     // Quedarse sin toppings puede dejar la pestaña sin motivo para existir.
     ajustarPestanasAlModelo();
+    pintarAvisoSinUso();
     showToast('Toppings guardados', 'success');
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
 }
