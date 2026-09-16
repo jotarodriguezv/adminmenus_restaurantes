@@ -608,6 +608,71 @@ que buscan `tabBtnApariencia` y el texto «Apariencia» en los avisos.
    nombre de un filtro lo pintan la carta y el panel escapado (`esc()` o
    `textContent`); comprobado en los seis modelos y en el panel antes de abrirlo.
 
+### En diseño: rehacer los planes en dos familias, Fotos y Video
+
+**Planteado por el usuario el 16/09/2026. Solo anotado: no implementar nada
+hasta que lo pida.** Lo está pensando; lo de abajo es su idea y lo que hay que
+decidir antes de escribir código.
+
+**El problema de hoy.** Un plan mezcla tres ejes que no tienen nada que ver:
+**qué es la carta** (fotos o video), **cuánto se paga** y **qué funciones
+tiene**. Por eso existe un plan «Pedidos» cuya única diferencia es encender el
+carrito, y un modelo «Carrito» cuya única diferencia con Sidebar es que tocar
+un plato lo suma al pedido en vez de abrir su ficha.
+
+**La idea:**
+
+| Familia | Niveles | Qué los diferencia |
+|---|---|---|
+| **Fotos** | uno de entrada (¿«Inicial»?) y **«Pro»**, que es el Completo de hoy | la entrada no tiene fotos, o tiene un tope |
+| **Video** | horizontal y vertical | la orientación de la carta |
+
+- Una carta es de fotos **o** de video, nunca las dos.
+- **Desaparecen «Pedidos» y «Vitrina».**
+- El **carrito, los filtros y el buscador** —que todavía no existe y el usuario
+  quiere en las plantillas— van **aparte** del plan.
+- **Explorar tendrá carrito** (hoy no lo pinta aunque el plan lo incluya). Es lo
+  próximo que quiere trabajar.
+- **El modelo «Carrito» se retira.** Lo usan `aojocerrado` y `perroscriollos`,
+  los dos de prueba. Pasarían a Sidebar con el carrito encendido, que es lo más
+  parecido que hay. Orden: quitarlo del selector, migrar esos dos (escritura en
+  producción: avisar) y después borrar el tema y su regla de «carrito siempre
+  encendido».
+
+**Lo que falta decidir:**
+
+1. **La entrada de Fotos: ¿sin fotos o con tope?** Si es tope: cuántas, qué
+   cuenta (¿la foto de cada plato y también las adicionales?; logo y fondo
+   seguramente no), y qué pasa al bajar de plan con más fotos del tope. Lo
+   razonable es no borrar nada y no dejar subir más. El tope tiene que
+   comprobarlo el servidor, no solo el panel.
+2. **Qué va en cada nivel** de lo que hoy decide el plan: el crédito «Hecho con
+   VMenus», el QR personalizable, las estadísticas, los horarios, la cartelera
+   de TV y las promociones.
+3. **Video: ¿tiene niveles?** Hoy horizontal y vertical son el **mismo plan** y
+   lo que cambia es el modelo, porque pasar de uno a otro obliga a reconvertir
+   los videos (`docs/planesymodelos.md` §3). Si la orientación pasa a ser el
+   plan, hay que decidir qué pasa al cambiarla.
+4. **«Aparte» del plan: ¿incluido en todos o vendido como extra?** Si va
+   incluido, sobra `ATRIBUTOS_SEGUN_PLAN.carrito` y el carrito es un interruptor
+   en todas las cartas. Si se vende, hace falta un concepto nuevo de extras,
+   separado del plan.
+5. **Los nombres**, y **qué plan tiene un restaurante sin plan**: hoy cae en
+   `pedidos` (`PLAN_POR_DEFECTO`), que desaparecería.
+
+**Lo que hay que saber antes de tocarlo:**
+
+- **`PLANES` vive en TRES sitios**, no en dos como dice
+  `docs/planesymodelos.md`: `server.js`, `public/index.html` y
+  `vmenus-app/core/planes.js`. El del servidor es el que manda. Es el momento
+  de corregir el documento.
+- **El plan se guarda por nombre** en `atributos.plan`. Renombrar obliga a
+  migrar los restaurantes y, mientras tanto, a seguir entendiendo los nombres
+  viejos, igual que se hizo con `filtros_activos`.
+- **Los dos de producción no deberían notar nada:** Bonzas y Malparados son
+  Completo, y pasarían a Fotos Pro.
+- **La IA no entra en esto:** va por cupo, aparte del plan (§4 del documento).
+
 ### Decisión abierta: la sesión caduca en seco a las 8 horas
 
 **Marcado el 14/09/2026. La decide el equipo del usuario.** No implementar nada
