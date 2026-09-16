@@ -6111,7 +6111,7 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 
 	test('los filtros no se esconden ni dicen que son de explorar: los pintan todos los modelos', () => {
 		// Desde el 15/09/2026, en la pestaña Ajustes y no en Apariencia.
-		assert.match(src, /<div class="section-card" id="ajFiltrosCard">\s*<div class="section-title">Filtros y etiquetas<\/div>/);
+		assert.match(src, /<div class="section-card" id="ajFiltrosCard">[\s\S]{0,600}?<div class="section-title">Filtros y etiquetas<\/div>/);
 		assert.doesNotMatch(src, /apFiltros/);
 		assert.doesNotMatch(src, /\(solo modelo explorar\)<\/span><\/div>/);
 		const ajustar = src.match(/function ajustarEstiloAlModelo\(\) \{[\s\S]*?\n\}/)[0];
@@ -6196,7 +6196,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		const r = ctx.recolectarAjustes();
 		assert.equal(r.social_tiktok, 'https://tiktok.com/@x');
 		assert.equal(r.social_whatsapp, '573001234567');
-		assert.deepEqual(Object.keys(r).sort(), ['filtros_disponibles', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
+		assert.deepEqual(Object.keys(r).sort(), ['filtros_activos', 'filtros_disponibles', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
 	});
 
 	test('guardar manda solo lo de Ajustes y deja el estado al día', async () => {
@@ -6214,7 +6214,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.equal(peticiones[0].metodo, 'PATCH');
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['atributos'], 'nada fuera de atributos');
-		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k => k.startsWith('social_') || k === 'filtros_disponibles'),
+		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k => k.startsWith('social_') || k.startsWith('filtros_')),
 			'solo las claves de Ajustes');
 		assert.equal(ctx.state.restaurante.atributos.social_instagram, 'https://instagram.com/bonzas');
 		assert.equal(campos('ajustesStatus').textContent, '✓ Guardado');
@@ -6265,6 +6265,142 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		ctx.agregarFiltroCustom();
 		assert.equal(ctx.state.filtrosDisponibles.length, 2, 'el mismo nombre con otras mayúsculas no se duplica');
 		assert.deepEqual(avisos.at(-1), ['error', 'Ese filtro ya existe']);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('el interruptor de filtros y la nota que explica lo que se ve', () => {
+	// 16/09/2026. «Si no marcas ninguno, no salen» lo entiende quien hizo el
+	// panel; el restaurante ve una lista de chips y no sabe si aquello está
+	// encendido. Y el caso que de verdad se confunde con un fallo es tener
+	// filtros elegidos sin ningún plato marcado: la carta no enseña ninguno.
+	const src = codigoDelPanel();
+	const desde = src.indexOf('id="ajFiltrosCard"');
+	const tarjeta = src.slice(desde, desde + 2200);
+
+	test('la tarjeta trae interruptor, cuerpo plegable y nota', () => {
+		assert.match(tarjeta, /id="ajFiltros"[^>]*onchange="pintarFiltros\(\)"/);
+		assert.match(tarjeta, /id="ajFiltrosNota"/);
+		// El catálogo y el campo de personalizados van DENTRO del cuerpo: son
+		// lo que se esconde al apagar.
+		const cuerpo = tarjeta.indexOf('id="ajFiltrosCuerpo"');
+		assert.ok(cuerpo > -1 && cuerpo < tarjeta.indexOf('id="ajFiltrosCatalogo"'));
+		assert.ok(cuerpo < tarjeta.indexOf('id="ajFiltroCustomLabel"'));
+	});
+
+	function montarFiltros({ filtros = [], productos = [], encendido = true } = {}) {
+		const campos = {};
+		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {}, innerHTML: '', appendChild() {} });
+		$('ajFiltros').checked = encendido;
+		const nodo = () => ({ style: {}, innerHTML: '', textContent: '', hijos: [], appendChild(h) { this.hijos.push(h); return h; } });
+		const ctx = cargar('ajustes.js', '// ── FILTROS Y ETIQUETAS', '// ── PEDIDOS DESDE LA CARTA', {
+			document: { getElementById: $, createElement: nodo },
+			state: { filtrosDisponibles: filtros, productos },
+			CATALOGO_FILTROS: [], esc: x => String(x), showToast: () => {},
+		});
+		return { ctx, $ };
+	}
+
+	const PICANTE = { id: 'picante', label: 'Picante', emoji: '🌶' };
+	const SIN_LACTEOS = { id: 'sin_lacteos', label: 'Sin lácteos', emoji: '🥛' };
+	const plato = (...filtros) => ({ id: 'p' + filtros.join(''), atributos: { filtros } });
+
+	test('apagado esconde la sección y lo dice sin asustar', () => {
+		const { ctx, $ } = montarFiltros({ filtros: [PICANTE], encendido: false });
+		ctx.pintarFiltros();
+		assert.equal($('ajFiltrosCuerpo').style.display, 'none');
+		assert.match($('ajFiltrosNota').textContent, /no enseña filtros/);
+		assert.match($('ajFiltrosNota').textContent, /se guarda aunque lo apagues/,
+			'apagar no borra, y hay que decirlo: si no, nadie se atreve a apagarlo');
+		assert.equal($('ajFiltrosNota').style.color, 'var(--text-muted)', 'no es un problema, es una decisión suya');
+	});
+
+	test('encendido sin ninguno elegido, la nota lo avisa', () => {
+		const { ctx, $ } = montarFiltros({ filtros: [] });
+		ctx.pintarFiltros();
+		assert.equal($('ajFiltrosCuerpo').style.display, '');
+		assert.match($('ajFiltrosNota').textContent, /Todavía no has elegido ninguno/);
+		assert.equal($('ajFiltrosNota').style.color, 'var(--warn)');
+	});
+
+	test('elegidos pero sin ningún plato marcado: eso es lo que parece un fallo', () => {
+		// Es exactamente el caso que llevó a esto: filtros configurados, ningún
+		// plato marcado, y la carta sin chips.
+		const { ctx, $ } = montarFiltros({ filtros: [PICANTE, SIN_LACTEOS], productos: [plato()] });
+		ctx.pintarFiltros();
+		assert.match($('ajFiltrosNota').textContent, /Elegiste 2 filtros/);
+		assert.match($('ajFiltrosNota').textContent, /no aparece ninguno/);
+		assert.match($('ajFiltrosNota').textContent, /ficha de cada plato/, 'y dice dónde se arregla');
+		assert.equal($('ajFiltrosNota').style.color, 'var(--warn)');
+	});
+
+	test('con uno solo la frase va en singular', () => {
+		const { ctx, $ } = montarFiltros({ filtros: [PICANTE], productos: [plato()] });
+		ctx.pintarFiltros();
+		assert.match($('ajFiltrosNota').textContent, /Elegiste un filtro/);
+	});
+
+	test('si unos se usan y otros no, dice cuántos se ven', () => {
+		const { ctx, $ } = montarFiltros({ filtros: [PICANTE, SIN_LACTEOS], productos: [plato('picante')] });
+		ctx.pintarFiltros();
+		assert.match($('ajFiltrosNota').textContent, /se ven 1 de 2/);
+		assert.equal($('ajFiltrosNota').style.color, 'var(--warn)');
+	});
+
+	test('todos con plato: la nota confirma en verde', () => {
+		const { ctx, $ } = montarFiltros({ filtros: [PICANTE, SIN_LACTEOS], productos: [plato('picante'), plato('sin_lacteos')] });
+		ctx.pintarFiltros();
+		assert.match($('ajFiltrosNota').textContent, /Tus 2 filtros se ven en la carta/);
+		assert.equal($('ajFiltrosNota').style.color, 'var(--success)');
+	});
+
+	test('un plato marcado con un filtro que ya no está elegido no cuenta', () => {
+		// La carta hace lo mismo: sin catálogo, ese id no resucita.
+		const { ctx } = montarFiltros({ filtros: [PICANTE], productos: [plato('sin_lacteos')] });
+		assert.equal(ctx.filtrosConPlato(), 0);
+	});
+
+	function montarPintado(atributos) {
+		const campos = {};
+		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
+		const ctx = cargar('ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS', {
+			document: { getElementById: $ },
+			renderFiltrosCatalogo: () => {}, pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
+			state: { restaurante: { id: 'r1', atributos } },
+			Object,
+		});
+		return { ctx, $ };
+	}
+
+	test('sin el dato guardado, encendido si ya había filtros elegidos', () => {
+		// Bonzas tiene su filtro desde antes del interruptor y nadie escribió
+		// nunca esta clave. Encontrarlo apagado sería decirle que no los tiene.
+		const { ctx, $ } = montarPintado({ filtros_disponibles: [PICANTE] });
+		ctx.renderAjustes();
+		assert.equal($('ajFiltros').checked, true);
+	});
+
+	test('sin el dato y sin filtros, apagado', () => {
+		const { ctx, $ } = montarPintado({});
+		ctx.renderAjustes();
+		assert.equal($('ajFiltros').checked, false);
+	});
+
+	test('guardado en false manda, aunque haya filtros elegidos', () => {
+		const { ctx, $ } = montarPintado({ filtros_disponibles: [PICANTE], filtros_activos: false });
+		ctx.renderAjustes();
+		assert.equal($('ajFiltros').checked, false);
+	});
+
+	test('apagarlo guarda el interruptor y conserva la lista', () => {
+		const { ctx, $ } = montarPintado({ filtros_disponibles: [PICANTE] });
+		ctx.renderAjustes();
+		$('ajFiltros').checked = false;
+		const r = ctx.recolectarAjustes();
+		assert.equal(r.filtros_activos, false);
+		// JSON.stringify y no deepEqual: el array viene de otro realm de vm.
+		assert.equal(JSON.stringify(r.filtros_disponibles.map(f => f.id)), '["picante"]',
+			'apagar esconde, no borra: encenderlo otra vez tiene que dejarlo todo igual');
 	});
 });
 
