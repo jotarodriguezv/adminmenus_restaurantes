@@ -731,7 +731,7 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // entonces solo las escribía el superadmin.
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
-  'filtros_disponibles', 'carrito'];
+  'filtros_disponibles', 'filtros_activos', 'carrito'];
 
 // ── FILTROS Y ETIQUETAS ───────────────────────────────────────
 // Lo que el restaurante ofrece como filtro en su carta. Entró en la lista del
@@ -978,7 +978,12 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
 
     // Un interruptor es un booleano: un "false" de texto es verdadero para
     // cualquier if, y encendería un carrito que el restaurante apagó.
-    if ('carrito' in entrantes) entrantes.carrito = entrantes.carrito === true;
+    //
+    // 'filtros_activos' es el otro extremo y por eso también está aquí: la carta
+    // solo apaga los chips con un false de verdad (core/filtros.js), así que un
+    // "false" de texto los dejaría encendidos después de apagarlos.
+    for (const k of ['carrito', 'filtros_activos'])
+      if (k in entrantes) entrantes[k] = entrantes[k] === true;
     const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes);
     if (errorAjustes) return res.status(400).json({ error: errorAjustes });
 

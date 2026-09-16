@@ -1761,6 +1761,37 @@ describe('filtros y etiquetas · los elige el restaurante, con validación', () 
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('filtros_activos · el interruptor de los filtros', () => {
+	// 16/09/2026. No depende del plan, a diferencia del carrito: los filtros los
+	// tiene cualquier carta.
+	const guardar = (atributos, token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { nav: 'sidebar', plan: 'vitrina' } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos }, token);
+	};
+
+	test('el restaurante lo enciende y lo apaga, con cualquier plan', async () => {
+		await guardar({ filtros_activos: true });
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.filtros_activos, true);
+		await guardar({ filtros_activos: false });
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.filtros_activos, false);
+	});
+
+	test('un "false" de texto no deja los filtros encendidos', async () => {
+		// La carta solo los apaga con un false de verdad, así que una cadena
+		// dejaría encendido lo que el restaurante acaba de apagar.
+		await guardar({ filtros_activos: 'false' });
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.filtros_activos, false);
+	});
+
+	test('apagarlo no se lleva por delante los filtros elegidos', async () => {
+		await guardar({ filtros_activos: false, filtros_disponibles: [{ id: 'picante', label: 'Picante', emoji: '🌶' }] });
+		const escrito = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(escrito.filtros_activos, false);
+		assert.equal(escrito.filtros_disponibles.length, 1);
+	});
+});
+
 describe('carrito · lo enciende el restaurante, si su plan lo incluye', () => {
 	// 15/09/2026: el interruptor pasa a Ajustes y topnav y sidebar ya pintan
 	// carrito (vmenus-app#28). El plan manda: Vitrina no tiene pedidos.

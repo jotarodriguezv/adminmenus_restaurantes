@@ -35,6 +35,13 @@ function renderAjustes() {
     document.getElementById(id).value = at[clave] || '';
   // Una copia: los chips la cambian al pulsarlos, y hasta guardar no es de verdad.
   state.filtrosDisponibles = Array.isArray(at.filtros_disponibles) ? [...at.filtros_disponibles] : [];
+  // Sin el dato, encendido si ya hay filtros elegidos. Es como lo lee la carta
+  // —ausente es encendido, core/filtros.js— y así quien los configuró antes de
+  // que existiera el interruptor lo encuentra encendido, no apagado.
+  //
+  // Antes de pintar el catálogo, porque pintarlo repinta también la nota y esa
+  // frase depende de si el interruptor está encendido.
+  document.getElementById('ajFiltros').checked = at.filtros_activos ?? state.filtrosDisponibles.length > 0;
   renderFiltrosCatalogo();
   document.getElementById('ajCarrito').checked = !!at.carrito;
   pintarNotaCarrito();
@@ -50,6 +57,9 @@ function recolectarAjustes() {
   const carrito = puedeElegirCarrito() ? { carrito: document.getElementById('ajCarrito').checked } : {};
   return {
     ...carrito,
+    // La lista viaja también con el interruptor apagado: apagar esconde, no
+    // borra, y es lo que permite volver a encenderlo y encontrarlo todo igual.
+    filtros_activos: document.getElementById('ajFiltros').checked,
     filtros_disponibles: state.filtrosDisponibles,
     social_bar: document.getElementById('ajSocialBar').checked,
     social_instagram: valor('ajSocialInstagram'),
@@ -88,6 +98,41 @@ async function saveAjustes() {
 }
 
 // ── FILTROS Y ETIQUETAS ───────────────────────────────────────
+// El interruptor esconde la sección entera cuando está apagado: la lista de
+// chips con todo por marcar no ayuda a decidir si se quieren filtros o no.
+function pintarFiltros() {
+  const encendido = document.getElementById('ajFiltros').checked;
+  document.getElementById('ajFiltrosCuerpo').style.display = encendido ? '' : 'none';
+  const nota = document.getElementById('ajFiltrosNota');
+  const [texto, color] = notaFiltros(encendido, state.filtrosDisponibles.length, filtrosConPlato());
+  nota.textContent = texto;
+  nota.style.color = color;
+}
+
+// Cuántos de los filtros elegidos tiene al menos un plato. La carta solo pinta
+// esos (core/filtros.js), así que es el número que explica lo que se ve.
+function filtrosConPlato(lista = state.filtrosDisponibles, productos = state.productos) {
+  const marcados = new Set();
+  for (const p of productos || [])
+    for (const id of p.atributos?.filtros || []) marcados.add(id);
+  return lista.filter(f => marcados.has(f.id)).length;
+}
+
+// Aparte de la pantalla para poder probarla: son los tres estados que desde el
+// panel se confunden con «los configuré y no funcionan».
+function notaFiltros(encendido, elegidos, conPlato) {
+  if (!encendido) return ['Tu carta no enseña filtros. Lo que elijas aquí se guarda aunque lo apagues.', 'var(--text-muted)'];
+  if (!elegidos) return ['Todavía no has elegido ninguno, así que tu carta no enseña filtros.', 'var(--warn)'];
+  if (!conPlato) return [
+    elegidos === 1
+      ? 'Elegiste un filtro, pero ningún plato lo cumple: en tu carta no aparece. Márcalo en la ficha de los platos que lo cumplan.'
+      : `Elegiste ${elegidos} filtros, pero ningún plato los cumple: en tu carta no aparece ninguno. Márcalos en la ficha de cada plato.`,
+    'var(--warn)'];
+  if (conPlato < elegidos) return [
+    `En tu carta se ven ${conPlato} de ${elegidos}: los demás no los cumple ningún plato todavía.`, 'var(--warn)'];
+  return [elegidos === 1 ? 'Tu filtro se ve en la carta.' : `Tus ${elegidos} filtros se ven en la carta.`, 'var(--success)'];
+}
+
 // Un filtro está "activo" si su id está en state.filtrosDisponibles.
 function filtroActivo(id) {
   return state.filtrosDisponibles.some(f => f.id === id);
@@ -133,6 +178,10 @@ function renderFiltrosCatalogo() {
     wrap.appendChild(chips);
     cont.appendChild(wrap);
   }
+
+  // Marcar o desmarcar un chip cambia lo que dice la nota, y los dos sitios que
+  // tocan la lista acaban aquí.
+  pintarFiltros();
 }
 
 // Un "chip" clicable que activa/desactiva un filtro del catálogo.

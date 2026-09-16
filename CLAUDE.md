@@ -526,7 +526,7 @@ queda y lo que se abre:
 | Qué | Quién | Claves en `atributos` |
 |---|---|---|
 | **Datos del restaurante** (nombre, slug) | **solo superadmin**, lo dijo expresamente | — |
-| ~~**Filtros y etiquetas**~~ **Hecho el 15/09/2026**, pestaña Ajustes | el restaurante | `filtros_disponibles` |
+| ~~**Filtros y etiquetas**~~ **Hecho el 15/09/2026**, pestaña Ajustes; interruptor y nota el 16/09/2026 | el restaurante | `filtros_disponibles`, `filtros_activos` |
 | ~~**Redes sociales**~~ **Hecho el 15/09/2026**, pestaña Ajustes | el restaurante | `social_bar`, `social_facebook`, `social_instagram`, `social_tiktok`, `social_whatsapp` |
 | ~~**Carrito activable o desactivable**~~ **Hecho el 15/09/2026**, pestaña Ajustes, con vmenus-app#28 | el restaurante | `carrito` |
 | Plan, modelo, colores, tipografía, CSS, dominio, zona horaria… | superadmin, **sin decidir todavía** | — |

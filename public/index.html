@@ -1237,19 +1237,34 @@
 					     vmenus-app), no solo explorar. Las insignias de cada plato sí siguen
 					     siendo de explorar, y por eso no están aquí. -->
 					<div class="section-card" id="ajFiltrosCard">
-						<div class="section-title">Filtros y etiquetas</div>
+						<!-- El interruptor apaga los chips sin borrar nada: los filtros elegidos y
+						     las marcas de cada plato siguen ahí. Se añadió el 16/09/2026 porque
+						     "si no marcas ninguno no salen" solo lo entiende quien hizo el panel. -->
+						<div class="section-header">
+							<div class="section-title">Filtros y etiquetas</div>
+							<label class="toggle" title="Ofrecer filtros en la carta">
+								<input type="checkbox" id="ajFiltros" aria-label="Ofrecer filtros en la carta" onchange="pintarFiltros()"><span class="toggle-slider"></span>
+							</label>
+						</div>
 						<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
-							Elige los filtros que tus clientes podrán usar en la carta (vegetariano, picante…). Después, en la ficha de cada plato, marca cuáles cumple. En la carta solo aparecen los que tengan al menos un plato.
+							Con el interruptor encendido, tus clientes pueden filtrar la carta (vegetariano, picante…).
 						</p>
-						<div id="ajFiltrosCatalogo"></div>
-						<div class="form-group" style="margin-top:16px;margin-bottom:0">
-							<label for="ajFiltroCustomLabel" class="form-label">Filtro personalizado <span style="color:var(--text-dim)">(nombre y emoji)</span></label>
-							<div style="display:flex;gap:8px;align-items:center;">
-								<input type="text" class="form-input" id="ajFiltroCustomLabel" placeholder="Ej: Sin cebolla" maxlength="40" style="flex:1">
-								<input type="text" class="form-input" id="ajFiltroCustomEmoji" placeholder="🧅" maxlength="4" style="width:70px;text-align:center" aria-label="Emoji del filtro">
-								<button type="button" class="btn-sm accent" onclick="agregarFiltroCustom()" style="white-space:nowrap">+ Añadir</button>
+						<!-- La segunda frase va dentro del cuerpo: apagado no hay ningún «abajo». -->
+						<div id="ajFiltrosCuerpo">
+							<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
+								Elige cuáles ofreces y después, en la ficha de cada plato, marca cuáles cumple.
+							</p>
+							<div id="ajFiltrosCatalogo"></div>
+							<div class="form-group" style="margin-top:16px;margin-bottom:0">
+								<label for="ajFiltroCustomLabel" class="form-label">Filtro personalizado <span style="color:var(--text-dim)">(nombre y emoji)</span></label>
+								<div style="display:flex;gap:8px;align-items:center;">
+									<input type="text" class="form-input" id="ajFiltroCustomLabel" placeholder="Ej: Sin cebolla" maxlength="40" style="flex:1">
+									<input type="text" class="form-input" id="ajFiltroCustomEmoji" placeholder="🧅" maxlength="4" style="width:70px;text-align:center" aria-label="Emoji del filtro">
+									<button type="button" class="btn-sm accent" onclick="agregarFiltroCustom()" style="white-space:nowrap">+ Añadir</button>
+								</div>
 							</div>
 						</div>
+						<p id="ajFiltrosNota" style="font-size:13px;margin:14px 0 0;line-height:1.5"></p>
 					</div>
 					<div style="text-align:right;">
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveAjustes()">Guardar ajustes</button>
