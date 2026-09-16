@@ -1049,7 +1049,6 @@
 							</label>
 						</div>
 						<p id="ajCarritoNota" style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.5"></p>
-					</div>
 
 					<!-- El número de WhatsApp y los métodos de pago, que hasta el 16/09/2026
 					     eran la pestaña «Pedidos». Encender el carrito hacía aparecer dos
@@ -1057,8 +1056,8 @@
 					     que ahí se VEN los pedidos, que es otra cosa que todavía no existe.
 					     Ahora sale aquí mismo al encender el interruptor, como los filtros. -->
 					<div id="ajPedidosCuerpo" style="display:none">
-						<div class="section-card">
-							<div class="section-title">WhatsApp para recibir pedidos</div>
+						<div class="aj-bloque">
+							<div class="aj-subtitulo">WhatsApp para recibir pedidos</div>
 							<div class="form-group" style="margin-bottom:0">
 								<label for="pedidosWhatsapp" class="form-label">Número <span style="color:var(--text-dim)">(solo dígitos, con código de país, sin +)</span></label>
 								<input type="text" class="form-input" id="pedidosWhatsapp" placeholder="573001234567">
@@ -1071,8 +1070,8 @@
 							</div>
 						</div>
 
-						<div class="section-card">
-							<div class="section-title">Métodos de pago</div>
+						<div class="aj-bloque">
+							<div class="aj-subtitulo">Métodos de pago</div>
 
 							<div class="form-check" style="margin-bottom:0">
 								<label class="toggle"><input type="checkbox" id="mpEfectivo"><span class="toggle-slider"></span></label>
@@ -1157,13 +1156,13 @@
 					</div>
 					<!-- Los toppings, que hasta el 16/09/2026 eran su propia pestaña. Se
 					     vinieron aquí con los pedidos y por lo mismo: encender el carrito
-					     hacía aparecer pestañas que nadie había pedido ni explicado. Salen
-					     también sin carrito si el restaurante ya tiene toppings creados: son
-					     datos suyos y tiene que poder verlos y borrarlos. -->
+					     hacía aparecer pestañas que nadie había pedido ni explicado. Solo salen
+					     con el carrito encendido: sin él no hacen nada en la carta. Apagarlo los
+					     esconde y no los borra, igual que los filtros. -->
 					<div id="ajToppingsCuerpo" style="display:none">
 						<!-- TP2: con todo vacío la pestaña eran tres «Sin elementos», y nada decía
 						     que un topping no sale en ninguna carta hasta que un plato lo ofrece. -->
-						<div id="toppingsGuia" class="section-card" style="display:none;font-size:13px;line-height:1.6;color:var(--text-muted)">
+						<div id="toppingsGuia" class="aj-bloque" style="display:none;font-size:13px;line-height:1.6;color:var(--text-muted)">
 							<strong style="color:var(--text)">Así funcionan los toppings.</strong>
 							Créalos aquí, en su grupo, y después márcalos en la ficha de cada plato que los lleve.
 							Un topping no sale en la carta hasta que algún plato lo ofrece; así la gaseosa no
@@ -1173,31 +1172,32 @@
 						     carta. Con el catálogo recién creado es lo normal —falta marcarlos—, y
 						     por eso esto no sale nunca con el catálogo vacío: ahí está la guía de
 						     arriba, que explica lo mismo sin sonar a error. -->
-						<div id="toppingsSinUso" style="display:none;margin-bottom:14px;padding:10px 12px;border-radius:var(--radius);background:var(--warn-dim);border:1px solid var(--warn);color:var(--warn);font-size:12px;line-height:1.6"></div>
-						<div class="section-card">
+						<div id="toppingsSinUso" style="display:none;margin-top:18px;padding:10px 12px;border-radius:var(--radius);background:var(--warn-dim);border:1px solid var(--warn);color:var(--warn);font-size:12px;line-height:1.6"></div>
+						<div class="aj-bloque">
 							<div class="section-header">
-							  <!-- TP1: el nombre que se explica solo va primero; el de la carta, entre
-							       paréntesis, porque es lo que el dueño ve en su carta publicada. El mismo
-							       par se usa en la ficha del plato. -->
-							  <div class="section-title">Toppings sin costo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(en la carta: «Toppings Platino»)</span></div>
+							  <!-- TP1 ponía al lado, entre paréntesis, «Toppings Platino»: era como se
+							       llamaban en la carta. Desde el 16/09/2026 la carta también dice «sin
+							       costo» y «con costo» (vmenus-app#31), así que sobra. -->
+							  <div class="aj-subtitulo">Toppings sin costo</div>
 							  <button class="btn-sm accent" onclick="addTopping('platino')">+ Añadir</button>
 							</div>
 							<div id="listToppingsPlatino" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
 						</div>
-						<div class="section-card">
+						<div class="aj-bloque">
 							<div class="section-header">
-								<div class="section-title">Toppings con costo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(en la carta: «Toppings Premium»)</span></div>
+								<div class="aj-subtitulo">Toppings con costo</div>
 								<button class="btn-sm accent" onclick="addTopping('premium')">+ Añadir</button>
 							</div>
 							<div id="listToppingsPremium" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
 						</div>
-						<div class="section-card">
+						<div class="aj-bloque">
 							<div class="section-header">
-								<div class="section-title">Salsas <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(sin costo adicional)</span></div>
+								<div class="aj-subtitulo">Salsas <span style="color:var(--text-dim);font-weight:400">(sin costo adicional)</span></div>
 								<button class="btn-sm accent" onclick="addTopping('salsas')">+ Añadir</button>
 							</div>
 							<div id="listToppingsSalsas" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
 						</div>
+					</div>
 					</div>
 					<!-- Los filtros los pintan los seis modelos de la carta (core/filtros.js en
 					     vmenus-app), no solo explorar. Las insignias de cada plato sí siguen
@@ -1756,11 +1756,11 @@
 						<label class="form-label">Personalización <span style="color:var(--text-dim);font-weight:400">(qué puede añadirle el cliente a este plato)</span></label>
 						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene toppings. Créalos en la pestaña Ajustes, bajo el carrito, y vuelve aquí.</div>
 						<div id="persPlatinoWrap" style="margin-top:8px;display:none">
-							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings sin costo (Platino)</div>
+							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings sin costo</div>
 							<div id="persPlatinoChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						</div>
 						<div id="persPremiumWrap" style="margin-top:12px;display:none">
-							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings con costo (Premium)</div>
+							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings con costo</div>
 							<div id="persPremiumChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						</div>
 						<div id="persSalsasWrap" style="margin-top:12px;display:none">
@@ -2949,15 +2949,18 @@ function renderPersonalizacion() {
 	const cat = catalogoDe(state.restaurante?.atributos);
 	const hayCatalogo = !!(cat.platino.length || cat.premium.length || cat.salsas.length);
 
-	// Se enseña donde tiene sentido: negocios con carrito, o que ya arrastren
-	// catálogo de antes. Al resto no le dice nada.
+	// Se enseña solo con carrito: sin él, un topping no hace nada en la carta.
+	// Hasta el 16/09/2026 salía también sin carrito si había catálogo de antes;
+	// ese día los toppings de Ajustes pasaron a esconderse con el carrito
+	// apagado, y la ficha tiene que decir lo mismo. Esconder no borra: lo marcado
+	// se guarda igual, porque state.prodPers se lee siempre del plato.
 	//
 	// Con la regla de la carta, la misma que decide si se enseñan los toppings en
-	// Ajustes (PE3, y hayQueEnsenarToppings desde el 16/09/2026). Esta tenía la
-	// suya propia, la vieja, y desde que aquella cambió un Topnav con el
-	// interruptor puesto veía «Créalos en…» con los toppings escondidos. Ver CL1.
+	// Ajustes (PE3, y hayQueEnsenarToppings). Esta tenía la suya propia, la vieja,
+	// y un Topnav con el interruptor puesto veía «Créalos en…» con los toppings
+	// escondidos. Ver CL1.
 	const conCarrito = cartaTieneCarrito(state.restaurante?.atributos, planActual());
-	if (!conCarrito && !hayCatalogo) { grupo.style.display = 'none'; return; }
+	if (!conCarrito) { grupo.style.display = 'none'; return; }
 	grupo.style.display = 'block';
 	document.getElementById('persVacio').style.display = hayCatalogo ? 'none' : 'block';
 

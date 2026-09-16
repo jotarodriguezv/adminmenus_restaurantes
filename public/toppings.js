@@ -187,26 +187,43 @@ function confirmAddTopping() {
   showToast(idx >= 0 ? 'Actualizado · recuerda guardar' : 'Añadido · recuerda guardar', 'info');
 }
 
-// Qué platos se quedan apuntando a algo que ya no existe. Desde que los
-// platos guardan el identificador, esto solo puede pasar al BORRAR un
-// elemento del catálogo: renombrarlo ya no los desengancha.
+// Qué platos pierden un topping con ESTE guardado: los que ofrecen uno que está
+// en el catálogo guardado y ya no está en el de la pantalla. Desde que los
+// platos guardan el identificador, eso solo pasa al BORRAR: renombrar no los
+// desengancha.
+//
+// Antes se llamaba toppingsHuerfanos y miraba cualquier plato que apuntara a
+// algo inexistente. Con los toppings ya dentro de Ajustes, un plato que se
+// quedó así de un borrado anterior hacía saltar la pregunta en cada guardado,
+// aunque solo se cambiara una red social (visto el 16/09/2026 en
+// zz-pruebas-ux, con el catálogo vacío y dos platos apuntando a lo borrado).
+// Lo que ya estaba roto no lo rompe este guardado, y preguntar por ello solo
+// enseña a darle a «Aceptar» sin leer.
 //
 // Sigue comparando también por nombre porque un plato que nadie haya vuelto a
-// guardar desde la migración todavía puede tener nombres dentro, y avisar de
-// más es mejor que callarse de menos.
-function toppingsHuerfanos() {
+// guardar desde la migración todavía puede tener nombres dentro. Y enseña
+// nombres, no identificadores: «top_c0fa8676» no le dice nada a nadie.
+function toppingsQueSeQuitan(guardado = catalogoDe(state.restaurante?.atributos)) {
   const quedan = new Set();
   for (const t of [...toppingState.platino, ...toppingState.premium, ...toppingState.salsas]) {
     quedan.add(t.id);
     quedan.add(t.nombre);
   }
+  const quitados = new Map();   // id o nombre → nombre, para enseñarlo
+  for (const t of [...guardado.platino, ...guardado.premium, ...guardado.salsas]) {
+    if (quedan.has(t.id)) continue;
+    quitados.set(t.id, t.nombre);
+    quitados.set(t.nombre, t.nombre);
+  }
+  if (!quitados.size) return [];
+
   const afectados = [];
   for (const p of state.productos || []) {
     const pers = p.atributos?.personalizacion;
     if (!pers) continue;
-    const perdidos = [...(pers.platino || []), ...(pers.premium || []), ...(pers.salsas || [])]
-      .filter(n => !quedan.has(n));
-    if (perdidos.length) afectados.push(`${p.nombre}: ${[...new Set(perdidos)].join(', ')}`);
+    const pierde = [...(pers.platino || []), ...(pers.premium || []), ...(pers.salsas || [])]
+      .filter(n => quitados.has(n)).map(n => quitados.get(n));
+    if (pierde.length) afectados.push(`${p.nombre}: ${[...new Set(pierde)].join(', ')}`);
   }
   return afectados;
 }

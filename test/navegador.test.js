@@ -1610,10 +1610,12 @@ describe('donde la carta tiene carrito se configuran los pedidos', () => {
 		assert.equal(conAtributos({ nav: 'carrito', carrito: false }, { carrito: false }).pedidos, 'block');
 	});
 
-	test('un restaurante con toppings de antes los sigue viendo', () => {
-		// Aunque ya no tenga carrito: son datos suyos y debe poder verlos.
-		const r = conAtributos({ nav: 'topnav', salsas: [{ id: 't1', nombre: 'BBQ' }] }, { carrito: false });
-		assert.equal(r.toppings, 'block');
+	test('con el carrito apagado los toppings se esconden, aunque haya', () => {
+		// Hasta el 16/09/2026 se veían para poder borrarlos. Al probarlo, apagar
+		// el carrito dejaba los toppings a la vista, que no es lo que se espera
+		// de un interruptor. Esconder no los borra.
+		const r = conAtributos({ nav: 'topnav', carrito: false, salsas: [{ id: 't1', nombre: 'BBQ' }] });
+		assert.equal(r.toppings, 'none');
 		assert.equal(r.pedidos, 'none');
 	});
 });
@@ -2880,14 +2882,17 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 });
 
 // ═══════════════════════════════════════════════════════════════
-describe('toppingsHuerfanos · qué platos se quedan colgados al borrar', () => {
+describe('toppingsQueSeQuitan · qué platos pierden algo con este guardado', () => {
 	// Desde que los platos guardan el identificador, esto solo puede pasar al
 	// BORRAR un elemento del catálogo: renombrarlo ya no los desengancha. Sigue
 	// comparando también por nombre porque un plato que nadie haya vuelto a
 	// guardar desde la migración todavía puede llevar nombres dentro.
-	const buscar = (toppingState, productos) => cargar('toppings.js',
-		[['function toppingsHuerfanos', null]],
-		{ toppingState, state: { productos } }).toppingsHuerfanos();
+	//
+	// El segundo argumento es lo que dice la base: se compara contra eso, y no
+	// contra lo que exista, desde el 16/09/2026.
+	const buscar = (toppingState, productos, guardado = catalogo) => cargar('toppings.js',
+		[['function toppingsQueSeQuitan', null]],
+		{ toppingState, state: { productos }, catalogoDe: () => guardado }).toppingsQueSeQuitan();
 
 	const catalogo = {
 		platino: [{ id: 't_que', nombre: 'Queso' }],
@@ -2918,7 +2923,16 @@ describe('toppingsHuerfanos · qué platos se quedan colgados al borrar', () => 
 		const avisos = buscar({ ...catalogo, salsas: [] }, [plato('Hamburguesa'), plato('Perro')]);
 		assert.equal(avisos.length, 2, 'los dos platos lo ofrecían');
 		assert.match(avisos[0], /Hamburguesa/);
-		assert.match(avisos[0], /t_bbq/);
+		assert.match(avisos[0], /BBQ/, 'por su nombre');
+		assert.doesNotMatch(avisos[0], /t_bbq/, 'un identificador no le dice nada a nadie');
+	});
+
+	test('un plato que ya apuntaba a algo borrado ANTES no pregunta en cada guardado', () => {
+		// El caso de zz-pruebas-ux el 16/09/2026: catálogo vacío y dos platos
+		// apuntando a toppings borrados hacía tiempo. Cambiar una red social
+		// preguntaba por ellos cada vez.
+		const vacio = { platino: [], premium: [], salsas: [] };
+		assert.equal(buscar(vacio, [plato('Papas'), plato('Combo')], vacio).length, 0);
 	});
 
 	test('un plato sin migrar, guardado por nombre, también cuenta', () => {
@@ -5232,12 +5246,21 @@ describe('los grupos de toppings se llaman igual en la pestaña y en la ficha', 
 	// entre paréntesis: es el que el dueño ve publicado.
 	const src = codigoDelPanel();
 
-	test('los dos grupos llevan el mismo par de nombres en las dos pantallas', () => {
-		const pestana = src.slice(src.indexOf('id="ajToppingsCuerpo"'), src.indexOf('id="listToppingsSalsas"'));
-		const ficha = src.slice(src.indexOf('id="persPlatinoWrap"'), src.indexOf('id="persPremiumChips"'));
-		for (const [claro, carta_] of [['sin costo', 'Platino'], ['con costo', 'Premium']]) {
-			assert.match(pestana, new RegExp(`Toppings ${claro}[^<]*<span[^>]*>\\(en la carta: «Toppings ${carta_}»\\)`), `Ajustes no dice «${claro}» con su nombre de carta`);
-			assert.match(ficha, new RegExp(`Toppings ${claro} \\(${carta_}\\)`), `la ficha no dice «${claro} (${carta_})»`);
+	test('los dos grupos se llaman igual en Ajustes y en la ficha, sin Platino ni Premium', () => {
+		// 16/09/2026: «Platino» y «Premium» eran nombres nuestros. La carta
+		// también dejó de usarlos (vmenus-app#31), así que el paréntesis que
+		// explicaba cómo se llamaban allí sobra.
+		// Desde el «<» de la etiqueta, para que quitar etiquetas la quite entera.
+		const trozo = (desde, hasta) => src.slice(src.lastIndexOf('<', src.indexOf(desde)), src.indexOf(hasta));
+		const ajustes = trozo('id="ajToppingsCuerpo"', 'id="listToppingsSalsas"');
+		const ficha = trozo('id="persPlatinoWrap"', 'id="persPremiumChips"');
+		for (const texto of [ajustes, ficha]) {
+			// Solo lo que se lee: los id de las listas siguen diciendo Platino y
+			// Premium, y cambiarlos no aporta nada a nadie.
+			const visible = texto.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]*>/g, ' ');
+			assert.match(visible, /Toppings sin costo/);
+			assert.match(visible, /Toppings con costo/);
+			assert.doesNotMatch(visible, /Platino|Premium/);
 		}
 	});
 
@@ -5752,7 +5775,7 @@ describe('los toppings se guardan con el botón de Ajustes', () => {
 			state: { restaurante: { id: 'r1', atributos }, filtrosDisponibles: [] },
 			MODELO_POR_DEFECTO: 'topnav',
 			toppingState: catalogo,
-			toppingsHuerfanos: () => huerfanos,
+			toppingsQueSeQuitan: () => huerfanos,
 			confirm: texto => { preguntas.push(texto); return responde; },
 			planActual: () => plan, recibePedidos: () => true, puedeElegirCarrito: () => true,
 			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {},
@@ -5794,15 +5817,14 @@ describe('los toppings se guardan con el botón de Ajustes', () => {
 		assert.ok(!('toppings_platino' in r) && !('salsas' in r));
 	});
 
-	test('un restaurante con toppings de antes los sigue guardando sin carrito', () => {
-		// Son datos suyos: tiene que poder verlos y borrarlos aunque ya no reciba
-		// pedidos. Era la regla de su pestaña.
+	test('con el carrito apagado no viajan, y lo guardado se queda como estaba', () => {
+		// Escondidos no se mandan: el servidor funde, así que la base conserva
+		// los toppings y al encender el carrito vuelven a estar.
 		const { ctx } = montar({
 			atributos: { nav: 'topnav', carrito: false, salsas: [{ id: 't9', nombre: 'BBQ' }] },
-			plan: { carrito: false },
 			catalogo: { platino: [], premium: [], salsas: [{ id: 't9', nombre: 'BBQ' }] },
 		});
-		assert.ok('salsas' in ctx.recolectarAjustes());
+		assert.ok(!('salsas' in ctx.recolectarAjustes()));
 	});
 
 	test('borrar un topping que algún plato ofrece pregunta antes de mandarlo', async () => {
@@ -5854,7 +5876,7 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {},
 			// Esta prueba es de pedidos: los toppings de la misma tarjeta no estorban
 			// si el restaurante no tiene ninguno, que es lo que dice el catálogo vacío.
-			renderToppings() {}, toppingsHuerfanos: () => [],
+			renderToppings() {}, toppingsQueSeQuitan: () => [],
 			toppingState: { platino: [], premium: [], salsas: [] },
 			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push({ metodo, ruta, cuerpo }); return { id: 'r1', atributos: { nav, ...cuerpo.atributos } }; },
 			showToast: (m, t) => avisos.push({ m, t }), Object,
@@ -6485,7 +6507,7 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 
 	test('dentro de Ajustes: carrito, filtros y las redes al final', () => {
 		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabQr"'));
-		const orden = [...tab.matchAll(/<div class="section-title">([^<]+)</g)].map(m => m[1]);
+		const orden = [...tab.matchAll(/<div class="(?:section-title|aj-subtitulo)">([^<]+)</g)].map(m => m[1].trim());
 		assert.equal(JSON.stringify(orden.slice(0, 3)),
 			'["Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
 			'el carrito y lo suyo, primero');
