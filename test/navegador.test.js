@@ -1513,29 +1513,36 @@ describe('navElegido · guardar Apariencia no puede dejar sin modelo', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
-	// La pestaña Pedidos es donde se pone el WhatsApp al que llegan los
-	// pedidos. Sin ella el cliente arma el suyo y no llega a ningún sitio,
-	// sin ninguna pista de que falta configurar algo.
+describe('donde la carta tiene carrito se configuran los pedidos', () => {
+	// Ahí se pone el WhatsApp al que llegan. Sin eso el cliente arma su pedido y
+	// no llega a ningún sitio, sin ninguna pista de que falta configurar algo.
+	//
+	// Hasta el 16/09/2026 la regla decidía si salía la PESTAÑA Pedidos; ahora
+	// decide si sale su parte dentro de la tarjeta del carrito, en Ajustes. La
+	// regla es la misma —cartaTieneCarrito— y por eso siguen aquí las dos.
 	const conAtributos = (atributos, plan = { carrito: true }) => {
 		const mapa = {
-			tabBtnToppings: { style: {} },
-			tabBtnPedidos:  { style: {} },
-			tabBtnTv:       { style: {} },
+			tabBtnToppings:  { style: {} },
+			tabBtnTv:        { style: {} },
+			ajPedidosCuerpo: { style: {} },
+			ajCarrito:       { checked: !!atributos.carrito },
 		};
 		const ctx = cargar('index.html', [
 			['// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
 			['function ajustarPestanasAlModelo', '// Qué modelo se guarda'],
+			['ajustes.js', '// ¿La carta que se está configurando va a tener carrito?', 'function pintarNotaCarrito'],
 		], {
 				MODELO_POR_DEFECTO: 'topnav',
 				state: { restaurante: { atributos } },
 				planActual: () => plan,
 				document: { getElementById: id => mapa[id] },
-				renderPedidos() {}, renderMetodosPago() {}, marcarBordesDeTabs() {},
+				actualizarAvisoPedidos() {}, marcarBordesDeTabs() {},
 			});
 		ctx.ajustarPestanasAlModelo();
+		ctx.pintarPedidos();
 		return {
-			pedidos:  mapa.tabBtnPedidos.style.display,
+			// '' es «a la vista»: la hoja de estilos manda cuando no hay estilo en línea.
+			pedidos:  mapa.ajPedidosCuerpo.style.display === 'none' ? 'none' : 'block',
 			toppings: mapa.tabBtnToppings.style.display,
 			tv:       mapa.tabBtnTv.style.display,
 		};
@@ -1575,13 +1582,13 @@ describe('ajustarPestanasAlModelo · donde hay carrito hay Pedidos', () => {
 		assert.equal(conAtributos({ tv: { activa: true } }, { carrito: true, tv: false }).tv, 'block');
 	});
 
-	test('explorar no tiene Pedidos aunque el interruptor esté puesto', () => {
-		// PE3. Su carta no llama a activarCarrito(): la pestaña servía para
-		// configurar un WhatsApp al que nunca iba a llegar un pedido. Topnav y
-		// Sidebar salieron de esta lista el 15/09/2026 (vmenus-app#28).
+	test('explorar no configura pedidos aunque el interruptor esté puesto', () => {
+		// PE3. Su carta no llama a activarCarrito(): serviría para configurar un
+		// WhatsApp al que nunca iba a llegar un pedido. Topnav y Sidebar salieron
+		// de esta lista el 15/09/2026 (vmenus-app#28).
 		for (const nav of ['explorar']) {
 			const r = conAtributos({ nav, carrito: true });
-			assert.equal(r.pedidos, 'none', `${nav ?? 'sin modelo'} enseña Pedidos`);
+			assert.equal(r.pedidos, 'none', `${nav ?? 'sin modelo'} enseña los pedidos`);
 			assert.equal(r.toppings, 'none', `${nav ?? 'sin modelo'} enseña Toppings sin tener datos`);
 		}
 	});
@@ -4153,11 +4160,11 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 		assert.notEqual(aviso().avisoPedidosHtml({ atributos: { nav: 'topnav', carrito: true }, _plan: CON_CARRITO }), '');
 	});
 
-	test('la pestaña Pedidos enciende y apaga el aviso', () => {
+	test('el aviso rojo de la tarjeta se enciende y se apaga con el número', () => {
 		const caja = { style: {} };
 		const estado = { restaurante: { atributos: { nav: 'carrito' } } };
 		const ctx = cargar('index.html',
-			[...reglas, ['pedidos.js', 'function actualizarAvisoPedidos', 'async function savePedidos']],
+			[...reglas, ['pedidos.js', 'function actualizarAvisoPedidos', '// ── MÉTODOS DE PAGO']],
 			{ String, state: estado, planActual: () => ({}), document: { getElementById: () => caja } });
 		ctx.actualizarAvisoPedidos();
 		assert.equal(caja.style.display, 'block', 'sin número el aviso no se enseña');
@@ -4168,10 +4175,13 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 
 	test('guardar el número vuelve a evaluar el aviso', () => {
 		// Si no, se guarda el número y el aviso rojo sigue ahí hasta recargar.
-		const src = fs.readFileSync(path.join(PUBLIC, 'pedidos.js'), 'utf8');
-		const cuerpo = src.match(/async function savePedidos\(\)\s*\{[\s\S]*?\n\}/);
-		assert.ok(cuerpo, 'no se encontró savePedidos');
-		assert.match(cuerpo[0], /actualizarAvisoPedidos\(\)/);
+		// Desde el 16/09/2026 el camino es otro —lo guarda Ajustes y repinta—
+		// pero tiene que acabar en la misma llamada.
+		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
+		assert.match(ajustes.match(/async function saveAjustes\(\)\s*\{[\s\S]*?\n\}/)[0], /renderAjustes\(\)/);
+		assert.match(ajustes.match(/function renderAjustes\(\)\s*\{[\s\S]*?\n\}/)[0], /renderPedidos\(\)/);
+		const pedidos = fs.readFileSync(path.join(PUBLIC, 'pedidos.js'), 'utf8');
+		assert.match(pedidos.match(/function renderPedidos\(\)\s*\{[\s\S]*?\n\}/)[0], /actualizarAvisoPedidos\(\)/);
 	});
 });
 
@@ -5675,63 +5685,109 @@ describe('los avisos de la dirección del menú no se contradicen', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-describe('la pestaña Pedidos se guarda de una vez', () => {
-	// PE2 en docs/revision-ux.md: «Guardar» para el número y «Guardar métodos de
-	// pago» para lo demás. Los dos van a restaurantes.atributos: una petición.
+describe('Ajustes guarda también los pedidos, en la misma petición', () => {
+	// PE2 en docs/revision-ux.md: eran dos botones, «Guardar» para el número y
+	// «Guardar métodos de pago» para lo demás. Desde el 16/09/2026 ni siquiera
+	// son pestaña: están en la tarjeta del carrito y los guarda el botón de
+	// Ajustes, con las redes y los filtros, en un solo PATCH.
 	const src = codigoDelPanel();
 
-	function montar({ whatsapp = '573001234567', nequi = { activo: false, telefono: '', titular: '' } } = {}) {
-		const campos = {
-			pedidosWhatsapp: { value: whatsapp }, mpEfectivo: { checked: true }, mpTarjeta: { checked: false },
-			mpNequiActivo: { checked: nequi.activo }, mpNequiTelefono: { value: nequi.telefono }, mpNequiTitular: { value: nequi.titular },
-			mpDaviplataActivo: { checked: false }, mpDaviplataTelefono: { value: '' }, mpDaviplataTitular: { value: '' },
-			mpBancolombiaActivo: { checked: false }, mpBancolombiaNumero: { value: '' }, mpBancolombiaTipo: { value: 'ahorros' }, mpBancolombiaTitular: { value: '' },
-			mpBrebActivo: { checked: false }, mpBrebLlave: { value: '' },
-		};
+	function montar({ whatsapp = '573001234567', nequi = { activo: false, telefono: '', titular: '' },
+	                  carrito = true, plan = { carrito: true }, nav = 'topnav', recibe = true } = {}) {
+		const campos = {};
 		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
+		$('pedidosWhatsapp').value = whatsapp;
+		$('mpEfectivo').checked = true;
+		$('mpNequiActivo').checked = nequi.activo;
+		$('mpNequiTelefono').value = nequi.telefono;
+		$('mpNequiTitular').value = nequi.titular;
+		$('mpBancolombiaTipo').value = 'ahorros';
+		$('ajCarrito').checked = carrito;
 		const peticiones = [], avisos = [];
-		const ctx = cargar('pedidos.js', 'function recolectarMetodosPago', null, {
-			document: { getElementById: $ }, state: { restaurante: { id: 'r1', atributos: {} } },
-			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push({ metodo, ruta, cuerpo }); return { id: 'r1', atributos: cuerpo.atributos }; },
-			actualizarAvisoPedidos() {}, showToast: (m, t) => avisos.push({ m, t }),
+		const ctx = cargar('index.html', [
+			['index.html', '// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
+			['ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS'],
+			['ajustes.js', '// ¿La carta que se está configurando va a tener carrito?', 'function pintarNotaCarrito'],
+			['pedidos.js', '// ── PEDIDOS (WhatsApp', null],
+		], {
+			document: { getElementById: $ },
+			state: { restaurante: { id: 'r1', atributos: { nav } }, filtrosDisponibles: [] },
+			MODELO_POR_DEFECTO: 'topnav',
+			planActual: () => plan, recibePedidos: () => recibe,
+			puedeElegirCarrito: () => true,
+			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {},
+			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push({ metodo, ruta, cuerpo }); return { id: 'r1', atributos: { nav, ...cuerpo.atributos } }; },
+			showToast: (m, t) => avisos.push({ m, t }), Object,
 		});
 		return { ctx, $, peticiones, avisos };
 	}
 
-	test('un solo botón de guardar en la pestaña, y ya no existe el segundo guardado', () => {
-		const pestana = src.slice(src.indexOf('<div id="tabPedidos"'), src.indexOf('<div id="tabTv"') > 0 ? src.indexOf('<div id="tabTv"') : undefined);
-		assert.equal((pestana.match(/class="btn-save"/g) || []).length, 1);
-		assert.doesNotMatch(src, /function saveMetodosPago|onclick="saveMetodosPago\(\)"/);
+	test('ya no hay pestaña Pedidos ni un guardado suyo', () => {
+		assert.doesNotMatch(src, /id="tabPedidos"|id="tabBtnPedidos"|savePedidos/);
+		// Y el marcado está donde ahora vive: dentro de Ajustes.
+		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabQr"'));
+		assert.ok(tab.includes('id="pedidosWhatsapp"') && tab.includes('id="mpNequiActivo"'));
 	});
 
-	test('guardar manda el número y los métodos en la misma petición', async () => {
+	test('el número y los métodos viajan con lo demás, en una sola petición', async () => {
 		const { ctx, peticiones } = montar();
-		await ctx.savePedidos();
+		await ctx.saveAjustes();
 		assert.equal(peticiones.length, 1);
-		assert.deepEqual(Object.keys(peticiones[0].cuerpo.atributos).sort(), ['metodos_pago', 'whatsapp_pedidos']);
+		const at = peticiones[0].cuerpo.atributos;
+		assert.equal(at.whatsapp_pedidos, '573001234567');
+		assert.equal(at.metodos_pago.efectivo.activo, true);
+		assert.ok('social_bar' in at && 'filtros_activos' in at, 'y sin dejarse lo que ya guardaba');
+	});
+
+	test('un método activo sin datos no deja guardar nada, y dice cuál', async () => {
+		const { ctx, $, peticiones, avisos } = montar({ nequi: { activo: true, telefono: '', titular: '' } });
+		await ctx.saveAjustes();
+		assert.equal(peticiones.length, 0, 'ni siquiera lo que sí estaba bien');
+		assert.equal($('ajustesStatus').textContent, 'Faltan los datos de Nequi');
+		assert.equal(avisos.at(-1).t, 'error');
+	});
+
+	test('sin número SÍ se guarda, y se avisa de que falta', async () => {
+		// Cambio del 16/09/2026. Antes el número era obligatorio, pero se llegaba
+		// a esa pantalla con el carrito ya encendido. Ahora el interruptor está al
+		// lado: exigirlo impediría el primer guardado, que es justamente encender
+		// el carrito para que aparezca el campo.
+		const { ctx, $, peticiones } = montar({ whatsapp: '', recibe: false });
+		await ctx.saveAjustes();
+		assert.equal(peticiones.length, 1);
+		assert.equal(peticiones[0].cuerpo.atributos.whatsapp_pedidos, '');
+		assert.match($('ajustesStatus').textContent, /falta el número de WhatsApp/);
+		assert.doesNotMatch($('ajustesStatus').textContent, /pestaña/, 'el campo está ahí mismo');
+	});
+
+	test('el número se guarda solo con dígitos', async () => {
+		const { ctx, peticiones } = montar({ whatsapp: '+57 300 123 4567' });
+		await ctx.saveAjustes();
 		assert.equal(peticiones[0].cuerpo.atributos.whatsapp_pedidos, '573001234567');
-		assert.equal(peticiones[0].cuerpo.atributos.metodos_pago.efectivo.activo, true);
 	});
 
-	test('un método activo sin datos no deja guardar nada, y lo dice', async () => {
-		const { ctx, $, peticiones } = montar({ nequi: { activo: true, telefono: '', titular: '' } });
-		await ctx.savePedidos();
-		assert.equal(peticiones.length, 0);
-		assert.equal($('pedidosStatus').textContent, 'Faltan los datos de Nequi');
+	test('sin carrito no viaja ni el número ni los métodos', async () => {
+		// Si no, un restaurante sin pedidos acabaría con un metodos_pago entero
+		// de campos vacíos que nunca ha visto.
+		const { ctx, peticiones } = montar({ carrito: false });
+		await ctx.saveAjustes();
+		const at = peticiones[0].cuerpo.atributos;
+		assert.ok(!('whatsapp_pedidos' in at) && !('metodos_pago' in at));
 	});
 
-	test('sin número tampoco, y dice qué falta; si faltan las dos cosas, las dos', () => {
+	test('el modelo carrito los configura aunque el interruptor esté apagado', async () => {
+		// Su carta lleva carrito siempre, como perroscriollos.
+		const { ctx, peticiones } = montar({ carrito: false, nav: 'carrito' });
+		await ctx.saveAjustes();
+		assert.equal(peticiones[0].cuerpo.atributos.whatsapp_pedidos, '573001234567');
+	});
+
+	test('cada método incompleto se nombra por el suyo', () => {
 		const { ctx } = montar();
-		const mpVacio = { nequi: {}, daviplata: {}, bancolombia: {}, breb: {} };
-		assert.deepEqual([...ctx.erroresDePedidos('', mpVacio)], ['el número de WhatsApp']);
-		const errores = ctx.erroresDePedidos('', { ...mpVacio, breb: { activo: true, llave: '' } });
-		assert.equal(errores.length, 2);
-		assert.match(errores[1], /Bre-B/);
-	});
-
-	test('guardar sigue reevaluando el aviso de «no recibe pedidos»', () => {
-		const cuerpo = src.match(/async function savePedidos\(\)\s*\{[\s\S]*?\n\}/)[0];
-		assert.match(cuerpo, /actualizarAvisoPedidos\(\)/);
+		const vacio = { nequi: {}, daviplata: {}, bancolombia: {}, breb: {} };
+		assert.equal(ctx.metodosIncompletos(vacio).length, 0);
+		assert.equal(JSON.stringify(ctx.metodosIncompletos({ ...vacio, breb: { activo: true, llave: '' } })), '["Bre-B"]');
+		assert.equal(JSON.stringify(ctx.metodosIncompletos({ ...vacio, bancolombia: { activo: true, numero_cuenta: '1', titular: '' } })), '["Bancolombia"]');
 	});
 });
 
@@ -6176,6 +6232,10 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 			renderFiltrosCatalogo: () => {},
 			pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
 			ajustarPestanasAlModelo: () => {}, cartaTieneCarrito: () => false,
+			// Los pedidos viven en esta misma pantalla desde el 16/09/2026, pero
+			// esta prueba es de redes: sin carrito, no se recogen.
+			renderPedidos: () => {}, renderMetodosPago: () => {}, recolectarMetodosPago: () => ({}),
+			carritoEnPantalla: () => false,
 			planActual: () => ({}), recibePedidos: () => false,
 			state: { restaurante: { id: 'r1', atributos } },
 			showToast: (m, t) => avisos.push([t, m]),
@@ -6285,7 +6345,9 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 	test('dentro de Ajustes: carrito, filtros y las redes al final', () => {
 		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabQr"'));
 		const orden = [...tab.matchAll(/<div class="section-title">([^<]+)</g)].map(m => m[1]);
-		assert.equal(JSON.stringify(orden), '["Carrito de compras","Filtros y etiquetas","Redes sociales"]');
+		assert.equal(JSON.stringify(orden),
+			'["Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago","Filtros y etiquetas","Redes sociales"]',
+			'el carrito y lo suyo primero, las redes al final');
 		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('Redes sociales'), 'el botón de guardar, después de todas');
 	});
 
@@ -6394,6 +6456,8 @@ describe('el interruptor de filtros y la nota que explica lo que se ve', () => {
 		const ctx = cargar('ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS', {
 			document: { getElementById: $ },
 			renderFiltrosCatalogo: () => {}, pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
+			renderPedidos: () => {}, renderMetodosPago: () => {}, cartaTieneCarrito: () => false,
+			carritoEnPantalla: () => false, planActual: () => ({}),
 			state: { restaurante: { id: 'r1', atributos } },
 			Object,
 		});
@@ -6449,12 +6513,14 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
 		const ctx = cargar('index.html', [
 			['const MODELO_POR_DEFECTO', 'function esModeloDeVideo'],
-			['const MODELOS_CARRITO_OPCIONAL', 'function cartaTieneCarrito'],
+			// Hasta pasado cartaTieneCarrito: carritoEnPantalla() la usa.
+			['const MODELOS_CARRITO_OPCIONAL', '// Mismo criterio que la carta'],
 			['ajustes.js', '// ── PEDIDOS DESDE LA CARTA', null],
 		], {
 			document: { getElementById: $ },
 			state: { restaurante: { id: 'r1', atributos } },
 			planActual: () => plan, recibePedidos: () => recibe,
+			actualizarAvisoPedidos() {},
 		});
 		return { ctx, $ };
 	}
@@ -6488,7 +6554,7 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 		let { ctx, $ } = montar({ nav: 'topnav' });
 		$('ajCarrito').checked = true;
 		ctx.pintarNotaCarrito();
-		assert.match($('ajCarritoNota').textContent, /pestaña Pedidos/);
+		assert.match($('ajCarritoNota').textContent, /aquí debajo el número de WhatsApp/);
 		assert.equal($('ajCarritoNota').style.color, 'var(--warn)');
 
 		({ ctx, $ } = montar({ nav: 'topnav' }, { recibe: true }));
@@ -6503,10 +6569,16 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 			const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
 			const ctx = cargar('index.html', [
 				['const MODELO_POR_DEFECTO', 'function esModeloDeVideo'],
-				['const MODELOS_CARRITO_OPCIONAL', 'function cartaTieneCarrito'],
+				// Hasta pasado cartaTieneCarrito: carritoEnPantalla() la usa.
+				['const MODELOS_CARRITO_OPCIONAL', '// Mismo criterio que la carta'],
 				['ajustes.js', 'function recolectarAjustes', 'async function saveAjustes'],
 				['ajustes.js', 'function puedeElegirCarrito', 'function pintarNotaCarrito'],
-			], { document: { getElementById: $ }, state: { restaurante: { atributos }, filtrosDisponibles: [] }, planActual: () => ({ carrito: true }) });
+			], {
+				document: { getElementById: $ }, state: { restaurante: { atributos }, filtrosDisponibles: [] },
+				planActual: () => ({ carrito: true }),
+				// Esta prueba mira el carrito, no los pagos: basta con que existan.
+				recolectarMetodosPago: () => ({}),
+			});
 			$('ajCarrito').checked = marcado;
 			return ctx.recolectarAjustes();
 		};

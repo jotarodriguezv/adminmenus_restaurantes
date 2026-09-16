@@ -1,5 +1,11 @@
 // La pestaña Ajustes: lo que el propio restaurante configura de su carta.
 //
+// El 16/09/2026 se le sumó lo que era la pestaña «Pedidos» —el número de
+// WhatsApp y los métodos de pago—, decidido con el usuario: encender el carrito
+// hacía aparecer dos pestañas nuevas sin que nadie lo explicara, y «Pedidos»
+// daba a entender que ahí se VEN los pedidos. Todo esto escribe en
+// restaurantes.atributos, así que va en una sola petición y con un solo botón.
+//
 // Nació el 15/09/2026 con las redes sociales y, el mismo día, los filtros y
 // etiquetas y el interruptor del carrito: las tres cosas estaban en Apariencia,
 // solo para el superadmin. Es abrir partes de Apariencia al restaurante
@@ -44,6 +50,11 @@ function renderAjustes() {
   document.getElementById('ajFiltros').checked = at.filtros_activos ?? state.filtrosDisponibles.length > 0;
   renderFiltrosCatalogo();
   document.getElementById('ajCarrito').checked = !!at.carrito;
+  // Los campos de pedidos se rellenan siempre, estén a la vista o no: enseñarlos
+  // es cosa de pintarPedidos(), y rellenarlos al enseñarlos borraría lo que
+  // alguien hubiera escrito antes de apagar y volver a encender el interruptor.
+  renderPedidos();
+  renderMetodosPago();
   pintarNotaCarrito();
   const st = document.getElementById('ajustesStatus');
   st.textContent = ''; st.style.color = 'var(--text-muted)';
@@ -55,8 +66,16 @@ function recolectarAjustes() {
   // de un restaurante cuyo interruptor está escondido: el servidor lo filtraría
   // por plan, pero no por modelo.
   const carrito = puedeElegirCarrito() ? { carrito: document.getElementById('ajCarrito').checked } : {};
+  // El número y los pagos solo viajan si la carta va a tener carrito. Mandarlos
+  // siempre metería un metodos_pago entero en restaurantes que no reciben
+  // pedidos, con los campos vacíos que tiene la pantalla escondida.
+  const pedidos = carritoEnPantalla() ? {
+    whatsapp_pedidos: document.getElementById('pedidosWhatsapp').value.trim().replace(/[^0-9]/g, ''),
+    metodos_pago: recolectarMetodosPago(),
+  } : {};
   return {
     ...carrito,
+    ...pedidos,
     // La lista viaja también con el interruptor apagado: apagar esconde, no
     // borra, y es lo que permite volver a encenderlo y encontrarlo todo igual.
     filtros_activos: document.getElementById('ajFiltros').checked,
@@ -73,6 +92,18 @@ function recolectarAjustes() {
 
 async function saveAjustes() {
   const st = document.getElementById('ajustesStatus');
+  // Antes de nada, lo que no se puede guardar a medias. Vive aquí y no en el
+  // servidor por lo mismo que las demás comprobaciones de esta pantalla: es
+  // para que el aviso sea inmediato y diga qué método es.
+  if (carritoEnPantalla()) {
+    const faltan = metodosIncompletos(recolectarMetodosPago());
+    if (faltan.length) {
+      const texto = `Faltan los datos de ${faltan.join(', ')}`;
+      st.textContent = texto; st.style.color = 'var(--danger)';
+      showToast(texto, 'error');
+      return;
+    }
+  }
   st.textContent = 'Guardando…'; st.style.color = 'var(--text-muted)';
   try {
     // Solo sus claves: el servidor funde con lo que ya hay y no toca el resto.
@@ -85,9 +116,9 @@ async function saveAjustes() {
     // repintarlas habría que recargar para llegar a poner el número.
     ajustarPestanasAlModelo();
     const faltaNumero = cartaTieneCarrito(data.atributos, planActual()) && !recibePedidos(data.atributos);
-    st.textContent = faltaNumero ? '✓ Guardado · falta el número de WhatsApp en la pestaña Pedidos' : '✓ Guardado';
+    st.textContent = faltaNumero ? '✓ Guardado · falta el número de WhatsApp para recibir los pedidos' : '✓ Guardado';
     st.style.color = faltaNumero ? 'var(--warn)' : 'var(--success)';
-    showToast(faltaNumero ? 'Guardado. Ahora pon en Pedidos el número al que llegan los pedidos' : 'Ajustes guardados',
+    showToast(faltaNumero ? 'Guardado. Ahora pon el número de WhatsApp al que llegan los pedidos' : 'Ajustes guardados',
               faltaNumero ? 'info' : 'success');
   } catch (e) {
     // El motivo lo escribe el servidor para quien lo lee: «El enlace de
@@ -231,12 +262,28 @@ function agregarFiltroCustom() {
 // (vmenus-app#28), y lo decide el propio restaurante.
 //
 // Se ofrece donde puede hacer algo: plan con pedidos y un modelo que lo tenga
-// como opción (MODELOS_CARRITO_OPCIONAL, en index.html, la misma lista que la
-// pestaña Pedidos y los avisos). En el resto la tarjeta dice por qué no, en vez
+// como opción (MODELOS_CARRITO_OPCIONAL, en index.html, la misma lista que usan
+// los campos de pedidos y los avisos). En el resto la tarjeta dice por qué no, en vez
 // de desaparecer: quien viene a buscar el carrito tiene que saber qué le falta.
 function puedeElegirCarrito() {
   const nav = state.restaurante?.atributos?.nav || MODELO_POR_DEFECTO;
   return !!planActual().carrito && MODELOS_CARRITO_OPCIONAL.includes(nav);
+}
+
+// ¿La carta que se está configurando va a tener carrito? Mira el INTERRUPTOR de
+// la pantalla, no lo guardado: encenderlo tiene que enseñar el número y los
+// pagos ahí mismo, que es de lo que iba traérselos a esta pestaña. El modelo
+// 'carrito' sale que sí con el interruptor apagado, porque su carta lo lleva
+// siempre; de eso se encarga cartaTieneCarrito.
+function carritoEnPantalla() {
+  const at = state.restaurante?.atributos || {};
+  return cartaTieneCarrito({ ...at, carrito: document.getElementById('ajCarrito').checked }, planActual());
+}
+
+function pintarPedidos() {
+  const hay = carritoEnPantalla();
+  document.getElementById('ajPedidosCuerpo').style.display = hay ? '' : 'none';
+  if (hay) actualizarAvisoPedidos();
 }
 
 function pintarNotaCarrito() {
@@ -248,7 +295,7 @@ function pintarNotaCarrito() {
   nota.style.color = 'var(--text-muted)';
 
   if (nav === 'carrito') {
-    nota.textContent = 'Tu carta es de pedidos: el carrito está siempre encendido. El número de WhatsApp y los métodos de pago se configuran en la pestaña Pedidos.';
+    nota.textContent = 'Tu carta es de pedidos: el carrito está siempre encendido. Aquí debajo van el número de WhatsApp y los métodos de pago.';
   } else if (!planActual().carrito) {
     nota.textContent = 'Tu plan no incluye pedidos desde la carta.';
   } else if (!puede) {
@@ -256,10 +303,11 @@ function pintarNotaCarrito() {
   } else if (!document.getElementById('ajCarrito').checked) {
     nota.textContent = 'Enciéndelo y tus clientes podrán armar su pedido desde la carta y enviártelo por WhatsApp.';
   } else if (recibePedidos(at)) {
-    nota.textContent = 'Tus clientes arman su pedido en la carta y te llega por WhatsApp. El número y los métodos de pago están en la pestaña Pedidos.';
+    nota.textContent = 'Tus clientes arman su pedido en la carta y te llega por WhatsApp, al número de aquí debajo.';
   } else {
     // Encendido sin número: la carta deja armar el pedido y no lo deja enviar.
-    nota.textContent = 'Al guardar aparece la pestaña Pedidos: pon ahí el número de WhatsApp al que llegan. Sin él, tus clientes podrán armar el pedido pero no enviarlo.';
+    nota.textContent = 'Pon aquí debajo el número de WhatsApp al que llegan los pedidos. Sin él, tus clientes podrán armar el pedido pero no enviarlo.';
     nota.style.color = 'var(--warn)';
   }
+  pintarPedidos();
 }

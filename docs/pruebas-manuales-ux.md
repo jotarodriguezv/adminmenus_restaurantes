@@ -101,11 +101,13 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] Cada grupo dice qué es y cómo se llama en la carta: «Toppings sin costo (en la carta: «Toppings Platino»)». [TP1 · #101]
 - [ ] Con la pestaña vacía, explica para qué sirve y cómo empezar. [TP2 · #101]
 
-## 8. Pedidos
+## 8. Pedidos (desde el 16/09/2026, dentro de Ajustes)
 
-- [ ] Hay **un solo botón de guardar** para el número de WhatsApp y los métodos de pago. [PE2 · #108]
+- [ ] El número de WhatsApp y los métodos de pago están **en Ajustes**, bajo el interruptor del carrito, y los guarda el botón de Ajustes: no hay pestaña «Pedidos». [16/09/2026]
+- [ ] Encender el carrito hace aparecer esos campos **ahí mismo**, sin guardar ni recargar. [16/09/2026]
+- [ ] Se puede guardar con el carrito encendido y **sin número**: avisa de que falta, y la tarjeta enseña el aviso rojo. [16/09/2026]
 - [ ] Activar Nequi sin sus datos y guardar: dice «Faltan los datos de Nequi» y no guarda nada. [PE2 · #108]
-- [ ] Con carrito y sin número de WhatsApp, avisa de que no recibe pedidos: en la pestaña Pedidos y en su tarjeta de la lista del superadmin («⚠ carrito sin WhatsApp · no recibe pedidos»). [PE1 · #79]
+- [ ] Con carrito y sin número de WhatsApp, avisa de que no recibe pedidos: en Ajustes, dentro de la tarjeta del carrito, y en su tarjeta de la lista del superadmin («⚠ carrito sin WhatsApp · no recibe pedidos»). [PE1 · #79]
 
 ## 9. Promoción
 
@@ -141,7 +143,7 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] En un restaurante con **modelo Sidebar o Carrito**, los chips salen **debajo de la cabecera fija** y se pulsan: antes quedaban tapados por ella. [16/09/2026 · vmenus-app#29]
 - [ ] Con filtros elegidos y **ningún plato marcado**, Ajustes lo avisa en naranja y dice que se arregla en la ficha del plato; al marcar uno, la nota pasa a verde. [16/09/2026]
 - [ ] Apagar el interruptor de filtros y guardar: la carta deja de enseñar chips y, al volver a encenderlo, **los filtros elegidos siguen ahí**. [16/09/2026]
-- [ ] **Solo después de desplegar vmenus-app#28.** Como restaurante Topnav o Sidebar, en Ajustes encender «Carrito de compras»: avisa de que falta el número y, al guardar, aparecen las pestañas Pedidos y Toppings. [15/09/2026]
+- [ ] **Solo después de desplegar vmenus-app#28.** Como restaurante Topnav o Sidebar, en Ajustes encender «Carrito de compras»: avisa de que falta el número y, al guardar, aparecen los campos de pedidos y la pestaña Toppings. [15/09/2026]
 - [ ] Con el número puesto en Pedidos, en la carta pública: botón del pedido (flotante en Topnav, en la cabecera en Sidebar), «+» en cada plato y en la ficha, y el pedido llega a WhatsApp. [15/09/2026]
 - [ ] Apagarlo y guardar: la carta vuelve a ser como antes y las pestañas Pedidos y Toppings desaparecen si no hay toppings. [15/09/2026]
 - [ ] En un restaurante Explorar, o con plan Vitrina, la tarjeta no ofrece el interruptor y dice por qué. [15/09/2026]

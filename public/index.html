@@ -151,7 +151,6 @@
 				<button class="tab-btn" id="tabBtnApariencia" onclick="switchTab('apariencia',this)" style="display:none">Apariencia</button>
 				<button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
 				<button class="tab-btn" id="tabBtnToppings" onclick="switchTab('toppings',this)" style="display:none">Toppings</button>
-				<button class="tab-btn" id="tabBtnPedidos" onclick="switchTab('pedidos',this)" style="display:none">Pedidos</button>
 				<button class="tab-btn" id="tabBtnTv" onclick="switchTab('tv',this)" style="display:none">Pantalla TV</button>
 				<button class="tab-btn" id="tabBtnImportar" onclick="switchTab('importar',this)" style="display:none">Importar carta</button>
 				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
@@ -697,115 +696,6 @@
 					</div>
 				</div>
 
-				<!-- TAB PEDIDOS (solo modelo carrito) -->
-				<div id="tabPedidos" class="hidden">
-					<div class="section-card">
-						<div class="section-title">WhatsApp para recibir pedidos</div>
-						<div class="form-group" style="margin-bottom:0">
-							<label for="pedidosWhatsapp" class="form-label">Número <span style="color:var(--text-dim)">(solo dígitos, con código de país, sin +)</span></label>
-							<input type="text" class="form-input" id="pedidosWhatsapp" placeholder="573001234567">
-						</div>
-						<div id="pedidosSinNumero" style="display:none;margin-top:12px;padding:10px 12px;border-radius:var(--radius);
-							background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger);font-size:12px;line-height:1.6;">
-							<strong>Tu carta no puede recibir pedidos.</strong> Sin este número, tus clientes llenan el
-							carrito y en vez del botón de pedir les sale un aviso de que aquí no se reciben pedidos.
-							Pon el número y guarda.
-						</div>
-					</div>
-
-					<div class="section-card">
-						<div class="section-title">Métodos de pago</div>
-
-						<div class="form-check" style="margin-bottom:0">
-							<label class="toggle"><input type="checkbox" id="mpEfectivo"><span class="toggle-slider"></span></label>
-							<span style="font-size:13px;color:var(--text-muted)">Efectivo</span>
-						</div>
-						<div class="form-check" style="margin-top:10px;margin-bottom:0">
-							<label class="toggle"><input type="checkbox" id="mpTarjeta"><span class="toggle-slider"></span></label>
-							<span style="font-size:13px;color:var(--text-muted)">Tarjeta (datáfono al entregar)</span>
-						</div>
-
-						<div style="border-top:1px solid var(--border);margin:16px 0;"></div>
-
-						<div class="form-check" style="margin-bottom:10px">
-							<label class="toggle"><input type="checkbox" id="mpNequiActivo" onchange="document.getElementById('mpNequiCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
-							<span style="font-size:13px;color:var(--text-muted)">Nequi</span>
-						</div>
-						<div id="mpNequiCampos" style="display:none;margin-bottom:16px;">
-							<div class="form-row">
-								<div class="form-group" style="margin-bottom:0">
-									<label for="mpNequiTelefono" class="form-label">Teléfono</label>
-									<input type="text" class="form-input" id="mpNequiTelefono" placeholder="3001234567">
-								</div>
-								<div class="form-group" style="margin-bottom:0">
-									<label for="mpNequiTitular" class="form-label">Nombre del titular</label>
-									<input type="text" class="form-input" id="mpNequiTitular" placeholder="Juan Pérez">
-								</div>
-							</div>
-						</div>
-
-						<div class="form-check" style="margin-bottom:10px">
-							<label class="toggle"><input type="checkbox" id="mpDaviplataActivo" onchange="document.getElementById('mpDaviplataCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
-							<span style="font-size:13px;color:var(--text-muted)">Daviplata</span>
-						</div>
-						<div id="mpDaviplataCampos" style="display:none;margin-bottom:16px;">
-							<div class="form-row">
-								<div class="form-group" style="margin-bottom:0">
-									<label for="mpDaviplataTelefono" class="form-label">Teléfono</label>
-									<input type="text" class="form-input" id="mpDaviplataTelefono" placeholder="3001234567">
-								</div>
-								<div class="form-group" style="margin-bottom:0">
-									<label for="mpDaviplataTitular" class="form-label">Nombre del titular</label>
-									<input type="text" class="form-input" id="mpDaviplataTitular" placeholder="Juan Pérez">
-								</div>
-							</div>
-						</div>
-
-						<div class="form-check" style="margin-bottom:10px">
-							<label class="toggle"><input type="checkbox" id="mpBancolombiaActivo" onchange="document.getElementById('mpBancolombiaCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
-							<span style="font-size:13px;color:var(--text-muted)">Transferencia bancaria</span>
-						</div>
-						<div id="mpBancolombiaCampos" style="display:none;margin-bottom:16px;">
-							<div class="form-row">
-								<div class="form-group">
-									<label for="mpBancolombiaNumero" class="form-label">Número de cuenta</label>
-									<input type="text" class="form-input" id="mpBancolombiaNumero" placeholder="1234567890">
-								</div>
-								<div class="form-group">
-									<label for="mpBancolombiaTipo" class="form-label">Tipo de cuenta</label>
-									<select class="form-select" id="mpBancolombiaTipo">
-										<option value="ahorros">Ahorros</option>
-										<option value="corriente">Corriente</option>
-									</select>
-								</div>
-							</div>
-							<div class="form-group" style="margin-bottom:0">
-								<label for="mpBancolombiaTitular" class="form-label">Nombre del titular</label>
-								<input type="text" class="form-input" id="mpBancolombiaTitular" placeholder="Juan Pérez">
-							</div>
-						</div>
-
-						<div class="form-check" style="margin-bottom:10px">
-							<label class="toggle"><input type="checkbox" id="mpBrebActivo" onchange="document.getElementById('mpBrebCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
-							<span style="font-size:13px;color:var(--text-muted)">Llave Bre-B</span>
-						</div>
-						<div id="mpBrebCampos" style="display:none;margin-bottom:0;">
-							<div class="form-group" style="margin-bottom:0">
-								<label for="mpBrebLlave" class="form-label">Llave Bre-B</label>
-								<input type="text" class="form-input" id="mpBrebLlave" placeholder="Número, celular o llave alfanumérica">
-							</div>
-						</div>
-					</div>
-					<!-- PE2: eran dos botones, «Guardar» para el número y «Guardar métodos de
-					     pago». Los dos escriben en restaurantes.atributos, así que van en una
-					     sola petición. En Apariencia (A1) se dejaron dos a propósito porque allí
-					     uno escribe en DOS tablas; aquí ese motivo no existe. -->
-					<div style="text-align:right;">
-						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="savePedidos()">Guardar</button>
-					</div>
-					<div id="pedidosStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-				</div>
-
 				<!-- TAB QR -->
 				<!-- La cartelera para televisores. Va en pestaña propia y no dentro de
 				     Apariencia a propósito: es otro servicio, no una opción de la carta. -->
@@ -1201,6 +1091,110 @@
 						<p id="ajCarritoNota" style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.5"></p>
 					</div>
 
+					<!-- El número de WhatsApp y los métodos de pago, que hasta el 16/09/2026
+					     eran la pestaña «Pedidos». Encender el carrito hacía aparecer dos
+					     pestañas nuevas sin que nadie lo explicara, y «Pedidos» daba a entender
+					     que ahí se VEN los pedidos, que es otra cosa que todavía no existe.
+					     Ahora sale aquí mismo al encender el interruptor, como los filtros. -->
+					<div id="ajPedidosCuerpo" style="display:none">
+						<div class="section-card">
+							<div class="section-title">WhatsApp para recibir pedidos</div>
+							<div class="form-group" style="margin-bottom:0">
+								<label for="pedidosWhatsapp" class="form-label">Número <span style="color:var(--text-dim)">(solo dígitos, con código de país, sin +)</span></label>
+								<input type="text" class="form-input" id="pedidosWhatsapp" placeholder="573001234567">
+							</div>
+							<div id="pedidosSinNumero" style="display:none;margin-top:12px;padding:10px 12px;border-radius:var(--radius);
+								background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger);font-size:12px;line-height:1.6;">
+								<strong>Tu carta no puede recibir pedidos.</strong> Sin este número, tus clientes llenan el
+								carrito y en vez del botón de pedir les sale un aviso de que aquí no se reciben pedidos.
+								Pon el número y guarda.
+							</div>
+						</div>
+
+						<div class="section-card">
+							<div class="section-title">Métodos de pago</div>
+
+							<div class="form-check" style="margin-bottom:0">
+								<label class="toggle"><input type="checkbox" id="mpEfectivo"><span class="toggle-slider"></span></label>
+								<span style="font-size:13px;color:var(--text-muted)">Efectivo</span>
+							</div>
+							<div class="form-check" style="margin-top:10px;margin-bottom:0">
+								<label class="toggle"><input type="checkbox" id="mpTarjeta"><span class="toggle-slider"></span></label>
+								<span style="font-size:13px;color:var(--text-muted)">Tarjeta (datáfono al entregar)</span>
+							</div>
+
+							<div style="border-top:1px solid var(--border);margin:16px 0;"></div>
+
+							<div class="form-check" style="margin-bottom:10px">
+								<label class="toggle"><input type="checkbox" id="mpNequiActivo" onchange="document.getElementById('mpNequiCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
+								<span style="font-size:13px;color:var(--text-muted)">Nequi</span>
+							</div>
+							<div id="mpNequiCampos" style="display:none;margin-bottom:16px;">
+								<div class="form-row">
+									<div class="form-group" style="margin-bottom:0">
+										<label for="mpNequiTelefono" class="form-label">Teléfono</label>
+										<input type="text" class="form-input" id="mpNequiTelefono" placeholder="3001234567">
+									</div>
+									<div class="form-group" style="margin-bottom:0">
+										<label for="mpNequiTitular" class="form-label">Nombre del titular</label>
+										<input type="text" class="form-input" id="mpNequiTitular" placeholder="Juan Pérez">
+									</div>
+								</div>
+							</div>
+
+							<div class="form-check" style="margin-bottom:10px">
+								<label class="toggle"><input type="checkbox" id="mpDaviplataActivo" onchange="document.getElementById('mpDaviplataCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
+								<span style="font-size:13px;color:var(--text-muted)">Daviplata</span>
+							</div>
+							<div id="mpDaviplataCampos" style="display:none;margin-bottom:16px;">
+								<div class="form-row">
+									<div class="form-group" style="margin-bottom:0">
+										<label for="mpDaviplataTelefono" class="form-label">Teléfono</label>
+										<input type="text" class="form-input" id="mpDaviplataTelefono" placeholder="3001234567">
+									</div>
+									<div class="form-group" style="margin-bottom:0">
+										<label for="mpDaviplataTitular" class="form-label">Nombre del titular</label>
+										<input type="text" class="form-input" id="mpDaviplataTitular" placeholder="Juan Pérez">
+									</div>
+								</div>
+							</div>
+
+							<div class="form-check" style="margin-bottom:10px">
+								<label class="toggle"><input type="checkbox" id="mpBancolombiaActivo" onchange="document.getElementById('mpBancolombiaCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
+								<span style="font-size:13px;color:var(--text-muted)">Transferencia bancaria</span>
+							</div>
+							<div id="mpBancolombiaCampos" style="display:none;margin-bottom:16px;">
+								<div class="form-row">
+									<div class="form-group">
+										<label for="mpBancolombiaNumero" class="form-label">Número de cuenta</label>
+										<input type="text" class="form-input" id="mpBancolombiaNumero" placeholder="1234567890">
+									</div>
+									<div class="form-group">
+										<label for="mpBancolombiaTipo" class="form-label">Tipo de cuenta</label>
+										<select class="form-select" id="mpBancolombiaTipo">
+											<option value="ahorros">Ahorros</option>
+											<option value="corriente">Corriente</option>
+										</select>
+									</div>
+								</div>
+								<div class="form-group" style="margin-bottom:0">
+									<label for="mpBancolombiaTitular" class="form-label">Nombre del titular</label>
+									<input type="text" class="form-input" id="mpBancolombiaTitular" placeholder="Juan Pérez">
+								</div>
+							</div>
+
+							<div class="form-check" style="margin-bottom:10px">
+								<label class="toggle"><input type="checkbox" id="mpBrebActivo" onchange="document.getElementById('mpBrebCampos').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
+								<span style="font-size:13px;color:var(--text-muted)">Llave Bre-B</span>
+							</div>
+							<div id="mpBrebCampos" style="display:none;margin-bottom:0;">
+								<div class="form-group" style="margin-bottom:0">
+									<label for="mpBrebLlave" class="form-label">Llave Bre-B</label>
+									<input type="text" class="form-input" id="mpBrebLlave" placeholder="Número, celular o llave alfanumérica">
+								</div>
+							</div>
+						</div>
+					</div>
 					<!-- Los filtros los pintan los seis modelos de la carta (core/filtros.js en
 					     vmenus-app), no solo explorar. Las insignias de cada plato sí siguen
 					     siendo de explorar, y por eso no están aquí. -->
@@ -2456,7 +2450,7 @@ function switchTab(tab, btn) {
   // En un móvil la pestaña pulsada puede estar medio fuera; se trae a la vista
   // para que se vea cuál está activa. 'nearest' no mueve la página en vertical.
   btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabPedidos','tabTv','tabImportar','tabQr','tabEstadisticas','tabAjustes'].forEach(id=>{
+  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabToppings','tabTv','tabImportar','tabQr','tabEstadisticas','tabAjustes'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
@@ -6037,18 +6031,19 @@ function ajustarPestanasAlModelo() {
   const attr = state.restaurante?.atributos || {};
   // La misma regla que la carta, y no una propia. Antes bastaba plan +
   // interruptor en CUALQUIER modelo, así que un Topnav con el interruptor puesto
-  // veía la pestaña Pedidos para configurar un WhatsApp y unos métodos de pago
-  // que no hacían nada: su carta no deja armar un pedido. Ver PE3.
+  // veía los campos de WhatsApp y métodos de pago para configurar algo que no
+  // hacía nada: su carta no deja armar un pedido. Ver PE3.
+  //
+  // Desde el 16/09/2026 los pedidos ya no son pestaña: están en Ajustes, dentro
+  // de la tarjeta del carrito, y los enseña pintarPedidos() con esa misma regla.
   const hayCarrito = cartaTieneCarrito(attr, planActual());
   const hasToppings = attr.toppings_platino || attr.toppings_premium || attr.salsas;
 
   document.getElementById('tabBtnToppings').style.display = (hayCarrito || hasToppings) ? 'block' : 'none';
-  document.getElementById('tabBtnPedidos').style.display = hayCarrito ? 'block' : 'none';
   // La cartelera es de pago. Esconder la pestaña es cortesía, no protección:
   // quien la quiera de verdad tiene que poder guardar 'tv', y eso lo filtra el
   // servidor por plan.
   document.getElementById('tabBtnTv').style.display = restauranteTieneTv() ? 'block' : 'none';
-  if (hayCarrito) { renderPedidos(); renderMetodosPago(); }
   marcarBordesDeTabs();   // aparecer o desaparecer pestañas cambia si sobran
 }
 
@@ -6455,10 +6450,15 @@ function siguienteOcurrencia(cicloInicio, diaPago) {
 // decide el recorte de cada archivo, y cambiarlo obliga a reconvertir la carta
 // entera. Ver docs/planes-y-modelos.md.
 // Una carta con carrito y sin número rechaza cada pedido. Se marca aquí, en la
-// lista, porque es donde se deciden los modelos: el estado roto no nace de que
-// alguien borre el número —savePedidos() no deja guardarlo vacío— sino de que
-// nunca se puso al pasar un restaurante a un modelo con carrito. Así se ve sin
-// abrir las fichas de una en una.
+// lista, porque es donde se deciden los modelos: normalmente el estado roto no
+// nace de que alguien borre el número, sino de que nunca se puso al pasar un
+// restaurante a un modelo con carrito. Así se ve sin abrir las fichas de una en
+// una.
+//
+// Desde el 16/09/2026 sí se puede guardar sin número —el interruptor del
+// carrito y el campo están en la misma pantalla, y exigirlo impediría el primer
+// guardado—, así que esta etiqueta importa más que antes: es lo que queda
+// cuando alguien enciende el carrito y deja el número para luego.
 function avisoPedidosHtml(r) {
   if (!cartaTieneCarrito(r?.atributos, planDe(r)) || recibePedidos(r?.atributos)) return '';
   return `<div class="resto-etiquetas"><span class="resto-etiqueta mal">⚠ carrito sin WhatsApp · no recibe pedidos</span></div>`;
@@ -6488,7 +6488,7 @@ function fichaPlanHtml(r) {
   // 3. Si el comensal puede pedir. Antes salía con `plan.carrito`, o sea con lo
   //    que el plan PERMITE, y se leía como lo que la carta TIENE: Bonzas la
   //    llevaba siendo Topnav y con el carrito apagado, y el propio panel ni le
-  //    enseñaba la pestaña Pedidos (X1). Mismo criterio que la IA de abajo: se
+  //    enseñaba dónde poner el número (X1). Mismo criterio que la IA de abajo: se
   //    nombra solo donde podría existir. Todos los planes incluyen carrito, así
   //    que eso no distingue nada; lo que distingue es el modelo. En Video,
   //    Vertical, Topnav y Sidebar es un interruptor y se dice si está apagado. En
