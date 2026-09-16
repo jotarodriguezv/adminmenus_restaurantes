@@ -1,5 +1,10 @@
-// La pestaña Toppings: el catálogo de adiciones del restaurante (platino,
-// premium y salsas) y el aviso de los platos que apuntan a una que ya no existe.
+// Los toppings: el catálogo de adiciones del restaurante (platino, premium y
+// salsas) y el aviso de los platos que apuntan a una que ya no existe.
+//
+// El 16/09/2026 dejaron de ser una pestaña: su marcado vive en Ajustes, bajo el
+// carrito, y se guardan con el botón de esa pantalla. Aquí quedó el catálogo y
+// lo que lo pinta; el guardado está en ajustes.js, porque todo lo de esa
+// pantalla va en una sola petición.
 //
 // Cómo lee ese catálogo la ficha del plato (catalogoDe) está en index.html,
 // con el resto de la ficha: es de Productos, no de esta pestaña.
@@ -204,36 +209,4 @@ function toppingsHuerfanos() {
     if (perdidos.length) afectados.push(`${p.nombre}: ${[...new Set(perdidos)].join(', ')}`);
   }
   return afectados;
-}
-
-async function saveToppings() {
-  const huerfanos = toppingsHuerfanos();
-  if (huerfanos.length) {
-    const ok = confirm(
-      `Estos platos ofrecen toppings que van a dejar de existir con este cambio:\n\n` +
-      huerfanos.slice(0, 10).join('\n') +
-      (huerfanos.length > 10 ? `\n…y ${huerfanos.length - 10} plato(s) más` : '') +
-      `\n\nSi lo que quieres es cambiarle el nombre a uno, no hace falta borrarlo: ` +
-      `pulsa sobre él y edítalo, y los platos lo siguen solos.\n\n¿Guardar de todas formas?`);
-    if (!ok) return;
-  }
-
-  // Solo sus tres claves. Antes se mandaba `{...atributos, ...}` con la copia
-  // que el panel cargó al entrar, así que guardar toppings reescribía TODO
-  // atributos y devolvía a su valor viejo cualquier cosa que se hubiera
-  // cambiado mientras tanto. Ahora las funde el servidor, que sí tiene la
-  // versión de ahora.
-  const atributos = {
-    toppings_platino: toppingState.platino,
-    toppings_premium: toppingState.premium,
-    salsas:           toppingState.salsas,
-  };
-  try {
-    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
-    if (data) state.restaurante = data;
-    // Quedarse sin toppings puede dejar la pestaña sin motivo para existir.
-    ajustarPestanasAlModelo();
-    pintarAvisoSinUso();
-    showToast('Toppings guardados', 'success');
-  } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
 }

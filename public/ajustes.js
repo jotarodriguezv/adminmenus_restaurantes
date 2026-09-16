@@ -55,6 +55,7 @@ function renderAjustes() {
   // alguien hubiera escrito antes de apagar y volver a encender el interruptor.
   renderPedidos();
   renderMetodosPago();
+  renderToppings();
   pintarNotaCarrito();
   const st = document.getElementById('ajustesStatus');
   st.textContent = ''; st.style.color = 'var(--text-muted)';
@@ -73,9 +74,17 @@ function recolectarAjustes() {
     whatsapp_pedidos: document.getElementById('pedidosWhatsapp').value.trim().replace(/[^0-9]/g, ''),
     metodos_pago: recolectarMetodosPago(),
   } : {};
+  // Los toppings viajan mientras se estén enseñando. El catálogo lo lleva
+  // toppingState, que es lo que las tarjetas cambian al añadir o borrar.
+  const toppings = hayQueEnsenarToppings() ? {
+    toppings_platino: toppingState.platino,
+    toppings_premium: toppingState.premium,
+    salsas:           toppingState.salsas,
+  } : {};
   return {
     ...carrito,
     ...pedidos,
+    ...toppings,
     // La lista viaja también con el interruptor apagado: apagar esconde, no
     // borra, y es lo que permite volver a encenderlo y encontrarlo todo igual.
     filtros_activos: document.getElementById('ajFiltros').checked,
@@ -102,6 +111,19 @@ async function saveAjustes() {
       st.textContent = texto; st.style.color = 'var(--danger)';
       showToast(texto, 'error');
       return;
+    }
+  }
+  // Borrar un topping desengancha a los platos que lo ofrecen, y eso no se ve
+  // desde aquí. Se pregunta antes de mandarlo, no después.
+  if (hayQueEnsenarToppings()) {
+    const huerfanos = toppingsHuerfanos();
+    if (huerfanos.length && !confirm(
+      'Estos platos ofrecen toppings que van a dejar de existir con este cambio:\n\n' +
+      huerfanos.slice(0, 10).join('\n') +
+      (huerfanos.length > 10 ? `\n…y ${huerfanos.length - 10} plato(s) más` : '') +
+      '\n\nSi lo que quieres es cambiarle el nombre a uno, no hace falta borrarlo: ' +
+      'pulsa sobre él y edítalo, y los platos lo siguen solos.\n\n¿Guardar de todas formas?')) {
+      st.textContent = ''; return;
     }
   }
   st.textContent = 'Guardando…'; st.style.color = 'var(--text-muted)';
@@ -280,6 +302,18 @@ function carritoEnPantalla() {
   return cartaTieneCarrito({ ...at, carrito: document.getElementById('ajCarrito').checked }, planActual());
 }
 
+// Los toppings salen con carrito, y también sin él si el restaurante ya tiene
+// alguno creado: son datos suyos y tiene que poder verlos y borrarlos aunque
+// haya dejado de recibir pedidos. Era la misma regla de su pestaña.
+function hayQueEnsenarToppings() {
+  const at = state.restaurante?.atributos || {};
+  return carritoEnPantalla() || !!(at.toppings_platino?.length || at.toppings_premium?.length || at.salsas?.length);
+}
+
+function pintarToppings() {
+  document.getElementById('ajToppingsCuerpo').style.display = hayQueEnsenarToppings() ? '' : 'none';
+}
+
 function pintarPedidos() {
   const hay = carritoEnPantalla();
   document.getElementById('ajPedidosCuerpo').style.display = hay ? '' : 'none';
@@ -310,4 +344,5 @@ function pintarNotaCarrito() {
     nota.style.color = 'var(--warn)';
   }
   pintarPedidos();
+  pintarToppings();
 }

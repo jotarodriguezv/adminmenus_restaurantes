@@ -1522,10 +1522,10 @@ describe('donde la carta tiene carrito se configuran los pedidos', () => {
 	// regla es la misma —cartaTieneCarrito— y por eso siguen aquí las dos.
 	const conAtributos = (atributos, plan = { carrito: true }) => {
 		const mapa = {
-			tabBtnToppings:  { style: {} },
-			tabBtnTv:        { style: {} },
-			ajPedidosCuerpo: { style: {} },
-			ajCarrito:       { checked: !!atributos.carrito },
+			tabBtnTv:         { style: {} },
+			ajPedidosCuerpo:  { style: {} },
+			ajToppingsCuerpo: { style: {} },
+			ajCarrito:        { checked: !!atributos.carrito },
 		};
 		const ctx = cargar('index.html', [
 			['// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
@@ -1540,10 +1540,12 @@ describe('donde la carta tiene carrito se configuran los pedidos', () => {
 			});
 		ctx.ajustarPestanasAlModelo();
 		ctx.pintarPedidos();
+		ctx.pintarToppings();
+		// '' es «a la vista»: la hoja de estilos manda cuando no hay estilo en línea.
+		const visible = caja => (caja.style.display === 'none' ? 'none' : 'block');
 		return {
-			// '' es «a la vista»: la hoja de estilos manda cuando no hay estilo en línea.
-			pedidos:  mapa.ajPedidosCuerpo.style.display === 'none' ? 'none' : 'block',
-			toppings: mapa.tabBtnToppings.style.display,
+			pedidos:  visible(mapa.ajPedidosCuerpo),
+			toppings: visible(mapa.ajToppingsCuerpo),
 			tv:       mapa.tabBtnTv.style.display,
 		};
 	};
@@ -1589,7 +1591,7 @@ describe('donde la carta tiene carrito se configuran los pedidos', () => {
 		for (const nav of ['explorar']) {
 			const r = conAtributos({ nav, carrito: true });
 			assert.equal(r.pedidos, 'none', `${nav ?? 'sin modelo'} enseña los pedidos`);
-			assert.equal(r.toppings, 'none', `${nav ?? 'sin modelo'} enseña Toppings sin tener datos`);
+			assert.equal(r.toppings, 'none', `${nav ?? 'sin modelo'} enseña los toppings sin tener datos`);
 		}
 	});
 
@@ -1608,9 +1610,9 @@ describe('donde la carta tiene carrito se configuran los pedidos', () => {
 		assert.equal(conAtributos({ nav: 'carrito', carrito: false }, { carrito: false }).pedidos, 'block');
 	});
 
-	test('un restaurante con toppings de antes conserva su pestaña', () => {
+	test('un restaurante con toppings de antes los sigue viendo', () => {
 		// Aunque ya no tenga carrito: son datos suyos y debe poder verlos.
-		const r = conAtributos({ nav: 'topnav', salsas: ['BBQ'] }, { carrito: false });
+		const r = conAtributos({ nav: 'topnav', salsas: [{ id: 't1', nombre: 'BBQ' }] }, { carrito: false });
 		assert.equal(r.toppings, 'block');
 		assert.equal(r.pedidos, 'none');
 	});
@@ -2884,7 +2886,7 @@ describe('toppingsHuerfanos · qué platos se quedan colgados al borrar', () => 
 	// comparando también por nombre porque un plato que nadie haya vuelto a
 	// guardar desde la migración todavía puede llevar nombres dentro.
 	const buscar = (toppingState, productos) => cargar('toppings.js',
-		[['function toppingsHuerfanos', 'async function saveToppings']],
+		[['function toppingsHuerfanos', null]],
 		{ toppingState, state: { productos } }).toppingsHuerfanos();
 
 	const catalogo = {
@@ -4676,14 +4678,15 @@ describe('los avisos no mandan al cliente a pestañas que no ve', () => {
 		assert.match(src.slice(i, i + 250), /pintarAyudaSegunQuienMira\(state\.rol === 'admin'\)/);
 	});
 
-	test('la personalización usa la misma regla que la pestaña Toppings', () => {
-		// «Créalos en la pestaña Toppings» solo es verdad si la pestaña está. Con
-		// reglas distintas, desde PE3 un Topnav con el interruptor puesto veía el
-		// aviso con la pestaña escondida.
+	test('la personalización usa la misma regla que los toppings de Ajustes', () => {
+		// «Créalos en…» solo es verdad si el catálogo está a la vista. Con reglas
+		// distintas, desde PE3 un Topnav con el interruptor puesto veía el aviso
+		// con los toppings escondidos.
 		const pers = src.match(/function renderPersonalizacion\(\) \{[\s\S]*?\n\}/)[0];
-		const pestanas = src.match(/function ajustarPestanasAlModelo\(\) \{[\s\S]*?\n\}/)[0];
+		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
 		assert.match(pers, /cartaTieneCarrito\(/);
-		assert.match(pestanas, /cartaTieneCarrito\(/);
+		assert.match(ajustes.match(/function hayQueEnsenarToppings\(\) \{[\s\S]*?\n\}/)[0], /carritoEnPantalla\(\)/);
+		assert.match(ajustes.match(/function carritoEnPantalla\(\) \{[\s\S]*?\n\}/)[0], /cartaTieneCarrito\(/);
 		assert.doesNotMatch(pers, /attr\.nav === 'carrito'/);
 	});
 });
@@ -5230,10 +5233,10 @@ describe('los grupos de toppings se llaman igual en la pestaña y en la ficha', 
 	const src = codigoDelPanel();
 
 	test('los dos grupos llevan el mismo par de nombres en las dos pantallas', () => {
-		const pestana = src.slice(src.indexOf('<!-- TAB TOPPINGS -->'), src.indexOf('id="listToppingsSalsas"'));
+		const pestana = src.slice(src.indexOf('id="ajToppingsCuerpo"'), src.indexOf('id="listToppingsSalsas"'));
 		const ficha = src.slice(src.indexOf('id="persPlatinoWrap"'), src.indexOf('id="persPremiumChips"'));
 		for (const [claro, carta_] of [['sin costo', 'Platino'], ['con costo', 'Premium']]) {
-			assert.match(pestana, new RegExp(`Toppings ${claro}[^<]*<span[^>]*>\\(en la carta: «Toppings ${carta_}»\\)`), `la pestaña no dice «${claro}» con su nombre de carta`);
+			assert.match(pestana, new RegExp(`Toppings ${claro}[^<]*<span[^>]*>\\(en la carta: «Toppings ${carta_}»\\)`), `Ajustes no dice «${claro}» con su nombre de carta`);
 			assert.match(ficha, new RegExp(`Toppings ${claro} \\(${carta_}\\)`), `la ficha no dice «${claro} (${carta_})»`);
 		}
 	});
@@ -5726,6 +5729,98 @@ describe('los avisos de la dirección del menú no se contradicen', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('los toppings se guardan con el botón de Ajustes', () => {
+	// 16/09/2026, decidido con el usuario: encender el carrito hacía aparecer dos
+	// pestañas que nadie había pedido ni explicado. Los toppings se vinieron a
+	// Ajustes con los pedidos, y todo esto escribe en restaurantes.atributos, así
+	// que va en una sola petición.
+	const src = codigoDelPanel();
+
+	function montar({ atributos = { nav: 'topnav', carrito: true }, plan = { carrito: true },
+	                  catalogo = { platino: [{ id: 't1', nombre: 'Queso' }], premium: [], salsas: [] },
+	                  huerfanos = [], responde = true } = {}) {
+		const campos = {};
+		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
+		$('ajCarrito').checked = !!atributos.carrito;
+		const peticiones = [], preguntas = [];
+		const ctx = cargar('index.html', [
+			['index.html', '// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
+			['ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS'],
+			['ajustes.js', '// ¿La carta que se está configurando va a tener carrito?', 'function pintarNotaCarrito'],
+		], {
+			document: { getElementById: $ },
+			state: { restaurante: { id: 'r1', atributos }, filtrosDisponibles: [] },
+			MODELO_POR_DEFECTO: 'topnav',
+			toppingState: catalogo,
+			toppingsHuerfanos: () => huerfanos,
+			confirm: texto => { preguntas.push(texto); return responde; },
+			planActual: () => plan, recibePedidos: () => true, puedeElegirCarrito: () => true,
+			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {},
+			renderPedidos() {}, renderMetodosPago() {}, renderToppings() {},
+			recolectarMetodosPago: () => ({}), metodosIncompletos: () => [],
+			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push(cuerpo); return { id: 'r1', atributos: { ...atributos, ...cuerpo.atributos } }; },
+			showToast() {}, Object,
+		});
+		return { ctx, $, peticiones, preguntas };
+	}
+
+	test('ya no hay pestaña Toppings: su marcado está dentro de Ajustes', () => {
+		assert.doesNotMatch(src, /id="tabToppings"|id="tabBtnToppings"|saveToppings/);
+		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabQr"'));
+		for (const id of ['ajToppingsCuerpo', 'listToppingsPlatino', 'listToppingsPremium', 'listToppingsSalsas', 'toppingsGuia'])
+			assert.ok(tab.includes(`id="${id}"`), `falta ${id} en Ajustes`);
+		// Y un solo botón de guardar en toda la pestaña.
+		assert.equal((tab.match(/class="btn-save"/g) || []).length, 1);
+	});
+
+	test('el catálogo viaja con lo demás, en la misma petición', async () => {
+		const { ctx, peticiones } = montar();
+		await ctx.saveAjustes();
+		assert.equal(peticiones.length, 1);
+		const at = peticiones[0].atributos;
+		assert.equal(JSON.stringify(at.toppings_platino), '[{"id":"t1","nombre":"Queso"}]');
+		assert.ok('toppings_premium' in at && 'salsas' in at, 'los tres grupos, o el servidor no sabría cuál vaciar');
+		assert.ok('social_bar' in at, 'y sin dejarse lo que ya guardaba');
+	});
+
+	test('sin carrito y sin toppings, no viaja ningún grupo', () => {
+		// Si no, un restaurante que nunca los ha visto acabaría con tres listas
+		// vacías dentro de sus atributos.
+		const { ctx } = montar({
+			atributos: { nav: 'topnav', carrito: false },
+			catalogo: { platino: [], premium: [], salsas: [] },
+		});
+		const r = ctx.recolectarAjustes();
+		assert.ok(!('toppings_platino' in r) && !('salsas' in r));
+	});
+
+	test('un restaurante con toppings de antes los sigue guardando sin carrito', () => {
+		// Son datos suyos: tiene que poder verlos y borrarlos aunque ya no reciba
+		// pedidos. Era la regla de su pestaña.
+		const { ctx } = montar({
+			atributos: { nav: 'topnav', carrito: false, salsas: [{ id: 't9', nombre: 'BBQ' }] },
+			plan: { carrito: false },
+			catalogo: { platino: [], premium: [], salsas: [{ id: 't9', nombre: 'BBQ' }] },
+		});
+		assert.ok('salsas' in ctx.recolectarAjustes());
+	});
+
+	test('borrar un topping que algún plato ofrece pregunta antes de mandarlo', async () => {
+		const { ctx, peticiones, preguntas } = montar({ huerfanos: ['Papas: Queso'], responde: false });
+		await ctx.saveAjustes();
+		assert.equal(peticiones.length, 0, 'decir que no tiene que cortar el guardado entero');
+		assert.match(preguntas[0], /Papas: Queso/);
+		assert.match(preguntas[0], /cambiarle el nombre a uno, no hace falta borrarlo/);
+	});
+
+	test('y si se contesta que sí, se manda', async () => {
+		const { ctx, peticiones } = montar({ huerfanos: ['Papas: Queso'], responde: true });
+		await ctx.saveAjustes();
+		assert.equal(peticiones.length, 1);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 	// PE2 en docs/revision-ux.md: eran dos botones, «Guardar» para el número y
 	// «Guardar métodos de pago» para lo demás. Desde el 16/09/2026 ni siquiera
@@ -5757,6 +5852,10 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 			planActual: () => plan, recibePedidos: () => recibe,
 			puedeElegirCarrito: () => true,
 			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {},
+			// Esta prueba es de pedidos: los toppings de la misma tarjeta no estorban
+			// si el restaurante no tiene ninguno, que es lo que dice el catálogo vacío.
+			renderToppings() {}, toppingsHuerfanos: () => [],
+			toppingState: { platino: [], premium: [], salsas: [] },
 			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push({ metodo, ruta, cuerpo }); return { id: 'r1', atributos: { nav, ...cuerpo.atributos } }; },
 			showToast: (m, t) => avisos.push({ m, t }), Object,
 		});
@@ -6276,6 +6375,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 			// Los pedidos viven en esta misma pantalla desde el 16/09/2026, pero
 			// esta prueba es de redes: sin carrito, no se recogen.
 			renderPedidos: () => {}, renderMetodosPago: () => {}, recolectarMetodosPago: () => ({}),
+			renderToppings: () => {}, hayQueEnsenarToppings: () => false,
 			carritoEnPantalla: () => false,
 			planActual: () => ({}), recibePedidos: () => false,
 			state: { restaurante: { id: 'r1', atributos } },
@@ -6386,9 +6486,11 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 	test('dentro de Ajustes: carrito, filtros y las redes al final', () => {
 		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabQr"'));
 		const orden = [...tab.matchAll(/<div class="section-title">([^<]+)</g)].map(m => m[1]);
-		assert.equal(JSON.stringify(orden),
-			'["Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago","Filtros y etiquetas","Redes sociales"]',
-			'el carrito y lo suyo primero, las redes al final');
+		assert.equal(JSON.stringify(orden.slice(0, 3)),
+			'["Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
+			'el carrito y lo suyo, primero');
+		assert.equal(JSON.stringify(orden.slice(-2)), '["Filtros y etiquetas","Redes sociales"]',
+			'los filtros después, y las redes al final');
 		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('Redes sociales'), 'el botón de guardar, después de todas');
 	});
 
@@ -6498,6 +6600,7 @@ describe('el interruptor de filtros y la nota que explica lo que se ve', () => {
 			document: { getElementById: $ },
 			renderFiltrosCatalogo: () => {}, pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
 			renderPedidos: () => {}, renderMetodosPago: () => {}, cartaTieneCarrito: () => false,
+			renderToppings: () => {}, hayQueEnsenarToppings: () => false,
 			carritoEnPantalla: () => false, planActual: () => ({}),
 			state: { restaurante: { id: 'r1', atributos } },
 			Object,
@@ -6617,8 +6720,9 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 			], {
 				document: { getElementById: $ }, state: { restaurante: { atributos }, filtrosDisponibles: [] },
 				planActual: () => ({ carrito: true }),
-				// Esta prueba mira el carrito, no los pagos: basta con que existan.
-				recolectarMetodosPago: () => ({}),
+				// Esta prueba mira el carrito, no los pagos ni los toppings.
+				recolectarMetodosPago: () => ({}), hayQueEnsenarToppings: () => false,
+				toppingState: { platino: [], premium: [], salsas: [] },
 			});
 			$('ajCarrito').checked = marcado;
 			return ctx.recolectarAjustes();
