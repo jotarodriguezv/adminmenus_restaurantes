@@ -28,10 +28,15 @@ mirar el plan *y* el modelo a la vez, que es lo que hace la línea de la lista.
 
 ## 2. Los planes
 
-`PLANES` vive en dos sitios que **tienen que decir lo mismo**:
-`adminmenus_restaurantes/public/index.html` y `vmenus-app/core/planes.js`. Son
-dos aplicaciones desplegadas por separado; si discrepan, el panel ofrece algo
-que la carta no pinta.
+`PLANES` vive en **tres** sitios que **tienen que decir lo mismo**:
+`adminmenus_restaurantes/server.js`, `adminmenus_restaurantes/public/index.html`
+y `vmenus-app/core/planes.js`. El del servidor es el que manda: es el que decide
+qué se puede guardar. Si discrepan, el panel ofrece algo que la carta no pinta o
+que el servidor no deja guardar. (Aquí ponía «dos» hasta el 16/09/2026.)
+
+> **En diseño desde el 16/09/2026:** rehacer los planes en dos familias, Fotos y
+> Video, y sacar del plan el carrito, los filtros y el buscador. Está en
+> `CLAUDE.md`, «En diseño: rehacer los planes». Esta tabla es la de hoy.
 
 | Plan | Marca | QR | Estad. | Horarios | Carrito | Video |
 |---|---|---|---|---|---|---|
@@ -334,8 +339,8 @@ colar y descubrió que sí.
 
 | Para cambiar... | Se toca |
 |---|---|
-| Qué incluye un plan | `PLANES` en **los dos** repos |
-| Qué modelos permite un plan | `PLANES[x].modelos`, en los dos |
+| Qué incluye un plan | `PLANES` en **los tres** sitios (servidor, panel y carta) |
+| Qué modelos permite un plan | `PLANES[x].modelos`, en los tres |
 | El modelo de un restaurante | Panel → Apariencia |
 | El plan de un restaurante | Panel → Apariencia (solo superadmin) |
 | Si es de producción o de prueba | Panel → Apariencia → Datos del restaurante (solo superadmin) |
