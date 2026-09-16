@@ -99,9 +99,11 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 ## 7. Toppings (desde el 16/09/2026, dentro de Ajustes)
 
 - [ ] Los tres grupos están **en Ajustes**, bajo los pedidos, y se guardan con el botón de Ajustes: no hay pestaña «Toppings». [16/09/2026]
-- [ ] Un restaurante **sin carrito pero con toppings creados** los sigue viendo ahí. [16/09/2026]
+- [ ] **Apagar el carrito esconde los toppings** al momento, aunque haya creados; al encenderlo vuelven a estar. [16/09/2026]
 - [ ] Borrar un topping que algún plato ofrece **pregunta antes de guardar**, y decir que no corta el guardado entero. [16/09/2026]
-- [ ] Cada grupo dice qué es y cómo se llama en la carta: «Toppings sin costo (en la carta: «Toppings Platino»)». [TP1 · #101]
+- [ ] Guardar Ajustes **sin tocar los toppings no pregunta nada**, aunque algún plato apunte a un topping borrado hace tiempo. [16/09/2026]
+- [ ] En Ajustes, la ficha del plato y la carta pone «Toppings sin costo» y «Toppings con costo»: ni «Platino» ni «Premium». [16/09/2026 · vmenus-app#31]
+- [ ] El carrito, el WhatsApp, los métodos de pago y los toppings se ven como **una sola tarjeta**, separados por líneas. [16/09/2026]
 - [ ] Con la pestaña vacía, explica para qué sirve y cómo empezar. [TP2 · #101]
 - [ ] Con toppings creados y **ningún plato que los ofrezca**, sale un aviso naranja arriba diciendo que en la carta no aparece ninguno; al marcar uno en la ficha de un plato, desaparece. [16/09/2026]
 

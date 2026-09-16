@@ -541,6 +541,15 @@ ya no hace aparecer ninguna pestaña. La regla de cuándo se enseñan es la de
 siempre (`cartaTieneCarrito`, PE3), ahora en `carritoEnPantalla()` y
 `hayQueEnsenarToppings()` de `ajustes.js`.
 
+Ajustado al probarlo, el mismo día: todo va **en una sola tarjeta**, con
+líneas dentro (`.aj-bloque`), porque con una tarjeta por parte no se veía qué
+iba con el carrito; los toppings **solo se ven con el carrito encendido**
+(antes también si ya había alguno); y la pregunta de «estos platos pierden
+toppings» mira **solo lo que quita ese guardado** (`toppingsQueSeQuitan`),
+porque un plato que apuntaba a un topping borrado antes la hacía saltar en
+cada guardado. «Platino» y «Premium» desaparecieron de todo lo que se lee —panel
+y carta, vmenus-app#31—; las claves en `atributos` siguen igual.
+
 **Anotado el 16/09/2026, sin hacer todavía: «Apariencia» ya no se llama como lo
 que es.** Desde que las redes, los filtros y el carrito se fueron a Ajustes, lo
 que le queda es la configuración general del restaurante —nombre, slug, plan,

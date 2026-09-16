@@ -115,8 +115,14 @@ async function saveAjustes() {
   }
   // Borrar un topping desengancha a los platos que lo ofrecen, y eso no se ve
   // desde aquí. Se pregunta antes de mandarlo, no después.
+  //
+  // Solo por lo que ESTE guardado quita. Al principio se preguntaba por
+  // cualquier plato que apuntara a un topping inexistente, y un plato que se
+  // quedó así de un borrado anterior hacía saltar la pregunta en CADA guardado
+  // de Ajustes, aunque solo se cambiara una red social. En su pestaña de antes
+  // no se notaba, porque ahí solo se guardaba al tocar toppings.
   if (hayQueEnsenarToppings()) {
-    const huerfanos = toppingsHuerfanos();
+    const huerfanos = toppingsQueSeQuitan();
     if (huerfanos.length && !confirm(
       'Estos platos ofrecen toppings que van a dejar de existir con este cambio:\n\n' +
       huerfanos.slice(0, 10).join('\n') +
@@ -302,12 +308,14 @@ function carritoEnPantalla() {
   return cartaTieneCarrito({ ...at, carrito: document.getElementById('ajCarrito').checked }, planActual());
 }
 
-// Los toppings salen con carrito, y también sin él si el restaurante ya tiene
-// alguno creado: son datos suyos y tiene que poder verlos y borrarlos aunque
-// haya dejado de recibir pedidos. Era la misma regla de su pestaña.
+// Los toppings salen solo con el carrito encendido. Hasta el 16/09/2026 salían
+// también sin él si ya había alguno creado, con la idea de que el restaurante
+// pudiera verlos y borrarlos; al probarlo, apagar el carrito dejaba los
+// toppings a la vista, que es lo contrario de lo que se espera de un
+// interruptor. Sin carrito no hacen nada en la carta, y esconderlos no los
+// borra: al encenderlo otra vez están igual. Es la regla de los filtros.
 function hayQueEnsenarToppings() {
-  const at = state.restaurante?.atributos || {};
-  return carritoEnPantalla() || !!(at.toppings_platino?.length || at.toppings_premium?.length || at.salsas?.length);
+  return carritoEnPantalla();
 }
 
 function pintarToppings() {

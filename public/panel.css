@@ -161,6 +161,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .section-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:20px;}
 .section-title{font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--text-muted);margin-bottom:14px;}
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+/* Partes de una misma tarjeta (Ajustes → Carrito de compras). Con una
+   tarjeta por parte, el hueco entre el número de WhatsApp y los métodos de pago
+   era el mismo que entre los toppings y los filtros, y nada decía qué iba con
+   qué. Una línea dentro de la tarjeta separa sin sacarlo del bloque. */
+.aj-bloque{border-top:1px solid var(--border);margin-top:18px;padding-top:18px;}
+.aj-subtitulo{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;}
+.section-header .aj-subtitulo{margin-bottom:0;}
 
 /* ── FILTRO CATS ── */
 .cat-filter{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;
