@@ -514,7 +514,7 @@ y «Descripción corta» que sale bajo el nombre y manda en las cartas de video.
 
 ## P8 · «Promoción» no nombra todo lo que se puede destacar, y el alta abre el explorador antes de decidir · **Media**
 
-- [x] Hecho · 2026-09-16 · PR pendiente
+- [x] Hecho · 2026-09-16 · PR #162
 
 La misma ventana sirve para una oferta, un plato del día, una novedad o un aviso,
 pero «Promoción» hacía parecer que los tres últimos no cabían. Además, pulsar
