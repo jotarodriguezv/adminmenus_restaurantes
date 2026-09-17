@@ -560,7 +560,10 @@
 							<select class="form-select" id="apNavModelo" onchange="ajustarEstiloAlModelo()">
 								<option value="topnav">Topnav — header centrado + menú horizontal</option>
 								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
-								<option value="carrito">Carrito — pedido por WhatsApp</option>
+								<!-- Retirado el 17/09/2026: el carrito es un interruptor en los otros
+								     cinco. Escondida y no borrada mientras algún restaurante la tenga
+								     guardada: sin ella el desplegable se quedaría en blanco. -->
+								<option value="carrito" hidden>Carrito — retirado, elige otro modelo</option>
 								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
 								<option value="video">Video — una columna, un plato por fila</option>
 								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
@@ -2347,51 +2350,35 @@ function irAImportar() {
 // Reempaquetar la oferta es mover estas líneas; el resto del panel
 // pregunta por capacidades, nunca por el nombre del plan.
 //
-// 'pedidos' por defecto = exactamente lo que hace hoy la plataforma, así
-// que un restaurante sin plan asignado no nota ningún cambio.
-const PLANES = {
-  vitrina: {
-    nombre: 'Vitrina',
-    modelos: ['topnav', 'sidebar', 'explorar'],
-    marca: true, qr_disenador: false, estadisticas: false, horarios: false,
-    videos: false, carrito: false,
-    tv: false,
-    promociones: 5,
-  },
-  pedidos: {
-    nombre: 'Pedidos',
-    modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
-    marca: true, qr_disenador: true, estadisticas: true, horarios: true,
-    videos: false, carrito: true,
-    tv: false,
-    promociones: 5,
-  },
-  completo: {
-    nombre: 'Completo',
-    modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
-    marca: false, qr_disenador: true, estadisticas: true, horarios: true,
-    videos: false, carrito: true,
-    tv: true,
-    promociones: 5,
-  },
-  // La carta en video va en su propio plan porque su coste no se parece al
-  // de los demás: cada plato es un archivo que hay que almacenar, convertir
-  // y servir muchas veces. 'videos' abre la subida en el panel; los modelos
-  // 'video' y 'vertical' son las dos formas que la carta sabe pintar —
-  // apaisada en columna y a pantalla completa deslizando. Van juntas.
-  video: {
-    nombre: 'Video',
-    modelos: ['topnav', 'sidebar', 'explorar', 'carrito', 'video', 'vertical'],
-    marca: false, qr_disenador: true, estadisticas: true, horarios: true,
-    videos: true, carrito: true,
-    tv: true,
-    promociones: 5,
-  },
+// Desde el 17/09/2026 hay DOS planes, que son los dos tipos de carta: fotos y
+// video. Un modelo de uno no sirve para el otro, y todo lo demás va incluido en
+// los dos para que cada restaurante encienda lo que usa. Decidido con el
+// usuario: niveles, si llegan, cuando haya base de clientes. Las banderas se
+// quedan aunque hoy coincidan, porque son las que se moverán entonces.
+const TODO_INCLUIDO = {
+  marca: false, qr_disenador: true, estadisticas: true, horarios: true,
+  carrito: true, tv: true, promociones: 5,
 };
-const PLAN_POR_DEFECTO = 'pedidos';
+const PLANES = {
+  fotos: { nombre: 'Fotos', modelos: ['topnav', 'sidebar', 'explorar'], videos: false, ...TODO_INCLUIDO },
+  // Video va aparte porque es lo único que de verdad cuesta: cada plato es un
+  // archivo que hay que almacenar, convertir y servir muchas veces.
+  video: { nombre: 'Video', modelos: ['video', 'vertical'], videos: true, ...TODO_INCLUIDO },
+};
+// Los planes de antes se siguen entendiendo mientras quede algún restaurante
+// guardado con ellos, y sin plan —o con uno desconocido— manda el modelo. Lo
+// mismo en el servidor y en la carta.
+const PLANES_ANTIGUOS = { vitrina: 'fotos', pedidos: 'fotos', completo: 'fotos' };
+const PLAN_POR_DEFECTO = 'fotos';
 
+function nombrePlanDe(restaurante) {
+  const at = restaurante?.atributos;
+  const nombre = PLANES_ANTIGUOS[at?.plan] || at?.plan;
+  if (PLANES[nombre]) return nombre;
+  return ['video', 'vertical'].includes(at?.nav) ? 'video' : PLAN_POR_DEFECTO;
+}
 function planDe(restaurante) {
-  return PLANES[restaurante?.atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
+  return PLANES[nombrePlanDe(restaurante)];
 }
 function planActual() { return planDe(state.restaurante); }
 
@@ -2486,7 +2473,7 @@ function formatoDeLaCarta(atributos = state.restaurante?.atributos) {
 	return atributos?.nav === 'vertical' ? 'vertical' : 'horizontal';
 }
 function idPlanActual() {
-  return PLANES[state.restaurante?.atributos?.plan] ? state.restaurante.atributos.plan : PLAN_POR_DEFECTO;
+  return nombrePlanDe(state.restaurante);
 }
 
 // ── TABS ──────────────────────────────────────────────────────
@@ -6063,11 +6050,12 @@ function renderPlanResumen() {
   const no = t => `<span style="color:var(--text-dim)">✕ ${t}</span>`;
   document.getElementById('apPlanResumen').innerHTML = [
     `Modelos: ${p.modelos.map(etiquetaModelo).join(' · ')}`,
+    p.videos       ? si('Carta en video')  : no('Carta en video'),
     p.qr_disenador ? si('QR personalizable') : no('QR personalizable (se genera igual, sin diseñar)'),
     p.estadisticas ? si('Estadísticas')      : no('Estadísticas'),
-    p.horarios     ? si('Horarios por categoría') : no('Horarios por categoría'),
-    p.videos       ? si('Carta en video')  : no('Carta en video'),
-    p.carrito      ? si('Carrito de pedidos') : no('Carrito de pedidos'),
+    p.horarios     ? si('Horarios de categorías y destacados') : no('Horarios de categorías y destacados'),
+    p.carrito      ? si('Carrito de compras') : no('Carrito de compras'),
+    p.tv           ? si('Pantalla de TV') : no('Pantalla de TV'),
     p.marca        ? no('Lleva el crédito «Hecho con VMenus»') : si('Sin marca de VMenus'),
   ].join('<br>');
 
