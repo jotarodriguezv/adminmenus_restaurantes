@@ -4428,6 +4428,25 @@ describe('el primer día de un restaurante', () => {
 		assert.ok(posGuarda < posAbrir);
 	});
 
+	test('la ficha nueva enseña primero los datos esenciales y deja los extras después', () => {
+		const codigo = codigoDelPanel();
+		const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+		for (const [clase, orden] of [
+			['producto-nombre', 1], ['producto-categoria', 2], ['producto-precio', 3],
+			['producto-disponibilidad', 4], ['producto-foto', 5],
+			['producto-descripcion', 7], ['producto-imagenes-adicionales', 9],
+		]) {
+			assert.match(codigo, new RegExp(`#productModal \\.${clase}\\{order:${orden};\\}`));
+		}
+
+		assert.match(html, /Foto del producto[\s\S]*?Agrégala ahora o después/);
+		assert.match(html, /Descripción del producto[\s\S]*?Se muestra cuando el cliente abre el producto/);
+		assert.match(html, /Descripción corta[\s\S]*?en las cartas de video es el texto principal/);
+		assert.match(html, /Imágenes adicionales <span>\(opcional · máx\. 4\)<\/span><\/summary>/);
+		assert.doesNotMatch(html, /placeholder="22000"/);
+	});
+
 	test('esconder buscador y orden depende del total, no de la lista filtrada', () => {
 		// Si dependiera de la lista filtrada, una búsqueda sin resultados haría
 		// desaparecer el buscador justo cuando hay que borrarla.

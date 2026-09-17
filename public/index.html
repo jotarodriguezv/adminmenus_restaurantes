@@ -1500,8 +1500,9 @@
 				</div>
 				<div class="modal-body">
 					<input type="hidden" id="editProductId">
-					<div class="form-group">
-						<label class="form-label" id="labelImagen">Imagen</label>
+					<div class="form-group producto-foto">
+						<label class="form-label" id="labelImagen">Foto del producto</label>
+						<div class="form-ayuda">Agrégala ahora o después. Una foto hace que tu carta se vea mejor.</div>
 						<div class="img-edit-wrap" id="zonaFotoPlato" onclick="document.getElementById('imgFileInput').click()">
 							<img id="imgEditPreview" class="img-edit-preview" src="" style="display:none">
 							<div class="img-edit-overlay"><span>📷 Cambiar foto</span></div>
@@ -1521,17 +1522,11 @@
 						     depende de si el video se subió o se generó: a quien grabó el
 						     suyo, hablarle de la IA es ruido. -->
 						<div id="imgAvisoVideo" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;"></div>
-						<div class="form-group" id="extraImgsGroup" style="margin-top:14px;">
-							<label class="form-label">Imágenes adicionales <span style="color:var(--text-dim)">(máx 4 · se ven en el modal del producto)</span></label>
-							<div class="img-gallery" id="extraImgsList"></div>
-							<div class="pista-arrastre" style="margin-top:6px;font-size:11px;color:var(--text-muted)">También puedes arrastrar las imágenes aquí</div>
-							<input type="file" id="extraImgFileInput" accept="image/*" style="display:none" data-zona="extraImgsGroup" onchange="handleExtraImgUpload(this)">
-						</div>
 					</div>
 					<!-- Solo con el plan de video. Esconderlo no basta: el servidor
 					     comprueba el plan igual, porque ocultar un botón no impide
 					     una llamada directa a POST /api/video. -->
-					<div class="form-group" id="videoGroup" style="display:none">
+					<div class="form-group producto-video" id="videoGroup" style="display:none">
 						<!-- El texto de la proporción lo reescribe ajustarFichaAlModelo:
 						     depende del modelo, y aquí clavado decía 16:9 también a
 						     los restaurantes verticales. -->
@@ -1721,17 +1716,18 @@
 						</div>
 						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" data-zona="zonaVideo" onchange="prepararVideoElegido(this)">
 					</div>
-					<div class="form-group">
+					<div class="form-group producto-nombre">
 						<label for="editNombre" class="form-label">Nombre</label>
 						<input type="text" class="form-input" id="editNombre">
 					</div>
-					<div class="form-group">
+					<div class="form-group producto-categoria">
 						<label for="editCategoria" class="form-label">Categoría</label>
 						<select class="form-select" id="editCategoria"></select>
 					</div>
-					<div class="form-group">
-						<label for="editPrecioNum" class="form-label">Precio <span style="color:var(--text-dim);font-weight:400">(solo el número, ej: 22000)</span></label>
-						<input type="number" class="form-input" id="editPrecioNum" placeholder="22000" min="0" step="100" oninput="document.getElementById('precioPreview').textContent=formatPrecio(this.value); avisarSiElPrecioSeSale()">
+					<div class="form-group producto-precio">
+						<label for="editPrecioNum" class="form-label">Precio</label>
+						<div class="form-ayuda">Escribe solo números, sin puntos ni símbolo $.</div>
+						<input type="number" class="form-input" id="editPrecioNum" min="0" step="100" oninput="document.getElementById('precioPreview').textContent=formatPrecio(this.value); avisarSiElPrecioSeSale()">
 						<div style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-muted)">
 							Vista previa: <span id="precioPreview" style="color:var(--accent)">—</span>
 						</div>
@@ -1740,19 +1736,32 @@
 						     puede distinguirlos. Esto solo pregunta. -->
 						<div id="precioAviso" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
 					</div>
-					<div class="form-group">
-						<label for="editDesc" class="form-label">Descripción</label>
+					<div class="form-check producto-disponibilidad">
+						<label class="toggle"><input type="checkbox" id="editDisponible"><span class="toggle-slider"></span></label>
+						<span id="editDisponibleLabel" style="font-size:13px;color:var(--text-muted)">Disponible</span>
+					</div>
+					<div class="form-group producto-descripcion">
+						<label for="editDesc" class="form-label">Descripción del producto <span style="color:var(--text-dim)">(opcional)</span></label>
+						<div class="form-ayuda">Se muestra cuando el cliente abre el producto.</div>
 						<textarea class="form-textarea" id="editDesc"></textarea>
 					</div>
-					<div class="form-group">
-						<label for="editDescAvanzada" class="form-label">Descripción avanzada <span style="color:var(--text-dim)">(opcional)</span></label>
+					<div class="form-group producto-descripcion-corta">
+						<label for="editDescAvanzada" class="form-label">Descripción corta <span style="color:var(--text-dim)">(opcional)</span></label>
+						<div class="form-ayuda">Se muestra debajo del nombre; en las cartas de video es el texto principal.</div>
 						<input type="text" class="form-input" id="editDescAvanzada">
 					</div>
+					<details class="form-group producto-imagenes-adicionales" id="extraImgsGroup">
+						<summary>Imágenes adicionales <span>(opcional · máx. 4)</span></summary>
+						<div class="form-ayuda">Se ven al abrir el producto en la carta.</div>
+						<div class="img-gallery" id="extraImgsList"></div>
+						<div class="pista-arrastre" style="margin-top:6px;font-size:11px;color:var(--text-muted)">También puedes arrastrar las imágenes aquí</div>
+						<input type="file" id="extraImgFileInput" accept="image/*" style="display:none" data-zona="extraImgsGroup" onchange="handleExtraImgUpload(this)">
+					</details>
 					<!-- Qué puede añadirle el cliente a ESTE plato. El catálogo es del
 					     negocio y vive en la pestaña Ajustes; aquí solo se marca cuáles
 					     ofrece cada uno, porque una hamburguesa lleva de todo y una
 					     gaseosa no lleva nada. -->
-					<div class="form-group" id="personalizacionGroup" style="display:none">
+					<div class="form-group producto-personalizacion" id="personalizacionGroup" style="display:none">
 						<label class="form-label">Personalización <span style="color:var(--text-dim);font-weight:400">(qué puede añadirle el cliente a este plato)</span></label>
 						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene toppings. Créalos en la pestaña Ajustes, bajo el carrito, y vuelve aquí.</div>
 						<div id="persPlatinoWrap" style="margin-top:8px;display:none">
@@ -1768,23 +1777,19 @@
 							<div id="persSalsasChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						</div>
 					</div>
-					<div class="form-group" id="editFiltrosGroup" style="display:none">
+					<div class="form-group producto-filtros" id="editFiltrosGroup" style="display:none">
 						<label class="form-label">Filtros que aplican <span style="color:var(--text-dim)">(el cliente los usa para filtrar la carta)</span></label>
 						<div id="editFiltrosChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						<div id="editFiltrosVacio" style="font-size:11px;color:var(--text-dim);display:none">Tu carta todavía no tiene filtros. Actívalos en la pestaña Ajustes → Filtros y etiquetas.</div>
 					</div>
-					<div class="form-group" id="editBadgesGroup" style="display:none">
+					<div class="form-group producto-destacados" id="editBadgesGroup" style="display:none">
 						<label class="form-label">Destacados <span style="color:var(--text-dim)">(insignias del producto)</span></label>
 						<div id="editBadgesChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-					</div>
-					<div class="form-check">
-						<label class="toggle"><input type="checkbox" id="editDisponible"><span class="toggle-slider"></span></label>
-						<span id="editDisponibleLabel" style="font-size:13px;color:var(--text-muted)">Disponible</span>
 					</div>
 				</div>
 				<div class="modal-foot">
 					<button class="btn-cancel" onclick="intentarCerrarProducto()">Cancelar</button>
-					<button class="btn-save" id="btnSaveProduct" onclick="saveProduct()">Guardar</button>
+					<button class="btn-save" id="btnSaveProduct" onclick="saveProduct()">Guardar cambios</button>
 				</div>
 			</div>
 		</div>
@@ -2778,6 +2783,7 @@ function openNewProductModal() {
 	limpiarErroresFicha();
 	state.pendingImgUrl=null;
 	document.getElementById('productModalTitle').textContent='Nuevo producto';
+	document.getElementById('btnSaveProduct').textContent='Crear producto';
 	document.getElementById('editProductId').value='';
 	document.getElementById('editNombre').value='';
 	document.getElementById('editPrecioNum').value='';
@@ -3007,6 +3013,7 @@ function openEditProductModal(id) {
 	limpiarErroresFicha();
 	state.pendingImgUrl=null;
 	document.getElementById('productModalTitle').textContent='Editar producto';
+	document.getElementById('btnSaveProduct').textContent='Guardar cambios';
 	document.getElementById('editProductId').value=p.id;
 	// El estado de la generación es de la ficha anterior: si no se limpia, el
 	// plato nuevo abre diciendo "generando..." de otro.
@@ -4637,7 +4644,7 @@ async function saveProduct() {
 		pintarErroresFicha(errores);
 		// El aviso de siempre se queda, pero ahora resume: el detalle está en cada campo.
 		showToast(errores.length===1 ? errores[0].mensaje : `Faltan ${errores.length} datos del plato`,'error');
-		btn.disabled=false;btn.textContent='Guardar';return;
+		btn.disabled=false;btn.textContent=id ? 'Guardar cambios' : 'Crear producto';return;
 	}
 	limpiarErroresFicha();
 	// Ya validados arriba (erroresDeFicha): aquí solo se leen.
@@ -4698,7 +4705,7 @@ async function saveProduct() {
 		closeModal('productModal');
 		showToast(id?'Producto guardado':'Producto creado','success');
 	} catch(e) { showToast('Error: '+e.message,'error'); }
-	finally { btn.disabled=false; btn.textContent='Guardar'; }
+	finally { btn.disabled=false; btn.textContent=id ? 'Guardar cambios' : 'Crear producto'; }
 }
 
 // ── CATEGORÍAS ────────────────────────────────────────────────
