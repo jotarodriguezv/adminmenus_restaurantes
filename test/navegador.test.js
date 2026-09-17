@@ -1692,6 +1692,8 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			['tv.js', 'const TV_POR_DEFECTO', null],
 		], {
 			state: {
+				// Algunos avisos del televisor cambian según quién mira (CL1).
+				rol: opciones.rol || 'cliente',
 				promociones: opciones.promociones || [],
 				restaurante: Object.assign(
 				{ id: 'r1', slug: 'bonzas', color_primario: opciones.colorPrimario,
@@ -1963,7 +1965,13 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		campos.tvColorCategoria.value = 'marca';
 		ctx.tvPintarMuestraCategoria();
 		assert.equal(campos.tvMuestraCategoria.style.background, 'rgba(10, 10, 15, 0.62)');
-		assert.match(campos.tvAvisoColorCategoria.textContent, /Apariencia/);
+		// Al restaurante no se le nombra una pestaña que no ve (CL1): a él se le
+		// dice que escriba, y al superadmin dónde está.
+		assert.match(campos.tvAvisoColorCategoria.textContent, /Escríbenos/);
+		const admin = montar({ mostrarCategoria: true, colorPrimario: null, rol: 'admin' });
+		admin.campos.tvColorCategoria.value = 'marca';
+		admin.ctx.tvPintarMuestraCategoria();
+		assert.match(admin.campos.tvAvisoColorCategoria.textContent, /pestaña Superadmin/);
 	});
 
 	test('el tema de la página se guarda y se relee', async () => {
@@ -4727,7 +4735,7 @@ describe('los avisos no mandan al cliente a pestañas que no ve', () => {
 		const { ctx, nodos } = montar();
 		ctx.pintarAyudaSegunQuienMira(false);   // aunque antes se pintara para un cliente
 		ctx.pintarAyudaSegunQuienMira(true);
-		assert.match(nodos.qrSinLogo.textContent, /pestaña Apariencia/);
+		assert.match(nodos.qrSinLogo.textContent, /pestaña Superadmin/);
 		assert.equal(nodos.qrSinLogo.hijos.length, 0);
 	});
 
@@ -6625,9 +6633,23 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 	test('Inicio va primero y Ajustes queda tras Productos y Categorías', () => {
 		// Inicio responde primero «cómo está mi carta»; después se conservan las
 		// tres pestañas de trabajo que ya estaban juntas en móvil.
+		//
+		// Se miran las que ve el RESTAURANTE, no todos los botones del carril:
+		// desde el 17/09/2026 «Superadmin» va la segunda, y nace escondida
+		// (display:none), así que para el cliente este orden no cambia.
 		const carril = src.match(/<div class="tabs">[\s\S]*?<\/div>/)[0];
-		const botones = [...carril.matchAll(/switchTab\('([a-z]+)'/g)].map(m => m[1]);
+		const botones = [...carril.matchAll(/<button[^>]*onclick="switchTab\('([a-z]+)'[^>]*>/g)]
+			.filter(m => !/display:\s*none/.test(m[0]))
+			.map(m => m[1]);
 		assert.equal(JSON.stringify(botones.slice(0, 4)), '["inicio","productos","categorias","ajustes"]');
+	});
+
+	test('Superadmin es la segunda del carril y nace escondida', () => {
+		const carril = src.match(/<div class="tabs">[\s\S]*?<\/div>/)[0];
+		const botones = [...carril.matchAll(/<button[^>]*onclick="switchTab\('([a-z]+)'[^>]*>([^<]*)</g)];
+		assert.equal(botones[1][1], 'apariencia', 'va detrás de Inicio');
+		assert.equal(botones[1][2], 'Superadmin', 'el nombre dice quién la ve');
+		assert.match(botones[1][0], /display:\s*none/, 'el restaurante no la ve');
 	});
 
 	test('dentro de Ajustes: carrito, filtros y las redes al final', () => {
@@ -7141,5 +7163,39 @@ describe('el interruptor del buscador de platos', () => {
 		// Un "false" de texto es verdadero para cualquier if, y dejaría la caja
 		// de búsqueda puesta después de apagarla.
 		assert.match(servidor, /for \(const k of \['carrito', 'filtros_activos', 'buscador'\]\)/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('la pestaña Superadmin: qué se lee primero', () => {
+	// 17/09/2026, decidido con el usuario. Lo que identifica al restaurante y
+	// decide la forma de su carta va arriba —es lo que se toca al darlo de alta
+	// y lo que más se consulta—; el aspecto, después; lo avanzado, al final.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const tab = src.slice(src.indexOf('<div id="tabApariencia"'), src.indexOf('<div id="tabPromo"'));
+	const orden = [...tab.matchAll(/<div class="section-title"[^>]*>([^<]+)/g)].map(m => m[1].trim());
+
+	test('primero los datos, el plan y el modelo, en ese orden', () => {
+		assert.deepEqual(orden.slice(0, 3), ['Datos del restaurante', 'Plan', 'Modelo de página']);
+	});
+
+	test('el color de fondo va pegado a la imagen de fondo', () => {
+		// Solo se usa si no hay imagen, así que lejos de ella no se entiende.
+		assert.equal(orden[orden.indexOf('Imagen de fondo') + 1], 'Color de fondo');
+	});
+
+	test('el CSS personalizado se queda el último', () => {
+		assert.equal(orden.at(-1), 'CSS personalizado');
+	});
+
+	test('no se perdió ninguna tarjeta por el camino', () => {
+		assert.equal(orden.length, 14);
+		assert.equal(new Set(orden).size, 14, 'ninguna repetida');
+	});
+
+	test('el botón de guardar ya no se llama «apariencia»', () => {
+		// Guarda el plan, el modelo, el dominio y la zona horaria; llamarlo
+		// apariencia hacía pensar que solo guardaba los colores.
+		assert.match(tab, /onclick="saveApariencia\(\)">Guardar configuración</);
 	});
 });

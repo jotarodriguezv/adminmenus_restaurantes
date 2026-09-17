@@ -166,7 +166,7 @@ function tvPintarMuestraCategoria() {
   muestra.style.color = efectiva.texto;
   aviso.textContent = pal ? '' :
     'Tu carta todavía no tiene un color guardado, así que la etiqueta saldrá oscura. ' +
-    'Se configura en Apariencia.';
+    (state.rol === 'admin' ? 'Se configura en la pestaña Superadmin.' : 'Escríbenos y te lo configuramos.');
 }
 
 function tvAlternarCategoria() {
@@ -182,7 +182,7 @@ function tvAlternarCategoria() {
 function tvPintarTema() {
   const carta = document.getElementById('tvTema').value === 'carta';
   document.getElementById('tvTemaAyuda').textContent = carta
-    ? 'Toma el fondo y los colores que tienes en Apariencia: el precio de cada plato ' +
+    ? 'Toma el fondo y los colores de tu carta: el precio de cada plato ' +
       'sale en tu color, y el fondo negro se tiñe muy suavemente. Si tu color es oscuro, ' +
       'la pantalla lo aclara lo justo para que el precio se lea desde el fondo del local.'
     : 'Fondo negro y precios en amarillo, igual para todos los restaurantes.';
@@ -287,8 +287,8 @@ function tvAlternarIntercalados() {
   const mAyuda = document.getElementById('tvMarcaAyuda');
   const quiereLogo = document.getElementById('tvMarcaLogo').checked;
   if (conMarca && quiereLogo && !state.restaurante?.logo_url) {
-    mAyuda.textContent = 'Todavía no has subido tu logo. Se sube en Apariencia, y hasta ' +
-                         'entonces esta pantalla sale solo con la frase.';
+    mAyuda.textContent = 'Todavía no has subido tu logo, así que esta pantalla sale solo con la frase. ' +
+                         (state.rol === 'admin' ? 'Se sube en la pestaña Superadmin.' : 'Envíanoslo y lo subimos por ti.');
     mAyuda.style.color = 'var(--warn)';
   } else if (conMarca && !quiereLogo && !document.getElementById('tvMarcaFrase').value.trim()) {
     mAyuda.textContent = 'Incluye tu logo o escribe una frase: así como está no hay pantalla que enseñar, y no deja guardar.';
