@@ -1031,7 +1031,7 @@ como referencia de a qué debería parecerse el resto:
 
 ## TV2 · La configuración no decía qué está mostrando ahora ni recordaba los horarios de categoría · **Media**
 
-- [x] Hecho · 2026-09-17 · PR pendiente
+- [x] Hecho · 2026-09-17 · PR #163
 
 «Respetar los horarios de categoría» explicaba la regla, pero no avisaba si el
 restaurante ya tenía categorías afectadas. También faltaba una respuesta única
