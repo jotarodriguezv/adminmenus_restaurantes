@@ -845,15 +845,12 @@ const PLANES = {
   // formulario no impide una llamada directa a la API.
   video: { ...TODO_INCLUIDO, videos: true },
 };
-// Los planes de antes se siguen entendiendo mientras quede algún restaurante
-// guardado con ellos. Sin plan —o con uno desconocido— manda el modelo: una
-// carta de video es del plan de video. Antes caía en 'pedidos', que no abría la
-// subida de video.
-const PLANES_ANTIGUOS = { vitrina: 'fotos', pedidos: 'fotos', completo: 'fotos' };
+// Sin plan —o con uno desconocido— manda el modelo: una carta de video es del
+// plan de video. Los nombres de antes (vitrina, pedidos, completo) se leyeron
+// como 'fotos' hasta que sql/24 migró la base el 17/09/2026.
 const PLAN_POR_DEFECTO = 'fotos';
 const planDe = atributos => {
-  const nombre = PLANES_ANTIGUOS[atributos?.plan] || atributos?.plan;
-  if (PLANES[nombre]) return PLANES[nombre];
+  if (PLANES[atributos?.plan]) return PLANES[atributos.plan];
   return PLANES[['video', 'vertical'].includes(atributos?.nav) ? 'video' : PLAN_POR_DEFECTO];
 };
 

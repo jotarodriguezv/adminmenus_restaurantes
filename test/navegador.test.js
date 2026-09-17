@@ -1542,10 +1542,6 @@ describe('donde la carta tiene carrito se configuran los pedidos', () => {
 		};
 	};
 
-	test('el modelo carrito siempre las tiene', () => {
-		assert.equal(conAtributos({ nav: 'carrito' }).pedidos, 'block');
-	});
-
 	test('el modelo video con el carrito encendido también', () => {
 		// Es lo que faltaba: se encendía el carrito en video y no había dónde
 		// poner el número.
@@ -1596,8 +1592,10 @@ describe('donde la carta tiene carrito se configuran los pedidos', () => {
 		assert.equal(conAtributos({ nav: 'vertical', carrito: true }).pedidos, 'block');
 	});
 
-	test('el modelo carrito las tiene aunque el interruptor esté apagado, como perroscriollos', () => {
-		assert.equal(conAtributos({ nav: 'carrito', carrito: false }, { carrito: false }).pedidos, 'block');
+	test('un restaurante con el modelo Carrito guardado ya no tiene carrito por eso', () => {
+		// Hasta el 17/09/2026 ese modelo lo llevaba siempre encendido. Se retiró y
+		// sql/24 pasó a sus dos restaurantes a Sidebar con el interruptor puesto.
+		assert.equal(conAtributos({ nav: 'carrito', carrito: false }).pedidos, 'none');
 	});
 
 	test('con el carrito apagado los toppings se esconden, aunque haya', () => {
@@ -4109,8 +4107,9 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 
 	const CON_CARRITO = { carrito: true };
 
-	test('el modelo Carrito tiene carrito siempre, sin mirar plan ni interruptor', () => {
-		assert.equal(regla().cartaTieneCarrito({ nav: 'carrito' }, {}), true);
+	test('el modelo Carrito, retirado, ya no tiene carrito por su cuenta', () => {
+		// Lo llevaba siempre encendido hasta el 17/09/2026.
+		assert.equal(regla().cartaTieneCarrito({ nav: 'carrito' }, CON_CARRITO), false);
 	});
 
 	test('Video y Vertical, solo con plan e interruptor', () => {
@@ -4155,13 +4154,13 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 	});
 
 	test('la lista marca a quien tiene carrito y no tiene número', () => {
-		const html = aviso().avisoPedidosHtml({ atributos: { nav: 'carrito' } });
+		const html = aviso().avisoPedidosHtml({ atributos: { nav: 'sidebar', carrito: true }, _plan: CON_CARRITO });
 		assert.match(html, /no recibe pedidos/);
 		assert.match(html, /resto-etiqueta mal/);
 	});
 
 	test('y no marca a quien ya tiene número', () => {
-		assert.equal(aviso().avisoPedidosHtml({ atributos: { nav: 'carrito', whatsapp_pedidos: '573001234567' } }), '');
+		assert.equal(aviso().avisoPedidosHtml({ atributos: { nav: 'sidebar', carrito: true, whatsapp_pedidos: '573001234567' }, _plan: CON_CARRITO }), '');
 	});
 
 	test('a un Explorar con el carrito encendido y sin número, también (vmenus-app#33)', () => {
@@ -4176,10 +4175,10 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 
 	test('el aviso rojo de la tarjeta se enciende y se apaga con el número', () => {
 		const caja = { style: {} };
-		const estado = { restaurante: { atributos: { nav: 'carrito' } } };
+		const estado = { restaurante: { atributos: { nav: 'sidebar', carrito: true } } };
 		const ctx = cargar('index.html',
 			[...reglas, ['pedidos.js', 'function actualizarAvisoPedidos', '// ── MÉTODOS DE PAGO']],
-			{ String, state: estado, planActual: () => ({}), document: { getElementById: () => caja } });
+			{ String, state: estado, planActual: () => ({ carrito: true }), document: { getElementById: () => caja } });
 		ctx.actualizarAvisoPedidos();
 		assert.equal(caja.style.display, 'block', 'sin número el aviso no se enseña');
 		estado.restaurante.atributos.whatsapp_pedidos = '573001234567';
@@ -5727,8 +5726,8 @@ describe('la insignia de pedidos dice lo que la carta tiene, no lo que el plan p
 	const pedidos = atributos => (ctx.fichaPlanHtml({ id: 'r', atributos }).match(/🛒[^<]*/) || [null])[0];
 
 	// Los casos son los de producción el 13/09/2026.
-	test('modelo Carrito: pedidos, aunque el interruptor esté apagado (aojocerrado, perroscriollos)', () => {
-		assert.equal(pedidos({ nav: 'carrito', plan: 'completo', carrito: false }), '🛒 pedidos');
+	test('Sidebar con el interruptor puesto: pedidos (aojocerrado y perroscriollos desde sql/24)', () => {
+		assert.equal(pedidos({ nav: 'sidebar', plan: 'fotos', carrito: true }), '🛒 pedidos');
 	});
 
 	test('Video o Vertical con el interruptor puesto: pedidos (indigo, voro)', () => {
@@ -5986,13 +5985,6 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 		await ctx.saveAjustes();
 		const at = peticiones[0].cuerpo.atributos;
 		assert.ok(!('whatsapp_pedidos' in at) && !('metodos_pago' in at));
-	});
-
-	test('el modelo carrito los configura aunque el interruptor esté apagado', async () => {
-		// Su carta lleva carrito siempre, como perroscriollos.
-		const { ctx, peticiones } = montar({ carrito: false, nav: 'carrito' });
-		await ctx.saveAjustes();
-		assert.equal(peticiones[0].cuerpo.atributos.whatsapp_pedidos, '573001234567');
 	});
 
 	test('cada método incompleto se nombra por el suyo', () => {
@@ -6367,8 +6359,9 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 			assert.equal(conModelo(nav).apPortadaCard.style.display, 'none', nav);
 	});
 
-	test('el mensaje de bienvenida solo con sidebar y carrito', () => {
-		for (const nav of ['sidebar', 'carrito']) assert.equal(conModelo(nav).apHeroFila.style.display, 'flex', nav);
+	test('el mensaje de bienvenida solo con sidebar', () => {
+		// Y con Carrito hasta que se retiró el 17/09/2026.
+		assert.equal(conModelo('sidebar').apHeroFila.style.display, 'flex');
 		for (const nav of ['topnav', 'explorar', 'video', 'vertical'])
 			assert.equal(conModelo(nav).apHeroFila.style.display, 'none', nav);
 	});
@@ -6755,7 +6748,6 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 
 	test('donde no se puede, se esconde el interruptor y se dice por qué', () => {
 		const casos = [
-			[{ nav: 'carrito' }, {}, /siempre encendido/],
 			// Explorar tuvo este motivo hasta el 17/09/2026; queda para un modelo nuevo.
 			[{ nav: 'modelo-futuro' }, {}, /no tiene carrito/],
 			[{ nav: 'topnav' }, { plan: { carrito: false } }, /plan no incluye/],

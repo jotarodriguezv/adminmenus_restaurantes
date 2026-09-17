@@ -560,10 +560,6 @@
 							<select class="form-select" id="apNavModelo" onchange="ajustarEstiloAlModelo()">
 								<option value="topnav">Topnav — header centrado + menú horizontal</option>
 								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
-								<!-- Retirado el 17/09/2026: el carrito es un interruptor en los otros
-								     cinco. Escondida y no borrada mientras algún restaurante la tenga
-								     guardada: sin ella el desplegable se quedaría en blanco. -->
-								<option value="carrito" hidden>Carrito — retirado, elige otro modelo</option>
 								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
 								<option value="video">Video — una columna, un plato por fila</option>
 								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
@@ -2365,16 +2361,13 @@ const PLANES = {
   // archivo que hay que almacenar, convertir y servir muchas veces.
   video: { nombre: 'Video', modelos: ['video', 'vertical'], videos: true, ...TODO_INCLUIDO },
 };
-// Los planes de antes se siguen entendiendo mientras quede algún restaurante
-// guardado con ellos, y sin plan —o con uno desconocido— manda el modelo. Lo
-// mismo en el servidor y en la carta.
-const PLANES_ANTIGUOS = { vitrina: 'fotos', pedidos: 'fotos', completo: 'fotos' };
+// Sin plan —o con uno desconocido— manda el modelo, igual en el servidor y en la
+// carta. Los nombres de antes se leyeron como 'fotos' hasta sql/24 (17/09/2026).
 const PLAN_POR_DEFECTO = 'fotos';
 
 function nombrePlanDe(restaurante) {
   const at = restaurante?.atributos;
-  const nombre = PLANES_ANTIGUOS[at?.plan] || at?.plan;
-  if (PLANES[nombre]) return nombre;
+  if (PLANES[at?.plan]) return at.plan;
   return ['video', 'vertical'].includes(at?.nav) ? 'video' : PLAN_POR_DEFECTO;
 }
 function planDe(restaurante) {
@@ -2402,7 +2395,7 @@ function esModeloDeVideo(nav) { return MODELOS_VIDEO.includes(nav); }
 // La usan los avisos de «no recibe pedidos» y, desde PE3, las pestañas de
 // ajustarPestanasAlModelo(). Hasta entonces aquellas tenían su propia regla
 // —plan + interruptor en CUALQUIER modelo— y las dos discrepaban. En la carta:
-// temas/carrito.js lo enciende siempre, y los otros cinco si hay plan e
+// los cinco modelos lo encienden si hay plan e
 // interruptor (carritoEncendido() en core/carrito.js).
 //
 // Topnav y Sidebar entraron el 15/09/2026, con vmenus-app#28: son Bonzas y
@@ -2414,7 +2407,6 @@ function esModeloDeVideo(nav) { return MODELOS_VIDEO.includes(nav); }
 const MODELOS_CARRITO_OPCIONAL = ['video', 'vertical', 'topnav', 'sidebar', 'explorar'];
 function cartaTieneCarrito(atributos, plan) {
   const nav = atributos?.nav || MODELO_POR_DEFECTO;
-  if (nav === 'carrito') return true;
   return MODELOS_CARRITO_OPCIONAL.includes(nav) && !!(plan?.carrito && atributos?.carrito);
 }
 // ── AYUDA QUE DEPENDE DE QUIÉN MIRA ───────────────────────────
@@ -6034,7 +6026,7 @@ function urlPublica(restaurante, modo) {
 }
 
 // ── PLAN EN APARIENCIA ────────────────────────────────────────
-const ETIQUETA_MODELO = { topnav: 'Topnav', sidebar: 'Sidebar', carrito: 'Carrito', explorar: 'Explorar', video: 'Video', vertical: 'Vertical' };
+const ETIQUETA_MODELO = { topnav: 'Topnav', sidebar: 'Sidebar', explorar: 'Explorar', video: 'Video', vertical: 'Vertical' };
 
 // Se pasa por aquí y no se lee la tabla directamente. Un modelo sin etiqueta
 // salía como "undefined" en el resumen del plan —pasó con 'video', que se
@@ -6151,7 +6143,7 @@ function ajustarEstiloAlModelo() {
   const portada = document.getElementById('apPortadaCard');
   if (portada) portada.style.display = nav === 'explorar' ? '' : 'none';
   const hero = document.getElementById('apHeroFila');
-  if (hero) hero.style.display = (nav === 'sidebar' || nav === 'carrito') ? 'flex' : 'none';
+  if (hero) hero.style.display = nav === 'sidebar' ? 'flex' : 'none';
 }
 
 // El estilo se guarda SIEMPRE, también en los modelos que no lo usan. Si se

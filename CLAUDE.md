@@ -625,8 +625,10 @@ Se hace en tres pasos, cada uno un PR que sale de `main`:
 2. **Migrar la base**: cada restaurante a `fotos` o `video`, y `aojocerrado` y
    `perroscriollos` de Carrito a Sidebar con el carrito encendido. Escritura en
    producción: **avisar antes**.
-3. **Limpieza**: borrar el tema Carrito, `PLANES_ANTIGUOS` en los tres sitios y
-   la opción escondida del selector.
+3. ~~**Limpieza**~~ **Hecho el 17/09/2026**: borrados el tema Carrito
+   (vmenus-app#35), `PLANES_ANTIGUOS` en los tres sitios y la opción escondida
+   del selector. Un restaurante con plan desconocido cae en el de su modelo, y
+   uno con el modelo Carrito guardado, en Topnav.
 
 Lo que se planteó el 16/09/2026, para contexto:
 
