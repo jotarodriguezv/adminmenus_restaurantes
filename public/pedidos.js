@@ -94,11 +94,38 @@ function recolectarMetodosPago() {
 // impediría el primer guardado —encender el carrito— por algo que todavía no se
 // ha podido escribir. Falta el número se avisa al guardar y en rojo dentro de
 // la tarjeta, que es lo que ya hacía actualizarAvisoPedidos().
+// Desde el 17/09/2026 se dice CAMPO a campo y no solo «faltan los datos de
+// Nequi»: el aviso salía abajo a la derecha y había que adivinar si lo que
+// faltaba era el teléfono o el titular. Es el mismo trato que la ficha del
+// plato, con pintarErroresEnCampos.
+//
+// Solo se miran los métodos encendidos: apagado no viaja a la carta, y exigir
+// los datos de algo que nadie va a ver sería impedir guardar por nada.
+const CAMPOS_METODOS_PAGO = [
+  'mpNequiTelefono', 'mpNequiTitular',
+  'mpDaviplataTelefono', 'mpDaviplataTitular',
+  'mpBancolombiaNumero', 'mpBancolombiaTitular',
+  'mpBrebLlave',
+];
+
+function erroresDeMetodosPago(mp) {
+  const errores = [];
+  const pedir = (activo, valor, campo, mensaje, metodo) => {
+    if (activo && !valor) errores.push({ campo, mensaje, metodo });
+  };
+  pedir(mp.nequi.activo, mp.nequi.telefono, 'mpNequiTelefono', 'Escribe el teléfono de Nequi al que te pagan.', 'Nequi');
+  pedir(mp.nequi.activo, mp.nequi.titular, 'mpNequiTitular', 'Escribe a nombre de quién está esa cuenta.', 'Nequi');
+  pedir(mp.daviplata.activo, mp.daviplata.telefono, 'mpDaviplataTelefono', 'Escribe el teléfono de Daviplata al que te pagan.', 'Daviplata');
+  pedir(mp.daviplata.activo, mp.daviplata.titular, 'mpDaviplataTitular', 'Escribe a nombre de quién está esa cuenta.', 'Daviplata');
+  pedir(mp.bancolombia.activo, mp.bancolombia.numero_cuenta, 'mpBancolombiaNumero', 'Escribe el número de la cuenta.', 'Bancolombia');
+  pedir(mp.bancolombia.activo, mp.bancolombia.titular, 'mpBancolombiaTitular', 'Escribe a nombre de quién está la cuenta.', 'Bancolombia');
+  pedir(mp.breb.activo, mp.breb.llave, 'mpBrebLlave', 'Escribe tu llave Bre-B.', 'Bre-B');
+  return errores;
+}
+
+// Los nombres de los métodos a los que les falta algo, sin repetir. Es lo que
+// resume el aviso cuando falta más de un dato: «Faltan datos de Nequi y
+// Bancolombia» se entiende de un vistazo; siete líneas de campos, no.
 function metodosIncompletos(mp) {
-  return [
-    mp.nequi.activo       && (!mp.nequi.telefono || !mp.nequi.titular)                   && 'Nequi',
-    mp.daviplata.activo   && (!mp.daviplata.telefono || !mp.daviplata.titular)           && 'Daviplata',
-    mp.bancolombia.activo && (!mp.bancolombia.numero_cuenta || !mp.bancolombia.titular)  && 'Bancolombia',
-    mp.breb.activo        && !mp.breb.llave                                              && 'Bre-B',
-  ].filter(Boolean);
+  return [...new Set(erroresDeMetodosPago(mp).map(e => e.metodo))];
 }
