@@ -376,6 +376,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .campo-error{margin-top:5px;font-size:11px;color:var(--danger);line-height:1.5;}
 .form-textarea{resize:vertical;min-height:75px;line-height:1.5;}
 .form-select option{background:var(--card);}
+/* Los controles nativos de fecha no heredan bien un fondo oscuro: sin este
+   esquema el icono del calendario queda negro. El espacio extra evita que los
+   indicadores queden pegados al borde derecho. */
+.form-input[type="date"]{color-scheme:dark;padding-right:42px;}
+.form-input[type="date"]::-webkit-calendar-picker-indicator{opacity:.9;cursor:pointer;}
+select.form-input{padding-right:42px;}
+.tv-categorias-horario{margin-top:10px;padding:10px 12px;border-left:2px solid var(--accent);
+  background:var(--accent-dim);border-radius:0 var(--radius) var(--radius) 0;}
+.tv-categorias-horario-titulo{font-family:var(--mono);font-size:9px;letter-spacing:1px;
+  color:var(--accent);text-transform:uppercase;margin-bottom:6px;}
+.tv-categoria-horario{font-size:11px;color:var(--text-muted);line-height:1.55;}
+.tv-categoria-horario strong{color:var(--text);}
+.tv-programacion-nueva{border-color:var(--accent)!important;box-shadow:0 0 0 3px var(--accent-dim);}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .form-check{display:flex;align-items:center;gap:10px;padding:10px 0;}
 .form-ayuda{font-size:11px;color:var(--text-dim);line-height:1.5;margin:-2px 0 7px;}
