@@ -117,10 +117,13 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] Activar Nequi sin sus datos y guardar: dice «Faltan los datos de Nequi» y no guarda nada. [PE2 · #108]
 - [ ] Con carrito y sin número de WhatsApp, avisa de que no recibe pedidos: en Ajustes, dentro de la tarjeta del carrito, y en su tarjeta de la lista del superadmin («⚠ carrito sin WhatsApp · no recibe pedidos»). [PE1 · #79]
 
-## 9. Promoción
+## 9. Destacados
 
-- [ ] Con el interruptor **Activa** apagado, los destinos (carta, televisor) se ven atenuados pero se pueden preparar. [B2 · #91]
-- [ ] En el móvil, con la pestaña vacía, se lee la instrucción para añadir la primera promoción. [M4 + M5 · #97]
+- [ ] Con el interruptor **Publicado** apagado, los destinos (carta, televisor) se ven atenuados pero se pueden preparar. [B2 · #91]
+- [ ] En el móvil, con la pestaña vacía, se lee la instrucción para añadir el primer destacado. [M4 + M5 · #97]
+- [ ] «Añadir destacado» abre una ventana antes de pedir un archivo; desde ella se puede subir una imagen o elegir un producto de la carta. [P8]
+- [ ] Elegir un producto con foto crea un borrador con su foto, nombre y precio; el producto original queda igual. Un producto sin foto explica que primero necesita una. [P8]
+- [ ] Un destacado nuevo no se muestra hasta encender **Publicado**. [P8]
 
 ## 10. QR
 

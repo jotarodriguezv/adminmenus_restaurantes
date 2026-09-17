@@ -3391,11 +3391,11 @@ describe('la pista "o arrástralo aquí" · sin prometer nada al teléfono', () 
 		assert.deepEqual(ajenas, ['pulsa', 'añadir', 'promoción']);
 	});
 
-	test('el recuadro vacío de Promoción dice qué hacer también sin ratón', () => {
+	test('el recuadro vacío de Destacados dice qué hacer también sin ratón', () => {
 		// M4. Lo que queda fuera de las pistas es lo que ve un teléfono.
 		const vacio = src.match(/<div id="promoVacio"[^>]*>([\s\S]*?)<\/div>/)[1];
 		const sinPistas = vacio.replace(/<span class="pista-arrastre">[^<]*<\/span>/g, '').replace(/<!--[\s\S]*?-->/g, '');
-		assert.match(sinPistas, /Pulsa «Añadir promoción»/);
+		assert.match(sinPistas, /Pulsa «Añadir destacado»/);
 	});
 
 	test('está escondida por defecto y solo aparece con ratón', () => {
@@ -4745,7 +4745,7 @@ describe('con «Activa» apagada, los destinos de la promoción se ven sin efect
 		atenuarDestinos(c);
 		for (const d of c.destinos) {
 			assert.equal(d.style.opacity, '0.4');
-			assert.match(d.title, /apagada/);
+			assert.match(d.title, /borrador/);
 		}
 	});
 
@@ -4777,6 +4777,35 @@ describe('con «Activa» apagada, los destinos de la promoción se ven sin efect
 	test('atenuar no los deshabilita: se pueden dejar preparados antes de encender', () => {
 		const cuerpo = src.match(/function atenuarDestinos\(caja\) \{[\s\S]*?\n\}/)[0];
 		assert.doesNotMatch(cuerpo, /disabled/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Destacados · alta sin explorador agresivo y desde un producto', () => {
+	const panel = codigoDelPanel();
+	const destacados = fs.readFileSync(path.join(PUBLIC, 'promocion.js'), 'utf8');
+
+	test('la pestaña habla de destacados y el botón abre una ventana', () => {
+		assert.match(panel, /switchTab\('promo',this\)">Destacados<\//);
+		assert.match(panel, /id="btnNuevaPromo" onclick="abrirNuevoDestacado\(\)"/);
+		assert.doesNotMatch(panel, /id="btnNuevaPromo" onclick="document\.getElementById\('promoFileInput'\)\.click\(\)"/);
+		assert.match(panel, /id="destacadoModal"/);
+		assert.match(panel, /Usar un producto de mi carta/);
+	});
+
+	test('las dos rutas crean un borrador, nunca algo publicado de inmediato', () => {
+		const desdeProducto = destacados.match(/async function crearDestacadoDesdeProducto[\s\S]*?\n\}/)[0];
+		const desdeImagen = destacados.match(/async function crearDestacadoConImagen[\s\S]*?\n\}/)[0];
+		assert.match(desdeProducto, /imagen_url: producto\.imagen_url/);
+		assert.match(desdeProducto, /nombre: producto\.nombre \|\| '', precio: producto\.precio \|\| ''/);
+		assert.match(desdeProducto, /activa: false, en_popup: true, en_tv: false/);
+		assert.match(desdeImagen, /activa: false, en_popup: true, en_tv: false/);
+	});
+
+	test('usar un producto no lo modifica', () => {
+		const fn = destacados.match(/async function crearDestacadoDesdeProducto[\s\S]*?\n\}/)[0];
+		assert.match(fn, /POST', '\/api\/promociones'/);
+		assert.doesNotMatch(fn, /\/api\/productos/);
 	});
 });
 

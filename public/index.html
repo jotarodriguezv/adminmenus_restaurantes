@@ -149,7 +149,7 @@
 				<button class="tab-btn" onclick="switchTab('categorias',this)">Categorías</button>
 				<button class="tab-btn" id="tabBtnAjustes" onclick="switchTab('ajustes',this)">Ajustes</button>
 				<button class="tab-btn" id="tabBtnApariencia" onclick="switchTab('apariencia',this)" style="display:none">Apariencia</button>
-				<button class="tab-btn" onclick="switchTab('promo',this)">Promoción</button>
+				<button class="tab-btn" onclick="switchTab('promo',this)">Destacados</button>
 				<button class="tab-btn" id="tabBtnTv" onclick="switchTab('tv',this)" style="display:none">Pantalla TV</button>
 				<button class="tab-btn" id="tabBtnImportar" onclick="switchTab('importar',this)" style="display:none">Importar carta</button>
 				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
@@ -598,31 +598,29 @@
 				<div id="tabPromo" class="hidden">
 					<div class="section-card">
 						<div class="section-header">
-							<div class="section-title">Promociones</div>
-							<button type="button" id="btnNuevaPromo" onclick="document.getElementById('promoFileInput').click()"
+							<div class="section-title">Destacados de la carta</div>
+							<button type="button" id="btnNuevaPromo" onclick="abrirNuevoDestacado()"
 								style="padding:8px 14px;border-radius:8px;border:1px solid var(--accent);background:transparent;
 								color:var(--accent);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">
-								+ Añadir promoción
+								+ Añadir destacado
 							</button>
 						</div>
 						<p style="font-size:12px;color:var(--text-muted);margin:0 0 4px;line-height:1.6">
-							La promoción sale como una ventana al abrir tu carta, y como pantalla
-							completa en la cartelera del televisor. Puedes tener varias y decidir
-							qué días y a qué horas sale cada una.
+							Crea promociones, platos del día, novedades o avisos. Cada destacado puede
+							salir como una ventana al abrir tu carta y, si tienes cartelera, como pantalla
+							completa en el televisor. Puedes tener varios y decidir cuándo sale cada uno.
 						</p>
 						<p style="font-size:12px;color:var(--text-muted);margin:0 0 16px;line-height:1.6">
-							<strong>Si varias están vigentes a la vez, cada cliente ve una al azar.</strong>
+							<strong>Si varios están vigentes a la vez, cada cliente ve uno al azar.</strong>
 							Casi nadie escanea el QR dos veces en la misma visita, así que repartirlas
 							es lo que hace que se vean todas.
 						</p>
 
-						<!-- Añadir empieza por la imagen a propósito: una promoción sin ella no
-						     es nada que se pueda enseñar, así que una tarjeta vacía sería un
-						     estado muerto — el mismo que ya nos costó una ronda con la pantalla
-						     de marca. -->
+						<!-- El selector de archivo se abre solo después de que la persona elija
+						     subir una imagen en la ventana de alta. -->
 						<input type="file" id="promoFileInput" accept="image/*" style="display:none"
-							data-zona="promoLista" onchange="crearPromoConImagen(this)">
-						<!-- Aparte del de añadir: uno crea una promoción y el otro sustituye la
+							data-zona="promoLista" onchange="crearDestacadoConImagen(this)">
+						<!-- Aparte del de añadir: uno crea un destacado y el otro sustituye la
 						     imagen de una que ya existe. Compartirlos obligaría a llevar un
 						     modo por fuera, y ese modo es justo lo que se queda pegado. -->
 						<input type="file" id="promoCambioInput" accept="image/*" style="display:none"
@@ -646,13 +644,38 @@
 						<div id="promoLista"></div>
 						<div id="promoVacio" style="display:none;font-size:12px;color:var(--text-dim);line-height:1.6;
 							border:1px dashed var(--border2);border-radius:var(--radius);padding:20px;text-align:center">
-							Todavía no tienes promociones.<br>
+							Todavía no tienes destacados.<br>
 							<!-- M4: la frase entera iba dentro de la pista, y en un teléfono —donde la
 							     pista no sale— el recuadro se quedaba sin decir qué hacer. Fuera va lo
 							     que sirve sin ratón; dentro, solo el arrastre. -->
-							Pulsa «Añadir promoción»<span class="pista-arrastre"> o arrastra una imagen aquí</span>.
+							Pulsa «Añadir destacado»<span class="pista-arrastre"> o arrastra una imagen aquí</span>.
 						</div>
 						<div id="promoTope" style="display:none;font-size:11px;color:var(--warn);margin-top:12px;line-height:1.6"></div>
+					</div>
+				</div>
+
+				<!-- NUEVO DESTACADO -->
+				<div class="modal-bg" id="destacadoModal" onclick="handleModalBg(event,'destacadoModal')">
+					<div class="modal-box destacado-modal-box">
+						<div class="modal-head">
+							<span class="modal-title">Añadir destacado</span>
+							<button class="modal-close" onclick="closeModal('destacadoModal')" aria-label="Cerrar">✕</button>
+						</div>
+						<div class="modal-body">
+							<p class="destacado-intro">Empieza con una imagen nueva o reutiliza un producto que ya tienes en tu carta. Podrás revisar todo antes de publicarlo.</p>
+							<div class="destacado-origenes" id="destacadoOrigenes">
+								<button type="button" class="destacado-origen" onclick="document.getElementById('promoFileInput').click()">
+									<span aria-hidden="true">🖼️</span>
+									<span><strong>Subir una imagen</strong><small>Para una promoción, aviso o diseño propio.</small></span>
+								</button>
+								<button type="button" class="destacado-origen" onclick="mostrarProductosParaDestacado()">
+									<span aria-hidden="true">🍽️</span>
+									<span><strong>Usar un producto de mi carta</strong><small>Copia su foto, nombre y precio sin cambiar el producto.</small></span>
+								</button>
+							</div>
+							<div id="destacadoProductos" class="destacado-productos" style="display:none"></div>
+							<div id="destacadoModalEstado" style="margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--text-muted)"></div>
+						</div>
 					</div>
 				</div>
 
@@ -902,7 +925,7 @@
 
 								<div class="form-check" style="margin-bottom:10px">
 									<label class="toggle"><input type="checkbox" id="tvIntercalaPromo" onchange="tvAlternarIntercalados()"><span class="toggle-slider"></span></label>
-									<span style="font-size:13px;color:var(--text-muted)">Mi promoción</span>
+									<span style="font-size:13px;color:var(--text-muted)">Mi destacado</span>
 								</div>
 								<div id="tvPromoAyuda" style="font-size:11px;color:var(--text-dim);margin:-4px 0 14px"></div>
 
@@ -929,7 +952,7 @@
 								<div id="tvOrdenFila" style="display:none;max-width:260px;margin-bottom:14px">
 									<label for="tvOrdenIntercalados" class="form-label">Cuál sale primero</label>
 									<select class="form-input" id="tvOrdenIntercalados" onchange="tvPintarResumen()">
-										<option value="promocion">La promoción</option>
+										<option value="promocion">El destacado</option>
 										<option value="marca">La marca</option>
 									</select>
 								</div>
@@ -947,8 +970,8 @@
 								<div id="tvSecuencia" style="font-size:11px;font-family:var(--mono);color:var(--text-dim);margin-top:10px;line-height:1.7"></div>
 
 								<!-- ── LAS IMÁGENES QUE SALEN AQUÍ ────────────────────
-								     Son promociones marcadas «En el televisor», el mismo dato
-								     que edita la pestaña Promoción. Se enseñan TAMBIÉN aquí
+							     Son destacados marcados «En el televisor», el mismo dato
+							     que edita la pestaña Destacados. Se enseñan TAMBIÉN aquí
 								     porque nadie las busca en una pestaña que se llama
 								     Promociones cuando lo que quiere es "una imagen para mi
 								     pantalla": se pidió tres veces algo que ya existía.
@@ -964,7 +987,7 @@
 									<p style="font-size:11px;color:var(--text-dim);margin:0 0 10px;line-height:1.5">
 										Una foto suelta —un plato nuevo, un aviso, lo que sea— que no
 										tiene que estar en la carta. Se le pueden poner días y horas
-										desde la pestaña <strong>Promoción</strong>.
+										desde la pestaña <strong>Destacados</strong>.
 									</p>
 									<input type="file" id="tvImagenInput" accept="image/*" style="display:none"
 										onchange="tvCrearImagenSuelta(this)">
@@ -5564,7 +5587,7 @@ async function executeDelete() {
       await apiFetch('DELETE',`/api/promociones/${id}`);
       state.promociones=(state.promociones||[]).filter(x=>x.id!==id);
       pintarPromociones();
-      showToast('Promoción eliminada','success');
+      showToast('Destacado eliminado','success');
     } else {
       await apiFetch('DELETE',`/api/categorias/${id}`);
       state.categorias=state.categorias.filter(c=>c.id!==id);
@@ -6377,7 +6400,7 @@ document.addEventListener('keydown',e=>{
   // sería el atajo más rápido para tirar el trabajo.
   if(abierto('cambiosModal')) return closeModal('cambiosModal');
   if(abierto('productModal')) return intentarCerrarProducto();
-  ['catModal','confirmModal','qrCartelModal'].forEach(closeModal);
+  ['catModal','confirmModal','qrCartelModal','destacadoModal'].forEach(closeModal);
 });
 
 // ── SCROLL DRAG EN CAT-FILTER ────────────────────────────────
