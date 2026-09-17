@@ -29,20 +29,26 @@ function filtrosDePlato(p, disponibles = state.restaurante?.atributos?.filtros_d
   return catalogo.filter(f => suyos.has(String(f.id)));
 }
 
-// Cuántos toppings ofrece el plato, por grupo. Sin carrito no se cuentan: la
-// carta no los enseña, y decir «5 toppings» de un plato cuyos comensales no ven
-// ninguno es la misma mentira que ya se quitó de la ficha.
+// Cómo se llama cada grupo en pantalla, y con qué se reconoce de un vistazo.
+// Un solo sitio: la ficha del plato y Ajustes dicen lo mismo con las mismas
+// palabras, y el día que cambien, cambian aquí.
+const GRUPOS_ADICIONALES = [
+  ['platino', '🧀', 'sin costo', 'Adicionales sin costo'],
+  ['premium', '💲', 'con costo', 'Adicionales con costo'],
+  ['salsas', '🥫', 'salsa', 'Salsas'],
+];
+
+// Qué adicionales ofrece el plato, por grupo. Sin carrito no se cuentan: la
+// carta no los enseña, y decir «5» de un plato cuyos comensales no ven ninguno
+// es la misma mentira que ya se quitó de la ficha.
 function toppingsDePlato(p, atributos = state.restaurante?.atributos, plan = planActual()) {
-  if (!cartaTieneCarrito(atributos, plan)) return { total: 0, nombres: [] };
+  const vacio = { platino: [], premium: [], salsas: [], total: 0 };
+  if (!cartaTieneCarrito(atributos, plan)) return vacio;
   const catalogo = catalogoDe(atributos);
   const marcados = personalizacionDe(p, catalogo);
-  const nombreDe = (grupo, ids) => catalogo[grupo].filter(t => ids.includes(t.id)).map(t => t.nombre);
-  const nombres = [
-    ...nombreDe('platino', marcados.platino),
-    ...nombreDe('premium', marcados.premium),
-    ...nombreDe('salsas', marcados.salsas),
-  ];
-  return { total: nombres.length, nombres };
+  const nombreDe = grupo => catalogo[grupo].filter(t => marcados[grupo].includes(t.id)).map(t => t.nombre);
+  const porGrupo = { platino: nombreDe('platino'), premium: nombreDe('premium'), salsas: nombreDe('salsas') };
+  return { ...porGrupo, total: porGrupo.platino.length + porGrupo.premium.length + porGrupo.salsas.length };
 }
 
 // Las marcas de un plato, ya resueltas: qué se escribe y qué dice al pasar el
@@ -60,14 +66,18 @@ function marcasDePlato(p) {
       titulo: 'También cumple: ' + resto.map(f => f.label).join(', '),
     });
   }
-  const toppings = toppingsDePlato(p);
-  if (toppings.total) {
-    // El número y no los nombres: son hasta catorce por plato y taparían la
-    // lista. Los nombres van en el título, que es donde se consultan.
+  // Una marca por grupo y no un número solo. «🧀 23» obligaba a pasar el ratón
+  // para saber siquiera de qué hablaba; separado se lee sin tocar nada, que es
+  // de lo que iba enseñarlo en la lista (probado con perroscriollos el
+  // 17/09/2026). Los NOMBRES siguen en el título: son hasta catorce por plato y
+  // escritos taparían el nombre del plato, que es lo que se viene a leer.
+  const adicionales = toppingsDePlato(p);
+  for (const [grupo, emoji, corto, largo] of GRUPOS_ADICIONALES) {
+    const nombres = adicionales[grupo];
+    if (!nombres.length) continue;
     marcas.push({
-      texto: `🧀 ${toppings.total}`,
-      titulo: `${toppings.total} topping${toppings.total === 1 ? '' : 's'} para este plato: ` +
-              toppings.nombres.join(', '),
+      texto: `${emoji} ${nombres.length} ${grupo === 'salsas' && nombres.length !== 1 ? 'salsas' : corto}`,
+      titulo: `${largo}: ${nombres.join(', ')}`,
     });
   }
   return marcas;

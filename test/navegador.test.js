@@ -5354,8 +5354,8 @@ describe('los grupos de toppings se llaman igual en la pestaña y en la ficha', 
 			// Solo lo que se lee: los id de las listas siguen diciendo Platino y
 			// Premium, y cambiarlos no aporta nada a nadie.
 			const visible = texto.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]*>/g, ' ');
-			assert.match(visible, /Toppings sin costo/);
-			assert.match(visible, /Toppings con costo/);
+			assert.match(visible, /Adicionales sin costo/);
+			assert.match(visible, /Adicionales con costo/);
 			assert.doesNotMatch(visible, /Platino|Premium/);
 		}
 	});
@@ -5365,7 +5365,7 @@ describe('los grupos de toppings se llaman igual en la pestaña y en la ficha', 
 	// se clona este repositorio, y una prueba que lee el otro fallaría allí.
 
 	test('el título de la ventana de añadir usa el nombre claro', () => {
-		assert.match(src, /platino: 'Nuevo topping sin costo', premium: 'Nuevo topping con costo'/);
+		assert.match(src, /platino: 'Nuevo adicional sin costo', premium: 'Nuevo adicional con costo'/);
 	});
 });
 
@@ -5409,14 +5409,14 @@ describe('la pestaña de toppings vacía explica para qué sirve', () => {
 		const { guia, nodos } = montar(catalogo, [{ id: 'p1', atributos: { personalizacion: { platino: [], premium: [], salsas: [] } } }]);
 		guia.pintarGuiaToppings();
 		assert.equal(nodos.toppingsSinUso.style.display, 'block');
-		assert.match(nodos.toppingsSinUso.textContent, /2 toppings creados/);
+		assert.match(nodos.toppingsSinUso.textContent, /2 adicionales creados/);
 		assert.match(nodos.toppingsSinUso.textContent, /Personalización/, 'y dice dónde se arregla');
 	});
 
 	test('con uno solo, la frase va en singular', () => {
 		const { guia, nodos } = montar({ platino: [{ id: 't1', nombre: 'Queso' }], premium: [], salsas: [] }, []);
 		guia.pintarGuiaToppings();
-		assert.match(nodos.toppingsSinUso.textContent, /un topping creado/);
+		assert.match(nodos.toppingsSinUso.textContent, /un adicional creado/);
 	});
 
 	test('basta con que un plato ofrezca uno para que el aviso no salga', () => {
@@ -7256,12 +7256,28 @@ describe('lo que cada plato tiene marcado, visto desde la lista', () => {
 		assert.match(marcas.at(-1).titulo, /Novedad/);
 	});
 
-	test('los toppings se cuentan, y los nombres van en el título', () => {
-		// Son hasta catorce por plato: en la lista taparían el nombre.
+	test('los adicionales se cuentan por grupo, no en un solo número', () => {
+		// «🧀 23» no decía de qué hablaba sin pasar el ratón (visto con
+		// perroscriollos el 17/09/2026). Los nombres siguen en el título: son
+		// hasta catorce por plato y taparían el nombre del plato.
 		const ctx = reglas({ nav: 'topnav', carrito: true, ...TOPPINGS });
-		const marcas = ctx.marcasDePlato(plato(null, { platino: ['t1'], premium: ['t3'], salsas: [] }));
-		assert.equal(marcas.at(-1).texto, '🧀 2');
-		assert.match(marcas.at(-1).titulo, /Queso, Tocineta/);
+		const marcas = [...ctx.marcasDePlato(plato(null, { platino: ['t1', 't2'], premium: ['t3'], salsas: ['s1'] }))];
+		assert.deepEqual(marcas.map(m => m.texto), ['🧀 2 sin costo', '💲 1 con costo', '🥫 1 salsa']);
+		assert.equal(marcas[0].titulo, 'Adicionales sin costo: Queso, Cebolla');
+		assert.equal(marcas[2].titulo, 'Salsas: Ajo');
+	});
+
+	test('un grupo vacío no deja una marca en cero', () => {
+		const ctx = reglas({ nav: 'topnav', carrito: true, ...TOPPINGS });
+		const marcas = [...ctx.marcasDePlato(plato(null, { platino: [], premium: ['t3'], salsas: [] }))];
+		assert.deepEqual(marcas.map(m => m.texto), ['💲 1 con costo']);
+	});
+
+	test('dos salsas se dicen en plural', () => {
+		const ctx = reglas({ nav: 'topnav', carrito: true,
+			...TOPPINGS, salsas: [{ id: 's1', nombre: 'Ajo' }, { id: 's2', nombre: 'Piña' }] });
+		const marcas = [...ctx.marcasDePlato(plato(null, { platino: [], premium: [], salsas: ['s1', 's2'] }))];
+		assert.deepEqual(marcas.map(m => m.texto), ['🥫 2 salsas']);
 	});
 
 	test('sin carrito no se cuentan: la carta no los enseña', () => {

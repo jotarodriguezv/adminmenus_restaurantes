@@ -139,7 +139,7 @@ async function saveAjustes() {
   if (hayQueEnsenarToppings()) {
     const huerfanos = toppingsQueSeQuitan();
     if (huerfanos.length && !confirm(
-      'Estos platos ofrecen toppings que van a dejar de existir con este cambio:\n\n' +
+      'Estos platos ofrecen adicionales que van a dejar de existir con este cambio:\n\n' +
       huerfanos.slice(0, 10).join('\n') +
       (huerfanos.length > 10 ? `\n…y ${huerfanos.length - 10} plato(s) más` : '') +
       '\n\nSi lo que quieres es cambiarle el nombre a uno, no hace falta borrarlo: ' +
