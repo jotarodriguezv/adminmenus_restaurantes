@@ -505,6 +505,56 @@ La normalización a 8 segundos no es solo una decisión de producto sobre lo que
 aguanta la atención de un comensal. **Es también lo que mantiene el coste de
 servir dentro del VPS más barato de Hostinger.**
 
+### 7.ter Cloudflare pisa el `no-cache` del JavaScript de la carta
+
+**Visto el 17/09/2026**, al comprobar el buscador recién desplegado: la carta
+seguía sin él en un navegador que la había abierto antes del despliegue,
+mientras el archivo en el servidor sí era el nuevo.
+
+`vmenus-app/nginx.conf` manda `Cache-Control: no-cache` en los `.js` **a
+propósito**, tras el incidente de los toppings en que un `expires 1h` dejó a
+los comensales una hora con código viejo leyendo datos nuevos. Ese
+encabezado sigue puesto y es correcto. Lo que pasa es que **Cloudflare lo
+reescribe antes de que llegue al navegador**:
+
+| Qué se pide | `cache-control` que llega | `cf-cache-status` |
+|---|---|---|
+| `/bonzas`, `/index.html`, `/tv.html` | `no-cache` — el de nginx | `DYNAMIC` |
+| `/core/*.js` | **`max-age=14400`** (4 h) | `MISS` |
+
+Las dos columnas importan y dicen cosas distintas:
+
+- `MISS` es **la buena**: Cloudflare no se guarda el JavaScript en su borde,
+  así que respeta el `no-cache` para sí misma y un despliegue llega al CDN
+  enseguida. Purgar la caché de Cloudflare **no arregla esto**.
+- El `max-age=14400` es el problema: es lo que Cloudflare le dice al
+  **navegador**, y es el valor por defecto de *Browser Cache TTL* (4 horas) de
+  las zonas antiguas. Quien visitó una carta en las 4 horas anteriores a un
+  despliegue sigue ejecutando el código de antes, y no hay forma de saberlo
+  desde el servidor — que es exactamente el incidente que el `nginx.conf`
+  documenta como resuelto.
+
+**El arreglo está en el panel de Cloudflare, no en el repositorio**, y es una
+sola opción: *Caching → Configuration → Browser Cache TTL* a **«Respect
+Existing Headers»** en la zona `vmenus.co` (o una Cache Rule para
+`menu.vmenus.co` con el TTL del navegador respetando el origen). A partir de
+ahí llega el `no-cache` de nginx y cada recarga revalida con el ETag: se sigue
+ahorrando la descarga con un 304, sin servir una versión vieja.
+
+**Lo que NO lo arregla:** purgar la caché (es del borde, y ahí no está el
+problema), ni tocar `nginx.conf`, que ya manda lo correcto. Y ponerle versión
+al nombre de los archivos sí lo arreglaría de raíz, pero eso es un paso de
+compilación, que este repositorio no tiene por decisión.
+
+**Cómo comprobar que quedó bien**, desde la consola del navegador en
+`menu.vmenus.co`:
+
+```js
+(await fetch('/core/menu.js?p=1')).headers.get('cache-control')
+```
+
+Tiene que decir `no-cache`. Mientras diga `max-age=14400`, sigue sin aplicarse.
+
 ---
 
 ## 8. Lo que falta
