@@ -2137,14 +2137,14 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		// pestaña, que es justo lo que nadie descubre solo.
 		const on = montar();
 		on.ctx.tvPintarNotaHorarios();
-		assert.match(on.campos.tvNotaHorarios.innerHTML, /desaparecen de la cartelera/);
-		assert.match(on.campos.tvNotaHorarios.innerHTML, /Categorías/);
+		assert.match(on.campos.tvNotaHorarios.textContent, /desaparecen de la cartelera/);
+		assert.match(on.campos.tvNotaHorarios.textContent, /Categorías/);
 
 		const off = montar({ respetarHorarios: false });
 		off.ctx.tvPintarNotaHorarios();
-		assert.match(off.campos.tvNotaHorarios.innerHTML, /todos<\/strong> los platos/);
+		assert.match(off.campos.tvNotaHorarios.textContent, /todos los platos/);
 		// Y que quede claro que no toca la carta del comensal.
-		assert.match(off.campos.tvNotaHorarios.innerHTML, /solo cambia el televisor/);
+		assert.match(off.campos.tvNotaHorarios.textContent, /solo cambia el televisor/);
 	});
 
 	test('la lista se guarda en atributos.tv, no como columnas sueltas', async () => {
@@ -2243,7 +2243,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 	test('avisa si todavía no hay ninguna promoción', () => {
 		const { ctx, campos } = montar({ promoEnTv: true, promociones: [] });
 		ctx.tvAlternarIntercalados();
-		assert.match(campos.tvPromoAyuda.textContent, /no has creado ninguna promoción/);
+		assert.match(campos.tvPromoAyuda.textContent, /no has creado ningún destacado/);
 	});
 
 	test('avisa si ninguna está marcada para el televisor', () => {
@@ -2252,7 +2252,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			promociones: [{ id: 'p1', activa: true, en_tv: false }],
 		});
 		ctx.tvAlternarIntercalados();
-		assert.match(campos.tvPromoAyuda.textContent, /Ninguna de tus promociones/);
+		assert.match(campos.tvPromoAyuda.textContent, /Ninguno de tus destacados/);
 	});
 
 	test('avisa si las del televisor están apagadas', () => {
@@ -2261,7 +2261,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			promociones: [{ id: 'p1', activa: false, en_tv: true }],
 		});
 		ctx.tvAlternarIntercalados();
-		assert.match(campos.tvPromoAyuda.textContent, /apagadas/);
+		assert.match(campos.tvPromoAyuda.textContent, /borrador/);
 	});
 
 	test('y con varias dice que se turnan, no que sale "la promoción"', () => {
@@ -2272,7 +2272,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			              { id: 'p2', activa: true, en_tv: true }],
 		});
 		ctx.tvAlternarIntercalados();
-		assert.match(campos.tvPromoAyuda.textContent, /2 promociones del televisor se van turnando/);
+		assert.match(campos.tvPromoAyuda.textContent, /2 destacados del televisor se van turnando/);
 	});
 
 	test('avisa si se marca el logo sin haberlo subido', () => {
@@ -2319,7 +2319,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 	test('con una sola, se dice cada cuánto sale', () => {
 		const t = conSecuencia({ guardado: { por_slide: 1, cada: 2,
 			intercalados: [{ tipo: 'promocion' }] } }, 4);
-		assert.match(t, /Sale tu promoción cada 2 pantallas/);
+		assert.match(t, /Sale tu destacado cada 2 pantallas/);
 	});
 
 	test('si caben las dos en una vuelta, se dice que salen las dos', () => {
@@ -2331,7 +2331,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		// El caso que se leía mal: 3 pantallas y una cada 2 = un solo hueco.
 		const t = conSecuencia({ guardado: { por_slide: 1, cada: 2, intercalados: LAS_DOS } }, 3);
 		assert.match(t, /se van turnando/);
-		assert.match(t, /esta vuelta tu promoción, la siguiente tu marca/);
+		assert.match(t, /esta vuelta tu destacado, la siguiente tu marca/);
 	});
 
 	test('si no cabe ninguna no se promete nada', () => {
@@ -4798,8 +4798,8 @@ describe('Destacados · alta sin explorador agresivo y desde un producto', () =>
 		const desdeImagen = destacados.match(/async function crearDestacadoConImagen[\s\S]*?\n\}/)[0];
 		assert.match(desdeProducto, /imagen_url: producto\.imagen_url/);
 		assert.match(desdeProducto, /nombre: producto\.nombre \|\| '', precio: producto\.precio \|\| ''/);
-		assert.match(desdeProducto, /activa: false, en_popup: true, en_tv: false/);
-		assert.match(desdeImagen, /activa: false, en_popup: true, en_tv: false/);
+		assert.match(desdeProducto, /activa: false, \.\.\.destinosDeNuevoDestacado\(\)/);
+		assert.match(desdeImagen, /activa: false, \.\.\.destinosDeNuevoDestacado\(\)/);
 	});
 
 	test('usar un producto no lo modifica', () => {

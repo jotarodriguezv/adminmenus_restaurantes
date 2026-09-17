@@ -163,6 +163,9 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 
 - [ ] **En el televisor de verdad:** dejar la cartelera puesta más tiempo del que tarda en apagarse la pantalla normalmente. No debe apagarse. [TV1 · vmenus-app#23]
 - [ ] El panel explica lo de la pantalla que se apaga, en la pestaña Pantalla TV. [TV1 · #89]
+- [ ] Con «Respetar los horarios de categoría» encendido, se nombran las categorías con horario y se dice cuáles están visibles u ocultas ahora. [TV2]
+- [ ] «Ahora en pantalla» dice si manda una selección base o un horario y cuántos destacados entran en la rotación. [TV2]
+- [ ] Añadir un destacado para TV abre la misma ventana de imagen o producto; queda como borrador y no aparece hasta publicarlo. [TV2]
 
 ## 13. La carta pública (vmenus-app), en el móvil
 

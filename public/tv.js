@@ -65,7 +65,8 @@ function renderTV() {
   // es exactamente lo que hace tv.html. Las dos lecturas tienen que coincidir.
   const guardados = Array.isArray(cfg.intercalados) && cfg.intercalados.length
     ? cfg.intercalados
-    : (state.restaurante?.promo_en_tv ? [{ tipo: 'promocion' }] : []);
+    : ((state.promociones || []).some(p => p.en_tv) || state.restaurante?.promo_en_tv
+      ? [{ tipo: 'promocion' }] : []);
   const laMarca = guardados.filter(i => i && i.tipo === 'marca')[0] || {};
 
   document.getElementById('tvIntercalaPromo').checked = guardados.some(i => i && i.tipo === 'promocion');
@@ -107,12 +108,14 @@ function renderTV() {
   tvAlternarIntercalados();
   tvCambiarModo();
   tvAvisoTamano();
+  tvPintarAhora();
 }
 
 function tvAlternarActiva() {
   const on = document.getElementById('tvActiva').checked;
   document.getElementById('tvCuerpo').style.display = on ? 'block' : 'none';
   document.getElementById('tvAjustes').style.display = on ? 'block' : 'none';
+  tvPintarAhora();
 }
 
 // El color de la etiqueta de categoría. Tres presets y no un selector libre:
@@ -261,21 +264,21 @@ function tvAlternarIntercalados() {
   const paraTv = (state.promociones || []).filter(p => p.en_tv);
   const encendidas = paraTv.filter(p => p.activa);
   if (!(state.promociones || []).length) {
-    ayuda.textContent = 'Todavía no has creado ninguna promoción. Se crean en la ' +
-                        'pestaña Promoción, y hasta entonces esto no muestra nada.';
+    ayuda.textContent = 'Todavía no has creado ningún destacado. Se crean en la ' +
+                        'pestaña Destacados, y hasta entonces esto no muestra nada.';
     ayuda.style.color = 'var(--warn)';
   } else if (!paraTv.length) {
-    ayuda.textContent = 'Ninguna de tus promociones está marcada «En el televisor». ' +
-                        'Se marca en la pestaña Promoción.';
+    ayuda.textContent = 'Ninguno de tus destacados está marcado «En el televisor». ' +
+                        'Se marca en la pestaña Destacados.';
     ayuda.style.color = 'var(--warn)';
   } else if (!encendidas.length) {
-    ayuda.textContent = 'Tus promociones del televisor están apagadas, así que tampoco ' +
+    ayuda.textContent = 'Tus destacados del televisor están en borrador, así que tampoco ' +
                         'saldrán aquí.';
     ayuda.style.color = 'var(--warn)';
   } else {
     ayuda.textContent = encendidas.length === 1
-      ? 'Tu promoción sale a pantalla completa cada tantas pantallas de platos.'
-      : `Tus ${encendidas.length} promociones del televisor se van turnando en ese hueco.`;
+      ? 'Tu destacado sale a pantalla completa cada tantas pantallas de platos.'
+      : `Tus ${encendidas.length} destacados del televisor se van turnando en ese hueco.`;
     ayuda.style.color = 'var(--text-dim)';
   }
 
@@ -315,7 +318,7 @@ function tvPintarSecuencia(pantallas) {
   const huecos = Math.floor(pantallas / cada);
   if (!huecos) { el.textContent = ''; return; }   // de eso avisa el resumen
 
-  const nombre = it => it.tipo === 'promocion' ? 'tu promoción' : 'tu marca';
+  const nombre = it => it.tipo === 'promocion' ? 'tu destacado' : 'tu marca';
 
   if (lista.length === 1) {
     el.textContent = 'Sale ' + nombre(lista[0]) + ' cada ' + cada + ' pantallas de platos.';
@@ -336,10 +339,22 @@ function tvPintarSecuencia(pantallas) {
 // Los que la cartelera va a poder pintar de verdad. Una promoción apagada no
 // ocupa turno, y contarla prometería una vuelta más larga de la que se ve en la
 // pared. Es el mismo filtro que hace listaIntercalados() en tv.html.
+function tvDestacadosVisibles() {
+  const zona = zonaRestaurante();
+  const todas = state.promociones || [];
+  const vivas = todas.filter(p =>
+    p && p.activa && p.en_tv && p.imagen_url && vigenteAhora(programacionDe(p), zona));
+  // Respaldo para una cartelera guardada antes de la tabla de destacados.
+  if (!todas.length && state.restaurante?.promo_activa && state.restaurante?.promo_imagen_url)
+    return [{ imagen_url: state.restaurante.promo_imagen_url }];
+  const programadas = vivas.filter(p => tieneProgramacion(programacionDe(p)));
+  return programadas.length ? programadas : vivas.filter(p => !tieneProgramacion(programacionDe(p)));
+}
+
 function tvIntercaladosVisibles() {
   return tvIntercaladosDelFormulario().filter(it =>
     it.tipo === 'promocion'
-      ? (!!state.restaurante?.promo_activa && !!state.restaurante?.promo_imagen_url)
+      ? tvDestacadosVisibles().length > 0
       : (it.frase || (it.logo && !!state.restaurante?.logo_url)));
 }
 
@@ -355,14 +370,19 @@ function tvPintarNotaHorarios() {
   const el = document.getElementById('tvNotaHorarios');
   if (!el) return;
   const on = document.getElementById('tvRespetarHorarios').checked;
-  el.innerHTML = on
+  const conHorario = (state.categorias || []).filter(c => tieneProgramacion(c?.atributos?.horario));
+  const detalle = conHorario.length
+    ? ' Tienes horario en ' + conHorario.map(c => c.nombre +
+        (vigenteAhora(c.atributos.horario, zonaRestaurante()) ? ' (ahora visible)' : ' (ahora oculta)')).join(', ') + '.'
+    : ' No tienes categorías con horario configurado.';
+  el.textContent = on
     ? 'Si una categoría solo se ve de 07:00 a 11:00, sus platos desaparecen de la ' +
-      'cartelera fuera de esa franja, igual que de la carta. Se configura en ' +
-      '<strong>Categorías</strong>.'
-    : 'La cartelera enseña <strong>todos</strong> los platos, aunque su categoría esté ' +
-      'fuera de horario. La carta del QR sigue respetándolos: esto solo cambia el televisor.';
+      'cartelera fuera de esa franja, igual que de la carta. Se configura en Categorías.' + detalle
+    : 'La cartelera enseña todos los platos, aunque su categoría esté fuera de horario. ' +
+      'La carta del QR sigue respetándolos: esto solo cambia el televisor.';
   el.style.color = on ? 'var(--text-muted)' : 'var(--text-dim)';
   tvPintarResumen();
+  tvPintarAhora();
 }
 
 // ── LAS IMÁGENES SUELTAS DE LA PANTALLA ───────────────────────
@@ -393,42 +413,13 @@ function tvPintarImagenes() {
     // Se dice si está apagada o fuera de su horario: una miniatura que está ahí
     // pero no sale es justo lo que hace pensar que algo se rompió.
     const h = programacionDe(p);
-    pie.textContent = !p.activa ? 'Apagada'
+    pie.textContent = !p.activa ? 'Borrador'
       : !tieneProgramacion(h) ? 'Siempre'
       : (vigenteAhora(h, zonaRestaurante()) ? 'Ahora sí' : 'Ahora no');
     caja.appendChild(img);
     caja.appendChild(pie);
     cont.appendChild(caja);
   }
-}
-
-// Se crea ya marcada SOLO para el televisor. Quien la pide desde aquí quiere
-// una imagen para su pantalla, no un popup en la carta de sus comensales.
-async function tvCrearImagenSuelta(input) {
-  const file = input.files[0]; if (!file) return;
-  const st = document.getElementById('tvImagenesEstado');
-  st.textContent = 'Subiendo la imagen…'; st.style.color = 'var(--text-muted)';
-  try {
-    const blob = await compressImage(file, 1200, .85);
-    const url = await uploadImg(blob, 'promos');
-    const nueva = await apiFetch('POST', '/api/promociones', {
-      restaurante_id: state.restaurante.id,
-      imagen_url: url,
-      activa: true, en_popup: false, en_tv: true,
-      programacion: {},
-      orden: (state.promociones || []).length,
-    });
-    state.promociones = [...(state.promociones || []), nueva];
-    tvPintarImagenes();
-    tvAlternarIntercalados();
-    st.textContent = 'Añadida. Para ponerle días y horas, ve a la pestaña Promoción.';
-    st.style.color = 'var(--success)';
-    showToast('Imagen añadida a la pantalla', 'success');
-  } catch (e) {
-    st.textContent = e.message || 'Error al añadir'; st.style.color = 'var(--danger)';
-    showToast('Error: ' + e.message, 'error');
-  }
-  input.value = '';
 }
 
 // ── PROGRAMACIONES DE LA CARTELERA ────────────────────────────
@@ -818,6 +809,31 @@ function tvCuantos() {
   return posibles.length;
 }
 
+// La pregunta real no es solo cómo quedó configurada la pantalla, sino qué
+// está mostrando ahora. Las excepciones ya dicen cuál manda en su tarjeta;
+// este resumen lo junta con la selección base y los destacados intercalados.
+function tvPintarAhora() {
+  const el = document.getElementById('tvAhoraTexto');
+  if (!el) return;
+  if (!document.getElementById('tvActiva').checked) {
+    el.textContent = 'La cartelera está apagada.';
+    return;
+  }
+  const vigente = (tvProgs || []).find(pr =>
+    tieneProgramacion(pr.programacion) && vigenteAhora(pr.programacion, zonaRestaurante()));
+  const modo = vigente?.modo || document.getElementById('tvModo').value;
+  const categoriaId = vigente?.categoria_id || document.getElementById('tvCategoria').value;
+  const categoria = (state.categorias || []).find(c => c.id === categoriaId)?.nombre;
+  const contenido = modo === 'todos' ? 'toda la carta'
+    : modo === 'manual' ? `${(vigente?.productos || tvSeleccion || []).length} platos elegidos`
+    : (categoria || 'una categoría');
+  const destacados = tvDestacadosVisibles().length;
+  el.textContent = (vigente ? 'Está aplicando un horario: ' : 'Está usando la selección base: ') +
+    contenido + '. ' + (destacados
+      ? `${destacados} destacado${destacados === 1 ? '' : 's'} entra${destacados === 1 ? '' : 'n'} en la rotación.`
+      : 'No hay destacados intercalados vigentes ahora.');
+}
+
 function tvPintarResumen() {
   const n = tvCuantos();
   const el = document.getElementById('tvResumen');
@@ -825,6 +841,7 @@ function tvPintarResumen() {
     el.textContent = '⚠ Con esto la pantalla no mostraría ningún plato: saldría solo tu logo.';
     el.style.color = 'var(--warn)';
     tvPintarSecuencia(0);
+    tvPintarAhora();
     return;
   }
   const porSlide = parseInt(document.getElementById('tvPorSlide').value, 10) || 1;
@@ -869,6 +886,7 @@ function tvPintarResumen() {
 
   el.textContent = partes.join(' · ');
   el.style.color = partes.length > 1 ? 'var(--warn)' : 'var(--text-muted)';
+  tvPintarAhora();
 }
 
 // Las fotos se guardan a 800 px de ancho. Repartidas entre dos o más platos
