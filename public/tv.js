@@ -369,18 +369,35 @@ function tvCada() {
 function tvPintarNotaHorarios() {
   const el = document.getElementById('tvNotaHorarios');
   if (!el) return;
+  const detalle = document.getElementById('tvCategoriasHorario');
   const on = document.getElementById('tvRespetarHorarios').checked;
   const conHorario = (state.categorias || []).filter(c => tieneProgramacion(c?.atributos?.horario));
-  const detalle = conHorario.length
-    ? ' Tienes horario en ' + conHorario.map(c => c.nombre +
-        (vigenteAhora(c.atributos.horario, zonaRestaurante()) ? ' (ahora visible)' : ' (ahora oculta)')).join(', ') + '.'
-    : ' No tienes categorías con horario configurado.';
   el.textContent = on
     ? 'Si una categoría solo se ve de 07:00 a 11:00, sus platos desaparecen de la ' +
-      'cartelera fuera de esa franja, igual que de la carta. Se configura en Categorías.' + detalle
+      'cartelera fuera de esa franja, igual que de la carta. Se configura en Categorías.'
     : 'La cartelera enseña todos los platos, aunque su categoría esté fuera de horario. ' +
       'La carta del QR sigue respetándolos: esto solo cambia el televisor.';
   el.style.color = on ? 'var(--text-muted)' : 'var(--text-dim)';
+  if (detalle) {
+    detalle.innerHTML = '';
+    detalle.style.display = on && conHorario.length ? 'block' : 'none';
+    if (on && conHorario.length) {
+      const titulo = document.createElement('div');
+      titulo.className = 'tv-categorias-horario-titulo';
+      titulo.textContent = 'Categorías con horario';
+      detalle.appendChild(titulo);
+      for (const categoria of conHorario) {
+        const fila = document.createElement('div');
+        fila.className = 'tv-categoria-horario';
+        const nombre = document.createElement('strong');
+        nombre.textContent = categoria.nombre;
+        const estado = vigenteAhora(categoria.atributos.horario, zonaRestaurante())
+          ? ' · ahora visible en la cartelera' : ' · ahora oculta en la cartelera';
+        fila.append(nombre, document.createTextNode(estado));
+        detalle.appendChild(fila);
+      }
+    }
+  }
   tvPintarResumen();
   tvPintarAhora();
 }
@@ -442,6 +459,13 @@ function tvNuevaProgramacion() {
                  modo: 'categoria', categoria_id: null });
   tvPintarProgramaciones();
   tvPintarResumen();
+  const cont = document.getElementById('tvProgramaciones');
+  const nueva = cont?.lastElementChild;
+  if (nueva) {
+    nueva.classList.add('tv-programacion-nueva');
+    nueva.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    nueva.querySelector('.tp-modo')?.focus();
+  }
 }
 
 function tvPintarProgramaciones() {
@@ -455,6 +479,7 @@ function tvPintarProgramaciones() {
 
 function tvTarjetaDeProgramacion(pr, indice) {
   const caja = document.createElement('div');
+  caja.className = 'tv-programacion';
   caja.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px';
 
   caja.innerHTML = `

@@ -1041,6 +1041,16 @@ vigente y los destacados que entran en la rotación; y el interruptor enumera la
 categorías con horario, indicando si ahora están visibles u ocultas. El resumen
 de intercalados usa la tabla de Destacados, no las columnas antiguas.
 
+## TV3 · El detalle de categorías con horario se perdía en el texto y una excepción nueva nacía fuera de vista · **Media**
+
+- [x] Hecho · 2026-09-17 · PR #164
+
+Las categorías afectadas por «Respetar los horarios» iban al final de un párrafo
+largo, donde parecían otra aclaración más. Ahora viven en un bloque separado y
+dicen si están visibles u ocultas. Al añadir un horario, la tarjeta nueva se
+resalta, entra en la vista y recibe el foco. Los controles nativos de fecha usan
+el esquema oscuro y dejan más margen para sus indicadores.
+
 ---
 
 # Hallazgos sueltos, fuera de pestaña

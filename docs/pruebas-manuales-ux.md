@@ -166,6 +166,9 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] Con «Respetar los horarios de categoría» encendido, se nombran las categorías con horario y se dice cuáles están visibles u ocultas ahora. [TV2]
 - [ ] «Ahora en pantalla» dice si manda una selección base o un horario y cuántos destacados entran en la rotación. [TV2]
 - [ ] Añadir un destacado para TV abre la misma ventana de imagen o producto; queda como borrador y no aparece hasta publicarlo. [TV2]
+- [ ] La lista de categorías con horario se ve en un bloque separado de la explicación del interruptor. [TV3]
+- [ ] Al añadir un horario, la tarjeta nueva queda resaltada, la página llega hasta ella y el foco queda en su primer campo. [TV3]
+- [ ] Los iconos de calendario se ven claros sobre el fondo oscuro y los indicadores de fecha y hora no quedan pegados al borde. [TV3]
 
 ## 13. La carta pública (vmenus-app), en el móvil
 
