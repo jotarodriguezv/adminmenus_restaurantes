@@ -770,6 +770,13 @@ Las pruebas corren en GitHub Actions en cada push a `main` y en cada PR, con
 Node 22 — la misma versión que la imagen de producción (`node:22-alpine`).
 Correrlas antes de dar una tarea por terminada.
 
+**En CI solo se clona ESTE repositorio.** Una prueba que lea `../vmenus-app`
+—para comparar algo que vive en los dos, como el mínimo de platos del
+buscador— pasa en local, donde están los dos clones al lado, y **falla en CI**
+con un `ENOENT`. Si hace falta esa comparación, se comprueba con `existsSync`
+antes de leer y se sale de la prueba si no está. Tumbó el PR #174 el
+17/09/2026, con un comentario al lado que ya decía que era opcional.
+
 ## Entorno
 
 `.env` no está versionado. El servidor necesita al menos `SUPABASE_URL`,

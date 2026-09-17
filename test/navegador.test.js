@@ -6991,14 +6991,20 @@ describe('el interruptor del buscador de platos', () => {
 		// Son dos aplicaciones desplegadas por separado y no pueden compartir el
 		// módulo. Desincronizarlo hace que el panel prometa un buscador que la
 		// carta no enseña.
-		const enLaCarta = fs.readFileSync(
-			path.join(__dirname, '..', '..', 'vmenus-app', 'core', 'buscador.js'), 'utf8');
-		const suyo = enLaCarta.match(/MINIMO_PLATOS_BUSCADOR = (\d+)/)?.[1];
 		const nuestro = src.match(/MINIMO_PLATOS_BUSCADOR = (\d+)/)?.[1];
 		assert.ok(nuestro, 'el panel tiene que declarar el mínimo');
-		// Si el otro repositorio no está clonado al lado, no se comprueba: la
-		// prueba es una ayuda, no un requisito de tener dos clones.
-		if (suyo) assert.equal(nuestro, suyo, 'el mínimo del panel y el de la carta discrepan');
+
+		// El otro repositorio SOLO está cuando se trabaja con los dos clones al
+		// lado. En CI se clona este y nada más, así que aquí se comprueba que
+		// existe ANTES de leerlo: leerlo y confiar en que el archivo está es lo
+		// que tumbó el pull request #174 el 17/09/2026, con esta misma prueba
+		// diciendo en su comentario que era opcional.
+		const otroRepo = path.join(__dirname, '..', '..', 'vmenus-app', 'core', 'buscador.js');
+		if (!fs.existsSync(otroRepo)) return;
+
+		const suyo = fs.readFileSync(otroRepo, 'utf8').match(/MINIMO_PLATOS_BUSCADOR = (\d+)/)?.[1];
+		assert.ok(suyo, 'la carta tiene que declarar el mínimo');
+		assert.equal(nuestro, suyo, 'el mínimo del panel y el de la carta discrepan');
 	});
 
 	test('apagado se dice, sin prometer nada', () => {
