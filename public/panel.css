@@ -186,7 +186,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .inicio-fila-nota{font-size:12px;color:var(--text-muted);line-height:1.45;margin-top:3px;}
 .inicio-estado{font-family:var(--mono);font-size:10px;letter-spacing:.4px;white-space:nowrap;color:var(--text-muted);}
 .inicio-estado.activo{color:var(--success);}.inicio-estado.atencion{color:var(--warn);}
-@media(max-width:680px){.inicio-encabezado{align-items:flex-start;flex-direction:column;}.inicio-resumen{grid-template-columns:1fr 1fr;}.inicio-metrica:last-child{grid-column:1/-1;}.inicio-grid{grid-template-columns:1fr;}.inicio-tarjeta{margin-bottom:0;}}
 
 /* ── FILTRO CATS ── */
 .cat-filter{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;
@@ -693,6 +692,11 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
   .resto-mas-menu{right:auto;left:0;}
 }
 @media(max-width:680px){
+  .inicio-encabezado{align-items:flex-start;flex-direction:column;}
+  .inicio-resumen{grid-template-columns:1fr 1fr;}
+  .inicio-metrica:last-child{grid-column:1/-1;}
+  .inicio-grid{grid-template-columns:1fr;}
+  .inicio-tarjeta{margin-bottom:0;}
   .table-header{display:none;}
   .product-row{
 	grid-template-columns:64px 1fr auto;

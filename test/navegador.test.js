@@ -6550,11 +6550,12 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 	// porque es lo que la gente reconoce sin que nadie se lo explique.
 	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 
-	test('la pestaña Ajustes va tercera, detrás de Categorías', () => {
-		// Estaba la última del carril, que en móvil hay que desplazar para ver.
+	test('Inicio va primero y Ajustes queda tras Productos y Categorías', () => {
+		// Inicio responde primero «cómo está mi carta»; después se conservan las
+		// tres pestañas de trabajo que ya estaban juntas en móvil.
 		const carril = src.match(/<div class="tabs">[\s\S]*?<\/div>/)[0];
 		const botones = [...carril.matchAll(/switchTab\('([a-z]+)'/g)].map(m => m[1]);
-		assert.equal(JSON.stringify(botones.slice(0, 3)), '["productos","categorias","ajustes"]');
+		assert.equal(JSON.stringify(botones.slice(0, 4)), '["inicio","productos","categorias","ajustes"]');
 	});
 
 	test('dentro de Ajustes: carrito, filtros y las redes al final', () => {
