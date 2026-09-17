@@ -6468,7 +6468,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		const r = ctx.recolectarAjustes();
 		assert.equal(r.social_tiktok, 'https://tiktok.com/@x');
 		assert.equal(r.social_whatsapp, '573001234567');
-		assert.deepEqual(Object.keys(r).sort(), ['filtros_activos', 'filtros_disponibles', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
+		assert.deepEqual(Object.keys(r).sort(), ['buscador', 'filtros_activos', 'filtros_disponibles', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
 	});
 
 	test('guardar manda solo lo de Ajustes y deja el estado al día', async () => {
@@ -6486,7 +6486,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.equal(peticiones[0].metodo, 'PATCH');
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['atributos'], 'nada fuera de atributos');
-		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k => k.startsWith('social_') || k.startsWith('filtros_')),
+		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k => k.startsWith('social_') || k.startsWith('filtros_') || k === 'buscador'),
 			'solo las claves de Ajustes');
 		assert.equal(ctx.state.restaurante.atributos.social_instagram, 'https://instagram.com/bonzas');
 		assert.equal(campos('ajustesStatus').textContent, '✓ Guardado');
@@ -6978,5 +6978,67 @@ describe('los filtros de la lista de restaurantes', () => {
 		const f = { ...VACIO, tipo: 'video', modelo: 'vertical' };
 		assert.equal(ctx.filtroTrasCambio(f, { tipo: 'fotos' }).modelo, 'todos');
 		assert.equal(ctx.filtroTrasCambio(f, { tipo: 'video' }).modelo, 'vertical');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('el interruptor del buscador de platos', () => {
+	// La carta lo lleva desde vmenus-app#36; aquí se enciende y se apaga.
+	const src = codigoDelPanel();
+	const reglas = () => cargar('ajustes.js', '// ── BUSCADOR DE PLATOS', '// ── FILTROS Y ETIQUETAS', {});
+
+	test('el mínimo de platos es el mismo que en la carta', () => {
+		// Son dos aplicaciones desplegadas por separado y no pueden compartir el
+		// módulo. Desincronizarlo hace que el panel prometa un buscador que la
+		// carta no enseña.
+		const nuestro = src.match(/MINIMO_PLATOS_BUSCADOR = (\d+)/)?.[1];
+		assert.ok(nuestro, 'el panel tiene que declarar el mínimo');
+
+		// El otro repositorio SOLO está cuando se trabaja con los dos clones al
+		// lado. En CI se clona este y nada más, así que aquí se comprueba que
+		// existe ANTES de leerlo: leerlo y confiar en que el archivo está es lo
+		// que tumbó el pull request #174 el 17/09/2026, con esta misma prueba
+		// diciendo en su comentario que era opcional.
+		const otroRepo = path.join(__dirname, '..', '..', 'vmenus-app', 'core', 'buscador.js');
+		if (!fs.existsSync(otroRepo)) return;
+
+		const suyo = fs.readFileSync(otroRepo, 'utf8').match(/MINIMO_PLATOS_BUSCADOR = (\d+)/)?.[1];
+		assert.ok(suyo, 'la carta tiene que declarar el mínimo');
+		assert.equal(nuestro, suyo, 'el mínimo del panel y el de la carta discrepan');
+	});
+
+	test('apagado se dice, sin prometer nada', () => {
+		const [texto] = reglas().notaBuscador(false, 40);
+		assert.match(texto, /no enseña el buscador/);
+	});
+
+	test('encendido con pocos platos avisa de que todavía no aparece', () => {
+		// Es el caso de «lo encendí y no lo veo», que si no acaba en una llamada.
+		const ctx = reglas();
+		const [texto, color] = ctx.notaBuscador(true, 5);
+		assert.match(texto, /5 platos/);
+		assert.match(texto, /a partir de 8/);
+		assert.equal(color, 'var(--warn)');
+	});
+
+	test('un solo plato se dice en singular', () => {
+		assert.match(reglas().notaBuscador(true, 1)[0], /1 plato:/);
+	});
+
+	test('encendido y con carta suficiente, se dice dónde sale', () => {
+		const [texto, color] = reglas().notaBuscador(true, 40);
+		assert.match(texto, /ven el buscador/);
+		assert.equal(color, 'var(--success)');
+	});
+
+	test('el servidor lo acepta del restaurante y como booleano', () => {
+		// Enseñar el interruptor no cambia lo que acepta la API: si no está en la
+		// lista, el restaurante lo guarda y el servidor lo tira sin decir nada.
+		const servidor = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+		const lista = servidor.match(/const ATRIBUTOS_CLIENTE_PERMITIDOS = \[[\s\S]*?\];/)[0];
+		assert.match(lista, /'buscador'/);
+		// Un "false" de texto es verdadero para cualquier if, y dejaría la caja
+		// de búsqueda puesta después de apagarla.
+		assert.match(servidor, /for \(const k of \['carrito', 'filtros_activos', 'buscador'\]\)/);
 	});
 });

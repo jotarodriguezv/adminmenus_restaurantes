@@ -49,6 +49,10 @@ function renderAjustes() {
   // frase depende de si el interruptor está encendido.
   document.getElementById('ajFiltros').checked = at.filtros_activos ?? state.filtrosDisponibles.length > 0;
   renderFiltrosCatalogo();
+  // Ausente es encendido, igual que en la carta: nadie tiene que ir a
+  // encenderlo para tenerlo, y apagarlo es una decisión de quien lo apaga.
+  document.getElementById('ajBuscador').checked = at.buscador !== false;
+  pintarNotaBuscador();
   document.getElementById('ajCarrito').checked = !!at.carrito;
   // Los campos de pedidos se rellenan siempre, estén a la vista o no: enseñarlos
   // es cosa de pintarPedidos(), y rellenarlos al enseñarlos borraría lo que
@@ -87,6 +91,7 @@ function recolectarAjustes() {
     ...toppings,
     // La lista viaja también con el interruptor apagado: apagar esconde, no
     // borra, y es lo que permite volver a encenderlo y encontrarlo todo igual.
+    buscador: document.getElementById('ajBuscador').checked,
     filtros_activos: document.getElementById('ajFiltros').checked,
     filtros_disponibles: state.filtrosDisponibles,
     social_bar: document.getElementById('ajSocialBar').checked,
@@ -155,6 +160,38 @@ async function saveAjustes() {
     st.textContent = e.message; st.style.color = 'var(--danger)';
     showToast(e.message, 'error');
   }
+}
+
+// ── BUSCADOR DE PLATOS ────────────────────────────────────────
+// El interruptor de vmenus-app/core/buscador.js, puesto el 17/09/2026 con
+// vmenus-app#36. Como los filtros: apagarlo no borra nada, solo quita la caja
+// de búsqueda de la carta.
+//
+// ESTE NÚMERO ES ESPEJO de MINIMO_PLATOS_BUSCADOR en vmenus-app/core/buscador.js.
+// Son dos aplicaciones desplegadas por separado y no pueden compartir el
+// módulo, igual que PLANES o la lista de slugs reservados. Si cambia allí,
+// cambia aquí — y desincronizarlo hace que el panel prometa un buscador que la
+// carta no enseña, que es de los fallos que nadie sabe contar.
+const MINIMO_PLATOS_BUSCADOR = 8;
+
+// Aparte de la pantalla para poder probarla, como notaFiltros: son los estados
+// que desde el panel se confunden con «lo encendí y no aparece».
+function notaBuscador(encendido, platos) {
+  if (!encendido) return ['Tu carta no enseña el buscador.', 'var(--text-muted)'];
+  if (platos < MINIMO_PLATOS_BUSCADOR) return [
+    `Tu carta tiene ${platos} plato${platos === 1 ? '' : 's'}: el buscador aparece a partir de ${MINIMO_PLATOS_BUSCADOR}. ` +
+    'Una carta corta se lee de un vistazo y la caja le quitaría el sitio a un plato.',
+    'var(--warn)'];
+  return ['Tus clientes ven el buscador arriba, encima de la carta.', 'var(--success)'];
+}
+
+function pintarNotaBuscador() {
+  const nota = document.getElementById('ajBuscadorNota');
+  if (!nota) return;
+  const [texto, color] = notaBuscador(
+    document.getElementById('ajBuscador').checked, (state.productos || []).length);
+  nota.textContent = texto;
+  nota.style.color = color;
 }
 
 // ── FILTROS Y ETIQUETAS ───────────────────────────────────────
