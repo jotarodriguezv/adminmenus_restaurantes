@@ -204,29 +204,23 @@ describe('el televisor solo se ofrece a quien puede tenerlo', () => {
 	// control que promete algo que el plan no incluye confunde y no lleva a
 	// ninguna parte. Es el mismo patrón que ya apareció con la pantalla de marca.
 	const conPlan = (plan, atributos = {}) => cargar('index.html',
-		[['const PLANES', 'function planActual() {'],
+		[['const TODO_INCLUIDO', 'function planActual() {'],
 		 	['function planActual() {', '// ── MODELOS QUE PINTAN VIDEO'],
 		 	['function restauranteTieneTv', '// Qué modelo se guarda']],
 		{ state: { restaurante: { atributos: { plan, ...atributos } } } });
 
-	test('un plan sin cartelera no la ofrece', () => {
-		assert.equal(conPlan('pedidos').restauranteTieneTv(), false);
+	test('los dos planes la ofrecen, también a quien sigue guardado con un plan viejo', () => {
+		// Hasta el 17/09/2026 «pedidos» no la tenía, ni un restaurante sin plan.
+		// Ahora va incluida en todo.
+		for (const p of ['fotos', 'video', 'pedidos', 'vitrina', undefined])
+			assert.equal(conPlan(p).restauranteTieneTv(), true, String(p));
 	});
 
-	test('sin plan asignado tampoco', () => {
-		// Es el caso de perroscriollos: cae en el plan por defecto.
-		assert.equal(conPlan(undefined).restauranteTieneTv(), false);
-	});
-
-	test('un plan con cartelera sí', () => {
-		assert.equal(conPlan('completo').restauranteTieneTv(), true);
-		assert.equal(conPlan('video').restauranteTieneTv(), true);
-	});
-
-	test('y una cartelera ya configurada la ofrece aunque el plan baje', () => {
-		// Si no, un cambio de plan dejaría una pantalla encendida en la pared de
-		// un local sin forma de apagarla desde el panel.
-		assert.equal(conPlan('pedidos', { tv: { activa: true } }).restauranteTieneTv(), true);
+	test('una cartelera ya configurada se ofrece siempre', () => {
+		// Si algún día vuelve un plan sin TV, un cambio de plan no puede dejar una
+		// pantalla encendida en la pared de un local sin forma de apagarla.
+		assert.match(fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8'),
+			/function restauranteTieneTv\(\) \{\s*return !!planActual\(\)\.tv \|\| !!state\.restaurante\?\.atributos\?\.tv;/);
 	});
 });
 
@@ -1445,35 +1439,33 @@ describe('tabla de planes del panel', () => {
 	// Se entra por planDe y no por PLANES a propósito: un 'const' no se
 	// engancha al contexto del vm —solo las declaraciones de función—, y de
 	// paso se prueba el accesor que usa el panel de verdad.
-	const { planDe } = cargar('index.html', 'const PLANES = {', 'function planActual');
-	const PLANES_NOMBRES = ['vitrina', 'pedidos', 'completo', 'video'];
+	const { planDe, nombrePlanDe } = cargar('index.html', 'const TODO_INCLUIDO = {', 'function planActual');
 	const plan = nombre => planDe({ atributos: { plan: nombre } });
 
-	test('todos los planes declaran todas las capacidades', () => {
-		// Una bandera que falta se lee como undefined, o sea como "no", y un
-		// plan pierde algo sin que nadie lo haya decidido.
-		const banderas = ['marca', 'qr_disenador', 'estadisticas', 'horarios', 'videos', 'carrito'];
-		for (const nombre of PLANES_NOMBRES)
-			for (const b of banderas)
-				assert.equal(typeof plan(nombre)[b], 'boolean', `${nombre} no declara "${b}"`);
+	test('dos planes, fotos y video, con los mismos modelos que la carta', () => {
+		// 17/09/2026. Los de fotos y los de video no se mezclan, y Carrito ya no
+		// se ofrece en ninguno.
+		assert.equal(JSON.stringify(plan('fotos').modelos), '["topnav","sidebar","explorar"]');
+		assert.equal(JSON.stringify(plan('video').modelos), '["video","vertical"]');
+		assert.equal(plan('fotos').videos, false);
+		assert.equal(plan('video').videos, true);
 	});
 
-	test('el carrito es capacidad de plan, no solo modelo de página', () => {
-		assert.equal(plan('vitrina').carrito, false, 'vitrina es solo escaparate');
-		assert.equal(plan('pedidos').carrito, true);
-		assert.equal(plan('completo').carrito, true);
-		assert.equal(plan('video').carrito, true);
+	test('todo lo demás va incluido en los dos', () => {
+		const banderas = ['qr_disenador', 'estadisticas', 'horarios', 'carrito', 'tv'];
+		for (const nombre of ['fotos', 'video']) {
+			for (const b of banderas) assert.equal(plan(nombre)[b], true, `${nombre} sin «${b}»`);
+			assert.equal(plan(nombre).marca, false, `${nombre} no lleva «Hecho con VMenus»`);
+		}
 	});
 
-	test('el modelo de video solo lo lista el plan de video', () => {
-		for (const n of ['vitrina', 'pedidos', 'completo'])
-			assert.equal(plan(n).modelos.includes('video'), false, `${n} no debería`);
-		assert.ok(plan('video').modelos.includes('video'));
-	});
-
-	test('un plan desconocido no deja al restaurante sin nada', () => {
-		// Un valor mal escrito en la base no puede apagarle el panel a nadie.
-		assert.equal(typeof plan('platino_ultra').carrito, 'boolean');
+	test('los planes de antes se leen como Fotos, y sin plan manda el modelo', () => {
+		// Bonzas y Malparados siguen guardados como «completo» hasta la migración.
+		for (const viejo of ['vitrina', 'pedidos', 'completo'])
+			assert.equal(nombrePlanDe({ atributos: { plan: viejo, nav: 'topnav' } }), 'fotos', viejo);
+		assert.equal(nombrePlanDe({ atributos: { nav: 'vertical' } }), 'video');
+		assert.equal(nombrePlanDe({ atributos: { nav: 'sidebar' } }), 'fotos');
+		assert.equal(nombrePlanDe({ atributos: { plan: 'platino_ultra', nav: 'video' } }), 'video', 'una errata no deja a nadie sin nada');
 	});
 });
 
@@ -2496,7 +2488,7 @@ describe('etiquetaModelo · todos los modelos tienen nombre', () => {
 	// Se comprueba que la etiqueta no sea el identificador crudo. Los ids van
 	// en minúscula y las etiquetas capitalizadas, así que si coinciden es que
 	// no hay etiqueta y está devolviendo el respaldo.
-	const ctx = cargar('index.html', 'const PLANES = {', 'function renderPlanResumen');
+	const ctx = cargar('index.html', 'const TODO_INCLUIDO = {', 'function renderPlanResumen');
 
 	test('ningún modelo de ningún plan se queda sin etiqueta', () => {
 		const modelos = new Set();
@@ -5729,7 +5721,7 @@ describe('la insignia de pedidos dice lo que la carta tiene, no lo que el plan p
 	// «🛒 pedidos» en los once restaurantes; Bonzas la llevaba siendo Topnav, sin
 	// carrito y sin pestaña Pedidos.
 	const ctx = cargar('index.html', [
-		['const PLANES', '// En qué proporción se recorta el video'],
+		['const TODO_INCLUIDO', '// En qué proporción se recorta el video'],
 		['function fichaPlanHtml', 'function resumenVideoHtml'],
 	], { String, state: { resumenVideo: {} }, esc: String, etiquetaModelo: String });
 	const pedidos = atributos => (ctx.fichaPlanHtml({ id: 'r', atributos }).match(/🛒[^<]*/) || [null])[0];

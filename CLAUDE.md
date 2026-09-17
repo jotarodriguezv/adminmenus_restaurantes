@@ -610,11 +610,25 @@ que buscan `tabBtnApariencia` y el texto «Apariencia» en los avisos.
    nombre de un filtro lo pintan la carta y el panel escapado (`esc()` o
    `textContent`); comprobado en los seis modelos y en el panel antes de abrirlo.
 
-### En diseño: rehacer los planes en dos familias, Fotos y Video
+### Los planes nuevos: Fotos y Video, todo incluido
 
-**Planteado por el usuario el 16/09/2026. Solo anotado: no implementar nada
-hasta que lo pida.** Lo está pensando; lo de abajo es su idea y lo que hay que
-decidir antes de escribir código.
+**Decidido el 17/09/2026**, y distinto de lo que se planteó el 16 (abajo, como
+historia): **solo dos planes, Fotos y Video, sin niveles**, con todas las
+funciones incluidas como interruptores. Los niveles, si llegan, cuando haya base
+de clientes. La tabla está en `docs/planesymodelos.md` §2.
+
+Se hace en tres pasos, cada uno un PR que sale de `main`:
+
+1. **Código que entiende los nombres nuevos y los viejos** (servidor, panel y
+   carta). Carrito sale del selector y queda como opción escondida. Hecho el
+   17/09/2026: vmenus-app#34 y el PR del panel del mismo día.
+2. **Migrar la base**: cada restaurante a `fotos` o `video`, y `aojocerrado` y
+   `perroscriollos` de Carrito a Sidebar con el carrito encendido. Escritura en
+   producción: **avisar antes**.
+3. **Limpieza**: borrar el tema Carrito, `PLANES_ANTIGUOS` en los tres sitios y
+   la opción escondida del selector.
+
+Lo que se planteó el 16/09/2026, para contexto:
 
 **El problema de hoy.** Un plan mezcla tres ejes que no tienen nada que ver:
 **qué es la carta** (fotos o video), **cuánto se paga** y **qué funciones

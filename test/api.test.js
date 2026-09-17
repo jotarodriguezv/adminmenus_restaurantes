@@ -154,26 +154,22 @@ describe('PATCH /api/categorias · los horarios dependen del plan', () => {
 		return { data: { id: IDS.categoria }, error: null };
 	});
 
-	test('un plan sin horarios no puede ponerlos por llamada directa', async () => {
-		// Esconder el interruptor en el panel no impide llamar a la API.
+	test('un restaurante guardado como Vitrina, que ya no existe, cuenta como Fotos y puede ponerlos', async () => {
+		// Desde el 17/09/2026 los dos planes incluyen horarios. La comprobación del
+		// servidor se queda —es la que servirá si vuelve a haber niveles—, pero
+		// hoy no hay ningún plan que la dispare.
 		conPlan('vitrina');
 		await S.pedir('PATCH', `/api/categorias/${IDS.categoria}`,
 			{ atributos: { horario: HORARIO, imagen_cabecera: 'x.jpg' } }, tokenCliente);
 		const g = S.ultimaEscritura('categorias');
-		assert.equal(g.atributos.horario, undefined);
-		assert.equal(g.atributos.imagen_cabecera, 'x.jpg', 'lo permitido sí se conserva');
+		assert.deepEqual(g.atributos.horario, HORARIO);
+		assert.equal(g.atributos.imagen_cabecera, 'x.jpg');
 	});
 
 	test('un plan con horarios sí puede', async () => {
 		conPlan('completo');
 		await S.pedir('PATCH', `/api/categorias/${IDS.categoria}`, { atributos: { horario: HORARIO } }, tokenCliente);
 		assert.deepEqual(S.ultimaEscritura('categorias').atributos.horario, HORARIO);
-	});
-
-	test('bajar de plan no destruye el horario ya configurado', async () => {
-		conPlan('vitrina', HORARIO);
-		await S.pedir('PATCH', `/api/categorias/${IDS.categoria}`, { atributos: { imagen_cabecera: 'y.jpg' } }, tokenCliente);
-		assert.deepEqual(S.ultimaEscritura('categorias').atributos.horario, HORARIO, 'se conserva lo que ya había');
 	});
 
 	test('apagar el horario sigue funcionando', async () => {
@@ -320,11 +316,13 @@ describe('GET /api/estadisticas', () => {
 		assert.equal(r.body.tasaInteraccion, 0);
 	});
 
-	test('un plan sin estadísticas se corta ANTES de consultar la base', async () => {
+	test('un restaurante guardado como Vitrina, que ya no existe, tiene estadísticas', async () => {
+		// Desde el 17/09/2026 cuenta como Fotos, que las incluye. Antes se cortaba
+		// con 403 antes de consultar la base; ese corte sigue en el servidor para
+		// cuando vuelva a haber un plan sin ellas.
 		conPlanYZona('vitrina', 'America/Bogota');
 		const r = await S.pedir('GET', `/api/estadisticas?restaurante_id=${IDS.restaurante}&desde=2026-01-01&hasta=2026-01-02`, null, tokenCliente);
-		assert.equal(r.status, 403);
-		assert.equal(S.llamadas.filter(l => l.tipo === 'rpc').length, 0, 'no debe llegar a agregar nada');
+		assert.notEqual(r.status, 403);
 	});
 
 	test('un error de la base no se filtra al cliente', async () => {
@@ -1519,16 +1517,13 @@ describe('/api/promociones · varias promociones por restaurante', () => {
 		assert.deepEqual(S.ultimaEscritura('promociones').programacion.dias, [2]);
 	});
 
-	test('programar es de plan; tener varias, no', async () => {
-		// 'vitrina' no tiene horarios, igual que no los tiene en categorías.
+	test('programar va incluido: un restaurante guardado como Vitrina también puede', async () => {
+		// Hasta el 17/09/2026 Vitrina no tenía horarios y esto devolvía 403. Ahora
+		// cuenta como Fotos, que los incluye.
 		conPlan('vitrina');
 		const conHorario = await S.pedir('POST', '/api/promociones',
 			{ ...PROMO, programacion: { activo: true, dias: [2] } }, tokenCliente);
-		assert.equal(conHorario.status, 403);
-
-		conPlan('vitrina');
-		const sinHorario = await S.pedir('POST', '/api/promociones', PROMO, tokenCliente);
-		assert.equal(sinHorario.status, 200, 'sin programación sí puede');
+		assert.equal(conHorario.status, 200);
 	});
 
 	test('el tope sale del plan y se cuenta al crear', async () => {
@@ -1808,9 +1803,11 @@ describe('carrito · lo enciende el restaurante, si su plan lo incluye', () => {
 		assert.equal(S.ultimaEscritura('restaurantes').atributos.carrito, false);
 	});
 
-	test('con Vitrina no llega a guardarse', async () => {
+	test('un restaurante guardado como Vitrina, que ya no existe, también lo guarda', async () => {
+		// Cuenta como Fotos, que incluye el carrito (17/09/2026). El filtro por plan
+		// de ATRIBUTOS_SEGUN_PLAN se queda para cuando vuelva a haber niveles.
 		await guardar(true, 'vitrina');
-		assert.equal(S.ultimaEscritura('restaurantes').atributos.carrito, undefined);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.carrito, true);
 	});
 
 	test('un "true" de texto no enciende nada: el interruptor es un booleano', async () => {

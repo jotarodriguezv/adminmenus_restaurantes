@@ -831,17 +831,31 @@ const ATRIBUTOS_SEGUN_PLAN = { qr: 'qr_disenador', tv: 'tv', carrito: 'carrito' 
 // Hoy son cinco en todos los planes a propósito. Que existan varias no se
 // cobra: lo que se paga —si se decide— es PROGRAMARLAS, que va con 'horarios',
 // la misma bandera que ya gobierna los horarios de categoría.
+//
+// Desde el 17/09/2026 hay DOS planes, que son los dos tipos de carta: fotos y
+// video. Todo lo demás va incluido en los dos y cada restaurante enciende lo que
+// usa; decidido con el usuario, hasta tener base de clientes para poner niveles.
+// Las banderas siguen aunque hoy coincidan: son las que se moverán entonces.
+// La misma tabla vive en public/index.html y en vmenus-app/core/planes.js.
+const TODO_INCLUIDO = { qr_disenador: true, estadisticas: true, horarios: true, carrito: true, tv: true, promociones: 5 };
 const PLANES = {
-  vitrina:  { qr_disenador: false, estadisticas: false, horarios: false, videos: false, carrito: false, tv: false, promociones: 5 },
-  pedidos:  { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true,  tv: false, promociones: 5 },
-  completo: { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: false, carrito: true,  tv: true,  promociones: 5 },
+  fotos: { ...TODO_INCLUIDO, videos: false },
   // Único plan que abre la subida de video. Como el resto de banderas de
   // plan, se comprueba también aquí y no solo en el panel: esconder un
   // formulario no impide una llamada directa a la API.
-  video:    { qr_disenador: true,  estadisticas: true,  horarios: true,  videos: true,  carrito: true,  tv: true,  promociones: 5 },
+  video: { ...TODO_INCLUIDO, videos: true },
 };
-const PLAN_POR_DEFECTO = 'pedidos';
-const planDe = atributos => PLANES[atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
+// Los planes de antes se siguen entendiendo mientras quede algún restaurante
+// guardado con ellos. Sin plan —o con uno desconocido— manda el modelo: una
+// carta de video es del plan de video. Antes caía en 'pedidos', que no abría la
+// subida de video.
+const PLANES_ANTIGUOS = { vitrina: 'fotos', pedidos: 'fotos', completo: 'fotos' };
+const PLAN_POR_DEFECTO = 'fotos';
+const planDe = atributos => {
+  const nombre = PLANES_ANTIGUOS[atributos?.plan] || atributos?.plan;
+  if (PLANES[nombre]) return PLANES[nombre];
+  return PLANES[['video', 'vertical'].includes(atributos?.nav) ? 'video' : PLAN_POR_DEFECTO];
+};
 
 // Lo mismo dentro de "atributos" de una CATEGORÍA. El horario es una función
 // de plan, y esconder el interruptor en el panel no impide una llamada

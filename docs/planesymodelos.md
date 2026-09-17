@@ -34,25 +34,30 @@ y `vmenus-app/core/planes.js`. El del servidor es el que manda: es el que decide
 qué se puede guardar. Si discrepan, el panel ofrece algo que la carta no pinta o
 que el servidor no deja guardar. (Aquí ponía «dos» hasta el 16/09/2026.)
 
-> **En diseño desde el 16/09/2026:** rehacer los planes en dos familias, Fotos y
-> Video, y sacar del plan el carrito, los filtros y el buscador. Está en
-> `CLAUDE.md`, «En diseño: rehacer los planes». Esta tabla es la de hoy.
+**Desde el 17/09/2026 hay dos planes**, que son los dos tipos de carta que
+existen. Decidido con el usuario: se vende todo incluido hasta tener base de
+clientes, y los niveles (sin estadísticas, sin filtros…) se pensarán entonces.
 
-| Plan | Marca | QR | Estad. | Horarios | Carrito | Video |
-|---|---|---|---|---|---|---|
-| **Vitrina** | sí | — | — | — | — | — |
-| **Pedidos** | sí | ✓ | ✓ | ✓ | ✓ | — |
-| **Completo** | — | ✓ | ✓ | ✓ | ✓ | — |
-| **Video** | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Plan | Modelos | Subir videos | Destacados, TV, filtros, carrito, QR, estadísticas, horarios | Pie «Hecho con VMenus» |
+|---|---|---|---|---|
+| **Fotos** | Topnav · Sidebar · Explorar | — | ✓ | no sale |
+| **Video** | Video · Vertical | ✓ | ✓ | no sale |
 
-*"Marca: sí"* significa que la carta lleva el crédito **Hecho con VMenus**. Es
-al revés de lo que parece: pagar más lo quita.
+Un modelo de fotos no sirve para una carta de video ni al revés: las
+cuadrículas y las proporciones son distintas. Todo lo demás son interruptores
+que cada restaurante enciende. Las banderas de cada capacidad siguen en la
+tabla aunque hoy coincidan, porque son las que se moverán si llegan niveles.
 
-El plan por defecto es **Pedidos**, y eso es a propósito: es exactamente lo que
-hacía la plataforma antes de que existieran los planes, así que un restaurante
-sin plan asignado no nota nada.
+**Los planes de antes** —Vitrina, Pedidos y Completo— se leen como **Fotos**
+mientras quede algún restaurante guardado con ellos. **Sin plan**, o con uno que
+no existe, **manda el modelo**: una carta de video es del plan Video. Antes caía
+en Pedidos, que no abría la subida de video.
 
-**Video es su propio plan y no un extra del Completo** porque su coste no se
+El modelo **Carrito** ya no está en ningún plan: desde el 17/09/2026 el carrito
+es un interruptor en los otros cinco modelos. Se sigue pintando mientras
+algún restaurante lo tenga guardado.
+
+**Video es su propio plan** porque su coste no se
 parece: cada plato es un archivo que hay que almacenar, convertir y servir
 muchas veces.
 
