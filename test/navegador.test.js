@@ -494,6 +494,7 @@ describe('qrGuardarDiseno · guardar el QR no puede pisar el resto', () => {
 		const ctx = cargar('qr.js', 'async function qrGuardarDiseno', null, {
 			qrCfg: { fg: '#000000', punto: 'redondo' },
 			qrLeerControles: () => {},
+			fijarFotoDePestana: () => {},
 			document: { getElementById: () => ({ textContent: '', style: {} }) },
 			showToast: () => {},
 			state: {
@@ -1715,6 +1716,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			apiFetch: async (m, r, cuerpo) => { enviado.push(cuerpo); return { id: 'r1', atributos: {} }; },
 			showToast: (m, t) => avisos.push([t, m]),
 			navigator: { clipboard: { writeText: async () => {} } },
+			fijarFotoDePestana: () => {},
 			Math, parseInt, Array, String, JSON,
 		});
 		return { ctx, campos, enviado, avisos, tvSeleccion: opciones.seleccion || [] };
@@ -2960,7 +2962,7 @@ describe('confirmAddTopping · añadir y renombrar en la pestaña Toppings', () 
 			renderToppingList: () => {},
 			state: { productos: [], restaurante: { id: 'r1' } },
 			apiFetch: async () => ({}),
-			ajustarPestanasAlModelo: () => {},
+			ajustarPestanasAlModelo: () => {}, fijarFotoDePestana: () => {},
 			confirm: () => true,
 			crypto: globalThis.crypto,
 		});
@@ -5828,7 +5830,7 @@ describe('los toppings se guardan con el botón de Ajustes', () => {
 			toppingsQueSeQuitan: () => huerfanos,
 			confirm: texto => { preguntas.push(texto); return responde; },
 			planActual: () => plan, recibePedidos: () => true, puedeElegirCarrito: () => true,
-			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {},
+			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {}, fijarFotoDePestana() {},
 			renderPedidos() {}, renderMetodosPago() {}, renderToppings() {},
 			recolectarMetodosPago: () => ({}), metodosIncompletos: () => [],
 			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push(cuerpo); return { id: 'r1', atributos: { ...atributos, ...cuerpo.atributos } }; },
@@ -5923,7 +5925,7 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 			MODELO_POR_DEFECTO: 'topnav',
 			planActual: () => plan, recibePedidos: () => recibe,
 			puedeElegirCarrito: () => true,
-			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {},
+			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {}, fijarFotoDePestana() {},
 			// Esta prueba es de pedidos: los toppings de la misma tarjeta no estorban
 			// si el restaurante no tiene ninguno, que es lo que dice el catálogo vacío.
 			renderToppings() {}, toppingsQueSeQuitan: () => [],
@@ -6437,7 +6439,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 			document: { getElementById: $ },
 			renderFiltrosCatalogo: () => {},
 			pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
-			ajustarPestanasAlModelo: () => {}, cartaTieneCarrito: () => false,
+			ajustarPestanasAlModelo: () => {}, cartaTieneCarrito: () => false, fijarFotoDePestana: () => {},
 			// Los pedidos viven en esta misma pantalla desde el 16/09/2026, pero
 			// esta prueba es de redes: sin carrito, no se recogen.
 			renderPedidos: () => {}, renderMetodosPago: () => {}, recolectarMetodosPago: () => ({}),
@@ -6807,5 +6809,78 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 		const guardar = src.match(/async function saveAjustes\(\) \{[\s\S]*?\n\}/)[0];
 		assert.match(guardar, /ajustarPestanasAlModelo\(\);/);
 		assert.match(guardar, /falta el número de WhatsApp/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('cambiar de pestaña con cambios sin guardar pregunta antes', () => {
+	// Pendiente del 17/09/2026: encender un topping en Ajustes y pasar a otra
+	// pestaña sin guardar dejaba irse, y el cambio se perdía sin aviso.
+	function montar() {
+		const campos = {}, abiertos = [], pintadas = [];
+		const nodo = () => ({ classList: { add() {}, remove() {}, toggle() {} }, style: {}, textContent: '' });
+		const form = { valor: 'guardado' };
+		const ctx = cargar('index.html', '// ── TABS', '// ── ¿HAY MÁS PESTAÑAS FUERA?', {
+			state: { rol: 'cliente' },
+			document: {
+				getElementById: id => (campos[id] ||= nodo()),
+				querySelectorAll: () => [],
+				querySelector: () => ({ textContent: 'Ajustes' }),
+			},
+			openModal: id => abiertos.push(id), closeModal: () => {},
+			renderAjustes: () => { form.valor = 'guardado'; pintadas.push('ajustes'); },
+			recolectarAjustes: () => ({ valor: form.valor }),
+			renderInicio: () => pintadas.push('inicio'),
+			renderToppings() {}, renderTV() {}, renderImportar() {},
+			renderQR: async () => {}, seleccionarRango() {},
+			hayCambiosApariencia: () => false, hayCambiosDatosResto: () => false,
+			JSON,
+		});
+		const boton = () => ({ classList: { add() {}, remove() {} } });
+		return { ctx, form, abiertos, pintadas, boton };
+	}
+
+	test('sin cambios, cambia directo', () => {
+		const { ctx, abiertos, pintadas, boton } = montar();
+		ctx.switchTab('ajustes', boton());
+		ctx.switchTab('inicio', boton());
+		assert.deepEqual(abiertos, []);
+		assert.deepEqual(pintadas, ['ajustes', 'inicio']);
+	});
+
+	test('con cambios, no se va y pregunta', () => {
+		const { ctx, form, abiertos, pintadas, boton } = montar();
+		ctx.switchTab('ajustes', boton());
+		form.valor = 'topping encendido';
+		ctx.switchTab('inicio', boton());
+		assert.deepEqual(abiertos, ['pestanaCambiosModal']);
+		assert.deepEqual(pintadas, ['ajustes'], 'Inicio no se llegó a abrir');
+	});
+
+	test('volver a pulsar la misma pestaña no tira lo escrito', () => {
+		const { ctx, form, pintadas, boton } = montar();
+		ctx.switchTab('ajustes', boton());
+		form.valor = 'topping encendido';
+		ctx.switchTab('ajustes', boton());
+		assert.equal(form.valor, 'topping encendido');
+		assert.deepEqual(pintadas, ['ajustes']);
+	});
+
+	test('«Salir sin guardar» lleva a la pestaña pedida', () => {
+		const { ctx, form, pintadas, boton } = montar();
+		ctx.switchTab('ajustes', boton());
+		form.valor = 'topping encendido';
+		ctx.switchTab('inicio', boton());
+		ctx.salirDePestanaSinGuardar();
+		assert.deepEqual(pintadas, ['ajustes', 'inicio']);
+	});
+
+	test('después de guardar ya no pregunta', () => {
+		const { ctx, form, abiertos, boton } = montar();
+		ctx.switchTab('ajustes', boton());
+		form.valor = 'topping encendido';
+		ctx.fijarFotoDePestana('ajustes');   // lo que hace saveAjustes al terminar
+		ctx.switchTab('inicio', boton());
+		assert.deepEqual(abiertos, []);
 	});
 });

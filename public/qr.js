@@ -538,6 +538,7 @@ async function qrGuardarDiseno() {
 		const atributos = { qr: qrCfg };
 		const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
 		state.restaurante = data;
+		fijarFotoDePestana('qr');
 		st.textContent = '✓ Guardado';
 		st.style.color = 'var(--success)';
 		showToast('Diseño del QR guardado', 'success');

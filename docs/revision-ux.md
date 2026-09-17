@@ -698,6 +698,13 @@ guardado. Si sales ahora se pierden». Aquí no.
 > que el equipo tiene abierta para los videos a medias (`CLAUDE.md`, «¿avisar o
 > impedir salir con un video a medias?»). Resolverla aquí sería adelantarse a esa
 > decisión. Hasta entonces, lo pendiente se ve, pero salir no se bloquea.
+>
+> **Cambiar de pestaña sí pregunta, desde el 17/09/2026** (decisión del
+> usuario): encender un topping en Ajustes y pasar a otra pestaña perdía el
+> cambio. `switchTab` abre «Cambios sin guardar» —seguir editando o salir sin
+> guardar— al salir de Ajustes, Apariencia, Pantalla TV, QR o Destacados con
+> algo pendiente, medido con la misma función que arma lo que se guarda. Volver
+> a la lista, cerrar sesión y recargar siguen sin preguntar.
 
 ## A3 · Cuatro pantallas y media de formulario seguido · **Media**
 
