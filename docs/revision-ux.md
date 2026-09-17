@@ -494,6 +494,24 @@ que no se confunda.
 > «Eliminar «Burger Clásica»», «Eliminar la categoría «Bebidas»». En una lista de
 > cien filas, «Eliminar» a secas no dice cuál. El icono se queda.
 
+## P7 · Crear un producto obliga a recorrer los extras antes de lo esencial · **Media**
+
+- [x] Hecho · 2026-09-16 · PR #161
+
+La ficha abría con una zona de foto de casi 300 px y las imágenes adicionales.
+Nombre, categoría y precio quedaban más abajo, así que crear un plato simple
+obligaba a desplazarse antes de poder completar los tres datos mínimos. La foto
+es importante para la calidad de la carta, pero se puede cargar después: no debe
+frenar el alta inicial.
+
+**Aplicado:** la ficha abre con nombre, categoría, precio y disponibilidad. La
+foto va después, en una zona compacta, con el texto «Agrégala ahora o después».
+Las imágenes adicionales se plegaron bajo una sección opcional. El precio ya no
+parece traer un valor escrito: explica que se ingresan solo números, sin puntos
+ni símbolo $. También se renombraron las descripciones sin cambiar sus datos ni
+la carta pública: «Descripción del producto» explica que sale al abrir el plato,
+y «Descripción corta» que sale bajo el nombre y manda en las cartas de video.
+
 ## Lo que está bien y conviene no perder
 
 `confirmDelete` (`index.html:5472`) **cuenta los platos que se lleva una

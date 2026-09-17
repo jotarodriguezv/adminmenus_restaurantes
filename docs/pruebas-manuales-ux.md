@@ -72,6 +72,8 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 - [ ] Después de guardar cinco o seis platos seguidos, la rueda del ratón sobre ese carril sigue desplazando lo normal, no cada vez más rápido. [P5 · #109]
 - [ ] Los dos desplegables de orden explican qué ordena cada uno («Ver aquí» / en la carta), y cambiar el orden de la carta ofrece **Deshacer**. [P1 · #83]
 - [ ] En la ficha de un plato, guardar con varios errores (sin nombre, sin precio, sin categoría) los enseña **todos a la vez**, cada uno en su campo. [F2 · #99]
+- [ ] Al crear un producto, nombre, categoría y precio aparecen antes de la foto, sin desplazarse; la foto dice que se puede agregar después. Las imágenes adicionales quedan plegadas. [P7 · #161]
+- [ ] La ficha llama a los dos textos «Descripción del producto» y «Descripción corta», y explica dónde se ve cada uno. [P7 · #161]
 - [ ] El botón de borrar de cada plato dice qué plato borra (se ve al pasar el ratón o con lector de pantalla). [P6 · #99]
 - [ ] Subir una foto HEIC (la de iPhone) da un mensaje que explica qué hacer. [SU1 · #76]
 - [ ] Una foto cortada (descarga a medias) se rechaza **antes** de subir, con un mensaje claro, en vez de anunciarse en verde. [SU2 · #88]
