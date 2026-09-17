@@ -1584,15 +1584,13 @@ describe('donde la carta tiene carrito se configuran los pedidos', () => {
 		assert.equal(conAtributos({ tv: { activa: true } }, { carrito: true, tv: false }).tv, 'block');
 	});
 
-	test('explorar no configura pedidos aunque el interruptor esté puesto', () => {
-		// PE3. Su carta no llama a activarCarrito(): serviría para configurar un
-		// WhatsApp al que nunca iba a llegar un pedido. Topnav y Sidebar salieron
-		// de esta lista el 15/09/2026 (vmenus-app#28).
-		for (const nav of ['explorar']) {
-			const r = conAtributos({ nav, carrito: true });
-			assert.equal(r.pedidos, 'none', `${nav ?? 'sin modelo'} enseña los pedidos`);
-			assert.equal(r.toppings, 'none', `${nav ?? 'sin modelo'} enseña los toppings sin tener datos`);
-		}
+	test('explorar, con el interruptor, también configura pedidos desde el 17/09/2026', () => {
+		// Hasta vmenus-app#33 su carta no llamaba a activarCarrito(), y enseñarle
+		// estos campos era configurar un WhatsApp al que nunca llegaría un pedido.
+		const r = conAtributos({ nav: 'explorar', carrito: true });
+		assert.equal(r.pedidos, 'block');
+		assert.equal(r.toppings, 'block');
+		assert.equal(conAtributos({ nav: 'explorar', carrito: false }).pedidos, 'none', 'sin interruptor, no');
 	});
 
 	test('topnav y sidebar, con el interruptor, sí las tienen desde el 15/09/2026', () => {
@@ -4130,10 +4128,17 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 		assert.equal(r.cartaTieneCarrito({ nav: 'video', carrito: true }, {}), false);
 	});
 
-	test('Explorar no tiene carrito aunque plan e interruptor digan que sí', () => {
-		// El caso que lo justifica todo: en la carta no llama a activarCarrito(), y
-		// avisar de que no recibe pedidos sería una falsa alarma.
-		assert.equal(regla().cartaTieneCarrito({ nav: 'explorar', carrito: true }, CON_CARRITO), false);
+	test('Explorar, desde vmenus-app#33, como los demás: con plan e interruptor', () => {
+		const r = regla();
+		assert.equal(r.cartaTieneCarrito({ nav: 'explorar', carrito: true }, CON_CARRITO), true);
+		assert.equal(r.cartaTieneCarrito({ nav: 'explorar', carrito: false }, CON_CARRITO), false, 'sin interruptor');
+		assert.equal(r.cartaTieneCarrito({ nav: 'explorar', carrito: true }, {}), false, 'sin plan');
+	});
+
+	test('un modelo que la carta no conoce no tiene carrito', () => {
+		// Lo que justificaba esta regla sigue valiendo: avisar de que no recibe
+		// pedidos a una carta que no deja armarlos sería una falsa alarma.
+		assert.equal(regla().cartaTieneCarrito({ nav: 'modelo-futuro', carrito: true }, CON_CARRITO), false);
 	});
 
 	test('Topnav y Sidebar, como Video: con plan e interruptor (vmenus-app#28)', () => {
@@ -4167,8 +4172,9 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 		assert.equal(aviso().avisoPedidosHtml({ atributos: { nav: 'carrito', whatsapp_pedidos: '573001234567' } }), '');
 	});
 
-	test('ni a un Explorar con el interruptor encendido, que no tiene carrito', () => {
-		assert.equal(aviso().avisoPedidosHtml({ atributos: { nav: 'explorar', carrito: true }, _plan: CON_CARRITO }), '');
+	test('a un Explorar con el carrito encendido y sin número, también (vmenus-app#33)', () => {
+		assert.notEqual(aviso().avisoPedidosHtml({ atributos: { nav: 'explorar', carrito: true }, _plan: CON_CARRITO }), '');
+		assert.equal(aviso().avisoPedidosHtml({ atributos: { nav: 'explorar', carrito: false }, _plan: CON_CARRITO }), '', 'apagado no avisa');
 	});
 
 	test('a un Topnav con el carrito encendido y sin número, sí', () => {
@@ -5741,8 +5747,9 @@ describe('la insignia de pedidos dice lo que la carta tiene, no lo que el plan p
 		assert.equal(pedidos({ nav: 'video', plan: 'video', carrito: false }), '🛒 pedidos apagados');
 	});
 
-	test('Explorar no lo nombra: no hay interruptor que encender', () => {
-		assert.equal(pedidos({ nav: 'explorar', plan: 'completo', carrito: false }), null);
+	test('Explorar, desde que tiene interruptor (17/09/2026), dice si está apagado', () => {
+		assert.equal(pedidos({ nav: 'explorar', plan: 'completo', carrito: false }), '🛒 pedidos apagados');
+		assert.equal(pedidos({ nav: 'explorar', plan: 'completo', carrito: true }), '🛒 pedidos');
 	});
 
 	test('Topnav y Sidebar, desde que tienen interruptor, dicen si está apagado (bonzas, malparados)', () => {
@@ -6757,7 +6764,8 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 	test('donde no se puede, se esconde el interruptor y se dice por qué', () => {
 		const casos = [
 			[{ nav: 'carrito' }, {}, /siempre encendido/],
-			[{ nav: 'explorar' }, {}, /no tiene carrito/],
+			// Explorar tuvo este motivo hasta el 17/09/2026; queda para un modelo nuevo.
+			[{ nav: 'modelo-futuro' }, {}, /no tiene carrito/],
 			[{ nav: 'topnav' }, { plan: { carrito: false } }, /plan no incluye/],
 		];
 		for (const [at, opciones, motivo] of casos) {
@@ -6807,7 +6815,8 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 		// En el modelo carrito el interruptor está escondido y marcado a false:
 		// mandarlo apagaría nada, pero dejaría un 'false' que no decidió nadie.
 		assert.equal('carrito' in recoger({ nav: 'carrito' }, false), false);
-		assert.equal('carrito' in recoger({ nav: 'explorar' }, false), false);
+		assert.equal(recoger({ nav: 'explorar' }, true).carrito, true, 'Explorar ya se puede encender');
+		assert.equal('carrito' in recoger({ nav: 'modelo-futuro' }, false), false);
 	});
 
 	test('al guardar se repintan las pestañas, para que aparezca Pedidos', () => {
