@@ -357,6 +357,11 @@ function tarjetaDePromo(p) {
   q('p-img').onclick = () => cambiarImagenDePromo(p.id);
   q('p-guardar').onclick = () => guardarPromo(p.id, caja, elegidos);
   q('p-borrar').onclick = () => eliminarPromo(p.id);
+  // Para avisar al cambiar de pestaña con algo sin guardar. Cada tarjeta lleva
+  // su propia foto porque cada una se guarda por separado: una foto de toda la
+  // pestaña se daría por buena al guardar una y taparía lo pendiente en otra.
+  caja.leerFormulario = () => promoDelFormulario(caja, elegidos);
+  caja.dataset.foto = JSON.stringify(caja.leerFormulario());
   return caja;
 }
 
@@ -401,19 +406,29 @@ function programacionParaGuardar(caja, elegidos) {
   return tieneProgramacion(h) ? h : {};
 }
 
+// Lo que se manda al guardar la tarjeta. Aparte porque es también con lo que se
+// mide si tiene cambios pendientes: medir con otra cosa marcaría como pendiente
+// algo que al guardarlo no cambiaría nada.
+function promoDelFormulario(caja, elegidos) {
+  const q = c => caja.querySelector('.' + c);
+  return {
+    nombre: q('p-nombre').value.trim(),
+    precio: q('p-precio').value.trim(),
+    activa: q('p-activa').checked,
+    en_popup: q('p-popup').checked,
+    en_tv: q('p-tv').checked,
+    programacion: programacionParaGuardar(caja, elegidos),
+  };
+}
+
 async function guardarPromo(id, caja, elegidos) {
   const q = c => caja.querySelector('.' + c);
   const st = q('p-estado');
   st.textContent = 'Guardando…'; st.style.color = 'var(--text-muted)';
   try {
-    const data = await apiFetch('PATCH', `/api/promociones/${id}`, {
-      nombre: q('p-nombre').value.trim(),
-      precio: q('p-precio').value.trim(),
-      activa: q('p-activa').checked,
-      en_popup: q('p-popup').checked,
-      en_tv: q('p-tv').checked,
-      programacion: programacionParaGuardar(caja, elegidos),
-    });
+    const cuerpo = promoDelFormulario(caja, elegidos);
+    const data = await apiFetch('PATCH', `/api/promociones/${id}`, cuerpo);
+    caja.dataset.foto = JSON.stringify(cuerpo);
     const i = (state.promociones || []).findIndex(x => x.id === id);
     if (i >= 0 && data) state.promociones[i] = data;
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';

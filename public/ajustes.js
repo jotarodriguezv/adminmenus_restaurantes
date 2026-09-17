@@ -140,6 +140,7 @@ async function saveAjustes() {
     if (!data) return;   // sesión caducada: apiFetch ya llevó al login
     state.restaurante = data;
     renderAjustes();
+    fijarFotoDePestana('ajustes');
     // Encender el carrito hace aparecer las pestañas Pedidos y Toppings, y sin
     // repintarlas habría que recargar para llegar a poner el número.
     ajustarPestanasAlModelo();

@@ -1003,10 +1003,37 @@ function tvRecargarVistaPrevia() {
   if (base) document.getElementById('tvPrevia').src = base + '?v=' + Date.now();
 }
 
+// Lo que se guarda de la cartelera. Aparte de saveTV porque es también con lo
+// que se mide si la pestaña tiene cambios sin guardar (switchTab): medirlo con
+// otra cosa avisaría de cambios que al guardar no cambian nada.
+function tvDelFormulario() {
+  const modo = document.getElementById('tvModo').value;
+  return {
+    activa: document.getElementById('tvActiva').checked,
+    orientacion: document.getElementById('tvOrientacion').value,
+    por_slide: parseInt(document.getElementById('tvPorSlide').value, 10) || 2,
+    segundos: Math.min(60, Math.max(4, parseInt(document.getElementById('tvSegundos').value, 10) || 8)),
+    modo,
+    categoria_id: modo === 'categoria' ? (document.getElementById('tvCategoria').value || null) : null,
+    productos: modo === 'manual' ? tvSeleccion : [],
+    aleatorio: document.getElementById('tvAleatorio').checked,
+    animacion: document.getElementById('tvAnimacion').checked ? 'suave' : 'ninguna',
+    mostrar_categoria: document.getElementById('tvMostrarCategoria').checked,
+    color_categoria: document.getElementById('tvColorCategoria').value,
+    tema: document.getElementById('tvTema').value,
+    respetar_horarios: document.getElementById('tvRespetarHorarios').checked,
+    programaciones: tvProgramacionesParaGuardar(),
+    // La lista manda sobre las columnas de siempre. 'promo_cada' ya no se
+    // escribe: el ritmo es del televisor, no de la promoción, y tv.html solo lo
+    // lee de respaldo mientras queden restaurantes sin volver a guardar.
+    cada: tvCada(),
+    intercalados: tvIntercaladosDelFormulario(),
+  };
+}
+
 async function saveTV() {
   const st = document.getElementById('tvStatus');
   const activa = document.getElementById('tvActiva').checked;
-  const modo = document.getElementById('tvModo').value;
 
   // Encender una cartelera que no va a mostrar nada deja al restaurante con un
   // televisor enseñando su logo y sin saber por qué. Se avisa antes, no después.
@@ -1029,27 +1056,7 @@ async function saveTV() {
     return;
   }
 
-  const tv = {
-    activa,
-    orientacion: document.getElementById('tvOrientacion').value,
-    por_slide: parseInt(document.getElementById('tvPorSlide').value, 10) || 2,
-    segundos: Math.min(60, Math.max(4, parseInt(document.getElementById('tvSegundos').value, 10) || 8)),
-    modo,
-    categoria_id: modo === 'categoria' ? (document.getElementById('tvCategoria').value || null) : null,
-    productos: modo === 'manual' ? tvSeleccion : [],
-    aleatorio: document.getElementById('tvAleatorio').checked,
-    animacion: document.getElementById('tvAnimacion').checked ? 'suave' : 'ninguna',
-    mostrar_categoria: document.getElementById('tvMostrarCategoria').checked,
-    color_categoria: document.getElementById('tvColorCategoria').value,
-    tema: document.getElementById('tvTema').value,
-    respetar_horarios: document.getElementById('tvRespetarHorarios').checked,
-    programaciones: tvProgramacionesParaGuardar(),
-    // La lista manda sobre las columnas de siempre. 'promo_cada' ya no se
-    // escribe: el ritmo es del televisor, no de la promoción, y tv.html solo lo
-    // lee de respaldo mientras queden restaurantes sin volver a guardar.
-    cada: tvCada(),
-    intercalados: tvIntercaladosDelFormulario(),
-  };
+  const tv = tvDelFormulario();
 
   // De 'atributos', solo su clave: el servidor funde. Ver recolectarAjustes.
   //
@@ -1070,6 +1077,7 @@ async function saveTV() {
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, cuerpo);
     if (data) state.restaurante = data;
     document.getElementById('tvSegundos').value = tv.segundos;
+    fijarFotoDePestana('tv');
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     showToast('Pantalla TV guardada', 'success');
     // Lo que se acaba de guardar es lo que la cartelera va a leer, así que la

@@ -2093,6 +2093,24 @@
   </div>
 </div>
 
+<!-- Lo mismo que 'cambiosModal', pero al cambiar de pestaña. Aparte porque
+     aquel cierra la ficha de producto al salir y este lleva a otra pestaña. -->
+<div class="modal-bg" id="pestanaCambiosModal" onclick="handleModalBg(event,'pestanaCambiosModal')">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-head">
+      <span class="modal-title">Cambios sin guardar</span>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-text" id="pestanaCambiosTexto">Hiciste cambios que todavía no has guardado.</p>
+      <p style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;">Si cambias de pestaña ahora se pierden.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('pestanaCambiosModal')">Seguir editando</button>
+      <button class="btn-save" style="background:var(--danger);color:#fff;" onclick="salirDePestanaSinGuardar()">Salir sin guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="confirmModal" onclick="handleModalBg(event,'confirmModal')">
   <div class="modal-box" style="max-width:380px;">
     <div class="modal-head">
@@ -2278,6 +2296,8 @@ async function enterApp() {
   // restaurante no le da su PIN actual, y para él está «Cambiar PIN» en la lista.
   document.getElementById('btnMiPin').style.display = state.rol==='cliente' ? 'block':'none';
   await loadData();
+  // Otro restaurante: las fotos del anterior no dicen nada de este.
+  pestanaActual = null; fotosDePestana = {};
   switchTab('inicio', document.getElementById('tabBtnInicio'));
 }
 
@@ -2471,6 +2491,14 @@ function idPlanActual() {
 // ── TABS ──────────────────────────────────────────────────────
 function switchTab(tab, btn) {
   if (tab === 'apariencia' && state.rol !== 'admin') return;
+  // Con cambios sin guardar no se sale sin preguntar. Tampoco se vuelve a pulsar
+  // la misma pestaña: Ajustes, TV y QR se repintan desde lo guardado al entrar,
+  // y eso tiraba lo escrito igual que irse.
+  if (hayCambiosEnPestana(pestanaActual)) {
+    if (tab !== pestanaActual) { pestanaPedida = { tab, btn }; pintarAvisoPestana(); openModal('pestanaCambiosModal'); }
+    return;
+  }
+  pestanaActual = tab;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   // En un móvil la pestaña pulsada puede estar medio fuera; se trae a la vista
@@ -2482,10 +2510,71 @@ function switchTab(tab, btn) {
   if (tab === 'toppings') renderToppings();
   if (tab === 'tv') renderTV();
   if (tab === 'importar') renderImportar();
-  if (tab === 'qr') renderQR();
+  if (tab === 'qr') renderQR().then(() => fijarFotoDePestana('qr'));
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
   if (tab === 'ajustes') renderAjustes();
   if (tab === 'inicio') renderInicio();
+  fijarFotoDePestana(tab);
+}
+
+// ── CAMBIOS SIN GUARDAR AL CAMBIAR DE PESTAÑA ─────────────────
+// Encender un topping en Ajustes y pasar a Productos sin guardar dejaba irse, y
+// el cambio se perdía sin aviso (pendiente del 17/09/2026). Ahora se pregunta,
+// con el mismo patrón que la ficha de producto: seguir editando o salir sin
+// guardar. Es solo al cambiar de pestaña; volver a la lista, cerrar sesión o
+// recargar siguen sin preguntar (A2 en docs/revision-ux.md).
+//
+// Lo pendiente se mide con LA MISMA función que construye lo que se guarda,
+// comparada contra una foto tomada al pintar la pestaña y al guardarla. Es lo
+// que ya hacía Apariencia: así no hay lista de campos que mantener, y un campo
+// que no se guarda nunca marca pendiente.
+//
+// Apariencia y Destacados no están aquí: Apariencia ya tenía sus dos fotos, y
+// cada tarjeta de Destacados lleva la suya porque se guarda por separado.
+const LECTURAS_DE_PESTANA = {
+  ajustes: () => recolectarAjustes(),
+  tv: () => tvDelFormulario(),
+  qr: () => { qrLeerControles(); return qrCfg; },
+};
+let pestanaActual = null;
+let pestanaPedida = null;
+let fotosDePestana = {};
+
+function fijarFotoDePestana(tab) {
+  const leer = LECTURAS_DE_PESTANA[tab];
+  if (leer) fotosDePestana[tab] = JSON.stringify(leer());
+}
+
+function hayCambiosEnPestana(tab) {
+  if (tab === 'apariencia') return hayCambiosApariencia() || hayCambiosDatosResto();
+  if (tab === 'promo')
+    return [...document.querySelectorAll('#promoLista [data-promo]')]
+      .some(caja => caja.leerFormulario && JSON.stringify(caja.leerFormulario()) !== caja.dataset.foto);
+  const leer = LECTURAS_DE_PESTANA[tab];
+  // Sin foto no hay comparación: el QR la toma cuando termina de cargar el logo.
+  if (!leer || fotosDePestana[tab] == null) return false;
+  return JSON.stringify(leer()) !== fotosDePestana[tab];
+}
+
+function pintarAvisoPestana() {
+  const nombre = document.querySelector('.tab-btn.active')?.textContent.trim() || 'esta pestaña';
+  document.getElementById('pestanaCambiosTexto').textContent =
+    `Hiciste cambios en «${nombre}» que todavía no has guardado.`;
+}
+
+// Salir tira lo escrito. Ajustes, TV y QR se repintan solos al volver a entrar;
+// Apariencia y Destacados no, así que se repintan aquí desde lo guardado. Si no,
+// al volver seguirían enseñando lo descartado como si nada, y el aviso saltaría
+// otra vez al intentar irse.
+function salirDePestanaSinGuardar() {
+  closeModal('pestanaCambiosModal');
+  const saliendo = pestanaActual, pedida = pestanaPedida;
+  pestanaPedida = null;
+  if (saliendo === 'apariencia') { renderApariencia(); renderDatosResto(); }
+  if (saliendo === 'promo') pintarPromociones();
+  delete fotosDePestana[saliendo];
+  pestanaActual = null;
+  if (pedida) switchTab(pedida.tab, pedida.btn);
 }
 
 // ── ¿HAY MÁS PESTAÑAS FUERA? ──────────────────────────────────
@@ -6417,6 +6506,7 @@ document.addEventListener('keydown',e=>{
   // pierde nada. Si cerrara las dos ventanas de golpe, la tecla de escape
   // sería el atajo más rápido para tirar el trabajo.
   if(abierto('cambiosModal')) return closeModal('cambiosModal');
+  if(abierto('pestanaCambiosModal')) return closeModal('pestanaCambiosModal');
   if(abierto('productModal')) return intentarCerrarProducto();
   ['catModal','confirmModal','qrCartelModal','destacadoModal'].forEach(closeModal);
 });
