@@ -169,6 +169,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .aj-subtitulo{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;}
 .section-header .aj-subtitulo{margin-bottom:0;}
 
+/* ── INICIO ── */
+.inicio-encabezado{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:8px 0 22px;}
+.inicio-sobrelinea{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--accent);margin-bottom:7px;}
+.inicio-encabezado h1{font-size:24px;line-height:1.2;font-weight:650;letter-spacing:-.4px;}
+.inicio-encabezado p{margin-top:7px;color:var(--text-muted);font-size:13px;line-height:1.5;}
+.inicio-resumen{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.inicio-metrica{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;}
+.inicio-metrica-numero{font-family:var(--mono);font-size:25px;font-weight:700;color:var(--text);}
+.inicio-metrica-etiqueta{font-size:12px;color:var(--text-muted);margin-top:5px;}
+.inicio-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;}
+.inicio-tarjeta{margin-bottom:0;}
+.inicio-fila{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--border);}
+.inicio-fila:first-child{border-top:0;padding-top:0;}
+.inicio-fila-texto{min-width:0;}.inicio-fila-titulo{font-size:13px;font-weight:600;color:var(--text);}
+.inicio-fila-nota{font-size:12px;color:var(--text-muted);line-height:1.45;margin-top:3px;}
+.inicio-estado{font-family:var(--mono);font-size:10px;letter-spacing:.4px;white-space:nowrap;color:var(--text-muted);}
+.inicio-estado.activo{color:var(--success);}.inicio-estado.atencion{color:var(--warn);}
+@media(max-width:680px){.inicio-encabezado{align-items:flex-start;flex-direction:column;}.inicio-resumen{grid-template-columns:1fr 1fr;}.inicio-metrica:last-child{grid-column:1/-1;}.inicio-grid{grid-template-columns:1fr;}.inicio-tarjeta{margin-bottom:0;}}
+
 /* ── FILTRO CATS ── */
 .cat-filter{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;
   padding-bottom:6px;margin-bottom:14px;cursor:grab;}

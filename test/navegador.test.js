@@ -5154,6 +5154,10 @@ describe('los errores de la ficha del plato se dicen todos y en su sitio', () =>
 		assert.equal(erroresDeFicha({ categoria: 'c1', nombre: 'Agua', precio: '-5' }).length, 1);
 	});
 
+	test('un producto marcado como gratis no pide escribir un precio aparte', () => {
+		assert.equal(erroresDeFicha({ categoria: 'c1', nombre: 'Cortesía', precio: '', gratis: true }).length, 0);
+	});
+
 	function dom() {
 		const nodos = {};
 		const nodo = id => {

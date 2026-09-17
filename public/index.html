@@ -145,17 +145,30 @@
 				</div>
 			</div>
 			<div class="tabs">
-				<button class="tab-btn active" onclick="switchTab('productos',this)">Productos</button>
-				<button class="tab-btn" onclick="switchTab('categorias',this)">Categorías</button>
+				<button class="tab-btn active" id="tabBtnInicio" onclick="switchTab('inicio',this)">Inicio</button>
+				<button class="tab-btn" id="tabBtnProductos" onclick="switchTab('productos',this)">Productos</button>
+				<button class="tab-btn" id="tabBtnCategorias" onclick="switchTab('categorias',this)">Categorías</button>
 				<button class="tab-btn" id="tabBtnAjustes" onclick="switchTab('ajustes',this)">Ajustes</button>
 				<button class="tab-btn" id="tabBtnApariencia" onclick="switchTab('apariencia',this)" style="display:none">Apariencia</button>
-				<button class="tab-btn" onclick="switchTab('promo',this)">Destacados</button>
+				<button class="tab-btn" id="tabBtnPromo" onclick="switchTab('promo',this)">Destacados</button>
 				<button class="tab-btn" id="tabBtnTv" onclick="switchTab('tv',this)" style="display:none">Pantalla TV</button>
 				<button class="tab-btn" id="tabBtnImportar" onclick="switchTab('importar',this)" style="display:none">Importar carta</button>
 				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
 				<button class="tab-btn" onclick="switchTab('estadisticas',this)">Estadísticas</button>
 			</div>
 			<div class="content">
+				<!-- TAB INICIO -->
+				<div id="tabInicio">
+					<div class="inicio-encabezado">
+						<div><div class="inicio-sobrelinea">RESUMEN DE TU CARTA</div><h1>Todo lo importante, de un vistazo.</h1><p>Revisa qué está listo y corrige lo que todavía necesita atención.</p></div>
+						<button type="button" class="btn-sm accent" onclick="abrirDesdeInicio('productos')">+ Nuevo producto</button>
+					</div>
+					<div class="inicio-resumen" id="inicioResumen"></div>
+					<div class="inicio-grid">
+						<section class="section-card inicio-tarjeta"><div class="section-title">Para revisar</div><div id="inicioPendientes"></div></section>
+						<section class="section-card inicio-tarjeta"><div class="section-title">Funciones en uso</div><div id="inicioFunciones"></div></section>
+					</div>
+				</div>
 
 				<!-- TAB PRODUCTOS -->
 				<div id="tabProductos">
@@ -1754,6 +1767,7 @@
 						<label for="editPrecioNum" class="form-label">Precio</label>
 						<div class="form-ayuda">Escribe solo números, sin puntos ni símbolo $.</div>
 						<input type="number" class="form-input" id="editPrecioNum" min="0" step="100" oninput="document.getElementById('precioPreview').textContent=formatPrecio(this.value); avisarSiElPrecioSeSale()">
+						<label class="precio-gratis"><input type="checkbox" id="editPrecioGratis" onchange="actualizarPrecioGratis()"> <span>Este producto es gratis</span></label>
 						<div style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-muted)">
 							Vista previa: <span id="precioPreview" style="color:var(--accent)">—</span>
 						</div>
@@ -2101,6 +2115,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="comun.js"></script>
+<script src="inicio.js"></script>
 <script src="estadisticas.js"></script>
 <script src="tv.js"></script>
 <script src="promocion.js"></script>
@@ -2264,7 +2279,7 @@ async function enterApp() {
   // restaurante no le da su PIN actual, y para él está «Cambiar PIN» en la lista.
   document.getElementById('btnMiPin').style.display = state.rol==='cliente' ? 'block':'none';
   await loadData();
-  switchTab('productos', document.querySelector('.tab-btn'));
+  switchTab('inicio', document.getElementById('tabBtnInicio'));
 }
 
 async function loadData() {
@@ -2278,7 +2293,7 @@ async function loadData() {
     state.categorias = await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
     await cargarTrabajosVideo();
-    renderCatFilter(); renderOrdenProductos(); renderProducts(); renderCatList(); renderPromociones();
+    renderCatFilter(); renderOrdenProductos(); renderProducts(); renderCatList(); await renderPromociones(); renderInicio();
     // Apariencia es solo para superadmin: el cliente no debe poder tocar
     // logo, colores, fuentes, modelo de página ni CSS personalizado.
     document.getElementById('tabBtnApariencia').style.display = state.rol === 'admin' ? 'block' : 'none';
@@ -2485,7 +2500,7 @@ function switchTab(tab, btn) {
   // En un móvil la pestaña pulsada puede estar medio fuera; se trae a la vista
   // para que se vea cuál está activa. 'nearest' no mueve la página en vertical.
   btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  ['tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabAjustes'].forEach(id=>{
+  ['tabInicio','tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabAjustes'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
@@ -2494,6 +2509,7 @@ function switchTab(tab, btn) {
   if (tab === 'qr') renderQR();
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
   if (tab === 'ajustes') renderAjustes();
+  if (tab === 'inicio') renderInicio();
 }
 
 // ── ¿HAY MÁS PESTAÑAS FUERA? ──────────────────────────────────
@@ -2813,6 +2829,8 @@ function openNewProductModal() {
 	document.getElementById('editProductId').value='';
 	document.getElementById('editNombre').value='';
 	document.getElementById('editPrecioNum').value='';
+	document.getElementById('editPrecioGratis').checked=false;
+	actualizarPrecioGratis();
 	document.getElementById('precioPreview').textContent='—';
 	// Los avisos blandos son del plato anterior: dejarlos puestos sobre una
 	// ficha vacía sería decir algo que no viene de nada que se vea.
@@ -3047,12 +3065,15 @@ function openEditProductModal(id) {
 	const estIA = document.getElementById('iaEstado');
 	if (estIA) { estIA.textContent = ''; estIA.style.color = 'var(--text-muted)'; }
 	document.getElementById('editNombre').value=p.nombre||'';
-	document.getElementById('editPrecioNum').value=p.precio_numerico||'';
+	document.getElementById('editPrecioNum').value=p.precio_numerico ?? '';
+	document.getElementById('editPrecioGratis').checked=!!p.atributos?.precio_gratis;
+	actualizarPrecioGratis();
 	// También al abrir, no solo al teclear: un precio con un cero de más ya
 	// guardado no se detecta si el aviso solo salta al escribirlo.
 	document.getElementById('imgAvisoVideo').textContent='';
 	document.getElementById('precioPreview').textContent=formatPrecio(p.precio_numerico);
 	avisarSiElPrecioSeSale();
+	actualizarPrecioGratis();
 	document.getElementById('editDesc').value=p.descripcion||'';
 	document.getElementById('editDescAvanzada').value=p.descripcion_avanzada||'';
 	document.getElementById('editDisponible').checked=p.disponible;
@@ -4603,7 +4624,7 @@ function handleProductBg(e) {
 // marca en su sitio y el foco va al primero.
 //
 // Devuelve los errores en el orden de la ficha, que es el orden en que se leen.
-function erroresDeFicha({ categoria, nombre, precio }) {
+function erroresDeFicha({ categoria, nombre, precio, gratis = false }) {
   const errores = [];
   if (!String(nombre || '').trim()) errores.push({ campo: 'editNombre', mensaje: 'Escribe el nombre del plato.' });
   if (!categoria) errores.push({ campo: 'editCategoria', mensaje: 'Elige en qué categoría va.' });
@@ -4613,11 +4634,25 @@ function erroresDeFicha({ categoria, nombre, precio }) {
   // escrito a mano sí pasa: una cortesía es un precio legítimo.
   const bruto = String(precio ?? '').trim();
   const n = Number(bruto);
-  if (bruto === '' || !Number.isFinite(n) || n < 0) errores.push({ campo: 'editPrecioNum', mensaje: 'Escribe el precio, solo el número.' });
+  if (!gratis && (bruto === '' || !Number.isFinite(n) || n < 0)) errores.push({ campo: 'editPrecioNum', mensaje: 'Escribe el precio, solo el número.' });
   return errores;
 }
 
 const CAMPOS_FICHA = ['editNombre', 'editCategoria', 'editPrecioNum'];
+
+function actualizarPrecioGratis() {
+	const gratis = document.getElementById('editPrecioGratis').checked;
+	const precio = document.getElementById('editPrecioNum');
+	precio.disabled = gratis;
+	if (gratis) {
+		precio.value = '0';
+		document.getElementById('precioPreview').textContent = 'Gratis';
+		document.getElementById('precioAviso').textContent = '';
+	} else if (precio.value === '0') {
+		precio.value = '';
+		document.getElementById('precioPreview').textContent = '—';
+	}
+}
 
 function limpiarErrorDeCampo(id) {
   const campo = document.getElementById(id);
@@ -4665,6 +4700,7 @@ async function saveProduct() {
 		categoria: catId,
 		nombre: document.getElementById('editNombre').value,
 		precio: document.getElementById('editPrecioNum').value,
+		gratis: document.getElementById('editPrecioGratis').checked,
 	});
 	if(errores.length){
 		pintarErroresFicha(errores);
@@ -4700,6 +4736,7 @@ async function saveProduct() {
 		popular: !!state.prodBadges.popular,
 		chef: !!state.prodBadges.chef,
 		nuevo: !!state.prodBadges.nuevo,
+		precio_gratis: document.getElementById('editPrecioGratis').checked,
 	};
 	// La copia del catálogo que llevaban los platos viejos ya quedó traducida
 	// a 'personalizacion' al abrir la ficha. Se retira aquí para que no queden
@@ -4726,6 +4763,7 @@ async function saveProduct() {
 			chip.classList.toggle('active', chip.dataset.filterId===filtroActual);
 		});
 		renderProducts();
+		renderInicio();
 		// Guardado: ya no hay nada pendiente que avisar al cerrar.
 		state.firmaProducto = undefined;
 		closeModal('productModal');
