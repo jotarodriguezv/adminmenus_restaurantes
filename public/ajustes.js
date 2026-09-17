@@ -59,6 +59,9 @@ function renderAjustes() {
   // alguien hubiera escrito antes de apagar y volver a encender el interruptor.
   renderPedidos();
   renderMetodosPago();
+  // Los errores marcados son de lo que se intentó guardar antes; repintar trae
+  // lo que hay en la base y esos avisos ya no hablan de nada.
+  pintarErroresEnCampos([], CAMPOS_METODOS_PAGO);
   renderToppings();
   pintarNotaCarrito();
   const st = document.getElementById('ajustesStatus');
@@ -110,13 +113,20 @@ async function saveAjustes() {
   // servidor por lo mismo que las demás comprobaciones de esta pantalla: es
   // para que el aviso sea inmediato y diga qué método es.
   if (carritoEnPantalla()) {
-    const faltan = metodosIncompletos(recolectarMetodosPago());
-    if (faltan.length) {
-      const texto = `Faltan los datos de ${faltan.join(', ')}`;
+    const errores = erroresDeMetodosPago(recolectarMetodosPago());
+    if (errores.length) {
+      // Cada campo marcado y el foco en el primero; el aviso de arriba resume
+      // por método, que es como se piensan («me falta lo de Nequi»).
+      pintarErroresEnCampos(errores, CAMPOS_METODOS_PAGO);
+      const faltan = metodosIncompletos(recolectarMetodosPago());
+      const texto = errores.length === 1
+        ? errores[0].mensaje
+        : `Faltan datos de ${faltan.join(' y ')}`;
       st.textContent = texto; st.style.color = 'var(--danger)';
       showToast(texto, 'error');
       return;
     }
+    pintarErroresEnCampos([], CAMPOS_METODOS_PAGO);
   }
   // Borrar un topping desengancha a los platos que lo ofrecen, y eso no se ve
   // desde aquí. Se pregunta antes de mandarlo, no después.

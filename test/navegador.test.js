@@ -4480,6 +4480,10 @@ describe('el primer día de un restaurante', () => {
 				String, parseInt, document: { getElementById: $ }, state: estado,
 				apiFetch: async (metodo) => (metodo === 'POST' ? { id: 'c-nueva', nombre: 'Entradas', orden: 0 } : { nombre: 'Entradas' }),
 				renderCatList() {}, renderCatFilter() {}, renderProducts() {}, closeModal() {}, showToast() {},
+				// La regla de qué falta y el marcado del campo viven antes en el
+				// archivo, fuera del trozo que carga esta prueba.
+				erroresDeCategoria: ({ nombre }) => (String(nombre || '').trim() ? [] : [{ campo: 'editCatNombre', mensaje: 'falta' }]),
+				pintarErroresEnCampos() {}, CAMPOS_CATEGORIA: ['editCatNombre'],
 				openNewProductModal() { abiertos.push('producto'); },
 			});
 		if (seguir) vm.runInContext('seguirConPlato = true;', ctx);
@@ -5834,8 +5838,13 @@ describe('los toppings se guardan con el botón de Ajustes', () => {
 			confirm: texto => { preguntas.push(texto); return responde; },
 			planActual: () => plan, recibePedidos: () => true, puedeElegirCarrito: () => true,
 			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {}, fijarFotoDePestana() {},
+			// El marcado de campos vive en index.html; la regla de qué falta sí es
+			// la de verdad, porque se carga pedidos.js entero.
+			pintarErroresEnCampos() {},
 			renderPedidos() {}, renderMetodosPago() {}, renderToppings() {},
 			recolectarMetodosPago: () => ({}), metodosIncompletos: () => [],
+			// Marcar los campos que faltan vive en index.html; aquí no hay pantalla.
+			erroresDeMetodosPago: () => [], pintarErroresEnCampos() {}, CAMPOS_METODOS_PAGO: [],
 			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push(cuerpo); return { id: 'r1', atributos: { ...atributos, ...cuerpo.atributos } }; },
 			showToast() {}, Object,
 		});
@@ -5906,6 +5915,7 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 	const src = codigoDelPanel();
 
 	function montar({ whatsapp = '573001234567', nequi = { activo: false, telefono: '', titular: '' },
+	                  breb = { activo: false, llave: '' },
 	                  carrito = true, plan = { carrito: true }, nav = 'topnav', recibe = true } = {}) {
 		const campos = {};
 		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
@@ -5915,6 +5925,8 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 		$('mpNequiTelefono').value = nequi.telefono;
 		$('mpNequiTitular').value = nequi.titular;
 		$('mpBancolombiaTipo').value = 'ahorros';
+		$('mpBrebActivo').checked = breb.activo;
+		$('mpBrebLlave').value = breb.llave;
 		$('ajCarrito').checked = carrito;
 		const peticiones = [], avisos = [];
 		const ctx = cargar('index.html', [
@@ -5929,6 +5941,9 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 			planActual: () => plan, recibePedidos: () => recibe,
 			puedeElegirCarrito: () => true,
 			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {}, fijarFotoDePestana() {},
+			// El marcado de campos vive en index.html; la regla de qué falta sí es
+			// la de verdad, porque se carga pedidos.js entero.
+			pintarErroresEnCampos() {},
 			// Esta prueba es de pedidos: los toppings de la misma tarjeta no estorban
 			// si el restaurante no tiene ninguno, que es lo que dice el catálogo vacío.
 			renderToppings() {}, toppingsQueSeQuitan: () => [],
@@ -5960,8 +5975,33 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 		const { ctx, $, peticiones, avisos } = montar({ nequi: { activo: true, telefono: '', titular: '' } });
 		await ctx.saveAjustes();
 		assert.equal(peticiones.length, 0, 'ni siquiera lo que sí estaba bien');
-		assert.equal($('ajustesStatus').textContent, 'Faltan los datos de Nequi');
+		assert.equal($('ajustesStatus').textContent, 'Faltan datos de Nequi');
 		assert.equal(avisos.at(-1).t, 'error');
+	});
+
+	test('si falta un solo dato, se dice cuál, no el método', async () => {
+		// «Faltan los datos de Nequi» con el titular puesto dejaba adivinando qué
+		// campo era. Desde el 17/09/2026 cada campo se marca por su cuenta.
+		const { ctx, $ } = montar({ nequi: { activo: true, telefono: '', titular: 'Juan Pérez' } });
+		await ctx.saveAjustes();
+		assert.match($('ajustesStatus').textContent, /teléfono de Nequi/);
+	});
+
+	test('con dos métodos a medias se nombran los dos', async () => {
+		const { ctx, $ } = montar({
+			nequi: { activo: true, telefono: '', titular: '' },
+			breb: { activo: true, llave: '' },
+		});
+		await ctx.saveAjustes();
+		assert.equal($('ajustesStatus').textContent, 'Faltan datos de Nequi y Bre-B');
+	});
+
+	test('un método apagado sin datos no estorba', async () => {
+		// Apagado no viaja a la carta: exigir sus datos sería impedir guardar por
+		// algo que ningún comensal va a ver.
+		const { ctx, peticiones } = montar({ nequi: { activo: false, telefono: '', titular: '' } });
+		await ctx.saveAjustes();
+		assert.equal(peticiones.length, 1);
 	});
 
 	test('sin número SÍ se guarda, y se avisa de que falta', async () => {
@@ -6447,6 +6487,8 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 			// esta prueba es de redes: sin carrito, no se recogen.
 			renderPedidos: () => {}, renderMetodosPago: () => {}, recolectarMetodosPago: () => ({}),
 			renderToppings: () => {}, hayQueEnsenarToppings: () => false,
+			// Marcar los campos que faltan vive en index.html; aquí no hay pantalla.
+			pintarErroresEnCampos() {}, CAMPOS_METODOS_PAGO: [], erroresDeMetodosPago: () => [],
 			carritoEnPantalla: () => false,
 			planActual: () => ({}), recibePedidos: () => false,
 			state: { restaurante: { id: 'r1', atributos } },
@@ -6673,6 +6715,8 @@ describe('el interruptor de filtros y la nota que explica lo que se ve', () => {
 			renderFiltrosCatalogo: () => {}, pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
 			renderPedidos: () => {}, renderMetodosPago: () => {}, cartaTieneCarrito: () => false,
 			renderToppings: () => {}, hayQueEnsenarToppings: () => false,
+			// Marcar los campos que faltan vive en index.html; aquí no hay pantalla.
+			pintarErroresEnCampos() {}, CAMPOS_METODOS_PAGO: [], erroresDeMetodosPago: () => [],
 			carritoEnPantalla: () => false, planActual: () => ({}),
 			state: { restaurante: { id: 'r1', atributos } },
 			Object,

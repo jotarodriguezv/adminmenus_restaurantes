@@ -4722,6 +4722,16 @@ function erroresDeFicha({ categoria, nombre, precio, gratis = false }) {
 
 const CAMPOS_FICHA = ['editNombre', 'editCategoria', 'editPrecioNum'];
 
+// Lo que la categoría no puede guardar sin. Aparte de la pantalla para poder
+// probarla, igual que erroresDeFicha: el emoji, el orden y el horario sí pueden
+// faltar —una categoría sin emoji se ve bien—, y el nombre no.
+function erroresDeCategoria({ nombre }) {
+  return String(nombre || '').trim()
+    ? []
+    : [{ campo: 'editCatNombre', mensaje: 'Escribe el nombre de la categoría.' }];
+}
+const CAMPOS_CATEGORIA = ['editCatNombre'];
+
 function actualizarPrecioGratis() {
 	const gratis = document.getElementById('editPrecioGratis').checked;
 	const precio = document.getElementById('editPrecioNum');
@@ -4747,8 +4757,17 @@ function limpiarErrorDeCampo(id) {
 
 function limpiarErroresFicha() { CAMPOS_FICHA.forEach(limpiarErrorDeCampo); }
 
-function pintarErroresFicha(errores) {
-  limpiarErroresFicha();
+// Marcar el campo que falta, decirlo debajo de él y llevar el foco al primero.
+// Nació en la ficha del plato y desde el 17/09/2026 lo usan también la
+// categoría y los métodos de pago: eran tres pantallas de escribir datos y solo
+// una señalaba dónde estaba el problema; las otras dos sacaban un aviso
+// flotante abajo a la derecha, lejos del campo que había que corregir.
+//
+// Recibe los campos a limpiar —no una lista fija— porque cada pantalla tiene
+// los suyos, y limpiar los de otra no haría nada pero enseñaría a creer que
+// esta función sabe de la ficha del plato.
+function pintarErroresEnCampos(errores, aLimpiar = errores.map(e => e.campo)) {
+  aLimpiar.forEach(limpiarErrorDeCampo);
   for (const { campo, mensaje } of errores) {
     const el = document.getElementById(campo);
     if (!el) continue;
@@ -4764,14 +4783,18 @@ function pintarErroresFicha(errores) {
   if (errores.length) document.getElementById(errores[0].campo)?.focus();
 }
 
+function pintarErroresFicha(errores) { pintarErroresEnCampos(errores, CAMPOS_FICHA); }
+
 // Al corregir un campo su error se va, sin esperar a volver a guardar.
-function vigilarErroresFicha() {
-  for (const id of CAMPOS_FICHA) {
+function vigilarErrores(ids) {
+  for (const id of ids) {
     const el = document.getElementById(id);
     el?.addEventListener('input', () => limpiarErrorDeCampo(id));
     el?.addEventListener('change', () => limpiarErrorDeCampo(id));
   }
 }
+
+function vigilarErroresFicha() { vigilarErrores(CAMPOS_FICHA); }
 
 async function saveProduct() {
 	const btn=document.getElementById('btnSaveProduct');
@@ -5210,6 +5233,7 @@ function renderCatImgField(imgUrl) {
 }
 
 function openNewCatModal() {
+  pintarErroresEnCampos([], CAMPOS_CATEGORIA);
   // El camino normal nunca enseña la nota ni encadena el plato: eso lo decide
   // abrirPrimeraCategoria(), y solo para la categoría que se abre desde ahí.
   document.getElementById('catPrimeraNota').style.display='none';
@@ -5230,6 +5254,7 @@ function openNewCatModal() {
 }
 
 function openEditCatModal(id) {
+  pintarErroresEnCampos([], CAMPOS_CATEGORIA);
   const cat=state.categorias.find(c=>c.id===id); if(!cat) return;
   document.getElementById('catModalTitle').textContent='Editar categoría';
   document.getElementById('editCatId').value=cat.id;
@@ -5307,12 +5332,17 @@ async function saveCat() {
   // Sin nombre no hay categoría: el servidor deriva el slug de él, así que
   // mandarlo vacío acaba en un 500 que no explica nada. Se dice aquí, que es
   // donde se puede corregir sin perder lo demás del formulario.
+  //
+  // Marcado en el campo, como en la ficha del plato: hasta el 17/09/2026 esto
+  // era solo un aviso flotante abajo a la derecha, lejos del campo vacío.
   const nombreCat=document.getElementById('editCatNombre').value.trim();
-  if(!nombreCat){
-    showToast('Escribe el nombre de la categoría','error');
-    document.getElementById('editCatNombre').focus();
+  const erroresCat=erroresDeCategoria({ nombre: nombreCat });
+  if(erroresCat.length){
+    pintarErroresEnCampos(erroresCat, CAMPOS_CATEGORIA);
+    showToast(erroresCat[0].mensaje,'error');
     btn.disabled=false;btn.textContent='Guardar';return;
   }
+  pintarErroresEnCampos([], CAMPOS_CATEGORIA);
   const body={
     nombre:nombreCat,
     emoji:document.getElementById('editCatEmoji').value.trim(),
@@ -7283,6 +7313,10 @@ habilitarArrastre();
 vigilarCambiosApariencia();
 vigilarBordesDeTabs();
 vigilarErroresFicha();
+// Lo mismo en las otras dos pantallas donde se escriben datos: al corregir, el
+// error de ese campo se va sin esperar a volver a guardar.
+vigilarErrores(CAMPOS_CATEGORIA);
+vigilarErrores(CAMPOS_METODOS_PAGO);
 vigilarMenusMas();
 
 if(token && state.rol && state.restauranteSlug) {
