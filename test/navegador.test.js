@@ -1711,6 +1711,9 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			document: {
 				getElementById: id => campos[id],
 				createElement: () => nodoDeMentira(),
+				// Llevar el foco a la tarjeta de la excepción que falla: aquí no
+				// hay tarjetas pintadas, así que no hay ninguna a la que ir.
+				querySelectorAll: () => [],
 			},
 			urlPublica: () => 'https://menu.vmenus.co/bonzas',
 			apiFetch: async (m, r, cuerpo) => { enviado.push(cuerpo); return { id: 'r1', atributos: {} }; },
@@ -2068,6 +2071,36 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const guardadas = ctx.tvProgramacionesParaGuardar(lista);
 		assert.equal(guardadas.length, 1);
 		assert.equal(guardadas[0].categoria_id, 'c1');
+	});
+
+	test('y ya no se descarta en silencio: no deja guardar y dice cuál', async () => {
+		// Hasta el 17/09/2026 el panel contestaba «✓ Guardado», la tarjeta seguía
+		// en pantalla y la excepción había desaparecido al volver a la pestaña.
+		const { ctx, enviado, avisos, campos } = montar();
+		vm.runInContext('tvProgs = [{ programacion: { activo: true, dias: [], desde: "", hasta: "", desde_fecha: "", hasta_fecha: "" }, modo: "todos" }];', ctx);
+		await ctx.saveTV();
+		assert.equal(enviado.length, 0, 'no se manda nada hasta arreglarla');
+		assert.match(campos.tvStatus.textContent, /1\.ª/);
+		assert.match(campos.tvStatus.textContent, /sin días/);
+		assert.equal(avisos.at(-1)[0], 'error');
+	});
+
+	test('una de «platos sueltos» sin platos tampoco deja guardar', async () => {
+		// Esa sí se guardaba, y no enseñaba nada: el aviso de la tarjeta vivía
+		// dentro de la rejilla plegada, así que no se veía.
+		const { ctx, enviado, campos } = montar();
+		vm.runInContext('tvProgs = [{ programacion: { activo: true, dias: [2], desde: "", hasta: "", desde_fecha: "", hasta_fecha: "" }, modo: "manual", productos: [] }];', ctx);
+		await ctx.saveTV();
+		assert.equal(enviado.length, 0);
+		assert.match(campos.tvStatus.textContent, /platos sueltos/);
+	});
+
+	test('las que sí sirven no estorban', async () => {
+		const { ctx, enviado } = montar();
+		vm.runInContext('tvProgs = [{ programacion: { activo: true, dias: [2], desde: "", hasta: "", desde_fecha: "", hasta_fecha: "" }, modo: "todos" }];', ctx);
+		await ctx.saveTV();
+		assert.equal(enviado.length, 1);
+		assert.equal(enviado[0].atributos.tv.programaciones.length, 1);
 	});
 
 	test('sin excepciones se guarda una lista vacía, no falta la clave', () => {
