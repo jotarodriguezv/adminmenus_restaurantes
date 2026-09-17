@@ -1211,10 +1211,16 @@
 					<div id="ajToppingsCuerpo" style="display:none">
 						<!-- TP2: con todo vacío la pestaña eran tres «Sin elementos», y nada decía
 						     que un topping no sale en ninguna carta hasta que un plato lo ofrece. -->
+						<!-- «Adicionales» y no «toppings» desde el 17/09/2026, decidido con el
+						     usuario: unos restaurantes decían una palabra y otros la otra, y
+						     «topping» es prestada del inglés — se entiende en una hamburguesería
+						     y suena rara en un menú de corrientazo. Lo lee el comensal, así que
+						     manda que sea natural en su carta. Por dentro no cambia nada: las
+						     claves siguen siendo toppings_platino, toppings_premium y salsas. -->
 						<div id="toppingsGuia" class="aj-bloque" style="display:none;font-size:13px;line-height:1.6;color:var(--text-muted)">
-							<strong style="color:var(--text)">Así funcionan los toppings.</strong>
+							<strong style="color:var(--text)">Así funcionan los adicionales.</strong>
 							Créalos aquí, en su grupo, y después márcalos en la ficha de cada plato que los lleve.
-							Un topping no sale en la carta hasta que algún plato lo ofrece; así la gaseosa no
+							Un adicional no sale en la carta hasta que algún plato lo ofrece; así la gaseosa no
 							pregunta por salsas y la hamburguesa sí.
 						</div>
 						<!-- 16/09/2026: un topping que no ofrece ningún plato no sale en ninguna
@@ -1227,14 +1233,14 @@
 							  <!-- TP1 ponía al lado, entre paréntesis, «Toppings Platino»: era como se
 							       llamaban en la carta. Desde el 16/09/2026 la carta también dice «sin
 							       costo» y «con costo» (vmenus-app#31), así que sobra. -->
-							  <div class="aj-subtitulo">Toppings sin costo</div>
+							  <div class="aj-subtitulo">Adicionales sin costo</div>
 							  <button class="btn-sm accent" onclick="addTopping('platino')">+ Añadir</button>
 							</div>
 							<div id="listToppingsPlatino" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
 						</div>
 						<div class="aj-bloque">
 							<div class="section-header">
-								<div class="aj-subtitulo">Toppings con costo</div>
+								<div class="aj-subtitulo">Adicionales con costo</div>
 								<button class="btn-sm accent" onclick="addTopping('premium')">+ Añadir</button>
 							</div>
 							<div id="listToppingsPremium" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
@@ -1828,13 +1834,13 @@
 					     gaseosa no lleva nada. -->
 					<div class="form-group producto-personalizacion" id="personalizacionGroup" style="display:none">
 						<label class="form-label">Personalización <span style="color:var(--text-dim);font-weight:400">(qué puede añadirle el cliente a este plato)</span></label>
-						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene toppings. Créalos en la pestaña Ajustes, bajo el carrito, y vuelve aquí.</div>
+						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene adicionales. Créalos en la pestaña Ajustes, bajo el carrito, y vuelve aquí.</div>
 						<div id="persPlatinoWrap" style="margin-top:8px;display:none">
-							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings sin costo</div>
+							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Adicionales sin costo</div>
 							<div id="persPlatinoChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						</div>
 						<div id="persPremiumWrap" style="margin-top:12px;display:none">
-							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Toppings con costo</div>
+							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Adicionales con costo</div>
 							<div id="persPremiumChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						</div>
 						<div id="persSalsasWrap" style="margin-top:12px;display:none">
@@ -1973,7 +1979,7 @@
 <div class="modal-bg" id="toppingModal" onclick="handleModalBg(event,'toppingModal')">
   <div class="modal-box" style="max-width:380px;">
     <div class="modal-head">
-      <span class="modal-title" id="toppingModalTitle">Nuevo topping</span>
+      <span class="modal-title" id="toppingModalTitle">Nuevo adicional</span>
       <button class="modal-close" onclick="closeModal('toppingModal')">✕</button>
     </div>
     <div class="modal-body">

@@ -24,7 +24,7 @@
 // queda atrás en cuanto se añada un modelo.
 const FUNCIONES_RESTO = [
   ['pedidos', '🛒 Pedidos'], ['tv', '📺 Pantalla TV'], ['buscador', '🔎 Buscador'],
-  ['filtros', '🏷️ Filtros'], ['toppings', '🧀 Toppings'], ['redes', '🔗 Redes'],
+  ['filtros', '🏷️ Filtros'], ['toppings', '🧀 Adicionales'], ['redes', '🔗 Redes'],
   ['ia', '✨ IA'],
 ];
 const FILTRO_RESTOS_VACIO = { tipo: 'todos', modelo: 'todos', funciones: [], entorno: 'todos' };

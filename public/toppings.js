@@ -77,8 +77,8 @@ function pintarAvisoSinUso() {
   const cuantos = toppingsSinUso();
   aviso.style.display = cuantos ? 'block' : 'none';
   aviso.textContent = cuantos === 1
-    ? 'Tienes un topping creado y ningún plato lo ofrece, así que en tu carta no aparece. Márcalo en la ficha de los platos que lo lleven, en «Personalización».'
-    : `Tienes ${cuantos} toppings creados y ningún plato los ofrece, así que en tu carta no aparece ninguno. Márcalos en la ficha de cada plato, en «Personalización».`;
+    ? 'Tienes un adicional creado y ningún plato lo ofrece, así que en tu carta no aparece. Márcalo en la ficha de los platos que lo lleven, en «Personalización».'
+    : `Tienes ${cuantos} adicionales creados y ningún plato los ofrece, así que en tu carta no aparece ninguno. Márcalos en la ficha de cada plato, en «Personalización».`;
 }
 
 function renderToppingList(containerId, tipo) {
@@ -122,7 +122,7 @@ function addTopping(tipo) {
   document.getElementById('toppingNombre').value = '';
   document.getElementById('toppingPrecio').value = tipo === 'premium' ? '4000' : '';
   document.getElementById('toppingPrecioGroup').style.display = tipo === 'premium' ? 'block' : 'none';
-  const titles = { platino: 'Nuevo topping sin costo', premium: 'Nuevo topping con costo', salsas: 'Nueva salsa' };
+  const titles = { platino: 'Nuevo adicional sin costo', premium: 'Nuevo adicional con costo', salsas: 'Nueva salsa' };
   document.getElementById('toppingModalTitle').textContent = titles[tipo];
   document.getElementById('btnGuardarTopping').textContent = 'Añadir';
   openModal('toppingModal');
@@ -141,7 +141,7 @@ function editarTopping(tipo, idx) {
   document.getElementById('toppingNombre').value = item.nombre;
   document.getElementById('toppingPrecio').value = tipo === 'premium' ? String(item.precio ?? '') : '';
   document.getElementById('toppingPrecioGroup').style.display = tipo === 'premium' ? 'block' : 'none';
-  document.getElementById('toppingModalTitle').textContent = tipo === 'salsas' ? 'Editar salsa' : 'Editar topping';
+  document.getElementById('toppingModalTitle').textContent = tipo === 'salsas' ? 'Editar salsa' : 'Editar adicional';
   document.getElementById('btnGuardarTopping').textContent = 'Guardar';
   openModal('toppingModal');
   setTimeout(() => document.getElementById('toppingNombre').focus(), 100);
