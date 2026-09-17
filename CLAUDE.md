@@ -550,15 +550,33 @@ porque un plato que apuntaba a un topping borrado antes la hacía saltar en
 cada guardado. «Platino» y «Premium» desaparecieron de todo lo que se lee —panel
 y carta, vmenus-app#31—; las claves en `atributos` siguen igual.
 
-**Anotado el 16/09/2026, sin hacer todavía: «Apariencia» ya no se llama como lo
-que es.** Desde que las redes, los filtros y el carrito se fueron a Ajustes, lo
-que le queda es la configuración general del restaurante —nombre, slug, plan,
-modelo, dominio, zona horaria, colores—, y de eso solo lo último es apariencia.
-El usuario quiere **otro nombre y la primera posición del carril, incluso antes
-de Productos**, porque es la pestaña donde se monta un restaurante nuevo. Sin
-decidir el nombre; «Configuración» o «General» son los candidatos. Ojo al
-hacerlo: `switchTab` corta la pestaña si `state.rol !== 'admin'`, y hay pruebas
-que buscan `tabBtnApariencia` y el texto «Apariencia» en los avisos.
+**Hecho el 17/09/2026: «Apariencia» se llama «Superadmin».** Desde que las
+redes, los filtros y el carrito se fueron a Ajustes, lo que le queda es la
+configuración general del restaurante —nombre, slug, plan, modelo, dominio,
+zona horaria, colores—, y de eso solo lo último es apariencia.
+
+El nombre lo eligió el usuario, y lo que lo decidió no fue el contenido sino
+**quién la ve**: es la única pestaña que el restaurante no tiene. «Configuración»
+o «General» no decían eso; «Superadmin» sí, y de paso quita la duda de si el
+cliente debería estar viéndola.
+
+- **Va la segunda del carril, detrás de Inicio.** La nota del 16/09 decía «la
+  primera, incluso antes de Productos», pero entre medias nació Inicio, que es
+  el resumen con el que se entra. Para el restaurante el orden no cambia: esta
+  pestaña nace con `display:none`.
+- **Por dentro sigue siendo `apariencia`**: el id del botón, `switchTab`,
+  `saveApariencia`, `renderApariencia` y las claves de `atributos`. Renombrar
+  eso tocaría medio panel y el servidor sin cambiar nada de lo que se ve.
+- **El orden de las tarjetas** lo pidió el usuario y quedó: datos del
+  restaurante, plan y modelo de página primero —lo que identifica al negocio y
+  decide la forma de su carta—, después dirección, zona horaria e importar, y
+  al final el aspecto (logo, portada, fondo y su color, colores, tipografía) con
+  el CSS personalizado el último. Lo vigila una prueba.
+- El botón grande dejó de llamarse «Guardar apariencia»: guarda también el plan,
+  el modelo, el dominio y la zona horaria, así que es **«Guardar configuración»**.
+- Tres avisos del televisor nombraban «Apariencia» a todo el mundo, incluido el
+  restaurante, que no la ve (CL1). Ahora o no nombran pestaña alguna o dependen
+  del rol.
 
 **Lo que hay que saber antes de empezar**, comprobado ese día:
 

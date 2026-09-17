@@ -147,10 +147,20 @@
 			</div>
 			<div class="tabs">
 				<button class="tab-btn active" id="tabBtnInicio" onclick="switchTab('inicio',this)">Inicio</button>
+				<!-- «Superadmin» y no «Apariencia» desde el 17/09/2026, decidido con el
+				     usuario: dejó de ser apariencia hace tiempo —nombre, slug, plan,
+				     modelo, dominio, zona horaria, cobranza— y sobre todo es la única
+				     pestaña que el restaurante no ve. El nombre dice ahora quién la ve,
+				     que es lo que no se podía adivinar.
+				     Va la segunda, detrás de Inicio: es por donde se monta un
+				     restaurante nuevo, pero Inicio es el resumen con el que se entra.
+				     Por dentro sigue siendo 'apariencia' —el id, saveApariencia,
+				     renderApariencia, atributos—: renombrar eso tocaría medio panel y
+				     el servidor sin cambiar nada de lo que se ve. -->
+				<button class="tab-btn" id="tabBtnApariencia" onclick="switchTab('apariencia',this)" style="display:none">Superadmin</button>
 				<button class="tab-btn" id="tabBtnProductos" onclick="switchTab('productos',this)">Productos</button>
 				<button class="tab-btn" id="tabBtnCategorias" onclick="switchTab('categorias',this)">Categorías</button>
 				<button class="tab-btn" id="tabBtnAjustes" onclick="switchTab('ajustes',this)">Ajustes</button>
-				<button class="tab-btn" id="tabBtnApariencia" onclick="switchTab('apariencia',this)" style="display:none">Apariencia</button>
 				<button class="tab-btn" id="tabBtnPromo" onclick="switchTab('promo',this)">Destacados</button>
 				<button class="tab-btn" id="tabBtnTv" onclick="switchTab('tv',this)" style="display:none">Pantalla TV</button>
 				<button class="tab-btn" id="tabBtnImportar" onclick="switchTab('importar',this)" style="display:none">Importar carta</button>
@@ -278,202 +288,6 @@
 					</div>
 
 					<div class="section-card">
-						<div class="section-title">Colores</div>
-						<div class="color-row" style="margin-bottom:4px;">
-							<div class="form-group" style="margin-bottom:0">
-								<label for="apPrevColor1" class="form-label">Color primario</label>
-								<div class="color-input-wrap">
-									<input type="color" class="color-preview" id="apPrevColor1" value="#3dd68c" title="Elegir color" oninput="colorDesdeSelector('apPrevColor1','apColor1')">
-									<input type="text" class="form-input" id="apColor1" maxlength="7"
-									oninput="colorDesdeTexto('apColor1','apPrevColor1')">
-								</div>
-							</div>
-							<div class="form-group" style="margin-bottom:0">
-								<label for="apPrevColor2" class="form-label">Color secundario</label>
-								<div class="color-input-wrap">
-									<input type="color" class="color-preview" id="apPrevColor2" value="#a374af" title="Elegir color" oninput="colorDesdeSelector('apPrevColor2','apColor2')">
-									<input type="text" class="form-input" id="apColor2" maxlength="7"
-									oninput="colorDesdeTexto('apColor2','apPrevColor2')">
-								</div>
-							</div>
-						</div>
-					</div>
-
-					<div class="section-card">
-						<div class="section-title">Colores de superficie <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(para que combinen con el fondo)</span></div>
-						<div class="color-row" style="margin-bottom:4px;">
-							<div class="form-group" style="margin-bottom:0">
-								<label for="apPrevColorSurface" class="form-label">Menú / encabezado / carrito</label>
-								<div class="color-input-wrap">
-									<input type="color" class="color-preview" id="apPrevColorSurface" value="#12111a" title="Elegir color" oninput="colorDesdeSelector('apPrevColorSurface','apColorSurface')">
-									<input type="text" class="form-input" id="apColorSurface" maxlength="7" placeholder="#12111a"
-									oninput="colorDesdeTexto('apColorSurface','apPrevColorSurface')">
-								</div>
-							</div>
-							<div class="form-group" style="margin-bottom:0">
-								<label for="apPrevColorCard" class="form-label">Cajas de producto</label>
-								<div class="color-input-wrap">
-									<input type="color" class="color-preview" id="apPrevColorCard" value="#1a1825" title="Elegir color" oninput="colorDesdeSelector('apPrevColorCard','apColorCard')">
-									<input type="text" class="form-input" id="apColorCard" maxlength="7" placeholder="#1a1825"
-									oninput="colorDesdeTexto('apColorCard','apPrevColorCard')">
-								</div>
-							</div>
-						</div>
-					</div>
-
-					<div class="section-card">
-						<div class="section-title">Logo</div>
-						<div style="margin-bottom:12px;">
-							<img id="apLogoPreview" class="promo-img-preview" src="" style="display:none">
-							<span id="apLogoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin logo configurado</span>
-						</div>
-						<label class="upload-zone">
-							<input type="file" accept="image/*" onchange="handleLogoUpload(this)">
-							<div class="upload-zone-text">
-								<span>Haz clic para subir</span> el logo<span class="pista-arrastre"> o arrástralo aquí</span><br>
-								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · idealmente cuadrado</span>
-							</div>
-						</label>
-						<div id="apLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-						<button type="button" id="apLogoDelBtn" onclick="eliminarImagen('logo')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar logo</button>
-					</div>
-
-					<div class="section-card">
-						<div class="section-title">Imagen de fondo</div>
-						<div style="margin-bottom:12px;">
-							<img id="apFondoPreview" class="promo-img-preview" src="" style="display:none">
-							<span id="apFondoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin fondo configurado</span>
-						</div>
-						<label class="upload-zone">
-							<input type="file" accept="image/*" onchange="handleFondoUpload(this)">
-							<div class="upload-zone-text">
-								<span>Haz clic para subir</span> imagen de fondo<span class="pista-arrastre"> o arrástrala aquí</span><br>
-								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG</span>
-							</div>
-						</label>
-						<div id="apFondoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-							<button type="button" id="apFondoDelBtn" onclick="eliminarImagen('fondo')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar imagen de fondo</button>
-						<div class="form-group" style="margin-top:14px;margin-bottom:0">
-							<label for="apFondoTipo" class="form-label">Estilo del fondo</label>
-							<select class="form-select" id="apFondoTipo">
-								<option value="cover-fixed">Cubrir pantalla, fijo</option>
-								<option value="repeat-scroll">Repetir, con scroll</option>
-							</select>
-						</div>
-					</div>
-
-					<!-- PORTADA. Solo la pinta el modelo explorar, así que solo se enseña con
-					     él: lo decide ajustarEstiloAlModelo() (A4). -->
-					<div class="section-card" id="apPortadaCard">
-						<div class="section-header">
-							<div class="section-title">Portada</div>
-							<label class="toggle"><input type="checkbox" id="apPortadaActiva"><span class="toggle-slider"></span></label>
-						</div>
-						<p style="font-size:12px;color:var(--text-muted);margin:-4px 0 12px;line-height:1.5">
-							Imagen grande de encabezado con el nombre encima (tipo revista). Es independiente de la imagen de fondo. Si la desactivas, el menú muestra solo el nombre de forma compacta.
-						</p>
-						<div style="margin-bottom:12px;">
-							<img id="apPortadaPreview" class="promo-img-preview" src="" style="display:none">
-							<span id="apPortadaNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin portada configurada</span>
-						</div>
-						<label class="upload-zone">
-							<input type="file" accept="image/*" onchange="handlePortadaUpload(this)">
-							<div class="upload-zone-text">
-								<span>Haz clic para subir</span> imagen de portada<span class="pista-arrastre"> o arrástrala aquí</span><br>
-								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · horizontal se ve mejor</span>
-							</div>
-						</label>
-						<div id="apPortadaUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-						<button type="button" id="apPortadaDelBtn" onclick="eliminarImagen('portada')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar portada</button>
-					</div>
-
-					<div class="section-card">
-						<div class="section-title">Color de fondo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(se usa solo si no hay imagen de fondo arriba)</span></div>
-						<div class="form-group" style="margin-bottom:14px">
-							<label for="apPrevFondoColor" class="form-label">Color</label>
-							<div class="color-input-wrap">
-								<input type="color" class="color-preview" id="apPrevFondoColor" value="#0a0a0f" title="Elegir color" oninput="colorDesdeSelector('apPrevFondoColor','apFondoColor')">
-								<input type="text" class="form-input" id="apFondoColor" maxlength="7" placeholder="#0a0a0f"
-								oninput="colorDesdeTexto('apFondoColor','apPrevFondoColor')">
-							</div>
-						</div>
-						<div class="form-group" style="margin-bottom:0">
-							<label for="apFondoIntensidad" class="form-label">Intensidad</label>
-							<select class="form-select" id="apFondoIntensidad">
-								<option value="solido">Sólido (color plano)</option>
-								<option value="sutil">Degradado sutil</option>
-								<option value="marcado">Degradado marcado</option>
-							</select>
-						</div>
-					</div>
-
-					<!-- ── AÑADIR UNA FUENTE NUEVA ──────────────────────────
-					     Se añade un <option> a la lista que toque y ya está: el
-					     valor tiene que ser el nombre EXACTO de la familia en
-					     Google Fonts, porque de ahí se construye la URL.
-
-					     No hay que tocar nada más. La carta (core/loader.js) y la
-					     cartelera (tv.html) arman el enlace a partir del nombre
-					     guardado, así que una fuente nueva funciona en los tres
-					     sitios en cuanto aparece aquí.
-
-					     Dos condiciones: que exista en Google Fonts —si el nombre
-					     no coincide, no carga y se ve la de reserva— y que sirva
-					     para lo suyo. Las de títulos son de cartel, para leerse
-					     grandes y de golpe; las de cuerpo tienen que aguantar un
-					     párrafo pequeño en un móvil. -->
-					<div class="section-card">
-						<div class="section-title">Tipografía</div>
-						<div class="form-row">
-							<div class="form-group">
-								<label for="apFuenteTitulo" class="form-label">Fuente títulos</label>
-								<select class="form-select" id="apFuenteTitulo" onchange="previsualizarFuente('titulo')">
-									<option value="">Predeterminada (del sistema)</option>
-									<option value="Bebas Neue">Bebas Neue · condensada</option>
-									<option value="Oswald">Oswald · condensada sobria</option>
-									<option value="Anton">Anton · muy gruesa</option>
-									<option value="Fjalla One">Fjalla One · estrecha</option>
-									<option value="Staatliches">Staatliches · de cartel</option>
-									<option value="Archivo Black">Archivo Black · contundente</option>
-									<option value="Alfa Slab One">Alfa Slab One · recia, de parrilla</option>
-									<option value="Righteous">Righteous · retro</option>
-									<option value="Montserrat">Montserrat · limpia</option>
-									<option value="Poppins">Poppins · redonda</option>
-									<option value="Playfair Display">Playfair Display · serif clásica</option>
-									<option value="Abril Fatface">Abril Fatface · serif llamativa</option>
-									<option value="Cormorant Garamond">Cormorant Garamond · serif fina</option>
-									<option value="Pacifico">Pacifico · manuscrita</option>
-								</select>
-								<!-- La muestra existe porque el nombre no dice nada: nadie sabe
-								     cómo es "Archivo Black" hasta que la ve. Se carga solo la
-								     que se está mirando, no las dieciséis. -->
-								<div id="apMuestraTitulo" style="margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:22px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">HAMBURGUESA CLÁSICA</div>
-							</div>
-							<div class="form-group">
-								<label for="apFuenteCuerpo" class="form-label">Fuente cuerpo</label>
-								<select class="form-select" id="apFuenteCuerpo" onchange="previsualizarFuente('cuerpo')">
-									<option value="">Predeterminada (del sistema)</option>
-									<option value="Inter">Inter · para pantalla</option>
-									<option value="Source Sans 3">Source Sans 3 · muy legible</option>
-									<option value="Roboto">Roboto · neutra</option>
-									<option value="Open Sans">Open Sans · clásica</option>
-									<option value="Lato">Lato · cálida</option>
-									<option value="Work Sans">Work Sans · buena en pequeño</option>
-									<option value="DM Sans">DM Sans · compacta</option>
-									<option value="Barlow">Barlow · estrecha, cunde</option>
-									<option value="Karla">Karla · con carácter</option>
-									<option value="Montserrat">Montserrat · limpia</option>
-									<option value="Poppins">Poppins · redonda</option>
-									<option value="Nunito">Nunito · amable</option>
-									<option value="Rubik">Rubik · informal</option>
-									<option value="Lora">Lora · serif de lectura</option>
-								</select>
-								<div id="apMuestraCuerpo" style="margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;line-height:1.5">Doble carne, queso cheddar y tocineta · $ 22.000</div>
-							</div>
-						</div>
-					</div>
-
-					<div class="section-card">
 						<div class="section-header">
 							<div class="section-title" style="margin-bottom:0">Plan</div>
 							<select class="form-select" id="apPlan" onchange="renderPlanResumen()" style="width:auto;padding:7px 12px;font-size:12px;"></select>
@@ -481,24 +295,53 @@
 						<div id="apPlanResumen" style="font-size:12px;color:var(--text-muted);line-height:1.9;"></div>
 						<div id="apPlanAviso" style="display:none;margin-top:10px;padding:9px 11px;border-radius:var(--radius);background:var(--warn-dim);border:1px solid var(--warn);color:var(--warn);font-size:11px;line-height:1.6;"></div>
 						<div style="margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">
-							El plan se guarda junto con el resto de Apariencia. Solo tú puedes cambiarlo:
+							El plan se guarda con el botón del final de esta pestaña. Solo tú puedes cambiarlo:
 							el restaurante no lo ve ni lo puede tocar por su cuenta.
 						</div>
 					</div>
 
 					<div class="section-card">
-						<div class="section-title">Importar la carta</div>
-						<div class="form-check" style="margin-bottom:10px">
-							<label class="toggle"><input type="checkbox" id="apImportar"><span class="toggle-slider"></span></label>
-							<span style="font-size:13px;color:var(--text-muted)">Dejar que este restaurante escanee su carta</span>
+						<div class="section-title">Modelo de página</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label class="form-label">Navegación</label>
+							<!-- Al vuelo, no solo al cargar: elegir 'vertical' y no ver
+							     aparecer el estilo deja pensando que no existe. -->
+							<select class="form-select" id="apNavModelo" onchange="ajustarEstiloAlModelo()">
+								<option value="topnav">Topnav — header centrado + menú horizontal</option>
+								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
+								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
+								<option value="video">Video — una columna, un plato por fila</option>
+								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
+							</select>
 						</div>
-						<div style="font-size:11px;color:var(--text-dim);line-height:1.6;">
-							Le aparece una pestaña para subir el PDF o la foto de su carta y crear
-							sus productos de una vez. Enciéndelo al dar el alta y apágalo cuando ya
-							la tenga montada: no le sirve de nada y sí puede duplicársela.
-							Solo tú lo ves y solo tú lo puedes cambiar.
+						<!-- Solo con el modelo vertical: los demás no tienen estilos.
+						     Lo enseña y lo esconde ajustarEstiloAlModelo(). -->
+						<div class="form-group" id="apEstiloFila" style="margin-top:14px;margin-bottom:0;display:none">
+							<!-- "Estilo" a secas no vale: en Apariencia hay otro control
+							     llamado "Estilo del fondo", y con dos etiquetas iguales
+							     hay que abrir las dos para saber cuál es cuál. El nombre
+							     dice a qué se aplica. -->
+							<label for="apEstilo" class="form-label">Estilo de la carta vertical <span style="color:var(--text-dim);font-weight:400">(solo cambia el aspecto, no el funcionamiento)</span></label>
+							<select class="form-select" id="apEstilo">
+								<option value="clasico">Clásico — el que ya conoces</option>
+								<option value="intenso">Intenso — a sangre, texto grande y mucho contraste</option>
+								<option value="avance">Avance — barra de progreso arriba, esquinas redondeadas y más aire</option>
+							</select>
+						</div>
+						<div class="form-group" style="margin-top:14px;margin-bottom:0">
+							<label for="apSubtitulo" class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(frase debajo del nombre)</span></label>
+							<input type="text" class="form-input" id="apSubtitulo" placeholder="Carta Digital · 2026">
+						</div>
+						<!-- El interruptor del carrito se mudó a Ajustes el 15/09/2026. -->
+						<!-- Solo sidebar y carrito lo leen (A4); en topnav sale siempre. -->
+						<div class="form-group" id="apHeroFila" style="margin-top:14px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+							<label for="apMostrarHero" class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo, nombre y subtítulo bajo la cabecera)</span></label>
+							<label class="toggle"><input type="checkbox" id="apMostrarHero"><span class="toggle-slider"></span></label>
 						</div>
 					</div>
+
+					<!-- «Filtros y etiquetas» y las redes sociales se mudaron a la pestaña
+					     Ajustes el 15/09/2026: los configura el propio restaurante. -->
 
 					<div class="section-card">
 						<div class="section-title">Dirección del menú</div>
@@ -553,47 +396,214 @@
 					</div>
 
 					<div class="section-card">
-						<div class="section-title">Modelo de página</div>
-						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Navegación</label>
-							<!-- Al vuelo, no solo al cargar: elegir 'vertical' y no ver
-							     aparecer el estilo deja pensando que no existe. -->
-							<select class="form-select" id="apNavModelo" onchange="ajustarEstiloAlModelo()">
-								<option value="topnav">Topnav — header centrado + menú horizontal</option>
-								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
-								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
-								<option value="video">Video — una columna, un plato por fila</option>
-								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
-							</select>
+						<div class="section-title">Importar la carta</div>
+						<div class="form-check" style="margin-bottom:10px">
+							<label class="toggle"><input type="checkbox" id="apImportar"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Dejar que este restaurante escanee su carta</span>
 						</div>
-						<!-- Solo con el modelo vertical: los demás no tienen estilos.
-						     Lo enseña y lo esconde ajustarEstiloAlModelo(). -->
-						<div class="form-group" id="apEstiloFila" style="margin-top:14px;margin-bottom:0;display:none">
-							<!-- "Estilo" a secas no vale: en Apariencia hay otro control
-							     llamado "Estilo del fondo", y con dos etiquetas iguales
-							     hay que abrir las dos para saber cuál es cuál. El nombre
-							     dice a qué se aplica. -->
-							<label for="apEstilo" class="form-label">Estilo de la carta vertical <span style="color:var(--text-dim);font-weight:400">(solo cambia el aspecto, no el funcionamiento)</span></label>
-							<select class="form-select" id="apEstilo">
-								<option value="clasico">Clásico — el que ya conoces</option>
-								<option value="intenso">Intenso — a sangre, texto grande y mucho contraste</option>
-								<option value="avance">Avance — barra de progreso arriba, esquinas redondeadas y más aire</option>
-							</select>
-						</div>
-						<div class="form-group" style="margin-top:14px;margin-bottom:0">
-							<label for="apSubtitulo" class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(frase debajo del nombre)</span></label>
-							<input type="text" class="form-input" id="apSubtitulo" placeholder="Carta Digital · 2026">
-						</div>
-						<!-- El interruptor del carrito se mudó a Ajustes el 15/09/2026. -->
-						<!-- Solo sidebar y carrito lo leen (A4); en topnav sale siempre. -->
-						<div class="form-group" id="apHeroFila" style="margin-top:14px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-							<label for="apMostrarHero" class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo, nombre y subtítulo bajo la cabecera)</span></label>
-							<label class="toggle"><input type="checkbox" id="apMostrarHero"><span class="toggle-slider"></span></label>
+						<div style="font-size:11px;color:var(--text-dim);line-height:1.6;">
+							Le aparece una pestaña para subir el PDF o la foto de su carta y crear
+							sus productos de una vez. Enciéndelo al dar el alta y apágalo cuando ya
+							la tenga montada: no le sirve de nada y sí puede duplicársela.
+							Solo tú lo ves y solo tú lo puedes cambiar.
 						</div>
 					</div>
 
-					<!-- «Filtros y etiquetas» y las redes sociales se mudaron a la pestaña
-					     Ajustes el 15/09/2026: los configura el propio restaurante. -->
+					<div class="section-card">
+						<div class="section-title">Logo</div>
+						<div style="margin-bottom:12px;">
+							<img id="apLogoPreview" class="promo-img-preview" src="" style="display:none">
+							<span id="apLogoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin logo configurado</span>
+						</div>
+						<label class="upload-zone">
+							<input type="file" accept="image/*" onchange="handleLogoUpload(this)">
+							<div class="upload-zone-text">
+								<span>Haz clic para subir</span> el logo<span class="pista-arrastre"> o arrástralo aquí</span><br>
+								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · idealmente cuadrado</span>
+							</div>
+						</label>
+						<div id="apLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						<button type="button" id="apLogoDelBtn" onclick="eliminarImagen('logo')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar logo</button>
+					</div>
+
+					<div class="section-card" id="apPortadaCard">
+						<div class="section-header">
+							<div class="section-title">Portada</div>
+							<label class="toggle"><input type="checkbox" id="apPortadaActiva"><span class="toggle-slider"></span></label>
+						</div>
+						<p style="font-size:12px;color:var(--text-muted);margin:-4px 0 12px;line-height:1.5">
+							Imagen grande de encabezado con el nombre encima (tipo revista). Es independiente de la imagen de fondo. Si la desactivas, el menú muestra solo el nombre de forma compacta.
+						</p>
+						<div style="margin-bottom:12px;">
+							<img id="apPortadaPreview" class="promo-img-preview" src="" style="display:none">
+							<span id="apPortadaNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin portada configurada</span>
+						</div>
+						<label class="upload-zone">
+							<input type="file" accept="image/*" onchange="handlePortadaUpload(this)">
+							<div class="upload-zone-text">
+								<span>Haz clic para subir</span> imagen de portada<span class="pista-arrastre"> o arrástrala aquí</span><br>
+								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · horizontal se ve mejor</span>
+							</div>
+						</label>
+						<div id="apPortadaUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						<button type="button" id="apPortadaDelBtn" onclick="eliminarImagen('portada')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar portada</button>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Imagen de fondo</div>
+						<div style="margin-bottom:12px;">
+							<img id="apFondoPreview" class="promo-img-preview" src="" style="display:none">
+							<span id="apFondoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin fondo configurado</span>
+						</div>
+						<label class="upload-zone">
+							<input type="file" accept="image/*" onchange="handleFondoUpload(this)">
+							<div class="upload-zone-text">
+								<span>Haz clic para subir</span> imagen de fondo<span class="pista-arrastre"> o arrástrala aquí</span><br>
+								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG</span>
+							</div>
+						</label>
+						<div id="apFondoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+							<button type="button" id="apFondoDelBtn" onclick="eliminarImagen('fondo')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar imagen de fondo</button>
+						<div class="form-group" style="margin-top:14px;margin-bottom:0">
+							<label for="apFondoTipo" class="form-label">Estilo del fondo</label>
+							<select class="form-select" id="apFondoTipo">
+								<option value="cover-fixed">Cubrir pantalla, fijo</option>
+								<option value="repeat-scroll">Repetir, con scroll</option>
+							</select>
+						</div>
+					</div>
+
+					<!-- PORTADA. Solo la pinta el modelo explorar, así que solo se enseña con
+					     él: lo decide ajustarEstiloAlModelo() (A4). -->
+					<div class="section-card">
+						<div class="section-title">Color de fondo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(se usa solo si no hay imagen de fondo arriba)</span></div>
+						<div class="form-group" style="margin-bottom:14px">
+							<label for="apPrevFondoColor" class="form-label">Color</label>
+							<div class="color-input-wrap">
+								<input type="color" class="color-preview" id="apPrevFondoColor" value="#0a0a0f" title="Elegir color" oninput="colorDesdeSelector('apPrevFondoColor','apFondoColor')">
+								<input type="text" class="form-input" id="apFondoColor" maxlength="7" placeholder="#0a0a0f"
+								oninput="colorDesdeTexto('apFondoColor','apPrevFondoColor')">
+							</div>
+						</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label for="apFondoIntensidad" class="form-label">Intensidad</label>
+							<select class="form-select" id="apFondoIntensidad">
+								<option value="solido">Sólido (color plano)</option>
+								<option value="sutil">Degradado sutil</option>
+								<option value="marcado">Degradado marcado</option>
+							</select>
+						</div>
+					</div>
+
+					<!-- ── AÑADIR UNA FUENTE NUEVA ──────────────────────────
+					     Se añade un <option> a la lista que toque y ya está: el
+					     valor tiene que ser el nombre EXACTO de la familia en
+					     Google Fonts, porque de ahí se construye la URL.
+
+					     No hay que tocar nada más. La carta (core/loader.js) y la
+					     cartelera (tv.html) arman el enlace a partir del nombre
+					     guardado, así que una fuente nueva funciona en los tres
+					     sitios en cuanto aparece aquí.
+
+					     Dos condiciones: que exista en Google Fonts —si el nombre
+					     no coincide, no carga y se ve la de reserva— y que sirva
+					     para lo suyo. Las de títulos son de cartel, para leerse
+					     grandes y de golpe; las de cuerpo tienen que aguantar un
+					     párrafo pequeño en un móvil. -->
+					<div class="section-card">
+						<div class="section-title">Colores</div>
+						<div class="color-row" style="margin-bottom:4px;">
+							<div class="form-group" style="margin-bottom:0">
+								<label for="apPrevColor1" class="form-label">Color primario</label>
+								<div class="color-input-wrap">
+									<input type="color" class="color-preview" id="apPrevColor1" value="#3dd68c" title="Elegir color" oninput="colorDesdeSelector('apPrevColor1','apColor1')">
+									<input type="text" class="form-input" id="apColor1" maxlength="7"
+									oninput="colorDesdeTexto('apColor1','apPrevColor1')">
+								</div>
+							</div>
+							<div class="form-group" style="margin-bottom:0">
+								<label for="apPrevColor2" class="form-label">Color secundario</label>
+								<div class="color-input-wrap">
+									<input type="color" class="color-preview" id="apPrevColor2" value="#a374af" title="Elegir color" oninput="colorDesdeSelector('apPrevColor2','apColor2')">
+									<input type="text" class="form-input" id="apColor2" maxlength="7"
+									oninput="colorDesdeTexto('apColor2','apPrevColor2')">
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Colores de superficie <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(para que combinen con el fondo)</span></div>
+						<div class="color-row" style="margin-bottom:4px;">
+							<div class="form-group" style="margin-bottom:0">
+								<label for="apPrevColorSurface" class="form-label">Menú / encabezado / carrito</label>
+								<div class="color-input-wrap">
+									<input type="color" class="color-preview" id="apPrevColorSurface" value="#12111a" title="Elegir color" oninput="colorDesdeSelector('apPrevColorSurface','apColorSurface')">
+									<input type="text" class="form-input" id="apColorSurface" maxlength="7" placeholder="#12111a"
+									oninput="colorDesdeTexto('apColorSurface','apPrevColorSurface')">
+								</div>
+							</div>
+							<div class="form-group" style="margin-bottom:0">
+								<label for="apPrevColorCard" class="form-label">Cajas de producto</label>
+								<div class="color-input-wrap">
+									<input type="color" class="color-preview" id="apPrevColorCard" value="#1a1825" title="Elegir color" oninput="colorDesdeSelector('apPrevColorCard','apColorCard')">
+									<input type="text" class="form-input" id="apColorCard" maxlength="7" placeholder="#1a1825"
+									oninput="colorDesdeTexto('apColorCard','apPrevColorCard')">
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Tipografía</div>
+						<div class="form-row">
+							<div class="form-group">
+								<label for="apFuenteTitulo" class="form-label">Fuente títulos</label>
+								<select class="form-select" id="apFuenteTitulo" onchange="previsualizarFuente('titulo')">
+									<option value="">Predeterminada (del sistema)</option>
+									<option value="Bebas Neue">Bebas Neue · condensada</option>
+									<option value="Oswald">Oswald · condensada sobria</option>
+									<option value="Anton">Anton · muy gruesa</option>
+									<option value="Fjalla One">Fjalla One · estrecha</option>
+									<option value="Staatliches">Staatliches · de cartel</option>
+									<option value="Archivo Black">Archivo Black · contundente</option>
+									<option value="Alfa Slab One">Alfa Slab One · recia, de parrilla</option>
+									<option value="Righteous">Righteous · retro</option>
+									<option value="Montserrat">Montserrat · limpia</option>
+									<option value="Poppins">Poppins · redonda</option>
+									<option value="Playfair Display">Playfair Display · serif clásica</option>
+									<option value="Abril Fatface">Abril Fatface · serif llamativa</option>
+									<option value="Cormorant Garamond">Cormorant Garamond · serif fina</option>
+									<option value="Pacifico">Pacifico · manuscrita</option>
+								</select>
+								<!-- La muestra existe porque el nombre no dice nada: nadie sabe
+								     cómo es "Archivo Black" hasta que la ve. Se carga solo la
+								     que se está mirando, no las dieciséis. -->
+								<div id="apMuestraTitulo" style="margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:22px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">HAMBURGUESA CLÁSICA</div>
+							</div>
+							<div class="form-group">
+								<label for="apFuenteCuerpo" class="form-label">Fuente cuerpo</label>
+								<select class="form-select" id="apFuenteCuerpo" onchange="previsualizarFuente('cuerpo')">
+									<option value="">Predeterminada (del sistema)</option>
+									<option value="Inter">Inter · para pantalla</option>
+									<option value="Source Sans 3">Source Sans 3 · muy legible</option>
+									<option value="Roboto">Roboto · neutra</option>
+									<option value="Open Sans">Open Sans · clásica</option>
+									<option value="Lato">Lato · cálida</option>
+									<option value="Work Sans">Work Sans · buena en pequeño</option>
+									<option value="DM Sans">DM Sans · compacta</option>
+									<option value="Barlow">Barlow · estrecha, cunde</option>
+									<option value="Karla">Karla · con carácter</option>
+									<option value="Montserrat">Montserrat · limpia</option>
+									<option value="Poppins">Poppins · redonda</option>
+									<option value="Nunito">Nunito · amable</option>
+									<option value="Rubik">Rubik · informal</option>
+									<option value="Lora">Lora · serif de lectura</option>
+								</select>
+								<div id="apMuestraCuerpo" style="margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;line-height:1.5">Doble carne, queso cheddar y tocineta · $ 22.000</div>
+							</div>
+						</div>
+					</div>
 
 					<div class="section-card">
 						<div class="section-title">CSS personalizado <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(avanzado, casos especiales)</span></div>
@@ -602,7 +612,7 @@
 
 					<div style="text-align:right;">
 						<button class="btn-cancel" style="width:auto;padding:11px 20px;" onclick="abrirVistaPrevia()">👁 Vista previa (sin guardar)</button>
-						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveApariencia()">Guardar apariencia</button>
+						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveApariencia()">Guardar configuración</button>
 					</div>
 					<div id="apArienciaStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 				</div>
@@ -1424,7 +1434,7 @@
 								<!-- El texto lo pone pintarAyudaSegunQuienMira(): depende de si quien
 								     mira tiene la pestaña Apariencia. Ver CL1. -->
 								<div id="qrSinLogo" style="display:none;font-size:12px;color:var(--text-muted);font-family:var(--mono);">
-									Este restaurante no tiene logo. Súbelo en la pestaña Apariencia.
+									Este restaurante no tiene logo. Súbelo en la pestaña Superadmin.
 								</div>
 								<div id="qrLogoTamWrap" style="display:none;margin-top:14px;">
 									<label for="qrLogoTam" class="form-label">Tamaño <span id="qrLogoTamVal" style="color:var(--accent)">22%</span></label>
@@ -2459,7 +2469,7 @@ const WHATSAPP_SOPORTE = '573151182283';   // el mismo del login y de la landing
 
 const AYUDA_SEGUN_QUIEN_MIRA = {
   qrSinLogo: {
-    admin: 'Este restaurante no tiene logo. Súbelo en la pestaña Apariencia.',
+    admin: 'Este restaurante no tiene logo. Súbelo en la pestaña Superadmin.',
     cliente: 'Todavía no tienes logo en tu carta. Envíanoslo y lo subimos por ti:',
     pedido: 'Hola, quiero poner el logo de mi restaurante en la carta',
   },
@@ -5951,9 +5961,9 @@ async function guardarDatosResto() {
     }
     fotoDatosResto = datosRestoActuales();
     const aparienciaPendiente = hayCambiosApariencia();
-    pintarGuardado('apDatosRestoStatus', aparienciaPendiente, 'Apariencia', 'abajo');
+    pintarGuardado('apDatosRestoStatus', aparienciaPendiente, 'Configuración', 'abajo');
     marcarPendientes();
-    showToast(aparienciaPendiente ? 'Datos guardados · la apariencia sigue sin guardar' : 'Datos actualizados',
+    showToast(aparienciaPendiente ? 'Datos guardados · la configuración de abajo sigue sin guardar' : 'Datos actualizados',
               aparienciaPendiente ? 'info' : 'success');
   } catch (e) {
     st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)';
@@ -6141,7 +6151,7 @@ async function saveApariencia() {
     // quien lo enciende no sabe si funcionó. Mismo motivo que
     // ajustarPestanasAlModelo, que está aquí por lo mismo.
     await ajustarPestanaImportar();
-    showToast(datosPendientes ? 'Apariencia guardada · los datos del restaurante siguen sin guardar' : 'Apariencia guardada',
+    showToast(datosPendientes ? 'Configuración guardada · los datos del restaurante siguen sin guardar' : 'Configuración guardada',
               datosPendientes ? 'info' : 'success');
   } catch (e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; showToast('Error: ' + e.message, 'error'); }
 }
