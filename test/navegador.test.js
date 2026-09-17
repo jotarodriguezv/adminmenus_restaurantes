@@ -7199,3 +7199,79 @@ describe('la pestaña Superadmin: qué se lee primero', () => {
 		assert.match(tab, /onclick="saveApariencia\(\)">Guardar configuración</);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('lo que cada plato tiene marcado, visto desde la lista', () => {
+	// Pedido el 17/09/2026: saber si un plato ofrece toppings o cumple un filtro
+	// obligaba a abrir su ficha, y en una carta de 97 platos eso son 97 ventanas.
+	const CATALOGO_FILTROS = [
+		{ id: 'picante', label: 'Picante', emoji: '🌶' },
+		{ id: 'veg', label: 'Vegetariano', emoji: '🌱' },
+		{ id: 'gluten', label: 'Sin gluten', emoji: '🌾' },
+		{ id: 'nuevo', label: 'Novedad', emoji: '✨' },
+	];
+	const TOPPINGS = {
+		toppings_platino: [{ id: 't1', nombre: 'Queso' }, { id: 't2', nombre: 'Cebolla' }],
+		toppings_premium: [{ id: 't3', nombre: 'Tocineta', precio: 4000 }],
+		salsas: [{ id: 's1', nombre: 'Ajo' }],
+	};
+
+	// catalogoDe, personalizacionDe y cartaTieneCarrito viven en index.html: las
+	// marcas se leen con lo mismo que la ficha, no contando claves a mano.
+	const reglas = (atributos, plan = { carrito: true }) => cargar('productos-marcas.js', [
+		['index.html', '// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
+		['index.html', 'function catalogoDe', 'function renderPersonalizacion'],
+		['productos-marcas.js', '// Cuántas marcas de cada clase', null],
+	], {
+		state: { restaurante: { id: 'r1', atributos } },
+		planActual: () => plan,
+		MODELO_POR_DEFECTO: 'topnav',
+		MODELOS_CARRITO_OPCIONAL: ['topnav', 'sidebar', 'explorar', 'video', 'vertical'],
+		Array, Object, String, Number, Set, document: { createElement: () => ({ appendChild() {}, style: {} }) },
+	});
+
+	const plato = (filtros, pers) => ({
+		id: 'p1', nombre: 'Arepa',
+		atributos: { ...(filtros ? { filtros } : {}), ...(pers ? { personalizacion: pers } : {}) },
+	});
+
+	test('los filtros salen con su emoji y su nombre', () => {
+		const ctx = reglas({ nav: 'topnav', filtros_disponibles: CATALOGO_FILTROS });
+		const marcas = ctx.marcasDePlato(plato(['picante', 'veg']));
+		assert.deepEqual([...marcas].map(m => m.texto), ['🌶 Picante', '🌱 Vegetariano']);
+	});
+
+	test('un filtro que el restaurante ya quitó no se pinta', () => {
+		// El plato lo sigue nombrando, pero sin catálogo no tiene ni nombre ni
+		// emoji: sería un chip en blanco.
+		const ctx = reglas({ nav: 'topnav', filtros_disponibles: [CATALOGO_FILTROS[0]] });
+		assert.deepEqual([...ctx.marcasDePlato(plato(['picante', 'veg']))].map(m => m.texto), ['🌶 Picante']);
+	});
+
+	test('con muchos filtros se resumen los que sobran', () => {
+		const ctx = reglas({ nav: 'topnav', filtros_disponibles: CATALOGO_FILTROS });
+		const marcas = ctx.marcasDePlato(plato(['picante', 'veg', 'gluten', 'nuevo']));
+		assert.equal(marcas.length, 4);
+		assert.equal(marcas.at(-1).texto, '+1');
+		assert.match(marcas.at(-1).titulo, /Novedad/);
+	});
+
+	test('los toppings se cuentan, y los nombres van en el título', () => {
+		// Son hasta catorce por plato: en la lista taparían el nombre.
+		const ctx = reglas({ nav: 'topnav', carrito: true, ...TOPPINGS });
+		const marcas = ctx.marcasDePlato(plato(null, { platino: ['t1'], premium: ['t3'], salsas: [] }));
+		assert.equal(marcas.at(-1).texto, '🧀 2');
+		assert.match(marcas.at(-1).titulo, /Queso, Tocineta/);
+	});
+
+	test('sin carrito no se cuentan: la carta no los enseña', () => {
+		const ctx = reglas({ nav: 'topnav', carrito: false, ...TOPPINGS });
+		assert.deepEqual([...ctx.marcasDePlato(plato(null, { platino: ['t1'], premium: [], salsas: [] }))], []);
+	});
+
+	test('un plato sin nada marcado no deja una fila vacía', () => {
+		const ctx = reglas({ nav: 'topnav', carrito: true, filtros_disponibles: CATALOGO_FILTROS, ...TOPPINGS });
+		assert.deepEqual([...ctx.marcasDePlato(plato(null, { platino: [], premium: [], salsas: [] }))], []);
+		assert.equal(ctx.filaDeMarcas(plato(null, { platino: [], premium: [], salsas: [] })), null);
+	});
+});

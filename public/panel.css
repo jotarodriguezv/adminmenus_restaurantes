@@ -583,6 +583,15 @@ select.form-input{padding-right:42px;}
    ENTRE ellas pero nunca por dentro. Con separadores de texto ("·")
    el salto caía en cualquier sitio y dejaba el punto colgando al
    principio de la línea siguiente. */
+/* ── LO QUE CADA PLATO TIENE MARCADO ────────────────────
+   Bajo el nombre, en la lista de Productos. Pequeñas y sin color
+   propio: informan, no piden que se pulsen —no se pueden cambiar
+   desde aquí, se cambian en la ficha—. */
+.prod-marcas{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.prod-marca{font-family:var(--mono);font-size:9px;letter-spacing:.3px;
+  padding:2px 6px;border-radius:4px;border:1px solid var(--border);
+  color:var(--text-muted);white-space:nowrap;cursor:default;}
+
 /* ── LOS FILTROS DE LA LISTA DE RESTAURANTES ────────────
    Filas que envuelven: en un móvil los chips bajan de línea en vez
    de salirse, que es lo que hacía el carril de las pestañas (M1). */

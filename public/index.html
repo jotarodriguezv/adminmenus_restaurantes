@@ -2167,6 +2167,7 @@
 <script src="pedidos.js"></script>
 <script src="ajustes.js"></script>
 <script src="restaurantes-filtros.js"></script>
+<script src="productos-marcas.js"></script>
 <script>
 // ── COLORES ───────────────────────────────────────────────────
 // Los campos de color son de texto libre y nadie rechazaba un '#12345' o un
@@ -2828,6 +2829,9 @@ function renderProducts() {
     const nm=document.createElement('div'); nm.className='prod-name'; nm.textContent=p.nombre;
     const ct=document.createElement('div'); ct.className='prod-cat'; ct.textContent=cat?cat.nombre:'';
     infoDiv.appendChild(nm); infoDiv.appendChild(ct);
+    // Lo que el plato tiene marcado —filtros y toppings— sin abrir su ficha.
+    const marcas = filaDeMarcas(p);
+    if (marcas) infoDiv.appendChild(marcas);
     // Precio
     const precioDiv=document.createElement('div');
     precioDiv.style.cssText='font-family:var(--mono);font-size:13px;color:var(--accent)';
