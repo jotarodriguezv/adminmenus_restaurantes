@@ -658,11 +658,11 @@
 				<div class="modal-bg" id="destacadoModal" onclick="handleModalBg(event,'destacadoModal')">
 					<div class="modal-box destacado-modal-box">
 						<div class="modal-head">
-							<span class="modal-title">Añadir destacado</span>
+							<span class="modal-title" id="destacadoModalTitulo">Añadir destacado</span>
 							<button class="modal-close" onclick="closeModal('destacadoModal')" aria-label="Cerrar">✕</button>
 						</div>
 						<div class="modal-body">
-							<p class="destacado-intro">Empieza con una imagen nueva o reutiliza un producto que ya tienes en tu carta. Podrás revisar todo antes de publicarlo.</p>
+							<p class="destacado-intro" id="destacadoModalIntro">Empieza con una imagen nueva o reutiliza un producto que ya tienes en tu carta. Podrás revisar todo antes de publicarlo.</p>
 							<div class="destacado-origenes" id="destacadoOrigenes">
 								<button type="button" class="destacado-origen" onclick="document.getElementById('promoFileInput').click()">
 									<span aria-hidden="true">🖼️</span>
@@ -790,6 +790,10 @@
 							</div>
 
 							<div id="tvResumen" style="font-size:12px;color:var(--text-muted);margin-top:4px"></div>
+							<div id="tvAhora" style="margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--card)">
+								<div style="font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:5px">Ahora en pantalla</div>
+								<div id="tvAhoraTexto" style="font-size:12px;color:var(--text-muted);line-height:1.6"></div>
+							</div>
 
 							<!-- ── CAMBIAR DE CONTENIDO SEGÚN LA HORA ────────────────
 							     Lo de arriba es lo que la pantalla enseña por defecto. Esto
@@ -982,15 +986,13 @@
 								<div id="tvImagenesBloque" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
 									<div class="section-header" style="margin-bottom:4px">
 										<div style="font-size:13px;color:var(--text-muted)">Imágenes que salen en la pantalla</div>
-										<button type="button" class="btn-sm accent" onclick="document.getElementById('tvImagenInput').click()">+ Añadir imagen</button>
+									<button type="button" class="btn-sm accent" onclick="abrirNuevoDestacado('tv')">+ Añadir destacado</button>
 									</div>
 									<p style="font-size:11px;color:var(--text-dim);margin:0 0 10px;line-height:1.5">
 										Una foto suelta —un plato nuevo, un aviso, lo que sea— que no
 										tiene que estar en la carta. Se le pueden poner días y horas
 										desde la pestaña <strong>Destacados</strong>.
 									</p>
-									<input type="file" id="tvImagenInput" accept="image/*" style="display:none"
-										onchange="tvCrearImagenSuelta(this)">
 									<div id="tvImagenesEstado" style="font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-bottom:8px"></div>
 									<div id="tvImagenes" style="display:flex;flex-wrap:wrap;gap:8px"></div>
 								</div>

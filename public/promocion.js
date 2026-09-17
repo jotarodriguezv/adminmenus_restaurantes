@@ -429,12 +429,26 @@ async function guardarPromo(id, caja, elegidos) {
 // El alta empieza con una decisión explícita: imagen propia o producto ya
 // guardado. Así el explorador de archivos no interrumpe antes de saber qué
 // quiere destacar la persona.
-function abrirNuevoDestacado() {
+let destinoNuevoDestacado = 'carta';
+function abrirNuevoDestacado(destino) {
+  destinoNuevoDestacado = destino === 'tv' ? 'tv' : 'carta';
   const productos = document.getElementById('destacadoProductos');
   const estado = document.getElementById('destacadoModalEstado');
+  const titulo = document.getElementById('destacadoModalTitulo');
+  const intro = document.getElementById('destacadoModalIntro');
   if (productos) { productos.style.display = 'none'; productos.innerHTML = ''; }
   if (estado) estado.textContent = '';
+  if (titulo) titulo.textContent = destinoNuevoDestacado === 'tv' ? 'Añadir destacado para TV' : 'Añadir destacado';
+  if (intro) intro.textContent = destinoNuevoDestacado === 'tv'
+    ? 'Sube una imagen o reutiliza un producto de tu carta. Quedará como borrador, listo para programarlo o publicarlo en la pantalla.'
+    : 'Empieza con una imagen nueva o reutiliza un producto que ya tienes en tu carta. Podrás revisar todo antes de publicarlo.';
   openModal('destacadoModal');
+}
+
+function destinosDeNuevoDestacado() {
+  return destinoNuevoDestacado === 'tv'
+    ? { en_popup: false, en_tv: true }
+    : { en_popup: true, en_tv: false };
 }
 
 function mostrarProductosParaDestacado() {
@@ -506,11 +520,15 @@ async function crearDestacadoDesdeProducto(id) {
       restaurante_id: state.restaurante.id,
       imagen_url: producto.imagen_url,
       nombre: producto.nombre || '', precio: producto.precio || '',
-      activa: false, en_popup: true, en_tv: false,
+      activa: false, ...destinosDeNuevoDestacado(),
       programacion: {}, orden: (state.promociones || []).length,
     });
     state.promociones = [...(state.promociones || []), nueva];
-    pintarPromociones(); closeModal('destacadoModal');
+    pintarPromociones();
+    if (destinoNuevoDestacado === 'tv' && typeof tvPintarImagenes === 'function') {
+      tvPintarImagenes(); tvAlternarIntercalados();
+    }
+    closeModal('destacadoModal');
     estadoNuevoDestacado('');
     showToast('Destacado creado como borrador. Publícalo cuando esté listo.', 'success');
   } catch (e) {
@@ -528,12 +546,15 @@ async function crearDestacadoConImagen(input) {
     const nueva = await apiFetch('POST', '/api/promociones', {
       restaurante_id: state.restaurante.id,
       imagen_url: url,
-      activa: false, en_popup: true, en_tv: false,
+      activa: false, ...destinosDeNuevoDestacado(),
       programacion: {},
       orden: (state.promociones || []).length,
     });
     state.promociones = [...(state.promociones || []), nueva];
     pintarPromociones();
+    if (destinoNuevoDestacado === 'tv' && typeof tvPintarImagenes === 'function') {
+      tvPintarImagenes(); tvAlternarIntercalados();
+    }
     closeModal('destacadoModal');
     estadoNuevoDestacado('');
     showToast('Destacado creado como borrador. Publícalo cuando esté listo.', 'success');

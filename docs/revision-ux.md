@@ -1029,6 +1029,18 @@ como referencia de a qué debería parecerse el resto:
 - Los estados vacíos dicen qué implica el vacío: «Sin horarios: la pantalla
   enseña siempre lo mismo».
 
+## TV2 · La configuración no decía qué está mostrando ahora ni recordaba los horarios de categoría · **Media**
+
+- [x] Hecho · 2026-09-17 · PR #163
+
+«Respetar los horarios de categoría» explicaba la regla, pero no avisaba si el
+restaurante ya tenía categorías afectadas. También faltaba una respuesta única
+a «¿qué está saliendo ahora?», especialmente cuando hay horarios y destacados
+intercalados. Se añadió el bloque **Ahora en pantalla**, que resume la selección
+vigente y los destacados que entran en la rotación; y el interruptor enumera las
+categorías con horario, indicando si ahora están visibles u ocultas. El resumen
+de intercalados usa la tabla de Destacados, no las columnas antiguas.
+
 ---
 
 # Hallazgos sueltos, fuera de pestaña
