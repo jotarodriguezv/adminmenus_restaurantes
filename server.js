@@ -1200,6 +1200,39 @@ app.get('/api/resumen-video', auth, async (req, res) => {
   res.json(data || {});
 });
 
+// ── CUÁNTOS PLATOS TIENE CADA CARTA ───────────────────────────
+// Para la lista del superadmin: hay etiquetas que dependen del tamaño de la
+// carta, no de un interruptor. La primera es el buscador, que la carta solo
+// enseña a partir de MINIMO_PLATOS_BUSCADOR platos (vmenus-app/core/buscador.js);
+// sin este dato, el panel diría que lo tiene encendido un restaurante cuyos
+// comensales no lo ven.
+//
+// Se cuenta aquí y no con un `count` por restaurante —que serían tantas
+// consultas como restaurantes— ni con una función SQL nueva, que obligaría a
+// una migración para un recuento. Se piden los identificadores de los platos
+// vivos y se cuentan; hoy son unos cientos.
+//
+// El tope es explícito: PostgREST corta en 1.000 filas por defecto y lo haría
+// en silencio, que es como un restaurante aparecería de pronto con menos
+// platos de los que tiene. Si algún día se alcanza, lo que toca es la función
+// SQL, no subir el número sin mirar.
+const TOPE_PLATOS_RESUMEN = 20000;
+
+app.get('/api/resumen-cartas', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  const { data, error } = await supabase.from('productos')
+    .select('restaurante_id').is('archivado_en', null).limit(TOPE_PLATOS_RESUMEN);
+  if (error) {
+    console.error('[resumen-cartas] ', error.message);
+    return res.status(500).json({ error: 'No se pudo contar los platos' });
+  }
+  const porRestaurante = {};
+  for (const fila of data || []) {
+    porRestaurante[fila.restaurante_id] = (porRestaurante[fila.restaurante_id] || 0) + 1;
+  }
+  res.json(porRestaurante);
+});
+
 // ── CUPO DE GENERACIONES CON IA ───────────────────────────────
 // Generar un video con IA cuesta dinero cada vez, así que el cupo existe
 // antes que el botón que lo gasta. Ver cupo.js.

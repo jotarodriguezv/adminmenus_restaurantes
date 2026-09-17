@@ -6896,6 +6896,9 @@ describe('los filtros de la lista de restaurantes', () => {
 		// PLANES, los modelos y cartaTieneCarrito viven en index.html: las
 		// funcionalidades se miden con la misma regla que la carta, no con una copia.
 		['index.html', 'const TODO_INCLUIDO', '// ── AYUDA QUE DEPENDE DE QUIÉN MIRA'],
+		// Y el mínimo de platos del buscador vive en ajustes.js, que es donde está
+		// su interruptor: el panel lo declara una sola vez.
+		['ajustes.js', '// ── BUSCADOR DE PLATOS', '// ── FILTROS Y ETIQUETAS'],
 		['restaurantes-filtros.js', '// ── QUÉ SE PUEDE FILTRAR', '// ── PINTAR'],
 	], { Object, Array, Boolean });
 	// Un `const` de nivel superior no aparece como propiedad del contexto —solo
@@ -6962,6 +6965,27 @@ describe('los filtros de la lista de restaurantes', () => {
 		assert.equal(ctx.pasaFiltroRestos(real, { ...f, entorno: 'reales' }), true);
 		assert.equal(ctx.pasaFiltroRestos(real, { ...f, entorno: 'prueba' }), false);
 		assert.equal(ctx.pasaFiltroRestos({ ...real, prueba: true }, { ...f, entorno: 'reales' }), false);
+	});
+
+	test('el buscador cuenta cuando el comensal lo ve, no cuando está encendido', () => {
+		// La carta no lo enseña por debajo de 8 platos, así que una carta corta
+		// con el interruptor encendido no lo tiene para quien la mira.
+		const ctx = reglas();
+		const tiene = (at, platos) => ctx.rasgosDeResto(resto(at, 'fotos'), null, null, platos)
+			.funciones.includes('buscador');
+		assert.equal(tiene({}, 40), true, 'ausente es encendido, como en la carta');
+		assert.equal(tiene({ buscador: false }, 40), false);
+		assert.equal(tiene({}, 5), false, 'encendido pero la carta es demasiado corta');
+	});
+
+	test('sin el recuento de platos se responde por el interruptor', () => {
+		// Si /api/resumen-cartas falló, dejar fuera a todos sería peor: el filtro
+		// diría que nadie lo tiene.
+		const ctx = reglas();
+		const tiene = at => ctx.rasgosDeResto(resto(at, 'fotos'), null, null, undefined)
+			.funciones.includes('buscador');
+		assert.equal(tiene({}), true);
+		assert.equal(tiene({ buscador: false }), false);
 	});
 
 	test('solo se ofrecen los modelos del tipo elegido', () => {

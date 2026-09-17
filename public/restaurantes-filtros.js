@@ -23,8 +23,9 @@
 // modelos tiene cada tipo: repetirlos aquí sería una segunda lista que se
 // queda atrás en cuanto se añada un modelo.
 const FUNCIONES_RESTO = [
-  ['pedidos', '🛒 Pedidos'], ['tv', '📺 Pantalla TV'], ['filtros', '🏷️ Filtros'],
-  ['toppings', '🧀 Toppings'], ['redes', '🔗 Redes'], ['ia', '✨ IA'],
+  ['pedidos', '🛒 Pedidos'], ['tv', '📺 Pantalla TV'], ['buscador', '🔎 Buscador'],
+  ['filtros', '🏷️ Filtros'], ['toppings', '🧀 Toppings'], ['redes', '🔗 Redes'],
+  ['ia', '✨ IA'],
 ];
 const FILTRO_RESTOS_VACIO = { tipo: 'todos', modelo: 'todos', funciones: [], entorno: 'todos' };
 // Fuera de 'state' a propósito: logout() lo reemplaza entero, y esto es de quien
@@ -35,7 +36,19 @@ let filtroRestos = { ...FILTRO_RESTOS_VACIO };
 // Lo que de este restaurante se puede filtrar, ya resuelto. Se calcula una vez
 // por pintada y no dentro de cada comparación: los contadores de los botones
 // recorren la lista entera una vez por botón.
-function rasgosDeResto(r, fact, resumenVideo) {
+// ¿Los comensales de esta carta ven el buscador? No basta el interruptor: la
+// carta no lo enseña por debajo de MINIMO_PLATOS_BUSCADOR platos, así que una
+// carta corta con el interruptor encendido no lo tiene para quien la mira.
+//
+// Sin el recuento —si /api/resumen-cartas falló— se responde por el
+// interruptor solo. Es lo único que se sabe, y dejar fuera a todos sería peor:
+// el filtro diría que nadie lo tiene.
+function enseñaBuscador(atributos, platos) {
+  if (atributos?.buscador === false) return false;
+  return platos == null || platos >= MINIMO_PLATOS_BUSCADOR;
+}
+
+function rasgosDeResto(r, fact, resumenVideo, platos) {
   const at = r?.atributos || {};
   const plan = planDe(r);
   const carrito = cartaTieneCarrito(at, plan);
@@ -51,6 +64,7 @@ function rasgosDeResto(r, fact, resumenVideo) {
   if (carrito && cuantos('toppings_platino') + cuantos('toppings_premium') + cuantos('salsas')) {
     funciones.push('toppings');
   }
+  if (enseñaBuscador(at, platos)) funciones.push('buscador');
   if (at.social_bar) funciones.push('redes');
   // La IA solo se puede encender donde hay video, y ahí está encendida salvo
   // que se haya apagado a mano. Mismo criterio que la etiqueta de la ficha.
@@ -98,7 +112,7 @@ function filtroTrasCambio(f, cambio) {
 function rasgosDeLista() {
   return (state.listaRestos || []).map(r => ({
     slug: r.slug,
-    rasgos: rasgosDeResto(r, facturacionDe(r.id), state.resumenVideo?.[r.id]),
+    rasgos: rasgosDeResto(r, facturacionDe(r.id), state.resumenVideo?.[r.id], state.platosPorResto?.[r.id]),
   }));
 }
 
