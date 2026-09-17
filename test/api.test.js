@@ -1447,6 +1447,46 @@ describe('/api/resumen-video · la vista de la lista de restaurantes', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('/api/resumen-cartas · cuántos platos tiene cada carta', () => {
+	// Lo usa el filtro del buscador en la lista del superadmin: la carta solo
+	// lo enseña a partir de 8 platos, así que el interruptor solo no basta.
+	test('solo el superadmin lo ve', async () => {
+		assert.equal((await S.pedir('GET', '/api/resumen-cartas', null, tokenCliente)).status, 403);
+		assert.equal((await S.pedir('GET', '/api/resumen-cartas')).status, 401);
+	});
+
+	test('cuenta los platos de cada restaurante', async () => {
+		S.conTabla(st => st.tabla === 'productos'
+			? { data: [{ restaurante_id: 'r1' }, { restaurante_id: 'r2' }, { restaurante_id: 'r1' }], error: null }
+			: { data: null, error: null });
+		const r = await S.pedir('GET', '/api/resumen-cartas', null, tokenAdmin);
+		assert.equal(r.status, 200);
+		assert.deepEqual(r.body, { r1: 2, r2: 1 });
+	});
+
+	test('no cuenta los archivados', async () => {
+		// Borrar un plato lo archiva (sql/23). Un restaurante que retiró media
+		// carta no puede seguir contando como si la tuviera entera.
+		let filtro = null;
+		S.conTabla(st => {
+			if (st.tabla === 'productos') { filtro = st; return { data: [], error: null }; }
+			return { data: null, error: null };
+		});
+		await S.pedir('GET', '/api/resumen-cartas', null, tokenAdmin);
+		assert.ok(JSON.stringify(filtro).includes('archivado_en'), 'tiene que filtrar por archivado_en');
+	});
+
+	test('si la base falla, no se filtra su mensaje', async () => {
+		S.conTabla(st => st.tabla === 'productos'
+			? { data: null, error: { message: 'relation "productos" does not exist' } }
+			: { data: null, error: null });
+		const r = await S.pedir('GET', '/api/resumen-cartas', null, tokenAdmin);
+		assert.equal(r.status, 500);
+		assert.doesNotMatch(r.body.error, /relation/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('/api/promociones · varias promociones por restaurante', () => {
 	// Paso 3 de docs/promociones.md. Hasta aquí la promoción era UNA, en
 	// columnas de 'restaurantes'.

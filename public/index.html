@@ -6808,12 +6808,15 @@ async function cargarListaRestos() {
   try {
     // Las dos a la vez: la lista no se puede pintar sin el estado de pago y
     // esperar una detrás de otra no aporta nada.
-    const [restos, facturacion, resumen] = await Promise.all([
+    const [restos, facturacion, resumen, cartas] = await Promise.all([
       apiFetch('GET','/api/restaurantes'),
-      // Si estas dos fallaran, la lista se pinta igual y sin sus insignias.
+      // Si estas tres fallaran, la lista se pinta igual y sin sus insignias.
       // Es información nuestra: no vale la pena dejar sin panel al que entra.
       apiFetch('GET','/api/facturacion').catch(() => []),
       apiFetch('GET','/api/resumen-video').catch(() => ({})),
+      // Cuántos platos tiene cada carta. Lo usa el filtro del buscador, que
+      // depende del tamaño de la carta y no solo de su interruptor.
+      apiFetch('GET','/api/resumen-cartas').catch(() => ({})),
     ]);
     if(!restos||!restos.length){list.innerHTML='<div class="empty-state">Sin restaurantes</div>';return;}
     list.innerHTML='';
@@ -6821,6 +6824,7 @@ async function cargarListaRestos() {
     state.facturacion = facturacion || [];
     state.facturacionCargada = true;
     state.resumenVideo = resumen || {};
+    state.platosPorResto = cartas || {};
     const clonarSelect = document.getElementById('newRestoClonar');
     clonarSelect.innerHTML = '<option value="">Ninguno — empezar en blanco</option>';
     restos.forEach(r => {
