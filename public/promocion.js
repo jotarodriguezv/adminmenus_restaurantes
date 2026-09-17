@@ -62,7 +62,7 @@ function pintarPromociones() {
   boton.style.display = promos.length >= max ? 'none' : '';
   tope.style.display = promos.length >= max ? 'block' : 'none';
   tope.textContent = promos.length >= max
-    ? `Has llegado a ${max} promociones, que es el máximo. Elimina una para añadir otra.`
+    ? `Has llegado a ${max} destacados, que es el máximo. Elimina uno para añadir otro.`
     : '';
 
   pintarQueSaleAhora();
@@ -82,7 +82,7 @@ function avisarSiCompitenPromociones() {
   const compiten = programadas.length ? programadas : vivas;
 
   if (compiten.length <= 1) { el.textContent = ''; return; }
-  el.textContent = `Ahora mismo compiten ${compiten.length} promociones en la carta: ` +
+  el.textContent = `Ahora mismo compiten ${compiten.length} destacados en la carta: ` +
                    'cada cliente verá una.';
   el.style.color = 'var(--text-muted)';
 }
@@ -194,17 +194,17 @@ function tarjetaDePromo(p) {
       <div style="flex:1;min-width:220px">
         <div class="form-row" style="margin-bottom:8px">
           <div class="form-group" style="margin-bottom:0">
-            <label class="form-label">Nombre <span style="color:var(--text-dim)">(solo en el televisor)</span></label>
+            <label class="form-label">Nombre interno <span style="color:var(--text-dim)">(también se ve en el televisor)</span></label>
             <input type="text" class="form-input p-nombre" maxlength="80" placeholder="2x1 en hamburguesas">
           </div>
           <div class="form-group" style="margin-bottom:0">
-            <label class="form-label">Precio</label>
+            <label class="form-label">Precio <span style="color:var(--text-dim)">(solo en el televisor)</span></label>
             <input type="text" class="form-input p-precio" maxlength="30" placeholder="$ 30.000">
           </div>
         </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
           <div class="form-check"><label class="toggle"><input type="checkbox" class="p-activa"><span class="toggle-slider"></span></label>
-            <span style="font-size:12px;color:var(--text-muted)">Activa</span></div>
+            <span style="font-size:12px;color:var(--text-muted)">Publicado</span></div>
           <div class="p-destino form-check"><label class="toggle"><input type="checkbox" class="p-popup"><span class="toggle-slider"></span></label>
             <span style="font-size:12px;color:var(--text-muted)">En la carta</span></div>
           <div class="p-destino p-tv-fila form-check"><label class="toggle"><input type="checkbox" class="p-tv"><span class="toggle-slider"></span></label>
@@ -216,7 +216,7 @@ function tarjetaDePromo(p) {
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
       <div class="form-check" style="margin-bottom:10px">
         <label class="toggle"><input type="checkbox" class="p-prog"><span class="toggle-slider"></span></label>
-        <span style="font-size:12px;color:var(--text-muted)">Solo en ciertos días u horas</span>
+        <span style="font-size:12px;color:var(--text-muted)">Programar fecha, días u horas</span>
       </div>
       <div class="p-campos" style="display:none">
         <label class="form-label">Días</label>
@@ -314,7 +314,7 @@ function tarjetaDePromo(p) {
     const el = q('p-nota');
     const h2 = programacionDelFormulario(caja, elegidos);
     if (!q('p-activa').checked) {
-      el.textContent = 'Apagada: no sale en ningún sitio.';
+      el.textContent = 'Borrador: no sale en ningún sitio hasta que lo publiques.';
       el.style.color = 'var(--warn)'; return;
     }
     const conTv = restauranteTieneTv();
@@ -332,8 +332,8 @@ function tarjetaDePromo(p) {
     // decirlo evita que alguien se quede pensando que ha programado algo. Al
     // guardar se normaliza a "sin programación" para que el dato no mienta.
     if (!tieneProgramacion(h2)) {
-      el.textContent = 'No has marcado ningún día ni ninguna hora, así que sale ' +
-                       'siempre — es lo mismo que dejar este interruptor apagado.';
+      el.textContent = 'No has marcado ningún día, hora ni fecha, así que sale ' +
+                       'siempre — es lo mismo que dejar esta programación apagada.';
       el.style.color = 'var(--warn)'; return;
     }
     const partes = [describirHorario(h2)];
@@ -373,7 +373,7 @@ function atenuarDestinos(caja) {
   const activa = caja.querySelector('.p-activa').checked;
   for (const d of caja.querySelectorAll('.p-destino')) {
     d.style.opacity = activa ? '' : '0.4';
-    d.title = activa ? '' : 'No tiene efecto mientras la promoción esté apagada';
+    d.title = activa ? '' : 'No tiene efecto mientras el destacado esté en borrador';
   }
 }
 
@@ -417,7 +417,7 @@ async function guardarPromo(id, caja, elegidos) {
     const i = (state.promociones || []).findIndex(x => x.id === id);
     if (i >= 0 && data) state.promociones[i] = data;
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
-    showToast('Promoción guardada', 'success');
+    showToast('Destacado guardado', 'success');
     pintarQueSaleAhora();
     avisarSiCompitenPromociones();
   } catch (e) {
@@ -426,28 +426,119 @@ async function guardarPromo(id, caja, elegidos) {
   }
 }
 
-// Añadir empieza por la imagen: sin ella no hay promoción que enseñar, así que
-// una tarjeta vacía sería un interruptor encendido que no hace nada.
-async function crearPromoConImagen(input) {
+// El alta empieza con una decisión explícita: imagen propia o producto ya
+// guardado. Así el explorador de archivos no interrumpe antes de saber qué
+// quiere destacar la persona.
+function abrirNuevoDestacado() {
+  const productos = document.getElementById('destacadoProductos');
+  const estado = document.getElementById('destacadoModalEstado');
+  if (productos) { productos.style.display = 'none'; productos.innerHTML = ''; }
+  if (estado) estado.textContent = '';
+  openModal('destacadoModal');
+}
+
+function mostrarProductosParaDestacado() {
+  const cont = document.getElementById('destacadoProductos');
+  if (!cont) return;
+  cont.style.display = 'block';
+  cont.innerHTML = `
+    <div class="destacado-productos-head"><strong>Elige un producto</strong><span>Se copiarán su foto, nombre y precio.</span></div>
+    <input type="search" id="buscarProductoDestacado" class="form-input" placeholder="Buscar en mi carta" autocomplete="off">
+    <div class="destacado-producto-lista" id="listaProductosDestacado" style="margin-top:10px"></div>`;
+  const buscar = document.getElementById('buscarProductoDestacado');
+  buscar.oninput = () => pintarProductosParaDestacado(buscar.value);
+  pintarProductosParaDestacado('');
+  buscar.focus();
+}
+
+function pintarProductosParaDestacado(texto) {
+  const lista = document.getElementById('listaProductosDestacado');
+  if (!lista) return;
+  lista.innerHTML = '';
+  const filtro = String(texto || '').trim().toLocaleLowerCase('es');
+  const productos = (state.productos || []).filter(p =>
+    !filtro || String(p.nombre || '').toLocaleLowerCase('es').includes(filtro));
+  if (!productos.length) {
+    const nada = document.createElement('div');
+    nada.className = 'form-ayuda';
+    nada.textContent = 'No encontramos un producto con ese nombre.';
+    lista.appendChild(nada);
+    return;
+  }
+  for (const producto of productos) {
+    const boton = document.createElement('button');
+    boton.type = 'button'; boton.className = 'destacado-producto';
+    if (!producto.imagen_url) {
+      boton.disabled = true;
+      boton.title = 'Este producto todavía no tiene foto.';
+    }
+    const imagen = producto.imagen_url ? document.createElement('img') : document.createElement('span');
+    if (producto.imagen_url) imagen.src = producto.imagen_url;
+    else { imagen.className = 'destacado-producto-sin-foto'; imagen.textContent = '📷'; }
+    const nombre = document.createElement('span');
+    nombre.className = 'destacado-producto-nombre';
+    nombre.textContent = producto.nombre || 'Producto sin nombre';
+    const precio = document.createElement('span');
+    precio.className = 'destacado-producto-precio';
+    precio.textContent = producto.imagen_url ? (producto.precio || '') : 'Falta foto';
+    boton.append(imagen, nombre, precio);
+    if (producto.imagen_url) boton.onclick = () => crearDestacadoDesdeProducto(producto.id);
+    lista.appendChild(boton);
+  }
+}
+
+function estadoNuevoDestacado(texto, color) {
+  const modal = document.getElementById('destacadoModalEstado');
+  const lista = document.getElementById('promoNuevaEstado');
+  for (const el of [modal, lista]) {
+    if (!el) continue;
+    el.textContent = texto;
+    el.style.color = color || 'var(--text-muted)';
+  }
+}
+
+async function crearDestacadoDesdeProducto(id) {
+  const producto = (state.productos || []).find(p => p.id === id);
+  if (!producto || !producto.imagen_url) return;
+  estadoNuevoDestacado('Creando el destacado…');
+  try {
+    const nueva = await apiFetch('POST', '/api/promociones', {
+      restaurante_id: state.restaurante.id,
+      imagen_url: producto.imagen_url,
+      nombre: producto.nombre || '', precio: producto.precio || '',
+      activa: false, en_popup: true, en_tv: false,
+      programacion: {}, orden: (state.promociones || []).length,
+    });
+    state.promociones = [...(state.promociones || []), nueva];
+    pintarPromociones(); closeModal('destacadoModal');
+    estadoNuevoDestacado('');
+    showToast('Destacado creado como borrador. Publícalo cuando esté listo.', 'success');
+  } catch (e) {
+    estadoNuevoDestacado(e.message || 'Error al crear el destacado', 'var(--danger)');
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function crearDestacadoConImagen(input) {
   const file = input.files[0]; if (!file) return;
-  const st = document.getElementById('promoNuevaEstado');
-  st.textContent = 'Subiendo la imagen…'; st.style.color = 'var(--text-muted)';
+  estadoNuevoDestacado('Subiendo la imagen…');
   try {
     const blob = await compressImage(file, 1200, .85);
     const url = await uploadImg(blob, 'promos');
     const nueva = await apiFetch('POST', '/api/promociones', {
       restaurante_id: state.restaurante.id,
       imagen_url: url,
-      activa: true, en_popup: true, en_tv: false,
+      activa: false, en_popup: true, en_tv: false,
       programacion: {},
       orden: (state.promociones || []).length,
     });
     state.promociones = [...(state.promociones || []), nueva];
     pintarPromociones();
-    st.textContent = '';
-    showToast('Promoción añadida', 'success');
+    closeModal('destacadoModal');
+    estadoNuevoDestacado('');
+    showToast('Destacado creado como borrador. Publícalo cuando esté listo.', 'success');
   } catch (e) {
-    st.textContent = e.message || 'Error al añadir'; st.style.color = 'var(--danger)';
+    estadoNuevoDestacado(e.message || 'Error al añadir', 'var(--danger)');
     showToast('Error: ' + e.message, 'error');
   }
   input.value = '';
@@ -481,5 +572,5 @@ async function reemplazarImagenDePromo(input) {
 // quien sabe si sobra es el limpiador, que mira las tablas enteras.
 function eliminarPromo(id) {
   const p = (state.promociones || []).find(x => x.id === id);
-  confirmDelete('promocion', id, (p && p.nombre) || 'esta promoción');
+  confirmDelete('promocion', id, (p && p.nombre) || 'este destacado');
 }

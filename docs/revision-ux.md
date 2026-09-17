@@ -512,6 +512,23 @@ ni símbolo $. También se renombraron las descripciones sin cambiar sus datos n
 la carta pública: «Descripción del producto» explica que sale al abrir el plato,
 y «Descripción corta» que sale bajo el nombre y manda en las cartas de video.
 
+## P8 · «Promoción» no nombra todo lo que se puede destacar, y el alta abre el explorador antes de decidir · **Media**
+
+- [x] Hecho · 2026-09-16 · PR pendiente
+
+La misma ventana sirve para una oferta, un plato del día, una novedad o un aviso,
+pero «Promoción» hacía parecer que los tres últimos no cabían. Además, pulsar
+«Añadir» abría de inmediato el explorador de archivos: antes de saber si quería
+subir un diseño propio o reutilizar un plato ya creado, el panel le pedía buscar
+un archivo.
+
+**Aplicado:** la pestaña se llama **Destacados** y explica sus usos. «Añadir
+destacado» abre una ventana con dos caminos: subir una imagen o escoger un
+producto de la carta. El segundo copia su foto, nombre y precio a un destacado
+independiente, sin modificar el plato. Ambas rutas crean un borrador: se publica
+de forma explícita desde la tarjeta, después de elegir dónde mostrarlo y, si
+hace falta, programarlo.
+
 ## Lo que está bien y conviene no perder
 
 `confirmDelete` (`index.html:5472`) **cuenta los platos que se lleva una

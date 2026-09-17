@@ -380,6 +380,34 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .form-check{display:flex;align-items:center;gap:10px;padding:10px 0;}
 .form-ayuda{font-size:11px;color:var(--text-dim);line-height:1.5;margin:-2px 0 7px;}
 
+/* El alta de un destacado no abre el explorador de archivos de inmediato:
+   primero deja elegir entre una imagen propia y un plato que ya existe. */
+.destacado-modal-box{max-width:560px;}
+.destacado-intro{font-size:13px;color:var(--text-muted);line-height:1.6;margin:0 0 16px;}
+.destacado-origenes{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.destacado-origen{display:flex;gap:11px;align-items:flex-start;text-align:left;padding:14px;
+  border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--text);cursor:pointer;}
+.destacado-origen:hover{border-color:var(--accent);}
+.destacado-origen>span:first-child{font-size:20px;line-height:1;}
+.destacado-origen strong,.destacado-origen small{display:block;}
+.destacado-origen strong{font-size:12px;margin-bottom:4px;}
+.destacado-origen small{font-size:11px;color:var(--text-dim);line-height:1.45;}
+.destacado-productos{margin-top:18px;border-top:1px solid var(--border);padding-top:16px;}
+.destacado-productos-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.destacado-productos-head strong{font-size:13px;}
+.destacado-productos-head span{font-size:11px;color:var(--text-dim);}
+.destacado-producto-lista{display:grid;gap:7px;max-height:300px;overflow-y:auto;}
+.destacado-producto{display:flex;align-items:center;gap:10px;width:100%;padding:8px;border:1px solid var(--border);
+  border-radius:8px;background:var(--card);color:var(--text);text-align:left;cursor:pointer;}
+.destacado-producto:hover{border-color:var(--accent);}
+.destacado-producto img,.destacado-producto-sin-foto{width:48px;height:40px;border-radius:5px;object-fit:cover;flex:0 0 auto;}
+.destacado-producto-sin-foto{display:flex;align-items:center;justify-content:center;background:var(--panel);font-size:17px;}
+.destacado-producto-nombre{font-size:12px;line-height:1.35;flex:1;}
+.destacado-producto-precio{font-family:var(--mono);font-size:10px;color:var(--text-muted);white-space:nowrap;}
+.destacado-producto[disabled]{opacity:.45;cursor:not-allowed;}
+.destacado-producto[disabled]:hover{border-color:var(--border);}
+@media (max-width:520px){.destacado-origenes{grid-template-columns:1fr;}}
+
 /* La ficha abre por lo imprescindible. Foto, descripciones y configuraciones
    siguen en la misma ventana, pero no obligan a recorrerlas para crear un plato. */
 #productModal .modal-body{display:flex;flex-direction:column;}
