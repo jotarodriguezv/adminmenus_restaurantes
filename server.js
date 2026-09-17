@@ -731,7 +731,7 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // entonces solo las escribía el superadmin.
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
-  'filtros_disponibles', 'filtros_activos', 'carrito'];
+  'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador'];
 
 // ── FILTROS Y ETIQUETAS ───────────────────────────────────────
 // Lo que el restaurante ofrece como filtro en su carta. Entró en la lista del
@@ -993,7 +993,10 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     // 'filtros_activos' es el otro extremo y por eso también está aquí: la carta
     // solo apaga los chips con un false de verdad (core/filtros.js), así que un
     // "false" de texto los dejaría encendidos después de apagarlos.
-    for (const k of ['carrito', 'filtros_activos'])
+    // 'buscador' va con ellos y por lo mismo: la carta solo lo apaga con un
+    // false de verdad (core/buscador.js), así que un "false" de texto dejaría
+    // la caja de búsqueda puesta después de apagarla.
+    for (const k of ['carrito', 'filtros_activos', 'buscador'])
       if (k in entrantes) entrantes[k] = entrantes[k] === true;
     const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes);
     if (errorAjustes) return res.status(400).json({ error: errorAjustes });

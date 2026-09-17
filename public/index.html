@@ -1238,6 +1238,21 @@
 						</div>
 					</div>
 					</div>
+					<!-- El buscador lo pintan los cinco modelos desde vmenus-app#36
+					     (core/buscador.js). Va antes que los filtros porque es lo primero
+					     que hace quien ya sabe qué plato quiere. -->
+					<div class="section-card" id="ajBuscadorCard">
+						<div class="section-header">
+							<div class="section-title">Buscador de platos</div>
+							<label class="toggle" title="Ofrecer el buscador en la carta">
+								<input type="checkbox" id="ajBuscador" aria-label="Ofrecer el buscador en la carta" onchange="pintarNotaBuscador()"><span class="toggle-slider"></span>
+							</label>
+						</div>
+						<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
+							Con el interruptor encendido, tus clientes pueden escribir el nombre de un plato y la carta les deja solo ese. Busca también en las descripciones, y no hace falta que escriban tildes.
+						</p>
+						<p id="ajBuscadorNota" style="font-size:13px;margin:0;line-height:1.5"></p>
+					</div>
 					<!-- Los filtros los pintan los seis modelos de la carta (core/filtros.js en
 					     vmenus-app), no solo explorar. Las insignias de cada plato sí siguen
 					     siendo de explorar, y por eso no están aquí. -->
