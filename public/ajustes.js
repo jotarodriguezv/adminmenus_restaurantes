@@ -300,9 +300,7 @@ function puedeElegirCarrito() {
 
 // ¿La carta que se está configurando va a tener carrito? Mira el INTERRUPTOR de
 // la pantalla, no lo guardado: encenderlo tiene que enseñar el número y los
-// pagos ahí mismo, que es de lo que iba traérselos a esta pestaña. El modelo
-// 'carrito' sale que sí con el interruptor apagado, porque su carta lo lleva
-// siempre; de eso se encarga cartaTieneCarrito.
+// pagos ahí mismo, que es de lo que iba traérselos a esta pestaña.
 function carritoEnPantalla() {
   const at = state.restaurante?.atributos || {};
   return cartaTieneCarrito({ ...at, carrito: document.getElementById('ajCarrito').checked }, planActual());
@@ -336,9 +334,7 @@ function pintarNotaCarrito() {
   document.getElementById('ajCarritoInterruptor').style.display = puede ? '' : 'none';
   nota.style.color = 'var(--text-muted)';
 
-  if (nav === 'carrito') {
-    nota.textContent = 'Tu carta es de pedidos: el carrito está siempre encendido. Aquí debajo van el número de WhatsApp y los métodos de pago.';
-  } else if (!planActual().carrito) {
+  if (!planActual().carrito) {
     nota.textContent = 'Tu plan no incluye pedidos desde la carta.';
   } else if (!puede) {
     nota.textContent = 'El modelo de tu carta no tiene carrito de pedidos.';

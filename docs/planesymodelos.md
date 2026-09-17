@@ -53,9 +53,10 @@ mientras quede algún restaurante guardado con ellos. **Sin plan**, o con uno qu
 no existe, **manda el modelo**: una carta de video es del plan Video. Antes caía
 en Pedidos, que no abría la subida de video.
 
-El modelo **Carrito** ya no está en ningún plan: desde el 17/09/2026 el carrito
-es un interruptor en los otros cinco modelos. Se sigue pintando mientras
-algún restaurante lo tenga guardado.
+El modelo **Carrito** se retiró el 17/09/2026: el carrito es un interruptor en
+los otros cinco modelos. `sql/24` pasó a sus dos restaurantes a Sidebar con el
+carrito encendido, y su código se borró de la carta y del panel. Los nombres de
+planes viejos dejaron de leerse a la vez: sin plan válido, manda el modelo.
 
 **Video es su propio plan** porque su coste no se
 parece: cada plato es un archivo que hay que almacenar, convertir y servir
@@ -90,7 +91,6 @@ El modelo decide la forma de la carta. Cada plan permite unos cuantos.
 | `topnav` | Categorías arriba | fotos | interruptor (desde el 15/09/2026) |
 | `sidebar` | Categorías al lado | fotos | interruptor (desde el 15/09/2026) |
 | `explorar` | Buscador y filtros | fotos | interruptor (desde el 17/09/2026) |
-| `carrito` | Pedido como página entera | fotos | siempre |
 | `video` | Columna de tarjetas **16:9** | video | interruptor |
 | `vertical` | Pantalla completa **9:16**, un plato por deslizamiento | video | interruptor |
 
