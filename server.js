@@ -1536,7 +1536,7 @@ function normalizarPrecio(body) {
 // vía para que lo que escribe un restaurante acabe ejecutándose en la sesión
 // de quien administra a todos. El escapado del panel es la otra mitad de
 // esto; las dos hacen falta.
-const ATRIBUTOS_PRODUCTO_PERMITIDOS = ['imagenes', 'personalizacion', 'filtros', 'popular', 'chef', 'nuevo'];
+const ATRIBUTOS_PRODUCTO_PERMITIDOS = ['imagenes', 'personalizacion', 'filtros', 'popular', 'chef', 'nuevo', 'precio_gratis'];
 
 // 'video' lo escribe el worker cuando termina de convertir, nunca el
 // navegador. Pero NO se puede simplemente descartar: el panel manda el
@@ -1547,7 +1547,8 @@ const ATRIBUTOS_PRODUCTO_DEL_SERVIDOR = ['video'];
 function atributosProducto(entrantes, actuales) {
   const out = {};
   for (const clave of ATRIBUTOS_PRODUCTO_PERMITIDOS)
-    if (entrantes?.[clave] !== undefined) out[clave] = entrantes[clave];
+    if (entrantes?.[clave] !== undefined)
+      out[clave] = clave === 'precio_gratis' ? entrantes[clave] === true : entrantes[clave];
   for (const clave of ATRIBUTOS_PRODUCTO_DEL_SERVIDOR)
     if (actuales?.[clave] !== undefined) out[clave] = actuales[clave];
   return out;
