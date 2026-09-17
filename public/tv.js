@@ -391,9 +391,11 @@ function tvPintarNotaHorarios() {
         fila.className = 'tv-categoria-horario';
         const nombre = document.createElement('strong');
         nombre.textContent = categoria.nombre;
+        const horario = document.createElement('span');
+        horario.textContent = ' · ' + describirHorario(categoria.atributos.horario);
         const estado = vigenteAhora(categoria.atributos.horario, zonaRestaurante())
           ? ' · ahora visible en la cartelera' : ' · ahora oculta en la cartelera';
-        fila.append(nombre, document.createTextNode(estado));
+        fila.append(nombre, horario, document.createTextNode(estado));
         detalle.appendChild(fila);
       }
     }
