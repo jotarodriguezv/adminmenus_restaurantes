@@ -626,6 +626,13 @@ function tvTarjetaDeProgramacion(pr, indice) {
                        'taparía siempre a lo de arriba y nadie sabría por qué.';
       el.style.color = 'var(--warn)'; return;
     }
+    // La cuenta de platos marcados vive dentro de la rejilla, que está plegada:
+    // sin esto, una excepción de platos sueltos y vacía se veía correcta hasta
+    // que alguien la desplegaba. Y ahora, además, no deja guardar.
+    if (pr.modo === 'manual' && !pr.productos.length) {
+      el.textContent = 'No has marcado ningún plato: pulsa «Elegir platos». Así, esta excepción no enseñaría nada.';
+      el.style.color = 'var(--warn)'; return;
+    }
     const que = pr.modo === 'todos' ? 'todos los platos'
       : pr.modo === 'manual'
         ? `${pr.productos.length} plato${pr.productos.length === 1 ? '' : 's'} sueltos`
@@ -1003,6 +1010,31 @@ function tvRecargarVistaPrevia() {
   if (base) document.getElementById('tvPrevia').src = base + '?v=' + Date.now();
 }
 
+// ── EXCEPCIONES QUE NO SE PODRÍAN GUARDAR ─────────────────────
+// Una excepción sin días ni horas se DESCARTA al guardar (tvProgramacionesParaGuardar,
+// y tv.html se la salta por lo mismo). Hasta el 17/09/2026 eso pasaba en
+// silencio: la tarjeta decía en naranja que así no se aplica, pero guardar
+// contestaba «✓ Guardado», la tarjeta seguía en pantalla y al volver a la
+// pestaña había desaparecido. Se probó en el navegador: la base recibía cero
+// programaciones y el panel no lo decía.
+//
+// Y una de «platos sueltos» sin ningún plato marcado sí se guarda, pero no
+// enseñaría nada — el aviso de la tarjeta solo se veía al abrir la rejilla.
+//
+// Devuelve el índice para poder llevar a la tarjeta: decir «hay una excepción
+// mal» sin decir cuál obliga a repasarlas todas.
+function excepcionesQueNoSirven(lista = tvProgs) {
+  const malas = [];
+  lista.forEach((pr, i) => {
+    if (!tieneProgramacion(pr.programacion)) {
+      malas.push({ indice: i, motivo: 'sin días, horas ni fechas: así no se aplicaría y se perdería al guardar' });
+    } else if (pr.modo === 'manual' && !(pr.productos || []).length) {
+      malas.push({ indice: i, motivo: 'en «platos sueltos» y sin ningún plato marcado: no enseñaría nada' });
+    }
+  });
+  return malas;
+}
+
 // Lo que se guarda de la cartelera. Aparte de saveTV porque es también con lo
 // que se mide si la pestaña tiene cambios sin guardar (switchTab): medirlo con
 // otra cosa avisaría de cambios que al guardar no cambian nada.
@@ -1040,6 +1072,20 @@ async function saveTV() {
   if (activa && !tvCuantos()) {
     showToast('Con esa selección no se mostraría ningún plato', 'error');
     st.textContent = 'Revisa qué platos se muestran'; st.style.color = 'var(--danger)';
+    return;
+  }
+
+  // Lo mismo con las excepciones: no se guarda a medias y sin decirlo.
+  const malas = excepcionesQueNoSirven();
+  if (malas.length) {
+    const { indice, motivo } = malas[0];
+    const texto = `La excepción ${indice + 1}.ª está ${motivo}. Complétala o bórrala.`;
+    showToast(texto, 'error');
+    st.textContent = texto; st.style.color = 'var(--danger)';
+    // A la tarjeta, que puede estar a varias pantallas de aquí.
+    const tarjeta = document.querySelectorAll('#tvProgramaciones .tv-programacion')[indice];
+    tarjeta?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    tarjeta?.querySelector('.tp-modo')?.focus();
     return;
   }
 
