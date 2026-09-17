@@ -84,7 +84,7 @@ El modelo decide la forma de la carta. Cada plan permite unos cuantos.
 |---|---|---|---|
 | `topnav` | Categorías arriba | fotos | interruptor (desde el 15/09/2026) |
 | `sidebar` | Categorías al lado | fotos | interruptor (desde el 15/09/2026) |
-| `explorar` | Buscador y filtros | fotos | no |
+| `explorar` | Buscador y filtros | fotos | interruptor (desde el 17/09/2026) |
 | `carrito` | Pedido como página entera | fotos | siempre |
 | `video` | Columna de tarjetas **16:9** | video | interruptor |
 | `vertical` | Pantalla completa **9:16**, un plato por deslizamiento | video | interruptor |

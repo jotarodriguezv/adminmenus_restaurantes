@@ -2415,19 +2415,16 @@ function esModeloDeVideo(nav) { return MODELOS_VIDEO.includes(nav); }
 // La usan los avisos de «no recibe pedidos» y, desde PE3, las pestañas de
 // ajustarPestanasAlModelo(). Hasta entonces aquellas tenían su propia regla
 // —plan + interruptor en CUALQUIER modelo— y las dos discrepaban. En la carta:
-// temas/carrito.js lo enciende siempre, y video, vertical, topnav y sidebar si
-// hay plan e interruptor (carritoEncendido() en core/carrito.js). Explorar no
-// tiene carrito, digan lo que digan el plan y el interruptor.
-//
-// Los avisos de «no recibe pedidos» usan ESTA regla y no aquella: avisarle a un
-// restaurante Explorar de que sus clientes no pueden enviar el pedido sería
-// falso, porque su carta ni siquiera deja armarlo.
+// temas/carrito.js lo enciende siempre, y los otros cinco si hay plan e
+// interruptor (carritoEncendido() en core/carrito.js).
 //
 // Topnav y Sidebar entraron el 15/09/2026, con vmenus-app#28: son Bonzas y
-// Malparados. MODELOS_CARRITO_OPCIONAL ya no coincide con MODELOS_VIDEO, que es
+// Malparados. Explorar, el 17/09/2026 con vmenus-app#33; hasta entonces su carta
+// no lo pintaba digan lo que dijeran el plan y el interruptor, y por eso los
+// avisos de «no recibe pedidos» usan esta regla y no solo plan + interruptor. MODELOS_CARRITO_OPCIONAL ya no coincide con MODELOS_VIDEO, que es
 // justo por lo que nunca se ataron. Si en vmenus-app otro tema empieza a llamar a
 // activarCarrito(), hay que añadirlo aquí.
-const MODELOS_CARRITO_OPCIONAL = ['video', 'vertical', 'topnav', 'sidebar'];
+const MODELOS_CARRITO_OPCIONAL = ['video', 'vertical', 'topnav', 'sidebar', 'explorar'];
 function cartaTieneCarrito(atributos, plan) {
   const nav = atributos?.nav || MODELO_POR_DEFECTO;
   if (nav === 'carrito') return true;
@@ -6562,10 +6559,9 @@ function fichaPlanHtml(r) {
   //    llevaba siendo Topnav y con el carrito apagado, y el propio panel ni le
   //    enseñaba dónde poner el número (X1). Mismo criterio que la IA de abajo: se
   //    nombra solo donde podría existir. Todos los planes incluyen carrito, así
-  //    que eso no distingue nada; lo que distingue es el modelo. En Video,
-  //    Vertical, Topnav y Sidebar es un interruptor y se dice si está apagado. En
-  //    Explorar no se puede tener sin cambiar de modelo, y ahí «apagado»
-  //    sugeriría un interruptor que no existe: no se nombra.
+  //    que eso no distingue nada; lo que distingue es el modelo. En los modelos
+  //    con interruptor —desde el 17/09/2026 también Explorar— se dice si está
+  //    apagado. En el modelo Carrito va siempre encendido.
   if (cartaTieneCarrito(r?.atributos, plan)) partes.push(et('🛒 pedidos'));
   else if (plan.carrito && MODELOS_CARRITO_OPCIONAL.includes(modelo)) partes.push(et('🛒 pedidos apagados', 'apagada'));
 

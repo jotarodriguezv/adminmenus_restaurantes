@@ -574,7 +574,9 @@ que buscan `tabBtnApariencia` y el texto «Apariencia» en los avisos.
    Sidebar, un «+» en cada plato y otro en la ficha, decidido con el usuario. La
    regla plan + interruptor quedó en una sola función, `carritoEncendido()`, y
    la lista del panel es `MODELOS_CARRITO_OPCIONAL` (`video`, `vertical`,
-   `topnav`, `sidebar`). **Explorar sigue sin carrito.**
+   `topnav`, `sidebar`, y `explorar` desde el 17/09/2026 con vmenus-app#33,
+   que lleva el botón del pedido arriba junto a la lupa porque abajo está la
+   barra de categorías).
 
    **El orden de despliegue importa:** primero la carta, después el panel. Con
    `carrito: false` la carta nueva se pinta igual que antes; al revés, un
@@ -631,8 +633,8 @@ un plato lo suma al pedido en vez de abrir su ficha.
 - **Desaparecen «Pedidos» y «Vitrina».**
 - El **carrito, los filtros y el buscador** —que todavía no existe y el usuario
   quiere en las plantillas— van **aparte** del plan.
-- **Explorar tendrá carrito** (hoy no lo pinta aunque el plan lo incluya). Es lo
-  próximo que quiere trabajar.
+- ~~**Explorar tendrá carrito**~~ **Hecho el 17/09/2026** (vmenus-app#33): el
+  carrito ya es un interruptor en todos los modelos menos en «Carrito».
 - **El modelo «Carrito» se retira.** Lo usan `aojocerrado` y `perroscriollos`,
   los dos de prueba. Pasarían a Sidebar con el carrito encendido, que es lo más
   parecido que hay. Orden: quitarlo del selector, migrar esos dos (escritura en
