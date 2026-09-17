@@ -5498,7 +5498,7 @@ describe('la lista del superadmin: el rojo solo para eliminar, y el estado no pa
 		const lista = { innerHTML: '', appendChild(c) { tarjetas.push(c); } };
 		const ctx = cargar('index.html', 'async function cargarListaRestos', '// Encender o apagar la generación con IA', {
 			document: {
-				getElementById: id => (id === 'adminRestoList' ? lista : { innerHTML: '', appendChild() {} }),
+				getElementById: id => (id === 'adminRestoList' ? lista : { innerHTML: '', appendChild() {}, replaceChildren() {} }),
 				createElement: nodo,
 			},
 			apiFetch: async ruta => null, state: {},
@@ -5506,6 +5506,8 @@ describe('la lista del superadmin: el rojo solo para eliminar, y el estado no pa
 			fichaPlanHtml: () => '', resumenVideoHtml: () => '', facturacionDe: () => null,
 			urlPublica: () => 'https://x', planDe: () => ({}),
 			toggleSuspension() {}, entrarARestaurante() {}, cambiarPin() {}, marcarComoPagado() {}, eliminarRestaurante() {},
+			// Los filtros de la lista viven en restaurantes-filtros.js y tienen sus propias pruebas.
+			pintarFiltrosRestos() {},
 			Promise, String,
 		});
 		// apiFetch devuelve los restaurantes solo en su ruta; el resto, vacío.
@@ -5600,7 +5602,7 @@ describe('si la lista de restaurantes no carga, se dice por qué y se puede rein
 	// S5 en docs/revision-ux.md: «Error cargando restaurantes», sin motivo ni botón.
 	const nodo = () => {
 		const n = { className: '', textContent: '', type: '', onclick: null, hijos: [], innerHTML: '', style: {}, dataset: {},
-			appendChild(h) { this.hijos.push(h); return h; } };
+			appendChild(h) { this.hijos.push(h); return h; }, replaceChildren() { this.hijos = []; } };
 		n.querySelector = () => (n._dentro ||= nodo());
 		return n;
 	};
@@ -5614,6 +5616,7 @@ describe('si la lista de restaurantes no carga, se dice por qué y se puede rein
 			// mismo, sus opciones se mezclarían con las tarjetas.
 			document: { getElementById: id => (id === 'adminRestoList' ? lista : (otros[id] ||= nodo())), createElement: nodo },
 			apiFetch, state: {}, Promise, String, TypeError,
+			pintarFiltrosRestos() {},
 		});
 		return { ctx, lista, reintentos: () => reintentos, contar: () => { reintentos++; } };
 	}
@@ -6882,5 +6885,98 @@ describe('cambiar de pestaña con cambios sin guardar pregunta antes', () => {
 		ctx.fijarFotoDePestana('ajustes');   // lo que hace saveAjustes al terminar
 		ctx.switchTab('inicio', boton());
 		assert.deepEqual(abiertos, []);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('los filtros de la lista de restaurantes', () => {
+	// Pedido el 17/09/2026: filtrar por tipo de página, por modelo y por lo que
+	// cada carta tiene encendido.
+	const reglas = () => cargar('restaurantes-filtros.js', [
+		// PLANES, los modelos y cartaTieneCarrito viven en index.html: las
+		// funcionalidades se miden con la misma regla que la carta, no con una copia.
+		['index.html', 'const TODO_INCLUIDO', '// ── AYUDA QUE DEPENDE DE QUIÉN MIRA'],
+		['restaurantes-filtros.js', '// ── QUÉ SE PUEDE FILTRAR', '// ── PINTAR'],
+	], { Object, Array, Boolean });
+	// Un `const` de nivel superior no aparece como propiedad del contexto —solo
+	// las funciones—, así que el filtro vacío se escribe aquí.
+	const VACIO = { tipo: 'todos', modelo: 'todos', funciones: [], entorno: 'todos' };
+
+	const resto = (atributos, plan) => ({ atributos: { ...atributos, plan } });
+
+	test('el tipo sale del plan, y sin plan lo dice el modelo', () => {
+		const ctx = reglas();
+		assert.equal(ctx.rasgosDeResto(resto({ nav: 'sidebar' }, 'fotos')).tipo, 'fotos');
+		assert.equal(ctx.rasgosDeResto(resto({ nav: 'vertical' })).tipo, 'video');
+		assert.equal(ctx.rasgosDeResto(resto({})).tipo, 'fotos');
+	});
+
+	test('sin modelo guardado cuenta como Topnav, igual que la carta', () => {
+		assert.equal(reglas().rasgosDeResto(resto({}, 'fotos')).modelo, 'topnav');
+	});
+
+	test('«con pedidos» es lo que la carta pinta, no el interruptor a secas', () => {
+		const ctx = reglas();
+		const tiene = at => ctx.rasgosDeResto(resto(at, 'fotos')).funciones.includes('pedidos');
+		assert.equal(tiene({ nav: 'sidebar', carrito: true }), true);
+		assert.equal(tiene({ nav: 'sidebar', carrito: false }), false);
+	});
+
+	test('los toppings solo cuentan con el carrito encendido', () => {
+		const ctx = reglas();
+		const con = { nav: 'sidebar', toppings_platino: [{ id: 't1', nombre: 'Queso' }] };
+		assert.equal(ctx.rasgosDeResto(resto({ ...con, carrito: true }, 'fotos')).funciones.includes('toppings'), true);
+		// Apagado no los borra, pero el comensal no los ve: buscarlos aquí sería
+		// encontrar cartas que no los ofrecen.
+		assert.equal(ctx.rasgosDeResto(resto({ ...con, carrito: false }, 'fotos')).funciones.includes('toppings'), false);
+	});
+
+	test('los filtros sin el dato cuentan como encendidos si hay alguno elegido', () => {
+		const ctx = reglas();
+		const tiene = at => ctx.rasgosDeResto(resto(at, 'fotos')).funciones.includes('filtros');
+		assert.equal(tiene({ filtros_disponibles: [{ id: 'picante' }] }), true, 'como lo lee la carta');
+		assert.equal(tiene({ filtros_disponibles: [{ id: 'picante' }], filtros_activos: false }), false);
+		assert.equal(tiene({ filtros_activos: true }), false, 'encendido y sin ninguno no enseña nada');
+	});
+
+	test('la IA solo cuenta donde hay video, y se apaga desde el resumen', () => {
+		const ctx = reglas();
+		const tiene = (plan, resumen) => ctx.rasgosDeResto(resto({}, plan), null, resumen).funciones.includes('ia');
+		assert.equal(tiene('video'), true);
+		assert.equal(tiene('video', { ia_activa: false }), false);
+		assert.equal(tiene('fotos'), false);
+	});
+
+	test('las funcionalidades se suman: marcar dos pide las dos', () => {
+		const ctx = reglas();
+		const rasgos = { tipo: 'fotos', modelo: 'sidebar', funciones: ['pedidos'], prueba: false };
+		const f = { ...VACIO };
+		assert.equal(ctx.pasaFiltroRestos(rasgos, { ...f, funciones: ['pedidos'] }), true);
+		assert.equal(ctx.pasaFiltroRestos(rasgos, { ...f, funciones: ['pedidos', 'tv'] }), false);
+	});
+
+	test('el entorno separa los clientes de verdad de las demos', () => {
+		const ctx = reglas();
+		const f = { ...VACIO };
+		const real = { tipo: 'fotos', modelo: 'topnav', funciones: [], prueba: false };
+		assert.equal(ctx.pasaFiltroRestos(real, { ...f, entorno: 'reales' }), true);
+		assert.equal(ctx.pasaFiltroRestos(real, { ...f, entorno: 'prueba' }), false);
+		assert.equal(ctx.pasaFiltroRestos({ ...real, prueba: true }, { ...f, entorno: 'reales' }), false);
+	});
+
+	test('solo se ofrecen los modelos del tipo elegido', () => {
+		const ctx = reglas();
+		// Con el spread: el array nace en el contexto del panel y deepEqual compara
+		// también el prototipo, que es de otro realm.
+		assert.deepEqual([...ctx.modelosDelFiltro('video')], ['video', 'vertical']);
+		assert.equal(ctx.modelosDelFiltro('todos').length, 5);
+	});
+
+	test('cambiar de tipo suelta un modelo que ya no es de ese tipo', () => {
+		// Si no, la lista se queda vacía y el botón que la vació ni se ve.
+		const ctx = reglas();
+		const f = { ...VACIO, tipo: 'video', modelo: 'vertical' };
+		assert.equal(ctx.filtroTrasCambio(f, { tipo: 'fotos' }).modelo, 'todos');
+		assert.equal(ctx.filtroTrasCambio(f, { tipo: 'video' }).modelo, 'vertical');
 	});
 });

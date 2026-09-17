@@ -124,6 +124,7 @@
 				<!-- Lista de restaurantes -->
 				<div class="section-card">
 					<div class="section-title">Restaurantes registrados</div>
+					<div class="resto-filtros" id="adminRestoFiltros"></div>
 					<div id="adminRestoList"><div class="empty-state">Cargando...</div></div>
 				</div>
 			</div>
@@ -2140,6 +2141,7 @@
 <script src="toppings.js"></script>
 <script src="pedidos.js"></script>
 <script src="ajustes.js"></script>
+<script src="restaurantes-filtros.js"></script>
 <script>
 // ── COLORES ───────────────────────────────────────────────────
 // Los campos de color son de texto libre y nadie rechazaba un '#12345' o un
@@ -6785,6 +6787,9 @@ async function eliminarRestaurante(id, nombre) {
 async function cargarListaRestos() {
   const list=document.getElementById('adminRestoList');
   list.innerHTML='<div class="empty-state">Cargando...</div>';
+  // Sin tarjetas debajo, unos filtros con sus cuentas viejas mentirían. Se
+  // vuelven a pintar al final, cuando ya hay lista.
+  document.getElementById('adminRestoFiltros').replaceChildren();
   try {
     // Las dos a la vez: la lista no se puede pintar sin el estado de pago y
     // esperar una detrás de otra no aporta nada.
@@ -6913,6 +6918,9 @@ async function cargarListaRestos() {
       acciones.appendChild(mas);
       list.appendChild(card);
     });
+    // Los filtros se pintan después de las tarjetas: cuentan sobre ellas, y la
+    // lista se recarga entera tras cada acción, así que lo elegido sigue puesto.
+    pintarFiltrosRestos();
   } catch(e) { pintarErrorLista(list, e); }
 }
 
