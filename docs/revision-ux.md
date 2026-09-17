@@ -1043,7 +1043,7 @@ de intercalados usa la tabla de Destacados, no las columnas antiguas.
 
 ## TV3 · El detalle de categorías con horario se perdía en el texto y una excepción nueva nacía fuera de vista · **Media**
 
-- [x] Hecho · 2026-09-17 · PR pendiente
+- [x] Hecho · 2026-09-17 · PR #164
 
 Las categorías afectadas por «Respetar los horarios» iban al final de un párrafo
 largo, donde parecían otra aclaración más. Ahora viven en un bloque separado y
