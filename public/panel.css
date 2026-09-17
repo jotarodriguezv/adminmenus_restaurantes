@@ -583,6 +583,18 @@ select.form-input{padding-right:42px;}
    ENTRE ellas pero nunca por dentro. Con separadores de texto ("·")
    el salto caía en cualquier sitio y dejaba el punto colgando al
    principio de la línea siguiente. */
+/* ── LOS FILTROS DE LA LISTA DE RESTAURANTES ────────────
+   Filas que envuelven: en un móvil los chips bajan de línea en vez
+   de salirse, que es lo que hacía el carril de las pestañas (M1). */
+.resto-filtros{display:grid;gap:8px;margin:2px 0 14px;}
+.resto-filtros-fila{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+.resto-filtros-titulo{font-family:var(--mono);font-size:10px;letter-spacing:1px;
+  text-transform:uppercase;color:var(--text-dim);min-width:58px;}
+.resto-filtros-fila .cat-chip{padding:5px 11px;font-size:11px;}
+.resto-filtros-cuenta{font-family:var(--mono);font-size:11px;color:var(--text-muted);}
+.resto-filtros-quitar{background:none;border:none;padding:0;font:inherit;
+  color:var(--accent);text-decoration:underline;cursor:pointer;}
+
 .resto-etiquetas{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:4px;}
 .resto-etiqueta{font-family:var(--mono);font-size:9px;letter-spacing:.5px;
   padding:2px 7px;border-radius:4px;border:1px solid var(--border);
