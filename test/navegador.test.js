@@ -7909,3 +7909,157 @@ describe('«guardado» con un botón para ver la carta', () => {
 		assert.ok((html.match(/avisarGuardadoConCarta\(/g) || []).length >= 10);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('video recién subido · la ficha no se cierra mientras convierte', () => {
+	// El 18/09/2026, con el bloqueo ya desplegado, subir un video y cerrar la
+	// ficha durante la conversión seguía funcionando. La puerta de salida busca
+	// el trabajo en state.trabajosVideo, y la subida no lo apuntaba ahí: solo
+	// se bloqueaba al reabrir el plato. Las pruebas de arriba no lo veían
+	// porque le dan el trabajo hecho a trabajoEnCursoDe.
+	const montar = ({ vigilando = null, trabajos = [] } = {}) => {
+		const mapa = {
+			editProductId:  { value: 'p1' },
+			procesoTexto:   { textContent: '' },
+			procesoTitulo:  { textContent: '' },
+			procesoNota:    { textContent: '' },
+			procesoSeguir:  { textContent: '' },
+			procesoSalir:   { style: {} },
+		};
+		const abiertos = [], cerrados = [];
+		const ctx = cargar('index.html', [
+			['function trabajoEnCursoDe', '// El trabajo terminado de un plato'],
+			['function firmaProducto', 'async function saveProduct'],
+		], {
+			state: { pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {},
+				subiendoVideo: false, vigilandoTrabajo: vigilando, trabajosVideo: trabajos },
+			videoElegido: null,
+			document: { getElementById: id => mapa[id] },
+			openModal:  id => abiertos.push(id),
+			closeModal: id => cerrados.push(id),
+		});
+		return { ctx, mapa, abiertos, cerrados };
+	};
+
+	test('al terminar la subida, el trabajo cuenta como en marcha', () => {
+		const { ctx, abiertos, cerrados } = montar({ vigilando: 't9' });
+		ctx.anotarTrabajoEnCurso('t9', 'p1');
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+
+		assert.equal(ctx.procesoEnMarchaDelPlato(), 'convirtiendo');
+		assert.deepEqual(abiertos, ['procesoModal']);
+		assert.deepEqual(cerrados, [], 'la ficha sigue abierta');
+	});
+
+	test('sin apuntarlo, la ficha se cerraba (el fallo de antes)', () => {
+		// Control: demuestra que lo que bloquea es el apunte y no otra cosa.
+		const { ctx, cerrados } = montar({ vigilando: 't9' });
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+		assert.deepEqual(cerrados, ['productModal']);
+	});
+
+	test('apuntarlo dos veces no duplica el trabajo', () => {
+		const { ctx } = montar();
+		ctx.anotarTrabajoEnCurso('t9', 'p1');
+		ctx.anotarTrabajoEnCurso('t9', 'p1');
+		assert.equal(ctx.state.trabajosVideo.length, 1);
+	});
+
+	test('no toca los trabajos de otros platos', () => {
+		const otro = { id: 't1', producto_id: 'p2', estado: 'listo' };
+		const { ctx } = montar({ trabajos: [otro] });
+		ctx.anotarTrabajoEnCurso('t9', 'p1');
+		assert.equal(ctx.state.trabajosVideo.length, 2);
+		assert.equal(ctx.trabajoEnCursoDe('p2'), null);
+	});
+
+	test('se apunta antes de vigilar, dentro de la subida', () => {
+		// Si fuera después del finally, entre subiendoVideo=false y el apunte
+		// habría un instante en que la ficha se deja cerrar.
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const subir = src.match(/async function confirmarSubidaVideo\(\) \{[\s\S]*?\n\}/)[0];
+		const anota = subir.indexOf('anotarTrabajoEnCurso(r.trabajo_id');
+		assert.notEqual(anota, -1, 'la subida tiene que apuntar el trabajo');
+		assert.ok(anota < subir.indexOf('vigilarVideo(r.trabajo_id'));
+		assert.ok(anota < subir.indexOf('} finally'));
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('guardar con el video en marcha · guarda, pero no saca de la ficha', () => {
+	// saveProduct cerraba la ficha por su cuenta: era una quinta salida que
+	// no pasaba por intentarCerrarProducto.
+	const montar = ({ subiendoVideo = false, enCurso = null, vigilando = null, videoElegido = null } = {}) => {
+		const mapa = {
+			btnSaveProduct:   { textContent: '', disabled: false },
+			editProductId:    { value: 'p1' },
+			editCategoria:    { value: 'cat-1' },
+			editNombre:       { value: 'Croquetas' },
+			editPrecioNum:    { value: '24000' },
+			editDesc:         { value: '' },
+			editDescAvanzada: { value: '' },
+			editDisponible:   { checked: true },
+			editPrecioGratis: { checked: false },
+			editSinFoto:      { checked: false },
+		};
+		// Lo que toca limpiarErroresFicha, que viene cargada con el primer trozo.
+		for (const el of Object.values(mapa)) {
+			el.classList = { add() {}, remove() {} };
+			el.removeAttribute = () => {};
+		}
+		const cerrados = [], avisos = [];
+		const ctx = cargar('index.html', [
+			['function firmaProducto', 'async function saveProduct'],
+			['async function saveProduct', '// ── CATEGORÍAS ──'],
+		], {
+			state: { pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {}, prodPers: {},
+				productos: [{ id: 'p1', atributos: {} }], subiendoVideo, vigilandoTrabajo: vigilando },
+			videoElegido,
+			document: { getElementById: id => mapa[id], querySelectorAll: () => [] },
+			trabajoEnCursoDe: () => enCurso,
+			erroresDeFicha: () => [], limpiarErroresFicha() {}, formatPrecio: n => String(n),
+			apiFetch: async () => ({}),
+			renderCatFilter() {}, renderProducts() {}, renderInicio() {},
+			openModal() {}, closeModal: id => cerrados.push(id),
+			showToast: t => avisos.push(t), avisarGuardadoConCarta: t => avisos.push(t),
+		});
+		return { ctx, cerrados, avisos };
+	};
+
+	test('sin video en marcha, guarda y cierra como siempre', async () => {
+		const { ctx, cerrados } = montar();
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, ['productModal']);
+	});
+
+	test('convirtiendo, guarda y la ficha se queda abierta', async () => {
+		const { ctx, cerrados, avisos } = montar({ enCurso: { id: 't1' }, vigilando: 't1' });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, []);
+		assert.match(avisos[0], /sigue abierta/);
+	});
+
+	test('subiendo, lo mismo', async () => {
+		const { ctx, cerrados } = montar({ subiendoVideo: true });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, []);
+	});
+
+	test('sin nadie vigilando el trabajo, cierra: no se encierra a nadie', async () => {
+		const { ctx, cerrados } = montar({ enCurso: { id: 't1' }, vigilando: null });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, ['productModal']);
+	});
+
+	test('guardar mientras sube no deja un falso "cambios sin guardar"', async () => {
+		// La subida suelta el archivo al llegar. Si la firma lo contara, al
+		// cerrar después saldría el aviso sin haber nada pendiente.
+		const { ctx } = montar({ subiendoVideo: true, videoElegido: { name: 'plato.mov' } });
+		await ctx.saveProduct();
+		assert.equal(ctx.videoElegido.name, 'plato.mov', 'el archivo sigue elegido mientras sube');
+		ctx.videoElegido = null;
+		assert.equal(ctx.productoTieneCambios(), false);
+	});
+});

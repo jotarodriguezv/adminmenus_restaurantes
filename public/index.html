@@ -3389,6 +3389,25 @@ function trabajoEnCursoDe(productoId) {
 		.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0] || null;
 }
 
+// ── EL TRABAJO RECIÉN SUBIDO, APUNTADO YA ──────────────────────
+// state.trabajosVideo se carga al entrar al restaurante, y la subida no lo
+// refrescaba: el trabajo nuevo no estaba en la lista hasta terminar. Como la
+// puerta de salida de la ficha lo busca ahí (trabajoEnCursoDe), durante toda
+// la conversión creía que no había nada en marcha y dejaba cerrar. El bloqueo
+// solo funcionaba al reabrir el plato. Pasó de verdad el 18/09/2026.
+//
+// Se apunta aquí mismo en vez de volver a pedir la lista: es una llamada
+// menos, y si esa llamada fallara, cargarTrabajosVideo deja la lista vacía y
+// el bloqueo se perdería igual. La vigilancia la reemplaza por la del
+// servidor al terminar, bien o mal.
+function anotarTrabajoEnCurso(trabajoId, productoId) {
+	state.trabajosVideo = (state.trabajosVideo || []).filter(t => t.id !== trabajoId);
+	state.trabajosVideo.push({
+		id: trabajoId, producto_id: productoId, estado: 'pendiente',
+		origen_tipo: 'subido', creado_en: new Date().toISOString(),
+	});
+}
+
 // El trabajo terminado de un plato: el que produjo el video que se está
 // enseñando. Hace falta para saber en qué formato quedó — el plato guarda la
 // URL del video, no cómo se recortó.
@@ -3883,6 +3902,10 @@ async function confirmarSubidaVideo() {
 		btn.style.display = 'none';
 		videoElegido = null;
 		document.getElementById('videoFileInput').value = '';
+		// Antes de vigilar y antes del finally que baja state.subiendoVideo: así
+		// no hay un instante entre subida y conversión en que la ficha se deje
+		// cerrar.
+		anotarTrabajoEnCurso(r.trabajo_id, productoId);
 		vigilarVideo(r.trabajo_id, productoId);
 	} catch (e) {
 		st.textContent = e.message || 'Error al subir';
@@ -4015,14 +4038,23 @@ function vigilarVideo(trabajoId, productoId) {
 					return;
 				}
 
-				decir('✓ Video listo', 'var(--success)');
-				avisarFuera('✓ Video listo', 'success');
+				// "Guardado" y no solo "listo": el servidor ya lo escribió en el
+				// plato. Con "✓ Video listo" y el botón "Guardar cambios" debajo,
+				// lo natural era creer que faltaba guardarlo.
+				decir('✓ Video guardado en el plato', 'var(--success)');
+				avisarFuera('✓ Video guardado en el plato', 'success');
+
+				// La miniatura de la lista es la portada del video: sin repintar
+				// seguía la foto de antes, y parecía que hacía falta guardar o
+				// recargar para que apareciera.
+				if (typeof renderProducts === 'function') renderProducts();
 
 				const url = state.productos.find(x => x.id === productoId)?.atributos?.video?.url;
 				if (url && enPantalla()) {
 					const prev = document.getElementById('videoEditPreview');
 					prev.src = url; prev.style.display = 'block';
 					document.getElementById('videoEditVacio').style.display = 'none';
+					document.getElementById('btnQuitarVideo').style.display = 'block';
 					soltarPrevia();   // ya no hace falta el archivo local en memoria
 				}
 			} else if (t.estado === 'error') {
@@ -5070,6 +5102,23 @@ async function saveProduct() {
 		});
 		renderProducts();
 		renderInicio();
+		// ── GUARDAR NO ES UNA SALIDA MÁS ────────────────────────
+		// Cerraba la ficha sin pasar por intentarCerrarProducto, y con eso era
+		// la quinta salida mientras el video sube o se convierte. Se guarda
+		// igual —el servidor conserva el video, ver atributosProducto— pero la
+		// ficha se queda abierta hasta que el video termine.
+		const proceso = procesoEnMarchaDelPlato();
+		if (proceso === 'subiendo' || proceso === 'convirtiendo') {
+			// La firma se fija como quedará tras la subida, sin el archivo
+			// elegido: la subida lo suelta al llegar, y si contara aquí, al
+			// cerrar saldría "cambios sin guardar" sin haber nada pendiente.
+			const elegido = videoElegido;
+			videoElegido = null;
+			fijarFirmaProducto();
+			videoElegido = elegido;
+			showToast('Guardado. La ficha sigue abierta hasta que termine el video.', 'success');
+			return;
+		}
 		// Guardado: ya no hay nada pendiente que avisar al cerrar.
 		state.firmaProducto = undefined;
 		closeModal('productModal');
