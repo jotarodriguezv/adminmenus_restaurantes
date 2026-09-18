@@ -1382,6 +1382,25 @@ app.get('/api/ia/por-aprobar', auth, async (req, res) => {
   })));
 });
 
+// ── LAS GENERACIONES DE LA ÚLTIMA HORA ────────────────────────
+// Mientras la IA genera no existe ningún trabajo de video: solo la fila de
+// generaciones_ia. Sin esto el panel no podía saberlo más que por una bandera
+// en memoria, que se perdía al recargar, y tampoco se enteraba de que había
+// fallado: esperaba un trabajo que nunca iba a llegar. Una hora cubre de
+// sobra el límite de la cola (LIMITE_GENERACION_MS, media hora).
+app.get('/api/ia/generaciones', auth, async (req, res) => {
+  const rid = req.query.restaurante_id;
+  if (!rid || !canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+
+  const desde = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase.from('generaciones_ia')
+    .select('id, producto_id, estado, error, creado_en, actualizado_en')
+    .eq('restaurante_id', rid).gte('creado_en', desde)
+    .order('creado_en', { ascending: false }).limit(50);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
 // Publicar: a partir de aquí el plato enseña el video en vez de la foto.
 app.post('/api/ia/por-aprobar/:id/publicar', auth, async (req, res) => {
   const r = await trabajoEnRevision(req.params.id, req.user);

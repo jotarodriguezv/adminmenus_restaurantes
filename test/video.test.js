@@ -382,10 +382,12 @@ describe('publicarTrabajo · el mismo final, en diferido', () => {
 describe('descartarTrabajo · lo contrario de publicar', () => {
 	const RAIZ = path.join(__dirname, '..', 'uploads');
 
-	const supabaseFalso = () => {
+	const supabaseFalso = (hermanos = []) => {
 		const escrituras = [];
 		const q = {
-			select: () => q, eq: () => q,
+			select: () => q, eq: () => q, neq: () => q,
+			// Lo que devuelve la consulta de las otras filas del plato.
+			then: (ok, mal) => Promise.resolve({ data: hermanos, error: null }).then(ok, mal),
 			update(obj) { escrituras.push(obj); return { eq: () => Promise.resolve({}) }; },
 		};
 		return { escrituras, from: () => q };
@@ -420,6 +422,55 @@ describe('descartarTrabajo · lo contrario de publicar', () => {
 		} finally {
 			for (const rel of Object.values(trio)) { try { fs.unlinkSync(path.join(RAIZ, rel)); } catch {} }
 		}
+	});
+
+	// Crea los archivos de verdad y devuelve sus rutas relativas.
+	const crear = (base) => {
+		const trio = {
+			video:   `videos/${base}.mp4`,
+			master:  `masters/${base}-master.mp4`,
+			portada: `miniaturas/${base}.jpg`,
+		};
+		for (const rel of Object.values(trio)) {
+			const abs = path.join(RAIZ, rel);
+			fs.mkdirSync(path.dirname(abs), { recursive: true });
+			fs.writeFileSync(abs, 'x');
+		}
+		return trio;
+	};
+	const existe = rel => fs.existsSync(path.join(RAIZ, rel));
+	const borrar = trio => { for (const rel of Object.values(trio)) { try { fs.unlinkSync(path.join(RAIZ, rel)); } catch {} } };
+
+	test('un master que otra fila del plato sigue usando se queda', async () => {
+		// Una reconversión apunta al master del trabajo del que salió. Pasó el
+		// 18/09/2026: la copia sin publicar de «Tacos birria» compartía master
+		// con el video que estaba en la carta.
+		const trio = crear('prueba-descarte-compartido-' + Date.now());
+		const sb = supabaseFalso([{ video: 'videos/otro.mp4', master: trio.master, portada: null, origen: null }]);
+		try {
+			await video.descartarTrabajo(sb, { id: 't2', producto_id: 'p1', ...trio });
+			assert.equal(existe(trio.master), true, 'el master compartido sigue');
+			assert.equal(existe(trio.video), false, 'lo propio sí se borra');
+			assert.equal(existe(trio.portada), false);
+			assert.equal(sb.escrituras[0].aprobado, false);
+		} finally { borrar(trio); }
+	});
+
+	test('si no se puede saber quién más los usa, no se borra nada', async () => {
+		// Un fallo al consultar no puede acabar borrando un master compartido.
+		// La fila se marca igual, y el limpiador recoge después lo que sobre.
+		const trio = crear('prueba-descarte-sin-saber-' + Date.now());
+		const escrituras = [];
+		const q = {
+			select: () => q, eq: () => q, neq: () => q,
+			then: (ok, mal) => Promise.resolve({ data: null, error: { message: 'caída' } }).then(ok, mal),
+			update(obj) { escrituras.push(obj); return { eq: () => Promise.resolve({}) }; },
+		};
+		try {
+			await video.descartarTrabajo({ from: () => q }, { id: 't2', producto_id: 'p1', ...trio });
+			for (const rel of Object.values(trio)) assert.equal(existe(rel), true, rel);
+			assert.equal(escrituras[0].aprobado, false);
+		} finally { borrar(trio); }
 	});
 
 	test('una ruta que se sale de uploads no se toca', async () => {
@@ -608,6 +659,21 @@ describe('reconvertir · el master por fin sirve para algo', () => {
 		await assert.rejects(
 			() => video.reconvertir(supabaseFalso(), { id: 't1', master: '../../etc/passwd' }, 'vertical'),
 			e => e.definitivo === true);
+	});
+
+	test('un video generado sin publicar no se reconvierte', async () => {
+		// 18/09/2026, «Tacos birria»: la ficha lo ofreció como video retirado,
+		// y la copia heredó el «sin revisar». Dos esperando revisión.
+		const sb = supabaseFalso();
+		for (const aprobado of [null, false]) {
+			await assert.rejects(
+				() => video.reconvertir(sb, {
+					id: 't1', master: 'masters/x-master.mp4', origen_tipo: 'ia', aprobado,
+				}, 'vertical'),
+				e => e.definitivo === true && /no se ha publicado/.test(e.message),
+				`aprobado: ${aprobado}`);
+		}
+		assert.equal(sb.insertados.length, 0, 'no se encola nada');
 	});
 });
 
