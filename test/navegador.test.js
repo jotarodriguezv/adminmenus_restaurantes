@@ -3757,22 +3757,34 @@ describe('importar la carta · los platos que el restaurante ya tiene', () => {
 	// Importar AÑADE y no reemplaza. Sin avisar, meterle su propia carta a un
 	// restaurante que ya tiene menú se lo duplica entero — y la pantalla no
 	// diría nada. Bonzas son 97 platos: 97 duplicados que deshacer a mano.
+	//
+	// Desde el 18/09/2026, dentro de la MISMA categoría: mirando solo el nombre,
+	// el «CHICKEN» de Desgranados salía repetido del de Sándwiches.
 	const panel = extra => cargar('importar.js',
 		[['// ── IMPORTAR LA CARTA ─', null]],
-		Object.assign({ state: { productos: [] } }, extra));
+		Object.assign({ state: { productos: [], categorias: [] } }, extra));
 
-	const conProductos = nombres => panel({ state: { productos: nombres.map(n => ({ nombre: n })) } });
+	const CATS = [{ id: 'ham', nombre: 'Hamburguesas' }, { id: 'san', nombre: 'Sándwiches' }, { id: 'des', nombre: 'Desgranados' }];
+	const conProductos = platos => panel({ state: { categorias: CATS,
+		productos: platos.map(([nombre, categoria_id]) => ({ nombre, categoria_id })) } });
+	const repe = (ctx, cat, plato) => ctx.impEsRepetido(ctx.impNombresQueYaTiene(), cat, plato);
 
 	test('reconoce el mismo plato aunque esté escrito distinto', () => {
-		const ctx = conProductos(['Hamburguesa clásica', 'PATACÓN MIXTO']);
-		const previos = ctx.impNombresQueYaTiene();
+		const ctx = conProductos([['Hamburguesa clásica', 'ham']]);
 		for (const escrito of ['HAMBURGUESA CLASICA', 'hamburguesa clásica', '  Hamburguesa  Clasica '])
-			assert.equal(previos.has(ctx.impNormalizar(escrito)), true, escrito);
+			assert.equal(repe(ctx, 'HAMBURGUESAS', escrito), true, escrito);
 	});
 
 	test('y no confunde dos platos distintos', () => {
-		const ctx = conProductos(['Hamburguesa clásica']);
-		assert.equal(ctx.impNombresQueYaTiene().has(ctx.impNormalizar('Hamburguesa doble')), false);
+		const ctx = conProductos([['Hamburguesa clásica', 'ham']]);
+		assert.equal(repe(ctx, 'Hamburguesas', 'Hamburguesa doble'), false);
+	});
+
+	test('el mismo nombre en OTRA categoría no es repetido', () => {
+		// El caso de Bonzas: «CHICKEN» en Sándwiches y en Desgranados son dos platos.
+		const ctx = conProductos([['CHICKEN', 'san']]);
+		assert.equal(repe(ctx, 'Desgranados', 'CHICKEN'), false);
+		assert.equal(repe(ctx, 'SANDWICHES', 'chicken'), true, 'en la suya sí');
 	});
 
 	test('un restaurante sin platos no tiene ninguno repetido', () => {
@@ -3780,15 +3792,43 @@ describe('importar la carta · los platos que el restaurante ya tiene', () => {
 	});
 
 	test('un producto sin nombre no cuenta', () => {
-		const ctx = panel({ state: { productos: [{ nombre: null }, {}, { nombre: 'SOPA' }] } });
+		const ctx = panel({ state: { categorias: CATS, productos: [{ nombre: null, categoria_id: 'ham' }, { categoria_id: 'ham' }, { nombre: 'SOPA', categoria_id: 'ham' }] } });
 		assert.equal(ctx.impNombresQueYaTiene().size, 1);
 	});
 
 	test('usa la MISMA regla que las categorías', () => {
 		// Si comparara los platos de una forma y las categorías de otra, la
 		// pantalla diría dos cosas distintas sobre el mismo texto.
-		const ctx = conProductos(['Café con leche']);
-		assert.equal(ctx.impNombresQueYaTiene().has(ctx.impNormalizar('CAFE CON LECHE')), true);
+		const ctx = conProductos([['Café con leche', 'ham']]);
+		assert.equal(repe(ctx, 'hamburguesas', 'CAFE CON LECHE'), true);
+	});
+});
+
+describe('crear un plato a mano con el nombre de otro de su categoría', () => {
+	// 18/09/2026: se creaban los dos sin un aviso. Es aviso y no bloqueo: dos
+	// tamaños que el restaurante distingue por la descripción son legítimos.
+	const reglas = productos => cargar('platos-repetidos.js', [
+		['importar.js', 'function impNormalizar', 'const IMP_SIN_CATEGORIA'],
+		['platos-repetidos.js', 'function platoConElMismoNombre', 'function avisarNombreRepetido'],
+	], { state: { productos } });
+	const PLATOS = [{ id: 'p1', nombre: 'Arepa de queso', categoria_id: 'ent' }, { id: 'p2', nombre: 'CHICKEN', categoria_id: 'san' }];
+
+	test('mismo nombre, misma categoría: lo encuentra', () => {
+		assert.equal(reglas(PLATOS).platoConElMismoNombre('AREPA DE QUESO', 'ent', '')?.id, 'p1');
+	});
+
+	test('en otra categoría no cuenta', () => {
+		assert.equal(reglas(PLATOS).platoConElMismoNombre('CHICKEN', 'des', ''), null);
+	});
+
+	test('consigo mismo no se repite al editarlo', () => {
+		assert.equal(reglas(PLATOS).platoConElMismoNombre('Arepa de queso', 'ent', 'p1'), null);
+	});
+
+	test('sin nombre o sin categoría no avisa', () => {
+		const ctx = reglas(PLATOS);
+		assert.equal(ctx.platoConElMismoNombre('  ', 'ent', ''), null);
+		assert.equal(ctx.platoConElMismoNombre('Arepa de queso', '', ''), null);
 	});
 });
 

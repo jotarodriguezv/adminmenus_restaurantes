@@ -264,6 +264,76 @@ describe('aplicar el borrador', () => {
 		assert.equal(llamadas.filter((l) => l.tabla === 'productos' && l.op === 'insert').length, 0);
 	});
 
+	test('aplicar dos veces A LA VEZ tampoco duplica', async () => {
+		// Lo de arriba solo cubría la segunda petición que llega DESPUÉS. Dos a
+		// la vez leían 'listo' las dos y creaban la carta dos veces, porque se
+		// marcaba 'aplicado' al terminar (18/09/2026). Ahora se reclama con un
+		// update condicionado a 'listo': la que llega segunda no cambia ninguna
+		// fila, y se va sin crear nada.
+		conCartaExistente();
+		const previo = llamadas.length;
+		conTabla((st) => {
+			if (st.tabla === 'importaciones_carta' && st.op === 'select')
+				return { data: { id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'listo', borrador: BORRADOR }, error: null };
+			// La otra petición ya la reclamó: este update no encuentra una fila en 'listo'.
+			if (st.tabla === 'importaciones_carta' && st.op === 'update') return { data: [], error: null };
+			if (st.tabla === 'categorias' && st.op === 'select') return { data: [], error: null };
+			return { data: [], error: null };
+		});
+		const r = await pedir('POST', `/api/importaciones/${IMPORTACION}/aplicar`, {}, tokenCliente);
+		assert.equal(r.status, 409);
+		assert.equal(llamadas.slice(previo).filter((l) => l.op === 'insert').length, 0);
+	});
+
+	test('se reclama condicionada a «listo»', async () => {
+		conCartaExistente();
+		await pedir('POST', `/api/importaciones/${IMPORTACION}/aplicar`, {}, tokenCliente);
+		const reclamo = llamadas.find((l) => l.tabla === 'importaciones_carta' && l.op === 'update');
+		assert.equal(reclamo.payload.estado, 'aplicado');
+		assert.equal(reclamo.filtros.estado, 'listo', 'sin esta condición dos peticiones la reclaman las dos');
+	});
+
+	test('si los platos no se pueden crear, vuelve a «listo» para reintentar', async () => {
+		conTabla((st) => {
+			if (st.tabla === 'importaciones_carta') {
+				if (st.op === 'select') return { data: { id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'listo', borrador: BORRADOR }, error: null };
+				return { data: {}, error: null };
+			}
+			if (st.tabla === 'categorias' && st.op === 'insert')
+				return { data: st.payload.map((c, i) => ({ id: `nueva-${i}`, nombre: c.nombre })), error: null };
+			if (st.tabla === 'productos' && st.op === 'insert') return { data: null, error: { message: 'fallo simulado' } };
+			return { data: [], error: null };
+		});
+		const r = await pedir('POST', `/api/importaciones/${IMPORTACION}/aplicar`, {}, tokenCliente);
+		assert.equal(r.status, 500);
+		assert.equal(ultimaEscritura('importaciones_carta').estado, 'listo');
+	});
+
+	test('una categoría BORRADA no se reutiliza', async () => {
+		// Borrar archiva (sql/23). Sin excluirlas, «Postres» del borrador casaba
+		// con una «POSTRES» archivada y sus platos quedaban donde no los ve nadie.
+		conTabla((st) => {
+			if (st.tabla === 'importaciones_carta') {
+				if (st.op === 'select') return { data: { id: IMPORTACION, restaurante_id: IDS.restaurante, estado: 'listo', borrador: BORRADOR }, error: null };
+				return { data: {}, error: null };
+			}
+			if (st.tabla === 'categorias' && st.op === 'select')
+				return { data: [{ id: 'cat-borrada', nombre: 'POSTRES', slug: 'postres', orden: 2, archivado_en: '2026-09-17T10:00:00Z' }], error: null };
+			if (st.tabla === 'categorias' && st.op === 'insert')
+				return { data: st.payload.map((c, i) => ({ id: `nueva-${i}`, nombre: c.nombre })), error: null };
+			return { data: [], error: null };
+		});
+		const r = await pedir('POST', `/api/importaciones/${IMPORTACION}/aplicar`, {}, tokenCliente);
+		assert.equal(r.status, 200);
+		assert.equal(r.body.categorias_reutilizadas, 0);
+		const ins = llamadas.find((l) => l.tabla === 'productos' && l.op === 'insert');
+		assert.ok(ins.payload.every((p) => p.categoria_id !== 'cat-borrada'), 'ningún plato a la categoría borrada');
+		// Y la nueva no choca con el slug que la borrada sigue ocupando.
+		const cats = llamadas.find((l) => l.tabla === 'categorias' && l.op === 'insert');
+		const postres = cats.payload.find((c) => c.nombre === 'Postres');
+		assert.equal(postres.slug, 'postres_2');
+	});
+
 	test('una que todavía no está lista no se aplica', async () => {
 		conCartaExistente('error');
 		const r = await pedir('POST', `/api/importaciones/${IMPORTACION}/aplicar`, {}, tokenCliente);
@@ -559,14 +629,17 @@ describe('el archivo de la carta · se borra al terminar la importación', () =>
 		assert.equal(fs.existsSync(carta.abs), false);
 	});
 
-	test('si no quedó marcada como aplicada, el archivo se queda', async () => {
-		// Una fila que no dice 'aplicado' todavía parece viva: dejarla sin
-		// archivo sería añadir un estado raro a otro.
+	test('si no se pudo reservar, no se crea nada y el archivo se queda', async () => {
+		// Desde el 18/09/2026 se marca ANTES de escribir (ver «aplicar dos veces
+		// a la vez»). Si esa marca falla no se ha creado nada, y la importación
+		// sigue viva para reintentarla: su archivo tiene que seguir ahí.
 		const carta = cartaEnDisco('sin-marcar');
 		try {
 			conImportacionLista(carta.relativa, { fallaMarcar: true });
 			const r = await pedir('POST', `/api/importaciones/${IMPORTACION}/aplicar`, {}, tokenCliente);
-			assert.ok(r.body.aviso, 'avisa de que no quedó marcada');
+			assert.equal(r.status, 500);
+			assert.match(r.body.error, /No se creó nada/);
+			assert.equal(llamadas.filter((l) => l.op === 'insert').length, 0);
 			assert.equal(fs.existsSync(carta.abs), true);
 		} finally {
 			try { fs.unlinkSync(carta.abs); } catch {}

@@ -1839,11 +1839,13 @@
 					</div>
 					<div class="form-group producto-nombre">
 						<label for="editNombre" class="form-label">Nombre</label>
-						<input type="text" class="form-input" id="editNombre">
+						<input type="text" class="form-input" id="editNombre" oninput="avisarNombreRepetido()">
+						<!-- Aviso y no bloqueo: ver public/platos-repetidos.js. -->
+						<div id="nombreAviso" role="status" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
 					</div>
 					<div class="form-group producto-categoria">
 						<label for="editCategoria" class="form-label">Categoría</label>
-						<select class="form-select" id="editCategoria"></select>
+						<select class="form-select" id="editCategoria" onchange="avisarNombreRepetido()"></select>
 					</div>
 					<div class="form-group producto-precio">
 						<label for="editPrecioNum" class="form-label">Precio</label>
@@ -2237,6 +2239,7 @@
 <script src="tv.js"></script>
 <script src="promocion.js"></script>
 <script src="importar.js"></script>
+<script src="platos-repetidos.js"></script>
 <script src="toppings.js"></script>
 <script src="pedidos.js"></script>
 <script src="ajustes.js"></script>
@@ -3028,6 +3031,7 @@ function openNewProductModal() {
 	fillCatSelect();
 	// Con la ficha ya rellena: lo que hay ahora es el punto de partida.
 	fijarFirmaProducto();
+	avisarNombreRepetido();
 	openModal('productModal');
 }
 
@@ -3284,6 +3288,7 @@ function openEditProductModal(id) {
 	pintarVideoPlato(p);
 	ajustarFichaAlModelo();
 	fijarFirmaProducto();
+	avisarNombreRepetido();
 	openModal('productModal');
 }
 
@@ -5499,7 +5504,13 @@ async function saveCat() {
       openNewProductModal();
       document.getElementById('editCategoria').value = creada.id;
     }
-  } catch(e) { showToast('Error: '+e.message,'error'); }
+  } catch(e) {
+    // El nombre repetido lo decide el servidor (18/09/2026): es él quien ve
+    // también las archivadas. Se marca en el campo, como el nombre vacío.
+    if (/^Ya tienes una categoría/.test(e.message))
+      pintarErroresEnCampos([{ campo: 'editCatNombre', mensaje: e.message }], CAMPOS_CATEGORIA);
+    showToast(/^Ya tienes/.test(e.message) ? e.message : 'Error: '+e.message,'error');
+  }
   finally { btn.disabled=false; btn.textContent='Guardar'; }
 }
 

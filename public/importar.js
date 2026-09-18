@@ -165,16 +165,31 @@ function impActualizarResumen() {
   }
 }
 
-// Los platos que el restaurante YA TIENE, por nombre. Importar AÑADE y no
-// reemplaza, así que sin esto una carta importada sobre un restaurante que ya
-// tiene menú lo duplica entero — y la pantalla no dice nada.
+// Los platos que el restaurante YA TIENE, por categoría y nombre. Importar AÑADE
+// y no reemplaza, así que sin esto una carta importada sobre un restaurante que
+// ya tiene menú lo duplica entero — y la pantalla no dice nada.
 //
 // Se compara con la misma regla que las categorías: sin tildes ni mayúsculas,
 // porque 'Hamburguesa clásica' y 'HAMBURGUESA CLASICA' son el mismo plato.
+//
+// Y DENTRO DE LA MISMA CATEGORÍA desde el 18/09/2026. Mirando solo el nombre,
+// el «CHICKEN» de Desgranados salía como repetido del de Sándwiches —son dos
+// platos distintos de Bonzas—, y «Quitar los repetidos» lo borraba del borrador.
+// La categoría del plato es la de su bloque, casada por nombre igual que la
+// casa el servidor al aplicar.
 function impNombresQueYaTiene() {
+  const catPorId = new Map((state.categorias || []).map(c => [c.id, impNormalizar(c.nombre)]));
   const previos = new Set();
-  for (const p of state.productos || []) if (p && p.nombre) previos.add(impNormalizar(p.nombre));
+  for (const p of state.productos || []) {
+    if (!p || !p.nombre || !catPorId.has(p.categoria_id)) continue;
+    previos.add(catPorId.get(p.categoria_id) + '\u0000' + impNormalizar(p.nombre));
+  }
   return previos;
+}
+
+function impEsRepetido(previos, nombreCategoria, nombrePlato) {
+  const cat = impNormalizar(String(nombreCategoria || '').trim() || IMP_SIN_CATEGORIA);
+  return !!String(nombrePlato || '').trim() && previos.has(cat + '\u0000' + impNormalizar(nombrePlato));
 }
 
 // Marca y cuenta. NO los quita: que desaparezcan solos es peor que verlos
@@ -184,7 +199,8 @@ function impMarcarRepetidos() {
   let repetidos = 0;
   for (const fila of document.querySelectorAll('#impCategorias .imp-plato')) {
     const nombre = fila.querySelector('.imp-p-nombre').value;
-    const repe = !!String(nombre).trim() && previos.has(impNormalizar(nombre));
+    const categoria = fila.closest('.imp-cat')?.querySelector('.imp-cat-nombre')?.value;
+    const repe = impEsRepetido(previos, categoria, nombre);
     fila.classList.toggle('repetido', repe);
     const chip = fila.querySelector('.imp-repe');
     if (chip) chip.style.display = repe ? '' : 'none';
@@ -197,10 +213,10 @@ function impMarcarRepetidos() {
 
   banda.style.display = 'block';
   banda.innerHTML = repetidos
-    ? `Este restaurante ya tiene <b>${total}</b> platos, y <b>${repetidos}</b> de los de aquí se llaman igual.
-       Importar <b>añade</b>, no reemplaza: si los dejas, quedarán dos veces.
-       <button type="button" onclick="impQuitarRepetidos()">Quitar los ${repetidos} repetidos</button>`
-    : `Este restaurante ya tiene <b>${total}</b> platos. Importar <b>añade</b>, no reemplaza; ninguno de los de aquí se llama igual que los que ya tienes.`;
+    ? `Este restaurante ya tiene <b>${total}</b> ${total === 1 ? 'plato' : 'platos'}, y ${repetidos === 1 ? '<b>1</b> de los de aquí ya lo tiene' : `<b>${repetidos}</b> de los de aquí ya los tiene`}, con el mismo nombre y en la misma categoría.
+       Importar <b>añade</b>, no reemplaza: si ${repetidos === 1 ? 'lo dejas, quedará' : 'los dejas, quedarán'} dos veces.
+       <button type="button" onclick="impQuitarRepetidos()">${repetidos === 1 ? 'Quitar el repetido' : `Quitar los ${repetidos} repetidos`}</button>`
+    : `Este restaurante ya tiene <b>${total}</b> ${total === 1 ? 'plato' : 'platos'}. Importar <b>añade</b>, no reemplaza; ninguno de los de aquí está ya en la misma categoría con el mismo nombre.`;
   return repetidos;
 }
 
