@@ -170,14 +170,31 @@
 			<div class="content">
 				<!-- TAB INICIO -->
 				<div id="tabInicio">
+					<!-- Rehecha el 17/09/2026: ver la cabecera de public/inicio.js. -->
 					<div class="inicio-encabezado">
-						<div><div class="inicio-sobrelinea">RESUMEN DE TU CARTA</div><h1>Todo lo importante, de un vistazo.</h1><p>Revisa qué está listo y corrige lo que todavía necesita atención.</p></div>
-						<button type="button" class="btn-sm accent" onclick="abrirDesdeInicio('productos')">+ Nuevo producto</button>
+						<div>
+							<div class="inicio-sobrelinea">RESUMEN DE TU CARTA</div>
+							<h1 id="inicioNombre">tu carta</h1>
+						</div>
+						<div class="inicio-acciones">
+							<!-- Un enlace y no un botón: así el clic central y «abrir en pestaña
+							     nueva» funcionan como en cualquier enlace. -->
+							<a class="btn-sm" id="inicioVerCarta" target="_blank" rel="noopener noreferrer">Ver mi carta ↗</a>
+							<button type="button" class="btn-sm accent" onclick="abrirDesdeInicio('productos')">+ Nuevo producto</button>
+						</div>
 					</div>
 					<div class="inicio-resumen" id="inicioResumen"></div>
 					<div class="inicio-grid">
-						<section class="section-card inicio-tarjeta"><div class="section-title">Para revisar</div><div id="inicioPendientes"></div></section>
-						<section class="section-card inicio-tarjeta"><div class="section-title">Funciones en uso</div><div id="inicioFunciones"></div></section>
+						<section class="section-card inicio-tarjeta">
+							<div class="section-title">Para revisar <span class="inicio-cuenta" id="inicioPendientesCuenta"></span></div>
+							<div id="inicioPendientes"></div>
+						</section>
+						<section class="section-card inicio-tarjeta">
+							<!-- «Tu carta tiene» y no «Funciones en uso»: la lista enseña también las
+							     apagadas, y el título decía lo contrario. -->
+							<div class="section-title">Tu carta tiene</div>
+							<div id="inicioFunciones"></div>
+						</section>
 					</div>
 				</div>
 
