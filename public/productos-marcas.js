@@ -55,6 +55,11 @@ function toppingsDePlato(p, atributos = state.restaurante?.atributos, plan = pla
 // ratón. Aparte de pintarlas para poder probarlo sin navegador.
 function marcasDePlato(p) {
   const marcas = [];
+  // Primero, porque explica por qué ese plato no tiene foto: sin la marca, en la
+  // lista no se distingue un olvido de una decisión (18/09/2026).
+  if (p?.atributos?.sin_foto === true && !p.imagen_url) {
+    marcas.push({ texto: '📷 sin foto a propósito', titulo: 'Marcado en su ficha: este plato no lleva foto. No cuenta como pendiente.' });
+  }
   const filtros = filtrosDePlato(p);
   for (const f of filtros.slice(0, MAXIMO_MARCAS_VISIBLES)) {
     marcas.push({ texto: `${f.emoji || ''} ${f.label}`.trim(), titulo: `Filtro: ${f.label}` });

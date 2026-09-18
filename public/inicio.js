@@ -35,6 +35,16 @@ function abrirDesdeInicio(tab) {
 
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
+// Qué ve el comensal cuando falta. Tiene que decir la verdad según el modelo:
+// hasta el 18/09/2026 ponía «salen con un recuadro vacío» para todos, y en
+// Topnav y Sidebar no es así —un plato sin foto sale como una fila compacta,
+// sin recuadro—. Solo Explorar pinta el recuadro, con el emoji de la categoría.
+function notaDeImagen(nav, deVideo) {
+  if (deVideo) return 'Tu carta es de video: sin él, esos platos salen solo con la foto de respaldo.';
+  if (nav === 'explorar') return 'Salen con un recuadro con el emoji de la categoría en vez de foto.';
+  return 'Salen sin foto, como una fila de texto entre los que sí la tienen.';
+}
+
 // ── QUÉ PIDE UNA ACCIÓN ───────────────────────────────────────
 // Devuelve dos listas: lo pendiente, ya ordenado por gravedad, y lo que está en
 // orden, solo con su nombre corto para resumirlo en una línea.
@@ -56,22 +66,26 @@ function revisionDeInicio({ productos = [], categorias = [], atributos = {}, pla
     });
   }
 
-  // 2. Las fotos, solo donde la carta las enseña. En una categoría de vista
-  //    lista no hay hueco para la foto, y en un modelo de video lo que se ve es
-  //    el video: pedir foto ahí es pedir algo que nadie va a ver.
-  const deVideo = esModeloDeVideo(atributos.nav || MODELO_POR_DEFECTO);
+  // 2. Las fotos, solo donde la carta las enseña y donde el restaurante no dijo
+  //    que no tocan. En una categoría de vista lista no hay hueco para la foto,
+  //    en un modelo de video lo que se ve es el video, y un plato marcado «no
+  //    lleva foto» (18/09/2026) es una decisión, no un olvido: pedir foto en
+  //    cualquiera de los tres es pedir algo que nadie va a ver.
+  const nav = atributos.nav || MODELO_POR_DEFECTO;
+  const deVideo = esModeloDeVideo(nav);
   const conFotos = new Set(categorias.filter(c => !c.sin_fotos).map(c => c.id));
-  const dondeSeVe = productos.filter(p => conFotos.has(p.categoria_id));
-  const sinImagen = deVideo
-    ? dondeSeVe.filter(p => !p.atributos?.video?.url).length
-    : dondeSeVe.filter(p => !p.imagen_url).length;
-  if (sinImagen) {
+  const faltan = productos.filter(p => conFotos.has(p.categoria_id) && p.atributos?.sin_foto !== true
+    && (deVideo ? !p.atributos?.video?.url : !p.imagen_url));
+  if (faltan.length) {
+    // En qué categorías: es lo que dice si toca subir fotos o pasar la
+    // categoría entera a lista. «98 sin foto» a secas no lo dice.
+    const nombres = categorias.filter(c => faltan.some(p => p.categoria_id === c.id)).map(c => c.nombre);
+    const donde = nombres.length <= 3 ? nombres.join(', ') : `${nombres.slice(0, 3).join(', ')} y ${plural(nombres.length - 3, 'categoría más', 'categorías más')}`;
     pendientes.push({
       clave: 'imagen',
-      titulo: deVideo ? plural(sinImagen, 'plato sin video', 'platos sin video') : plural(sinImagen, 'plato sin foto', 'platos sin foto'),
-      nota: deVideo
-        ? 'Tu carta es de video: sin él, esos platos salen solo con la foto de respaldo.'
-        : 'Salen con un recuadro vacío en la carta. Una foto ayuda a que se antojen.',
+      titulo: deVideo ? plural(faltan.length, 'plato sin video', 'platos sin video') : plural(faltan.length, 'plato sin foto', 'platos sin foto'),
+      nota: `${notaDeImagen(nav, deVideo)} En: ${donde}.` +
+            (deVideo ? '' : ' Si a alguno no le toca foto, márcalo así en su ficha y deja de contar.'),
       boton: 'Verlos', tab: 'productos',
     });
   } else enOrden.push(deVideo ? 'videos' : 'fotos');

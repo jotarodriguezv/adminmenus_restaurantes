@@ -1583,7 +1583,10 @@ function normalizarPrecio(body) {
 // vía para que lo que escribe un restaurante acabe ejecutándose en la sesión
 // de quien administra a todos. El escapado del panel es la otra mitad de
 // esto; las dos hacen falta.
-const ATRIBUTOS_PRODUCTO_PERMITIDOS = ['imagenes', 'personalizacion', 'filtros', 'popular', 'chef', 'nuevo', 'precio_gratis'];
+// 'sin_foto' (18/09/2026): el restaurante dice que a ESTE plato no le toca foto
+// —una bebida en una categoría que sí las lleva—. Sin estar en esta lista, la
+// casilla del panel se descartaría en silencio al guardar.
+const ATRIBUTOS_PRODUCTO_PERMITIDOS = ['imagenes', 'personalizacion', 'filtros', 'popular', 'chef', 'nuevo', 'precio_gratis', 'sin_foto'];
 
 // 'video' lo escribe el worker cuando termina de convertir, nunca el
 // navegador. Pero NO se puede simplemente descartar: el panel manda el
@@ -1595,7 +1598,9 @@ function atributosProducto(entrantes, actuales) {
   const out = {};
   for (const clave of ATRIBUTOS_PRODUCTO_PERMITIDOS)
     if (entrantes?.[clave] !== undefined)
-      out[clave] = clave === 'precio_gratis' ? entrantes[clave] === true : entrantes[clave];
+      // Los interruptores, como booleano: un "false" de texto es verdadero para
+      // cualquier if, y marcaría como gratis o sin foto lo que se desmarcó.
+      out[clave] = ['precio_gratis', 'sin_foto'].includes(clave) ? entrantes[clave] === true : entrantes[clave];
   for (const clave of ATRIBUTOS_PRODUCTO_DEL_SERVIDOR)
     if (actuales?.[clave] !== undefined) out[clave] = actuales[clave];
   return out;

@@ -1634,6 +1634,15 @@
 						     depende de si el video se subió o se generó: a quien grabó el
 						     suyo, hablarle de la IA es ruido. -->
 						<div id="imgAvisoVideo" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;"></div>
+						<!-- 18/09/2026, pedido por el usuario: hay platos a los que no les toca
+						     foto aunque su categoría las lleve —una bebida, un adicional—, y sin
+						     esto Inicio los contaba como pendientes para siempre. Es opcional:
+						     si luego se le sube una foto, se usa igual. Para una categoría
+						     entera sin fotos sigue estando «Sin fotos (lista)» en la categoría. -->
+						<div class="form-check" style="margin-top:10px;margin-bottom:0">
+							<label class="toggle"><input type="checkbox" id="editSinFoto"><span class="toggle-slider"></span></label>
+							<span style="font-size:12px;color:var(--text-muted)">Este plato no lleva foto <span style="color:var(--text-dim)">(no se contará como pendiente)</span></span>
+						</div>
 					</div>
 					<!-- Solo con el plan de video. Esconderlo no basta: el servidor
 					     comprueba el plan igual, porque ocultar un botón no impide
@@ -2991,6 +3000,7 @@ function openNewProductModal() {
 	document.getElementById('editNombre').value='';
 	document.getElementById('editPrecioNum').value='';
 	document.getElementById('editPrecioGratis').checked=false;
+	document.getElementById('editSinFoto').checked=false;
 	actualizarPrecioGratis();
 	document.getElementById('precioPreview').textContent='—';
 	// Los avisos blandos son del plato anterior: dejarlos puestos sobre una
@@ -3234,6 +3244,7 @@ function openEditProductModal(id) {
 	document.getElementById('editNombre').value=p.nombre||'';
 	document.getElementById('editPrecioNum').value=p.precio_numerico ?? '';
 	document.getElementById('editPrecioGratis').checked=!!p.atributos?.precio_gratis;
+	document.getElementById('editSinFoto').checked=p.atributos?.sin_foto === true;
 	actualizarPrecioGratis();
 	// También al abrir, no solo al teclear: un precio con un cero de más ya
 	// guardado no se detecta si el aviso solo salta al escribirlo.
@@ -4698,6 +4709,8 @@ function firmaProducto() {
 		v('editNombre'), v('editCategoria'), v('editPrecioNum'),
 		v('editDesc'), v('editDescAvanzada'),
 		document.getElementById('editDisponible')?.checked,
+		document.getElementById('editPrecioGratis')?.checked,
+		document.getElementById('editSinFoto')?.checked,
 		state.pendingImgUrl ?? null,
 		state.extraImgs || [],
 		state.prodFiltros || [],
@@ -4927,6 +4940,7 @@ async function saveProduct() {
 		chef: !!state.prodBadges.chef,
 		nuevo: !!state.prodBadges.nuevo,
 		precio_gratis: document.getElementById('editPrecioGratis').checked,
+		sin_foto: document.getElementById('editSinFoto').checked,
 	};
 	// La copia del catálogo que llevaban los platos viejos ya quedó traducida
 	// a 'personalizacion' al abrir la ficha. Se retira aquí para que no queden
