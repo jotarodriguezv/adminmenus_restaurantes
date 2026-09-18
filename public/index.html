@@ -2231,6 +2231,26 @@
   </div>
 </div>
 
+<!-- La que sustituye al confirm() del navegador: ver public/preguntar.js.
+     Va después de las demás para quedar ENCIMA de la ficha del plato, desde
+     la que se abre a menudo: todas las ventanas tienen el mismo z-index. -->
+<div class="modal-bg" id="preguntaModal" onclick="if(event.target===this)responderPregunta(false)">
+  <div class="modal-box" style="max-width:420px;" role="alertdialog" aria-modal="true" aria-labelledby="preguntaTitulo" aria-describedby="preguntaTexto">
+    <div class="modal-head">
+      <span class="modal-title" id="preguntaTitulo"></span>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-text" id="preguntaTexto" style="white-space:pre-line;line-height:1.55"></p>
+      <ul id="preguntaLista" style="margin:10px 0 0 18px;font-size:12px;line-height:1.6;color:var(--text);max-height:180px;overflow:auto"></ul>
+      <p id="preguntaNota" style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:10px;line-height:1.55"></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" id="preguntaNo" onclick="responderPregunta(false)"></button>
+      <button class="btn-save" id="preguntaSi" onclick="responderPregunta(true)"></button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="comun.js"></script>
@@ -2245,6 +2265,7 @@
 <script src="ajustes.js"></script>
 <script src="restaurantes-filtros.js"></script>
 <script src="productos-marcas.js"></script>
+<script src="preguntar.js"></script>
 <script>
 // ── COLORES ───────────────────────────────────────────────────
 // Los campos de color son de texto libre y nadie rechazaba un '#12345' o un
@@ -3448,13 +3469,15 @@ function publicarVideoIA() {
 
 // Se pregunta porque no hay vuelta atrás en los dos sentidos: se borran los
 // archivos Y la animación gastada no vuelve al cupo. Se generó y se pagó.
-function descartarVideoIA() {
+async function descartarVideoIA() {
 	const quedan = state.cupoIA?.disponibles;
-	const ok = confirm(
-		'Se va a descartar este video y el plato se quedará con su foto.\n\n' +
-		'La animación gastada NO vuelve al cupo: ya se generó y ya se pagó' +
-		(typeof quedan === 'number' ? ` (te quedan ${quedan})` : '') +
-		'.\n\n¿Descartarlo?');
+	const ok = await preguntar({
+		titulo: 'Descartar el video',
+		texto: 'Se va a descartar este video y el plato se quedará con su foto.',
+		nota: 'La animación gastada NO vuelve al cupo: ya se generó y ya se pagó' +
+			(typeof quedan === 'number' ? ` (te quedan ${quedan})` : '') + '.',
+		si: 'Descartarlo', no: 'Conservarlo', peligro: true,
+	});
 	if (!ok) return;
 	decidirVideoIA('descartar', 'Video descartado.');
 }
@@ -4031,7 +4054,12 @@ async function quitarVideo() {
 	// botón: que esto se aplica YA —no espera a guardar, como sí hace la
 	// foto— y que hay vuelta atrás. Sin la primera, alguien cierra la ficha
 	// creyendo que descarta el cambio; sin la segunda, no se atreve a pulsar.
-	if (!confirm('¿Quitar el video de este plato?\n\nSe aplica al momento, sin esperar a guardar.\n\nEl plato volverá a mostrar su foto, y el original se conserva: podrás volver a ponerlo desde aquí mismo sin subirlo otra vez.')) return;
+	if (!await preguntar({
+		titulo: '¿Quitar el video de este plato?',
+		texto: 'Se aplica al momento, sin esperar a guardar.',
+		nota: 'El plato volverá a mostrar su foto, y el original se conserva: podrás volver a ponerlo desde aquí mismo sin subirlo otra vez.',
+		si: 'Quitar el video',
+	})) return;
 
 	const st = document.getElementById('videoUploadStatus');
 	st.textContent = 'Quitando…'; st.style.color = 'var(--text-muted)';
@@ -4556,11 +4584,14 @@ async function generarConIA() {
 	// Se pregunta porque esto gasta dinero y no tiene vuelta atrás: una vez
 	// pedida, la generación se paga salga bien o mal. Y si la foto encaja
 	// regular, se dice AQUÍ: es lo último que se lee antes de gastarla.
-	const ok = confirm(
-		`Se va a generar un video de 6 segundos a partir de la foto de este plato.\n\n` +
-		(enc?.veredicto === 'avisa' ? `⚠ ${enc.mensaje}\n\n` : '') +
-		`Esto consume 1 de las ${quedan} animaciones que te quedan, y se consume ` +
-		`aunque el resultado no te guste.\n\n¿Continuar?`);
+	const ok = await preguntar({
+		titulo: 'Generar el video con IA',
+		texto: 'Se va a generar un video de 6 segundos a partir de la foto de este plato.' +
+			(enc?.veredicto === 'avisa' ? `\n\n⚠ ${enc.mensaje}` : ''),
+		nota: `Esto consume 1 de las ${quedan} animaciones que te quedan, y se consume ` +
+			`aunque el resultado no te guste.`,
+		si: 'Generar',
+	});
 	if (!ok) return;
 
 	// Se marca ANTES de llamar. Es lo que impide que refrescarCupoIA() vuelva a
@@ -6026,12 +6057,14 @@ async function guardarDatosResto() {
 
   const slugCambio = slug !== state.restaurante.slug;
   if (slugCambio) {
-    const ok = confirm(
-      `Vas a cambiar la URL pública de "${state.restaurante.nombre}":\n\n` +
-      `de /${state.restaurante.slug}\na /${slug}\n\n` +
-      `Todos los enlaces que ya compartiste (WhatsApp, redes sociales, códigos QR) dejarán de funcionar. ` +
-      `Tendrás que volver a compartir la nueva URL.\n\n¿Seguro que quieres continuar?`
-    );
+    const ok = await preguntar({
+      titulo: 'Cambiar la dirección de la carta',
+      texto: `Vas a cambiar la URL pública de «${state.restaurante.nombre}»:`,
+      lista: [`de /${state.restaurante.slug}`, `a /${slug}`],
+      nota: 'Todos los enlaces que ya compartiste (WhatsApp, redes sociales, códigos QR) dejarán de funcionar. ' +
+            'Tendrás que volver a compartir la nueva URL.',
+      si: 'Cambiar la URL', peligro: true,
+    });
     if (!ok) return;
   }
 
@@ -6177,7 +6210,11 @@ async function handlePortadaUpload(input) {
 // columnas propias; la portada vive en atributos (y se desactiva al quitarla).
 async function eliminarImagen(tipo) {
   const nombres = { logo: 'el logo', fondo: 'la imagen de fondo', portada: 'la portada' };
-  if (!confirm(`¿Quitar ${nombres[tipo]}? Podrás volver a subir otra cuando quieras.`)) return;
+  if (!await preguntar({
+    titulo: `¿Quitar ${nombres[tipo]}?`,
+    texto: 'Podrás volver a subir otra cuando quieras.',
+    si: 'Quitar',
+  })) return;
   try {
     if (tipo === 'logo') {
       await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: null });
@@ -6659,6 +6696,8 @@ async function uploadImg(blob,folder='productos') {
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
   const abierto = id => document.getElementById(id)?.classList.contains('open');
+  // La primera: se abre encima de las demás, y Escape es «no», no cerrar todo.
+  if(hayPreguntaAbierta()) return responderPregunta(false);
   // Escape sobre el aviso de cambios es "seguir editando": la opción que no
   // pierde nada. Si cerrara las dos ventanas de golpe, la tecla de escape
   // sería el atajo más rápido para tirar el trabajo.
@@ -6925,12 +6964,13 @@ async function deshacerPago(id, nombre, anterior) {
 }
 
 async function eliminarRestaurante(id, nombre) {
-  const ok = confirm(
-    `Vas a eliminar "${nombre}" de forma permanente.\n\n` +
-    `Esto borra su menú (categorías y productos), sus videos y animaciones, su cupo de IA, ` +
-    `su ficha de cobranza y sus estadísticas — no se puede deshacer.\n\n` +
-    `¿Seguro que quieres continuar?`
-  );
+  const ok = await preguntar({
+    titulo: 'Eliminar el restaurante',
+    texto: `Vas a eliminar «${nombre}» de forma permanente.`,
+    nota: 'Esto borra su menú (categorías y productos), sus videos y animaciones, su cupo de IA, ' +
+          'su ficha de cobranza y sus estadísticas. No se puede deshacer.',
+    si: 'Eliminar', peligro: true,
+  });
   if (!ok) return;
   try {
     await apiFetch('DELETE', `/api/restaurantes/${id}`);
@@ -7128,11 +7168,14 @@ function vigilarMenusMas() {
 // botón—, pero apagar le quita al restaurante algo que estaba usando, y desde
 // el panel no se ve quién estaba a mitad de armar su carta.
 async function cambiarIA(id, nombre, activa) {
-  if (!activa && !confirm(
-      `Se va a apagar la generación con IA para ${nombre}.\n\n` +
-      `El botón de generar desaparece de sus platos. Los videos que ya tiene ` +
-      `siguen en la carta, y su cupo se queda como está: si la vuelves a ` +
-      `encender, sigue donde iba.\n\n¿Apagarla?`)) return;
+  if (!activa && !await preguntar({
+      titulo: 'Apagar la IA',
+      texto: `Se va a apagar la generación con IA para ${nombre}.`,
+      nota: 'El botón de generar desaparece de sus platos. Los videos que ya tiene ' +
+            'siguen en la carta, y su cupo se queda como está: si la vuelves a ' +
+            'encender, sigue donde iba.',
+      si: 'Apagarla',
+  })) return;
 
   try {
     // Solo 'activa'. El cupo no se manda porque no se está cambiando, y

@@ -503,6 +503,7 @@ select.form-input{padding-right:42px;}
   font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity .2s;}
 .btn-save:hover{opacity:.88;}
 .btn-save:disabled{opacity:.4;cursor:not-allowed;}
+.btn-save.peligro{background:var(--danger);color:#fff;}
 .btn-cancel{padding:11px 18px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);
   color:var(--text-muted);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all .18s;}
 .btn-cancel:hover{border-color:var(--border2);color:var(--text);}
