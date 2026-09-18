@@ -856,7 +856,7 @@
 								</div>
 								<div class="form-group">
 									<label for="tvPorSlide" class="form-label">Platos a la vez</label>
-									<select class="form-input" id="tvPorSlide" onchange="tvAvisoTamano()">
+									<select class="form-input" id="tvPorSlide" onchange="tvAvisoTamano();tvAlternarDescripcion()">
 										<option value="1">1 — el más grande</option>
 										<option value="2">2</option>
 										<option value="3">3</option>
@@ -887,6 +887,14 @@
 								</select>
 								<div id="tvTemaAyuda" style="font-size:11px;color:var(--text-dim);margin-top:6px"></div>
 							</div>
+
+								<div id="tvDescripcionFila" class="form-check" style="margin-bottom:16px">
+									<label class="toggle"><input type="checkbox" id="tvMostrarDescripcion"><span class="toggle-slider"></span></label>
+									<span style="font-size:13px;color:var(--text-muted)">Mostrar la descripción del plato</span>
+									<div style="font-size:11px;color:var(--text-dim);margin:6px 0 0 42px;line-height:1.5">
+										Solo aparece con <strong>1 plato por pantalla</strong>. Con dos o más se oculta para que fotos y precios sigan leyéndose desde lejos.
+									</div>
+								</div>
 
 							<div class="form-check" style="margin-bottom:14px">
 								<label class="toggle"><input type="checkbox" id="tvMostrarCategoria" onchange="tvAlternarCategoria()"><span class="toggle-slider"></span></label>
@@ -944,6 +952,23 @@
 							</div>
 
 							<div id="tvPromoBloque" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+								<div class="section-title" style="margin-bottom:4px">Cintas de aviso</div>
+								<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
+									Hasta cinco avisos que se desplazan como un noticiero. Cada uno puede ir arriba o abajo; deja vacíos los que no necesites.
+								</p>
+								<div id="tvCintas" style="display:grid;gap:8px;max-width:620px">
+									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta1" maxlength="160" placeholder="Ej.: Hoy 2x1 en hamburguesas" style="flex:1"><select class="form-input" id="tvCintaPos1" style="width:100px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
+									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta2" maxlength="160" placeholder="Segundo aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos2" style="width:100px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
+									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta3" maxlength="160" placeholder="Tercer aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos3" style="width:100px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
+									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta4" maxlength="160" placeholder="Cuarto aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos4" style="width:100px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
+									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta5" maxlength="160" placeholder="Quinto aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos5" style="width:100px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
+								</div>
+								<div class="form-check" style="margin:16px 0 0">
+									<label class="toggle"><input type="checkbox" id="tvReloj"><span class="toggle-slider"></span></label>
+									<span style="font-size:13px;color:var(--text-muted)">Mostrar hora y fecha</span>
+								</div>
+								<div style="font-size:11px;color:var(--text-dim);margin:6px 0 18px;line-height:1.5">Usa la zona horaria del restaurante y alterna de esquina entre pantallas.</div>
+
 								<div class="section-title" style="margin-bottom:4px">Pantallas intercaladas</div>
 								<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
 									Pantallas que salen entre las de platos. Si marcas las dos y solo cabe

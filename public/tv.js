@@ -20,7 +20,8 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          segundos: 8, modo: 'todos', categoria_id: null,
                          productos: [], aleatorio: false, animacion: 'suave',
                          mostrar_categoria: false, color_categoria: 'oscuro',
-                         tema: 'oscuro',
+                         tema: 'oscuro', mostrar_descripcion: false,
+                         cintas: [], reloj: false,
                          // Por defecto SÍ, que es lo que hacía la cartelera
                          // antes de existir esta clave.
                          respetar_horarios: true };
@@ -50,6 +51,14 @@ function renderTV() {
   document.getElementById('tvColorCategoria').value =
     ['oscuro', 'claro', 'marca'].includes(cfg.color_categoria) ? cfg.color_categoria : 'oscuro';
   document.getElementById('tvTema').value = cfg.tema === 'carta' ? 'carta' : 'oscuro';
+  document.getElementById('tvMostrarDescripcion').checked = !!cfg.mostrar_descripcion;
+  const cintas = Array.isArray(cfg.cintas) ? cfg.cintas : [];
+  for (let i = 1; i <= 5; i++) {
+    const cinta = cintas[i - 1] || {};
+    document.getElementById(`tvCinta${i}`).value = cinta.texto || '';
+    document.getElementById(`tvCintaPos${i}`).value = cinta.posicion === 'abajo' ? 'abajo' : 'arriba';
+  }
+  document.getElementById('tvReloj').checked = !!cfg.reloj;
   // '!== false' y no '!!': quien no tenga la clave guardada tiene que salir
   // encendido, que es lo que su cartelera lleva haciendo desde siempre.
   document.getElementById('tvRespetarHorarios').checked = cfg.respetar_horarios !== false;
@@ -108,7 +117,16 @@ function renderTV() {
   tvAlternarIntercalados();
   tvCambiarModo();
   tvAvisoTamano();
+  tvAlternarDescripcion();
   tvPintarAhora();
+}
+
+function tvAlternarDescripcion() {
+  const una = document.getElementById('tvPorSlide').value === '1';
+  const fila = document.getElementById('tvDescripcionFila');
+  const control = document.getElementById('tvMostrarDescripcion');
+  control.disabled = !una;
+  fila.style.opacity = una ? '1' : '.5';
 }
 
 function tvAlternarActiva() {
@@ -1053,6 +1071,12 @@ function tvDelFormulario() {
     mostrar_categoria: document.getElementById('tvMostrarCategoria').checked,
     color_categoria: document.getElementById('tvColorCategoria').value,
     tema: document.getElementById('tvTema').value,
+    // Guardar la decisión aunque hoy haya más de un plato: al volver a uno no
+    // obliga a acordarse de encender la descripción otra vez. tv.html la
+    // ignora mientras no haya un solo plato protagonista.
+    mostrar_descripcion: document.getElementById('tvMostrarDescripcion').checked,
+    cintas: tvCintasDelFormulario(),
+    reloj: document.getElementById('tvReloj').checked,
     respetar_horarios: document.getElementById('tvRespetarHorarios').checked,
     programaciones: tvProgramacionesParaGuardar(),
     // La lista manda sobre las columnas de siempre. 'promo_cada' ya no se
@@ -1061,6 +1085,19 @@ function tvDelFormulario() {
     cada: tvCada(),
     intercalados: tvIntercaladosDelFormulario(),
   };
+}
+
+function tvCintasDelFormulario() {
+  const resultado = [];
+  for (let i = 1; i <= 5; i++) {
+    const texto = document.getElementById(`tvCinta${i}`).value.trim();
+    if (!texto) continue;
+    resultado.push({
+      texto: texto.slice(0, 160),
+      posicion: document.getElementById(`tvCintaPos${i}`).value === 'abajo' ? 'abajo' : 'arriba',
+    });
+  }
+  return resultado;
 }
 
 async function saveTV() {
