@@ -286,6 +286,35 @@ un JPEG de 800 px al 82% es el suelo de todo lo que venga después. Es candidato
 subir el tope para los restaurantes con modelo de video — pero **antes hay que
 medirlo**, no cambiarlo por si acaso.
 
+### El encuadre: el restaurante elige qué se anima (18/09/2026)
+
+Pedido por el usuario. El aviso de proporción decía «suele quedar bien si el
+plato está centrado», y no había forma de centrarlo: el modelo recibía la foto
+entera y ffmpeg cortaba después la franja del medio, sobre un video ya pagado.
+
+Ahora, cuando la foto tiene veredicto `'avisa'`, «Generar video con IA» abre
+primero una ventana (`public/encuadre.js`) con la foto y un recuadro de la
+proporción de la carta que se arrastra —ratón, dedo o flechas—. Esa ventana trae
+la nota del coste y **sustituye** a la pregunta de «¿generar?», para no preguntar
+dos veces. Del panel sale solo el **centro** del recuadro (`encuadre: { cx, cy }`,
+fracciones de la foto); el servidor calcula el recuadro —el más grande que cabe,
+`video.recorteCentradoEn`—, recorta la foto con ffmpeg **antes de reservar cupo**
+y le pasa al modelo la recortada. Como el modelo hereda la proporción de la
+foto, el video sale ya en la de la carta.
+
+- La foto recortada se guarda en `uploads/productos/` (`ia-encuadre-…jpg`)
+  porque Replicate la descarga de una URL pública. Nadie la referencia, así que
+  `limpieza.js` la recoge pasada su gracia.
+- El veredicto `'rechaza'` (foto horizontal en carta vertical) **sigue
+  rechazándose**: el recuadro sería una tira estrecha, que es el motivo del
+  rechazo.
+- Si el recorte falla, se contesta 500 **sin haber gastado** nada.
+
+**Pendiente de medir en la primera generación real:** con la foto de 800 px, el
+recuadro 16:9 que recibe el modelo es de 800×450. Arriba se ve que su salida
+sigue a la entrada (800×1067 → 768×1024), así que hay que mirar a qué
+resolución devuelve el video con una entrada así y si se nota en la carta.
+
 ---
 
 ## 7. Lo que se verificó, y lo que queda

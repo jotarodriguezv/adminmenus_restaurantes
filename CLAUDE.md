@@ -73,6 +73,9 @@ corregir el documento en la misma tarea.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.
 - `public/ajustes.js` — la pestaña Ajustes: lo que el restaurante configura de
   su carta. Hoy, el carrito, las redes sociales y los filtros y etiquetas.
+- `public/encuadre.js` — elegir qué parte de la foto anima la IA cuando no
+  tiene la proporción de la carta. El recorte lo hace el servidor; ver
+  `docs/video-con-ia.md`, «El encuadre».
 - `parada.js` — qué hace el panel al recibir `SIGTERM` en cada despliegue: deja
   de aceptar conexiones, deja terminar las abiertas, la cola de video suelta su
   trabajo y se sale antes de los 10 s de Docker. **Quitarlo devuelve el

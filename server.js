@@ -1169,6 +1169,7 @@ app.post('/api/ia/generar', auth, async (req, res) => {
   if (sinRevisar?.length)
     return res.status(409).json({ error: 'Ese plato ya tiene un video generado esperando revisión. Publícalo o descártalo antes de generar otro.' });
 
+  let fotoParaElModelo = prod.imagen_url;
   const rutaFoto = rutaLocalDeSubida(prod.imagen_url);
   if (rutaFoto && fs.existsSync(rutaFoto)) {
     const m = await video.medidasDe(rutaFoto);
@@ -1176,15 +1177,37 @@ app.post('/api/ia/generar', auth, async (req, res) => {
     // arriesga un resultado feo; no saber el cupo arriesga la factura. Por eso
     // aquel falla cerrado y este no.
     if (m) {
-      const encaje = video.encajeDeFoto(m.ancho, m.alto, video.formatoDe(resto?.atributos));
+      const formato = video.formatoDe(resto?.atributos);
+      const encaje = video.encajeDeFoto(m.ancho, m.alto, formato);
+      // El encuadre no salva este caso: el recuadro sería una tira estrecha y
+      // de poca resolución, que es justo por lo que se rechaza.
       if (encaje.veredicto === 'rechaza')
         return res.status(400).json({ error: encaje.mensaje, encaje });
+
+      // ── EL ENCUADRE ELEGIDO EN EL PANEL ───────────────────────
+      // Se recorta ANTES de reservar cupo: si falla, no se ha gastado nada y
+      // se contesta con un error que se puede reintentar. La foto recortada
+      // va junto a las demás, porque Replicate la descarga de una URL
+      // pública; nadie la referencia, así que el limpiador se la lleva
+      // pasada su gracia, mucho después de que el modelo la haya leído.
+      const encuadre = video.encuadreValido(req.body.encuadre);
+      if (encuadre && encaje.perdido > 0) {
+        const r = video.recorteCentradoEn(m.ancho, m.alto, formato, encuadre.cx, encuadre.cy);
+        const nombre = `ia-encuadre-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+        try {
+          await video.recortarFoto(rutaFoto, path.join(path.dirname(rutaFoto), nombre), r);
+          fotoParaElModelo = new URL(nombre, prod.imagen_url).href;
+        } catch (e) {
+          console.error(`⚠️  recortando la foto para la IA: ${e.message}`);
+          return res.status(500).json({ error: 'No se pudo preparar el encuadre de la foto. Inténtalo otra vez; no se ha gastado ninguna animación.' });
+        }
+      }
     }
   }
 
   try {
     const r = await colaia.lanzar(supabase, {
-      restaurante_id, producto_id, foto_url: prod.imagen_url,
+      restaurante_id, producto_id, foto_url: fotoParaElModelo,
     });
     res.json(r);
   } catch (e) {

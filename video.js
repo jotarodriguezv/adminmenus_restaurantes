@@ -330,6 +330,53 @@ const NOMBRE_FORMATO = {
 // requisito: es para que quien lee sepa qué pedirle a quien toma las fotos.
 const EJEMPLO_FORMATO = { horizontal: '1920×1080', vertical: '1080×1920' };
 
+// ── EL ENCUADRE QUE ELIGIÓ EL RESTAURANTE ─────────────────────
+// Pedido por el usuario el 18/09/2026: el aviso decía «suele quedar bien si
+// el plato está centrado» y no había forma de centrarlo. Ahora el panel deja
+// arrastrar un recuadro con la proporción de la carta sobre la foto, y aquí
+// se recorta a ese recuadro ANTES de mandarla al modelo. Como el modelo
+// hereda la proporción de la foto, el video sale ya en la de la carta y
+// después no se le corta nada.
+//
+// Del panel llega solo el CENTRO del recuadro, en fracciones de la foto. El
+// tamaño se calcula aquí: es siempre el más grande que cabe (recorteIdeal).
+// Así no hay que validar una proporción que llega de fuera, y un centro
+// cualquiera no puede pedir un recorte fuera de la foto: se ajusta al borde.
+function recorteCentradoEn(ancho, alto, formato, cx, cy) {
+  const f = FORMATOS[formato] || FORMATOS.horizontal;
+  const { ancho: w, alto: h } = recorteIdeal(ancho, alto, f.ancho / f.alto);
+  const dentro = (v, max) => Math.min(Math.max(v, 0), max);
+  // ffmpeg quiere píxeles enteros, y pares para no pelearse con el
+  // submuestreo de color de algunos JPEG.
+  const par = n => n - (n % 2);
+  const x = par(Math.round(dentro(cx * ancho - w / 2, ancho - w)));
+  const y = par(Math.round(dentro(cy * alto - h / 2, alto - h)));
+  return { x, y, ancho: par(w), alto: par(h) };
+}
+
+// Un centro que se pueda usar, o null. Lo que no sea un número entre 0 y 1
+// se ignora y se genera como hasta ahora, con el recorte central.
+function encuadreValido(e) {
+  if (!e || typeof e !== 'object') return null;
+  const ok = v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
+  return ok(e.cx) && ok(e.cy) ? { cx: e.cx, cy: e.cy } : null;
+}
+
+function argumentosRecorteFoto(entrada, salida, r) {
+  return [...COMUNES, '-i', entrada,
+    '-vf', `crop=${r.ancho}:${r.alto}:${r.x}:${r.y}`,
+    '-frames:v', '1', '-q:v', '2', salida];
+}
+
+// Directo con `ejecutar` y no con correrFfmpeg: esto va dentro de una petición
+// y dura una fracción de segundo, y correrFfmpeg apunta el proceso como "el
+// ffmpeg de la cola" —el que la parada corta—, que sería otro.
+async function recortarFoto(entrada, salida, r) {
+  await ejecutar('ffmpeg', argumentosRecorteFoto(entrada, salida, r), { timeout: 30_000 });
+  if (!fs.existsSync(salida) || !fs.statSync(salida).size)
+    throw new Error('el recorte de la foto salió vacío');
+}
+
 function encajeDeFoto(ancho, alto, formato = 'horizontal') {
   const f = FORMATOS[formato] || FORMATOS.horizontal;
   const nombre = NOMBRE_FORMATO[formato] || NOMBRE_FORMATO.horizontal;
@@ -839,6 +886,7 @@ module.exports = {
   arrancar, encolar, reconvertir, esReconversion, detener,
   CARPETAS, DURACION_MAX, DURACION_MIN, MEDIDAS, FORMATOS, ENCAJE_AVISA,
   formatoDe, medidasDe, encajeDeFoto, recorteIdeal,
+  recorteCentradoEn, encuadreValido, argumentosRecorteFoto, recortarFoto,
   // Exportados para las pruebas: son puros y se pueden comprobar sin
   // ejecutar ffmpeg ni tocar el disco.
   argumentosEntregable, argumentosMaster, argumentosPortada, instantePortada,
