@@ -7354,3 +7354,106 @@ describe('adicionales que se pueden pedir varias veces', () => {
 		assert.equal('repetible' in cat.premium[1], false, 'lo que no se repite no guarda la clave');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('Inicio: qué pide una acción y qué tiene encendido la carta', () => {
+	// Rehecha el 17/09/2026 tras mirarla con los datos de Bonzas: le decía «38
+	// productos sin foto» y los 38 estaban en categorías de vista lista, donde la
+	// carta no enseña fotos. Y un carrito sin WhatsApp no salía por ningún lado.
+	const reglas = () => cargar('inicio.js', [
+		['index.html', '// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
+		['index.html', 'function recibePedidos', 'function formatoDeLaCarta'],
+		['inicio.js', 'function productoGratis', '// ── PINTAR'],
+	], {
+		MODELO_POR_DEFECTO: 'topnav',
+		MODELOS_CARRITO_OPCIONAL: ['video', 'vertical', 'topnav', 'sidebar', 'explorar'],
+		esModeloDeVideo: nav => ['video', 'vertical'].includes(nav),
+		MINIMO_PLATOS_BUSCADOR: 8,
+		Number, String, Array, Set,
+	});
+	const PLAN = { carrito: true };
+	const cat = (id, sin_fotos = false) => ({ id, nombre: id, sin_fotos });
+	const plato = (id, categoria_id, extra = {}) =>
+		({ id, nombre: id, categoria_id, precio_numerico: 1000, disponible: true, imagen_url: 'https://x/f.jpg', atributos: {}, ...extra });
+	const claves = r => [...r.pendientes].map(p => p.clave);
+
+	test('un plato sin foto en una categoría de lista no es pendiente', () => {
+		// Es el caso de Bonzas: la carta no enseña foto ahí, no hay nada que hacer.
+		const r = reglas().revisionDeInicio({
+			categorias: [cat('bebidas', true)],
+			productos: [plato('agua', 'bebidas', { imagen_url: null })],
+			atributos: { nav: 'topnav' }, plan: PLAN,
+		});
+		assert.deepEqual(claves(r), []);
+	});
+
+	test('donde la carta sí enseña la foto, falta y se dice', () => {
+		const r = reglas().revisionDeInicio({
+			categorias: [cat('burgers')],
+			productos: [plato('a', 'burgers', { imagen_url: null }), plato('b', 'burgers', { imagen_url: null })],
+			atributos: { nav: 'topnav' }, plan: PLAN,
+		});
+		assert.deepEqual(claves(r), ['imagen']);
+		assert.equal(r.pendientes[0].titulo, '2 platos sin foto');
+	});
+
+	test('en una carta de video lo que falta es el video, no la foto', () => {
+		const r = reglas().revisionDeInicio({
+			categorias: [cat('platos')],
+			productos: [plato('a', 'platos', { atributos: {} }), plato('b', 'platos', { atributos: { video: { url: 'https://x/v.mp4' } } })],
+			atributos: { nav: 'vertical' }, plan: PLAN,
+		});
+		assert.equal(r.pendientes[0].titulo, '1 plato sin video');
+	});
+
+	test('el carrito sin WhatsApp va el primero: es el que pierde pedidos', () => {
+		const r = reglas().revisionDeInicio({
+			categorias: [cat('c'), cat('vacia')],
+			productos: [plato('a', 'c', { imagen_url: null })],
+			atributos: { nav: 'sidebar', carrito: true, whatsapp_pedidos: '' }, plan: PLAN,
+		});
+		assert.deepEqual(claves(r), ['whatsapp', 'imagen', 'categorias']);
+		assert.equal(r.pendientes[0].grave, true);
+	});
+
+	test('con el número puesto no hay aviso', () => {
+		const r = reglas().revisionDeInicio({
+			categorias: [cat('c')], productos: [plato('a', 'c')],
+			atributos: { nav: 'sidebar', carrito: true, whatsapp_pedidos: '573001112233' }, plan: PLAN,
+		});
+		assert.deepEqual(claves(r), []);
+	});
+
+	test('un cero marcado como «Gratis» no es un precio pendiente', () => {
+		const r = reglas().revisionDeInicio({
+			categorias: [cat('c')],
+			productos: [plato('a', 'c', { precio_numerico: 0 }), plato('b', 'c', { precio_numerico: 0, atributos: { precio_gratis: true } })],
+			atributos: {}, plan: PLAN,
+		});
+		assert.equal(r.pendientes[0].titulo, '1 plato con precio en cero');
+	});
+
+	test('lo que está bien se resume, no ocupa filas', () => {
+		const r = reglas().revisionDeInicio({
+			categorias: [cat('c')], productos: [plato('a', 'c')], atributos: {}, plan: PLAN,
+		});
+		assert.deepEqual([...r.enOrden], ['fotos', 'precios', 'categorías']);
+	});
+
+	test('el buscador dice «encendido» solo si el comensal lo ve', () => {
+		// Con cinco platos la carta no lo enseña: decir encendido sería
+		// prometerle al restaurante algo que no ve.
+		const ctx = reglas();
+		const buscador = productos => [...ctx.funcionesDeInicio({ productos, atributos: {}, plan: PLAN })]
+			.find(f => f.clave === 'buscador');
+		assert.equal(buscador(Array.from({ length: 5 }, (_, i) => plato('p' + i, 'c'))).encendido, false);
+		assert.equal(buscador(Array.from({ length: 12 }, (_, i) => plato('p' + i, 'c'))).encendido, true);
+	});
+
+	test('los destacados del televisor también cuentan', () => {
+		const ctx = reglas();
+		const f = [...ctx.funcionesDeInicio({ promociones: [{ activa: true, en_popup: false, en_tv: true }], atributos: {}, plan: PLAN })]
+			.find(x => x.clave === 'destacados');
+		assert.equal(f.encendido, true);
+	});
+});
