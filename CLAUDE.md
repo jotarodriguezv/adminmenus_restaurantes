@@ -760,21 +760,25 @@ Si deciden impedir la salida, el cambio es **quitar un botón** de
 
 ### Ocho diálogos del navegador sin unificar
 
-**Depende de la decisión de arriba. No empezar antes.**
+**Hecho el 18/09/2026, decidido con el equipo:** se usa la ventana del panel,
+nunca el `confirm()` del navegador.
 
-El panel usa dos patrones para lo mismo: la ventana en la página
-(`cambiosModal`, `procesoModal`) y el `confirm()` del navegador, este último en
-ocho sitios —borrar categoría, quitar imagen, quitar video, apagar la IA, y
-otros—. No es una convención rota por descuido reciente: llevan conviviendo
-desde antes.
+Los ocho `confirm()` que quedaban —borrar un adicional que ofrecen platos,
+descartar o quitar un video, generar con IA, cambiar la URL, quitar
+logo/fondo/portada, eliminar un restaurante y apagar la IA— usan ahora
+`preguntar()` (`public/preguntar.js`), que abre `preguntaModal` y devuelve una
+promesa con `true` o `false`:
 
-El usuario prefiere la ventana en la página, y su motivo es bueno: un diálogo
-del sistema en medio del panel rompe el aspecto, y en un móvil se nota más.
+```js
+if (!await preguntar({ titulo, texto, lista, nota, si: 'Eliminar', peligro: true })) return;
+```
 
-**Por qué esperar:** si su equipo concluye que para estas confirmaciones el
-diálogo del navegador está bien —es más difícil de ignorar, y eso a veces se
-busca— unificar los ocho sería trabajo tirado. Primero la regla, después
-aplicarla.
+Mismas reglas que `cambiosModal`: sin ✕, un clic fuera o Escape es «no», y el
+foco empieza en «no». Una prueba de `navegador.test.js` falla si alguien vuelve
+a meter un `confirm()`, `alert()` o `prompt()` en `public/`.
+
+La única excepción es recargar o cerrar la página, donde el navegador no deja
+poner una ventana propia: ahí solo cabe `beforeunload`.
 
 ## Comandos
 

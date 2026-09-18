@@ -5926,7 +5926,7 @@ describe('los toppings se guardan con el botón de Ajustes', () => {
 			MODELO_POR_DEFECTO: 'topnav',
 			toppingState: catalogo,
 			toppingsQueSeQuitan: () => huerfanos,
-			confirm: texto => { preguntas.push(texto); return responde; },
+			preguntar: async o => { preguntas.push([o.texto, ...(o.lista || []), o.nota].join('\n')); return responde; },
 			planActual: () => plan, recibePedidos: () => true, puedeElegirCarrito: () => true,
 			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {}, fijarFotoDePestana() {},
 			// El marcado de campos vive en index.html; la regla de qué falta sí es
@@ -7251,6 +7251,93 @@ describe('la pestaña Superadmin: qué se lee primero', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('preguntar() en vez del confirm() del navegador', () => {
+	// 18/09/2026, decidido con el equipo: quedaban ocho confirm() en el panel.
+	// Rompen su aspecto, en el móvil peor, y algunos navegadores ofrecen «no
+	// volver a preguntar», tras lo cual confirm() devuelve false sin enseñar
+	// nada y el botón parece roto.
+	function montar() {
+		const els = {};
+		const clases = () => { const s = new Set(); return { add: c => s.add(c), remove: c => s.delete(c), toggle: (c, on) => (on ? s.add(c) : s.delete(c)), contains: c => s.has(c) }; };
+		const $ = id => (els[id] ||= { id, textContent: '', style: {}, classList: clases(), hijos: [],
+			appendChild(h) { this.hijos.push(h); }, focus() { enfocado = id; } });
+		let enfocado = null;
+		const body = { style: {} };
+		const ctx = cargar('preguntar.js', [['preguntar.js', 'let respuestaPendiente', null]], {
+			document: {
+				getElementById: $, body,
+				createElement: () => ({ textContent: '' }),
+				querySelector: () => (Object.values(els).some(e => e.id.endsWith('Modal') && e.id !== 'preguntaModal' && e.classList.contains('open')) ? {} : null),
+			},
+			Promise,
+		});
+		return { ctx, $, body, enfocado: () => enfocado };
+	}
+
+	test('abre la ventana del panel y responde lo que se pulsa', async () => {
+		const { ctx, $ } = montar();
+		const p = ctx.preguntar({ titulo: 'Eliminar el restaurante', texto: 'Vas a eliminar «Bonzas».', si: 'Eliminar', peligro: true });
+		assert.equal($('preguntaModal').classList.contains('open'), true);
+		assert.equal($('preguntaTitulo').textContent, 'Eliminar el restaurante');
+		assert.equal($('preguntaSi').textContent, 'Eliminar');
+		assert.equal($('preguntaSi').classList.contains('peligro'), true);
+		ctx.responderPregunta(true);
+		assert.equal(await p, true);
+		assert.equal($('preguntaModal').classList.contains('open'), false);
+	});
+
+	test('el foco empieza en «no»: un Enter de más no borra nada', () => {
+		const m = montar();
+		m.ctx.preguntar({ texto: 'x' });
+		assert.equal(m.enfocado(), 'preguntaNo');
+	});
+
+	test('lo que se pinta va como texto, no como HTML', () => {
+		// Se pintan nombres de restaurantes y platos escritos por otras personas.
+		const { ctx, $ } = montar();
+		ctx.preguntar({ texto: '<img src=x onerror=alert(1)>', lista: ['<b>Papas</b>'] });
+		assert.equal($('preguntaTexto').textContent, '<img src=x onerror=alert(1)>');
+		assert.equal($('preguntaLista').hijos[0].textContent, '<b>Papas</b>');
+	});
+
+	test('una segunda pregunta da la primera por contestada que no', async () => {
+		const { ctx } = montar();
+		const primera = ctx.preguntar({ texto: 'a' });
+		const segunda = ctx.preguntar({ texto: 'b' });
+		assert.equal(await primera, false);
+		ctx.responderPregunta(true);
+		assert.equal(await segunda, true);
+	});
+
+	test('al cerrarse encima de la ficha del plato, la página sigue sin desplazarse', () => {
+		// closeModal() lo devolvería con la ficha todavía abierta.
+		const { ctx, $, body } = montar();
+		$('productModal').classList.add('open');
+		ctx.preguntar({ texto: 'x' });
+		ctx.responderPregunta(false);
+		assert.equal(body.style.overflow, 'hidden');
+		$('productModal').classList.remove('open');
+		ctx.preguntar({ texto: 'x' });
+		ctx.responderPregunta(false);
+		assert.equal(body.style.overflow, '');
+	});
+
+	test('no queda ningún confirm(), alert() ni prompt() en el panel', () => {
+		for (const f of fs.readdirSync(PUBLIC).filter(n => /\.(js|html)$/.test(n))) {
+			const codigo = fs.readFileSync(path.join(PUBLIC, f), 'utf8')
+				.split('\n').filter(l => !/^\s*(\/\/|\*|<!--)/.test(l)).join('\n');
+			// «confirm()» con los paréntesis vacíos es que un comentario lo nombra.
+			assert.doesNotMatch(codigo, /(^|[^.\w])(confirm|alert|prompt)\((?!\))/, f);
+		}
+	});
+
+	test('Escape y el clic fuera son «no»', () => {
+		const src = codigoDelPanel();
+		assert.match(src, /if\(hayPreguntaAbierta\(\)\) return responderPregunta\(false\);/);
+		assert.match(src, /id="preguntaModal" onclick="if\(event\.target===this\)responderPregunta\(false\)"/);
+	});
+});
+
 describe('lo que cada plato tiene marcado, visto desde la lista', () => {
 	// Pedido el 17/09/2026: saber si un plato ofrece toppings o cumple un filtro
 	// obligaba a abrir su ficha, y en una carta de 97 platos eso son 97 ventanas.

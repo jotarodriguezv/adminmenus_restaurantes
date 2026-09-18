@@ -138,12 +138,14 @@ async function saveAjustes() {
   // no se notaba, porque ahí solo se guardaba al tocar toppings.
   if (hayQueEnsenarToppings()) {
     const huerfanos = toppingsQueSeQuitan();
-    if (huerfanos.length && !confirm(
-      'Estos platos ofrecen adicionales que van a dejar de existir con este cambio:\n\n' +
-      huerfanos.slice(0, 10).join('\n') +
-      (huerfanos.length > 10 ? `\n…y ${huerfanos.length - 10} plato(s) más` : '') +
-      '\n\nSi lo que quieres es cambiarle el nombre a uno, no hace falta borrarlo: ' +
-      'pulsa sobre él y edítalo, y los platos lo siguen solos.\n\n¿Guardar de todas formas?')) {
+    if (huerfanos.length && !await preguntar({
+      titulo: 'Adicionales que se van a borrar',
+      texto: 'Estos platos ofrecen adicionales que van a dejar de existir con este cambio:',
+      lista: huerfanos.slice(0, 10).concat(huerfanos.length > 10 ? [`…y ${huerfanos.length - 10} plato(s) más`] : []),
+      nota: 'Si lo que quieres es cambiarle el nombre a uno, no hace falta borrarlo: ' +
+            'pulsa sobre él y edítalo, y los platos lo siguen solos.',
+      si: 'Guardar de todas formas', no: 'Revisar', peligro: true,
+    })) {
       st.textContent = ''; return;
     }
   }
