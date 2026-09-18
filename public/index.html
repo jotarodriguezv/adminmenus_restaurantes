@@ -3742,8 +3742,8 @@ function pintarVideoPlato(p) {
 	if (desfasado) {
 		const btnR = document.getElementById('btnReconvertir');
 		btnR.disabled = false; btnR.style.opacity = '1'; btnR.style.cursor = 'pointer';
-		const eran = desfasado.trabajo.formato === 'vertical' ? 'vertical (9:16)' : 'apaisado (16:9)';
-		const son  = desfasado.formato === 'vertical' ? 'vertical (9:16)' : 'apaisado (16:9)';
+		const eran = desfasado.trabajo.formato === 'vertical' ? 'vertical (9:16)' : 'horizontal (16:9)';
+		const son  = desfasado.formato === 'vertical' ? 'vertical (9:16)' : 'horizontal (16:9)';
 		document.getElementById('videoDesfasadoTexto').textContent =
 			`Este video se recortó ${eran} y tu carta ahora es ${son}, así que se ve una franja ` +
 			`del centro. Se puede volver a recortar desde el original guardado: no cuesta nada ` +
@@ -4555,7 +4555,7 @@ function encajeDeFoto(ancho, alto) {
 	// confusión costó una generación pagada.
 	if (conservado < 0.8) return { veredicto: 'avisa', perdido, ideal,
 		mensaje: `Se puede generar igual. Aviso: tu foto es ${tamaño} y esta carta es ` +
-		         `${vertical ? 'vertical (9:16)' : 'apaisada (16:9)'}, así que al video se le ` +
+		         `${vertical ? 'vertical (9:16)' : 'horizontal (16:9)'}, así que al video se le ` +
 		         `recortará el ${perdido}% del ${lado}. Suele quedar bien si el plato está ` +
 		         `centrado. Para que no se recorte nada, súbela recortada a ` +
 		         `${ideal.ancho}×${ideal.alto}.` };
@@ -7244,7 +7244,7 @@ function fichaPlanHtml(r) {
   //    y no como dato aparte porque en video no es un detalle: decide el
   //    recorte de cada archivo, y cambiarlo obliga a reconvertir la carta.
   partes.push(esVideo
-    ? et(`🎬 video ${modelo === 'vertical' ? 'vertical 9:16' : 'apaisado 16:9'}`, 'video')
+    ? et(`🎬 video ${modelo === 'vertical' ? 'vertical 9:16' : 'horizontal 16:9'}`, 'video')
     : et('📷 solo fotos'));
 
   // 2. El modelo de página, que es lo que decide la forma de la carta.
