@@ -2245,6 +2245,7 @@
 <script src="ajustes.js"></script>
 <script src="restaurantes-filtros.js"></script>
 <script src="productos-marcas.js"></script>
+<script src="ver-en-la-carta.js"></script>
 <script>
 // ── COLORES ───────────────────────────────────────────────────
 // Los campos de color son de texto libre y nadie rechazaba un '#12345' o un
@@ -2970,7 +2971,7 @@ async function quickToggle(id,disponible) {
     // dejaba la fila igual. Se toca la clase en vez de repintar la lista
     // entera, que perdería el sitio del scroll.
     document.getElementById('row-'+id)?.classList.toggle('unavailable', !disponible);
-    showToast(disponible?'Producto activado':'Producto desactivado','success');
+    avisarGuardadoConCarta(disponible?'Producto activado':'Producto desactivado');
   } catch(e) { showToast('Error','error'); }
 }
 
@@ -3435,7 +3436,8 @@ async function decidirVideoIA(accion, textoOk) {
 		const productoId = document.getElementById('editProductId').value;
 		const p = (state.productos || []).find(x => x.id === productoId);
 		if (p) pintarVideoPlato(p);
-		showToast(textoOk, 'success');
+		if (accion === 'publicar') avisarGuardadoConCarta(textoOk);
+		else showToast(textoOk, 'success');
 	} catch (e) {
 		est.textContent = e.message || 'No se pudo completar'; est.style.color = 'var(--danger)';
 		for (const b of botones) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; }
@@ -4046,7 +4048,7 @@ async function quitarVideo() {
 		// "ya guardado" y no solo "quitado": es lo que evita que alguien busque
 		// el botón de guardar para confirmar algo que ya está hecho.
 		st.textContent = 'Video quitado y guardado'; st.style.color = 'var(--success)';
-		showToast('Video quitado del plato', 'success');
+		avisarGuardadoConCarta('Video quitado del plato');
 	} catch (e) {
 		st.textContent = 'Error: ' + e.message; st.style.color = 'var(--danger)';
 	}
@@ -4976,7 +4978,7 @@ async function saveProduct() {
 		// Guardado: ya no hay nada pendiente que avisar al cerrar.
 		state.firmaProducto = undefined;
 		closeModal('productModal');
-		showToast(id?'Producto guardado':'Producto creado','success');
+		avisarGuardadoConCarta(id?'Producto guardado':'Producto creado');
 	} catch(e) { showToast('Error: '+e.message,'error'); }
 	finally { btn.disabled=false; btn.textContent=id ? 'Guardar cambios' : 'Crear producto'; }
 }
@@ -5495,7 +5497,7 @@ async function saveCat() {
     // al renombrarla la lista sigue diciendo el nombre viejo.
     renderProducts();
     closeModal('catModal');
-    showToast(id?'Categoría actualizada':'Categoría creada','success');
+    avisarGuardadoConCarta(id?'Categoría actualizada':'Categoría creada');
     // Se llegó aquí queriendo añadir un plato: se vuelve a eso, con la categoría
     // recién creada ya elegida. Solo al CREAR —editar una no encadena nada— y
     // solo una vez: la bandera se consume.
@@ -5704,7 +5706,7 @@ async function guardarOrdenCategorias(ids) {
     await enTandas(cambios, c => apiFetch('PATCH',`/api/categorias/${c.id}`,{orden:c.orden}));
     state.categorias=nuevas;
     renderCatList(); renderCatFilter();
-    showToast('Orden actualizado','success');
+    avisarGuardadoConCarta('Orden actualizado');
     return true;
   } catch(e) {
     showToast('Error al reordenar','error');
@@ -5845,7 +5847,7 @@ async function executeDelete() {
       await apiFetch('DELETE',`/api/productos/${id}`);
       state.productos=state.productos.filter(p=>p.id!==id);
       renderCatFilter(); renderProducts();
-      showToast('Producto retirado de la carta','success');
+      avisarGuardadoConCarta('Producto retirado de la carta');
     } else if(tipo==='promocion') {
       await apiFetch('DELETE',`/api/promociones/${id}`);
       state.promociones=(state.promociones||[]).filter(x=>x.id!==id);
@@ -5859,7 +5861,7 @@ async function executeDelete() {
       // ya no muestra y el siguiente clic da un error sin sentido.
       state.productos=state.productos.filter(p=>p.categoria_id!==id);
       renderCatList(); renderCatFilter(); renderProducts();
-      showToast('Categoría retirada de la carta','success');
+      avisarGuardadoConCarta('Categoría retirada de la carta');
     }
     closeModal('confirmModal');
   } catch(e) { showToast('Error: '+e.message,'error'); }
@@ -6063,8 +6065,10 @@ async function guardarDatosResto() {
     const aparienciaPendiente = hayCambiosApariencia();
     pintarGuardado('apDatosRestoStatus', aparienciaPendiente, 'Configuración', 'abajo');
     marcarPendientes();
-    showToast(aparienciaPendiente ? 'Datos guardados · la configuración de abajo sigue sin guardar' : 'Datos actualizados',
-              aparienciaPendiente ? 'info' : 'success');
+    // Con la otra mitad sin guardar no lleva el botón: la carta enseñaría
+    // una mezcla de lo guardado y lo de antes.
+    if (aparienciaPendiente) showToast('Datos guardados · la configuración de abajo sigue sin guardar', 'info');
+    else avisarGuardadoConCarta('Datos actualizados');
   } catch (e) {
     st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)';
     showToast('Error: ' + e.message, 'error');
@@ -6135,7 +6139,7 @@ async function handleLogoUpload(input) {
     await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: url });
     state.restaurante.logo_url = url; pintarImagenesApariencia();
     st.textContent = '✓ Logo actualizado'; st.style.color = 'var(--success)';
-    showToast('Logo guardado', 'success');
+    avisarGuardadoConCarta('Logo guardado');
   } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
 
@@ -6149,7 +6153,7 @@ async function handleFondoUpload(input) {
     await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { fondo_url: url });
     state.restaurante.fondo_url = url; pintarImagenesApariencia();
     st.textContent = '✓ Fondo actualizado'; st.style.color = 'var(--success)';
-    showToast('Fondo guardado', 'success');
+    avisarGuardadoConCarta('Fondo guardado');
   } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
 
@@ -6169,7 +6173,7 @@ async function handlePortadaUpload(input) {
     sincronizarPortadaActiva();
     pintarImagenesApariencia();
     st.textContent = '✓ Portada actualizada'; st.style.color = 'var(--success)';
-    showToast('Portada guardada · activada', 'success');
+    avisarGuardadoConCarta('Portada guardada · activada');
   } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
 
@@ -6193,7 +6197,7 @@ async function eliminarImagen(tipo) {
     }
     pintarImagenesApariencia();
     if (tipo === 'portada') sincronizarPortadaActiva();
-    showToast('Imagen eliminada', 'success');
+    avisarGuardadoConCarta('Imagen eliminada');
   } catch (e) { showToast('Error al eliminar: ' + e.message, 'error'); }
 }
 
@@ -6251,8 +6255,8 @@ async function saveApariencia() {
     // quien lo enciende no sabe si funcionó. Mismo motivo que
     // ajustarPestanasAlModelo, que está aquí por lo mismo.
     await ajustarPestanaImportar();
-    showToast(datosPendientes ? 'Configuración guardada · los datos del restaurante siguen sin guardar' : 'Configuración guardada',
-              datosPendientes ? 'info' : 'success');
+    if (datosPendientes) showToast('Configuración guardada · los datos del restaurante siguen sin guardar', 'info');
+    else avisarGuardadoConCarta('Configuración guardada');
   } catch (e) { st.textContent = 'Error al guardar'; st.style.color = 'var(--danger)'; showToast('Error: ' + e.message, 'error'); }
 }
 

@@ -1162,7 +1162,7 @@ async function saveTV() {
     document.getElementById('tvSegundos').value = tv.segundos;
     fijarFotoDePestana('tv');
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
-    showToast('Pantalla TV guardada', 'success');
+    avisarGuardadoConCarta('Pantalla TV guardada', 'tv');
     // Lo que se acaba de guardar es lo que la cartelera va a leer, así que la
     // vista previa se recarga sola: pedirle al usuario que pulse dos botones
     // para ver su propio cambio es la clase de paso que nadie da.
