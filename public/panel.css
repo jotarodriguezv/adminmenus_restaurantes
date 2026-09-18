@@ -470,7 +470,6 @@ select.form-input{padding-right:42px;}
 #productModal .producto-nombre{order:1;}
 #productModal .producto-categoria{order:2;}
 #productModal .producto-precio{order:3;}
-#productModal .producto-disponibilidad{order:4;}
 #productModal .producto-foto{order:5;}
 #productModal .producto-video{order:6;}
 #productModal .producto-descripcion{order:7;}
@@ -479,6 +478,19 @@ select.form-input{padding-right:42px;}
 #productModal .producto-personalizacion{order:10;}
 #productModal .producto-filtros{order:11;}
 #productModal .producto-destacados{order:12;}
+/* Disponible, a la derecha del nombre; gratis, al lado del precio. Así la
+   ficha es más corta y lo que saca un plato de la carta está a la vista. */
+#productModal .ficha-cabecera-nombre{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;}
+#productModal .ficha-cabecera-nombre .form-label{margin-bottom:0;}
+#productModal .ficha-cabecera-nombre .form-check{padding:0;gap:8px;}
+#productModal .precio-fila{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+#productModal .precio-fila .form-input{flex:0 1 50%;min-width:140px;}
+#productModal .precio-gratis{padding:0;gap:8px;font-size:12px;color:var(--text-muted);}
+/* La foto, con la proporción de la carta (16:9 o 9:16) y a un tamaño de mirar.
+   Era una franja de todo el ancho y 160 px de alto, que no se parece a ninguna
+   de las dos: la foto se veía recortada de una forma que la carta no hace. */
+#productModal .producto-foto .img-edit-wrap{width:min(100%,320px);height:auto;aspect-ratio:16/9;margin:0 0 6px;}
+#productModal .producto-foto .img-edit-wrap[data-formato="vertical"]{width:auto;height:280px;aspect-ratio:9/16;}
 /* Video del plato: los dos caminos, uno al lado del otro. En móvil, uno debajo
    del otro (auto-fit), y si la carta no tiene IA el de subir ocupa todo. */
 .video-caminos-titulo{font-size:13px;color:var(--text);margin:12px 0 10px;}
@@ -490,7 +502,6 @@ select.form-input{padding-right:42px;}
 .video-camino-ia{border-color:var(--accent);color:var(--accent);}
 .video-camino-detalle{font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--text-muted);}
 .video-nuevo{border:1px dashed var(--border2);border-radius:8px;padding:12px;font-size:12px;line-height:1.6;color:var(--text-muted);}
-#productModal .producto-foto .img-edit-wrap{width:100%;height:160px;aspect-ratio:auto;}
 .producto-imagenes-adicionales{border-top:1px solid var(--border);padding-top:14px;}
 .producto-imagenes-adicionales summary{cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
 .producto-imagenes-adicionales summary span{color:var(--text-dim);font-family:var(--sans);font-size:11px;letter-spacing:0;text-transform:none;}
@@ -782,7 +793,8 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
   .content{padding:14px 12px 80px;}
   .form-row{grid-template-columns:1fr;}
   .img-edit-wrap{width:100%;}
-  #productModal .producto-foto .img-edit-wrap{height:140px;}
+  #productModal .producto-foto .img-edit-wrap{width:min(100%,320px);height:auto;}
+  #productModal .producto-foto .img-edit-wrap[data-formato="vertical"]{width:auto;height:240px;}
   .btn-edit { padding: 8px 14px; font-size: 12px; }
   /* Antes esta línea ENCOGÍA el botón de borrar en móvil (12 px de letra,
      28 × 26 de caja): al revés de lo que pide un dedo, y en el control

@@ -4656,11 +4656,21 @@ describe('el primer día de un restaurante', () => {
 
 		for (const [clase, orden] of [
 			['producto-nombre', 1], ['producto-categoria', 2], ['producto-precio', 3],
-			['producto-disponibilidad', 4], ['producto-foto', 5],
+			['producto-foto', 5],
 			['producto-descripcion', 7], ['producto-imagenes-adicionales', 9],
 		]) {
 			assert.match(codigo, new RegExp(`#productModal \\.${clase}\\{order:${orden};\\}`));
 		}
+
+		// Disponible va en la cabecera del nombre, no suelto más abajo
+		// (18/09/2026): un plato nuevo nace disponible y el interruptor que lo
+		// saca de la carta no puede quedar escondido.
+		const nombre = html.match(/<div class="form-group producto-nombre">[\s\S]*?id="editNombre"/)[0];
+		assert.match(nombre, /id="editDisponible"/);
+		// Y gratis, en la misma fila que el precio.
+		const precio = html.match(/<div class="precio-fila">[\s\S]*?id="editPrecioGratis"/);
+		assert.ok(precio, 'gratis va en la fila del precio');
+		assert.match(precio[0], /id="editPrecioNum"/);
 
 		assert.match(html, /Foto del producto[\s\S]*?Agrégala ahora o después/);
 		assert.match(html, /Descripción del producto[\s\S]*?Se muestra cuando el cliente abre el producto/);
@@ -8280,5 +8290,29 @@ describe('progresoIA · la barra estimada', () => {
 		const pr = ctx.progresoIA('p1', en(0));
 		assert.equal(pr.pct, 0);
 		assert.match(pr.texto, /0:00/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('«Este plato no lleva foto» · solo sin foto', () => {
+	// 18/09/2026: con foto y video puestos seguía ofreciéndose.
+	const montar = ({ pendiente = null, id = 'p1', imagen = null } = {}) => {
+		const mapa = { filaSinFoto: { style: {} }, editProductId: { value: id } };
+		const ctx = cargar('index.html', 'function fichaTieneFoto', 'function hayFotoEnLaFicha', {
+			state: { pendingImgUrl: pendiente, productos: [{ id: 'p1', imagen_url: imagen }] },
+			document: { getElementById: x => mapa[x] },
+		});
+		ctx.pintarSinFoto();
+		return mapa.filaSinFoto.style.display;
+	};
+
+	test('un plato sin foto lo ofrece', () => assert.equal(montar(), ''));
+	test('con foto guardada se esconde', () => assert.equal(montar({ imagen: '/uploads/productos/a.jpg' }), 'none'));
+	test('con una foto recién subida también', () => assert.equal(montar({ pendiente: '/uploads/productos/b.jpg' }), 'none'));
+	test('al quitar la foto vuelve', () => assert.equal(montar({ imagen: '/uploads/productos/a.jpg', pendiente: '__remove__' }), ''));
+	test('un plato nuevo no hereda la foto del anterior', () => {
+		// El src de la previsualización puede seguir siendo el del plato de
+		// antes; por eso se mira el dato y no la imagen.
+		assert.equal(montar({ id: '' }), '');
 	});
 });

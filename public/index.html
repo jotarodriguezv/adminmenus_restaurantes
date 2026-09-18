@@ -1639,7 +1639,8 @@
 						     esto Inicio los contaba como pendientes para siempre. Es opcional:
 						     si luego se le sube una foto, se usa igual. Para una categoría
 						     entera sin fotos sigue estando «Sin fotos (lista)» en la categoría. -->
-						<div class="form-check" style="margin-top:10px;margin-bottom:0">
+						<!-- Con foto sobra: ver pintarSinFoto(). -->
+						<div class="form-check" id="filaSinFoto" style="margin-top:10px;margin-bottom:0">
 							<label class="toggle"><input type="checkbox" id="editSinFoto"><span class="toggle-slider"></span></label>
 							<span style="font-size:12px;color:var(--text-muted)">Este plato no lleva foto <span style="color:var(--text-dim)">(no se contará como pendiente)</span></span>
 						</div>
@@ -1864,7 +1865,17 @@
 						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" data-zona="zonaVideo" onchange="prepararVideoElegido(this)">
 					</div>
 					<div class="form-group producto-nombre">
-						<label for="editNombre" class="form-label">Nombre</label>
+						<!-- Disponible va aquí arriba, a la derecha del nombre (18/09/2026,
+						     pedido por el usuario): un plato nuevo nace disponible, y abajo
+						     del todo quedaba escondido justo el interruptor que lo saca de
+						     la carta. -->
+						<div class="ficha-cabecera-nombre">
+							<label for="editNombre" class="form-label">Nombre</label>
+							<div class="form-check producto-disponibilidad">
+								<span id="editDisponibleLabel" style="font-size:12px;color:var(--text-muted)">Disponible</span>
+								<label class="toggle"><input type="checkbox" id="editDisponible" aria-labelledby="editDisponibleLabel"><span class="toggle-slider"></span></label>
+							</div>
+						</div>
 						<input type="text" class="form-input" id="editNombre" oninput="avisarNombreRepetido()">
 						<!-- Aviso y no bloqueo: ver public/platos-repetidos.js. -->
 						<div id="nombreAviso" role="status" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
@@ -1876,8 +1887,15 @@
 					<div class="form-group producto-precio">
 						<label for="editPrecioNum" class="form-label">Precio</label>
 						<div class="form-ayuda">Escribe solo números, sin puntos ni símbolo $.</div>
-						<input type="number" class="form-input" id="editPrecioNum" min="0" step="100" oninput="document.getElementById('precioPreview').textContent=formatPrecio(this.value); avisarSiElPrecioSeSale()">
-						<label class="precio-gratis"><input type="checkbox" id="editPrecioGratis" onchange="actualizarPrecioGratis()"> <span>Este producto es gratis</span></label>
+						<!-- Un número no necesita todo el ancho: a su lado, «gratis», que
+						     es la otra forma de contestar lo mismo. -->
+						<div class="precio-fila">
+							<input type="number" class="form-input" id="editPrecioNum" min="0" step="100" oninput="document.getElementById('precioPreview').textContent=formatPrecio(this.value); avisarSiElPrecioSeSale()">
+							<div class="form-check precio-gratis">
+								<label class="toggle"><input type="checkbox" id="editPrecioGratis" aria-labelledby="editPrecioGratisLabel" onchange="actualizarPrecioGratis()"><span class="toggle-slider"></span></label>
+								<span id="editPrecioGratisLabel">Es gratis</span>
+							</div>
+						</div>
 						<div style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-muted)">
 							Vista previa: <span id="precioPreview" style="color:var(--accent)">—</span>
 						</div>
@@ -1885,10 +1903,6 @@
 						     legítimos —una paella para ocho, un catering— y el sistema no
 						     puede distinguirlos. Esto solo pregunta. -->
 						<div id="precioAviso" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
-					</div>
-					<div class="form-check producto-disponibilidad">
-						<label class="toggle"><input type="checkbox" id="editDisponible"><span class="toggle-slider"></span></label>
-						<span id="editDisponibleLabel" style="font-size:13px;color:var(--text-muted)">Disponible</span>
 					</div>
 					<div class="form-group producto-descripcion">
 						<label for="editDesc" class="form-label">Descripción del producto <span style="color:var(--text-dim)">(opcional)</span></label>
@@ -3097,6 +3111,7 @@ function openNewProductModal() {
 	renderPersonalizacion();
 	pintarVideoPlato(null);
 	ajustarFichaAlModelo();
+	pintarSinFoto();
 	fillCatSelect();
 	// Con la ficha ya rellena: lo que hay ahora es el punto de partida.
 	fijarFirmaProducto();
@@ -3360,6 +3375,7 @@ function openEditProductModal(id) {
 	renderPersonalizacion();
 	pintarVideoPlato(p);
 	ajustarFichaAlModelo();
+	pintarSinFoto();
 	fijarFirmaProducto();
 	avisarNombreRepetido();
 	openModal('productModal');
@@ -4233,6 +4249,7 @@ async function handleProductImgUpload(input) {
     prev.src=url; prev.style.display='block';
     document.getElementById('imgEditPlaceholder').style.display='none';
     document.getElementById('btnQuitarFoto').style.display='block';
+    pintarSinFoto();
     st.textContent='✓ Lista para guardar'; st.style.color='var(--success)';
   } catch(e) { st.textContent=e.message||'Error al subir'; st.style.color='var(--danger)'; }
 }
@@ -4405,6 +4422,7 @@ function quitarFoto() {
 	prev.style.display='none'; prev.src='';
 	document.getElementById('imgEditPlaceholder').style.display='flex';
 	document.getElementById('btnQuitarFoto').style.display='none';
+	pintarSinFoto();
 	const st=document.getElementById('imgUploadStatus');
 	st.textContent='Foto eliminada al guardar'; st.style.color='var(--warn)';
 
@@ -4774,6 +4792,24 @@ async function refrescarCupoIA() {
 // trozo del archivo por sus extremos y un ayudante de fuera no existiría para
 // ellas. Las declaraciones de función se elevan, así que el orden no importa
 // para el navegador.
+// ¿Tiene foto el plato, contando la recién subida y la marcada para quitar?
+// Sale de los datos y no de la previsualización: al abrir un plato nuevo, el
+// src de la anterior puede seguir puesto aunque no se vea.
+function fichaTieneFoto() {
+	if (state.pendingImgUrl === '__remove__') return false;
+	if (state.pendingImgUrl) return true;
+	const id = document.getElementById('editProductId')?.value;
+	return !!(id && (state.productos || []).find(p => p.id === id)?.imagen_url);
+}
+
+// «Este plato no lleva foto» solo tiene sentido sin foto (18/09/2026, pedido
+// por el usuario: con foto y video puestos seguía ofreciéndose). Se esconde,
+// no se desmarca: si alguien quita la foto, vuelve a aparecer como estaba.
+function pintarSinFoto() {
+	const fila = document.getElementById('filaSinFoto');
+	if (fila) fila.style.display = fichaTieneFoto() ? 'none' : '';
+}
+
 function hayFotoEnLaFicha() {
 	if (state.pendingImgUrl === '__remove__') return false;
 	if (state.pendingImgUrl) return true;
@@ -4976,6 +5012,10 @@ function ajustarFichaAlModelo() {
 	// que la conversión había salido mal.
 	const vertical = formatoDeLaCarta() === 'vertical';
 	const proporcion = vertical ? '9:16' : '16:9';
+
+	// El marco de la foto también: se ve como la va a enseñar la carta.
+	const zonaFoto = document.getElementById('zonaFotoPlato');
+	if (zonaFoto) zonaFoto.dataset.formato = vertical ? 'vertical' : 'horizontal';
 
 	// La proporción y los 8 segundos son del video SUBIDO: el de la IA dura 6.
 	// Por eso van en su tarjeta y no en la etiqueta de la sección.
