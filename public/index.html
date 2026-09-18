@@ -2167,11 +2167,11 @@
     </div>
     <div class="modal-body">
       <p class="confirm-text" id="procesoTexto"></p>
-      <p style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;">Puedes volver a abrir el plato para ver cómo va.</p>
+      <p id="procesoNota" style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;">Puedes volver a abrir el plato para ver cómo va.</p>
     </div>
     <div class="modal-foot">
-      <button class="btn-cancel" onclick="closeModal('procesoModal')">Seguir aquí</button>
-      <button class="btn-save" onclick="salirConProcesoEnMarcha()">Cerrar de todos modos</button>
+      <button class="btn-cancel" id="procesoSeguir" onclick="closeModal('procesoModal')">Seguir aquí</button>
+      <button class="btn-save" id="procesoSalir" onclick="salirConProcesoEnMarcha()">Cerrar de todos modos</button>
     </div>
   </div>
 </div>
@@ -2245,6 +2245,7 @@
 <script src="ajustes.js"></script>
 <script src="restaurantes-filtros.js"></script>
 <script src="productos-marcas.js"></script>
+<script src="video-subiendo.js"></script>
 <script>
 // ── COLORES ───────────────────────────────────────────────────
 // Los campos de color son de texto libre y nadie rechazaba un '#12345' o un
@@ -4739,20 +4740,21 @@ function productoTieneCambios() {
 
 // Puerta única de salida: las cuatro formas de cerrar pasan por aquí.
 function intentarCerrarProducto() {
-	// ── UNA SUBIDA EN MARCHA NO SON "CAMBIOS SIN GUARDAR" ─────
+	// ── UN VIDEO A MEDIAS NO SON "CAMBIOS SIN GUARDAR" ────────
 	// Salía ese aviso porque el archivo elegido cuenta en la firma, y el texto
-	// —"si sales ahora se pierden"— dice justo lo contrario de lo que pasa: la
-	// subida NO se corta al cerrar, sigue hasta el final.
+	// —"si sales ahora se pierden"— no es lo que pasa con un video.
 	//
-	// No se bloquea el cierre. Un video de 66 MB puede tardar minutos y dejar
-	// a alguien encerrado en una ficha mirando una barra es peor que dejarle
-	// seguir trabajando. Lo que hacía falta era contar qué va a pasar.
+	// MIENTRAS SUBE, no se sale (18/09/2026, decidido con el equipo). Antes se
+	// dejaba cerrar, porque la subida sigue igual con la ficha cerrada. Pero
+	// fuera de la ficha no se ve el porcentaje, y quien se iba a otra cosa
+	// recargaba o cerraba la página —eso sí corta la subida— sin saber que
+	// seguía. Esperar a que llegue es más claro que explicarlo.
+	//
+	// Convirtiendo sí se deja salir: eso ya ocurre en el servidor, nada de lo
+	// que se haga aquí lo corta, y puede tardar varios minutos.
 	const proceso = procesoEnMarchaDelPlato();
 	if (proceso) {
-		const t = document.getElementById('procesoTexto');
-		if (t) t.textContent = proceso === 'subiendo'
-			? 'Se está subiendo un video. Si cierras, la subida sigue en segundo plano y te avisamos al terminar.'
-			: 'Se está convirtiendo el video. Si cierras, la conversión sigue y te avisamos al terminar.';
+		pintarAvisoProceso(proceso);
 		return openModal('procesoModal');
 	}
 
@@ -4769,6 +4771,21 @@ function intentarCerrarProducto() {
 // rastro en ningún sitio hasta que termina. La conversión se saca de los
 // datos —que es más fiable— y así sigue detectándose después de recargar la
 // página, cuando la bandera ya no existiría.
+function pintarAvisoProceso(proceso) {
+	const $ = id => document.getElementById(id);
+	const subiendo = proceso === 'subiendo';
+	if ($('procesoTitulo')) $('procesoTitulo').textContent = subiendo ? 'Video subiendo' : 'Video en proceso';
+	if ($('procesoTexto')) $('procesoTexto').textContent = subiendo
+		? 'Espera a que termine de subir para cerrar la ficha. Puedes ver cómo va debajo del video.'
+		: 'Se está convirtiendo el video. Si cierras, la conversión sigue y te avisamos al terminar.';
+	if ($('procesoNota')) $('procesoNota').textContent = subiendo
+		? 'No cierres ni recargues la página hasta entonces: eso sí corta la subida.'
+		: 'Puedes volver a abrir el plato para ver cómo va.';
+	if ($('procesoSeguir')) $('procesoSeguir').textContent = subiendo ? 'Entendido' : 'Seguir aquí';
+	// Sin botón de salir: la única salida es esperar.
+	if ($('procesoSalir')) $('procesoSalir').style.display = subiendo ? 'none' : '';
+}
+
 function procesoEnMarchaDelPlato() {
 	if (state.subiendoVideo) return 'subiendo';
 	const id = document.getElementById('editProductId')?.value;
@@ -4778,14 +4795,12 @@ function procesoEnMarchaDelPlato() {
 	return null;
 }
 
-// Cerrar con un proceso en marcha. No se pierde nada: la subida y la
-// conversión siguen solas y avisan al terminar.
-//
-// No se bloquea la salida a propósito. Un video de 66 MB tarda minutos, y la
-// conversión otro par: dejar a alguien encerrado en una ficha mirando una
-// barra es peor que dejarle seguir trabajando, y el proceso no necesita que
-// esté delante. Lo que hacía falta era decirlo, no impedirlo.
+// Cerrar con la conversión en marcha. No se pierde nada: sigue sola en el
+// servidor y avisa al terminar. Con la subida en marcha el botón ni se ve (ver
+// intentarCerrarProducto); la guarda de abajo es por si la subida empezó con
+// la ventana ya abierta.
 function salirConProcesoEnMarcha() {
+	if (state.subiendoVideo) return pintarAvisoProceso('subiendo');
 	closeModal('procesoModal');
 	state.firmaProducto = undefined;
 	closeModal('productModal');

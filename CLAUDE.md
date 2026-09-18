@@ -737,26 +737,23 @@ Las dos opciones puestas sobre la mesa:
    del login). Mejor para quien trabaja y cierra antes una pestaña olvidada,
    pero toca servidor y panel.
 
-### Decisión abierta: ¿avisar o impedir salir con un video a medias?
+### Decidido: con un video SUBIENDO no se sale de la ficha
 
-**Marcado el 3 de septiembre de 2026. La decide el equipo del usuario, no
-nosotros.** No proponer un cambio aquí hasta que lo digan.
+**Decidido por el equipo del usuario el 18/09/2026.** Estuvo abierto desde el
+3 de septiembre: la ventana `procesoModal` avisaba y dejaba salir, con el
+argumento de que la subida sigue igual con la ficha cerrada.
 
-Hoy, cerrar la ficha de un producto mientras un video se sube o se convierte
-enseña la ventana `procesoModal`, que **avisa y deja salir**: el proceso sigue
-en segundo plano y avisa al terminar con un aviso flotante.
+Ahora, **mientras el video sube**, cerrar la ficha —por cualquiera de sus
+cuatro salidas, que pasan todas por `intentarCerrarProducto`— enseña
+`procesoModal` **sin el botón de salir**: solo «Entendido». La ficha tapa la
+pantalla entera, así que las pestañas y «Salir» tampoco se alcanzan. Recargar
+o cerrar la página, que sí corta la subida, pide el aviso del navegador
+(`public/video-subiendo.js`): es el único que existe para eso.
 
-El usuario planteaba **impedir la salida**. Se implementó avisando, con este
-argumento: un video de 66 MB tarda minutos y la conversión un par más, así que
-encerrar a alguien en una ficha mirando una barra es peor que dejarle seguir
-trabajando, y el proceso no necesita que esté delante.
-
-Queda a revisión con su equipo, que no ha participado en el desarrollo y por
-eso lee la interfaz sin saber lo que hay detrás — que es exactamente el punto
-de vista que falta aquí.
-
-Si deciden impedir la salida, el cambio es **quitar un botón** de
-`procesoModal`.
+**Convirtiendo sí se deja salir**, como antes: eso ocurre en el servidor, nada
+de lo que haga el panel lo corta, y puede tardar varios minutos (hasta media
+hora en el peor caso). Si el equipo lo quiere bloqueado también, es cambiar
+la condición de `pintarAvisoProceso`.
 
 ### Ocho diálogos del navegador sin unificar
 

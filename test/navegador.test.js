@@ -957,6 +957,10 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 			editDisponible:   { checked: true },
 			editProductId:    { value: 'p1' },
 			procesoTexto:     { textContent: '' },
+			procesoTitulo:    { textContent: '' },
+			procesoNota:      { textContent: '' },
+			procesoSeguir:    { textContent: '' },
+			procesoSalir:     { style: {} },
 		};
 		const abiertos = [], cerrados = [];
 		const ctx = cargar('index.html', 'function firmaProducto', 'async function saveProduct', {
@@ -1048,8 +1052,27 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 		ctx.intentarCerrarProducto();
 
 		assert.deepEqual(abiertos, ['procesoModal'], 'la de cambios diría algo falso aquí');
-		assert.match(mapa.procesoTexto.textContent, /subiendo un video/);
-		assert.match(mapa.procesoTexto.textContent, /sigue en segundo plano/);
+		assert.match(mapa.procesoTexto.textContent, /Espera a que termine de subir/);
+	});
+
+	test('subiendo, NO se puede salir: la ventana no trae botón de salir', () => {
+		// 18/09/2026, decidido con el equipo: antes avisaba y dejaba cerrar.
+		const { ctx, mapa } = montar({ subiendoVideo: true });
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+
+		assert.equal(mapa.procesoSalir.style.display, 'none');
+		assert.equal(mapa.procesoSeguir.textContent, 'Entendido');
+		assert.match(mapa.procesoNota.textContent, /recargues/, 'recargar sí corta la subida: hay que decirlo');
+	});
+
+	test('convirtiendo SÍ se puede salir: eso ya ocurre en el servidor', () => {
+		const { ctx, mapa } = montar({ enCurso: { id: 't1' } });
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+
+		assert.equal(mapa.procesoSalir.style.display, '');
+		assert.equal(mapa.procesoSeguir.textContent, 'Seguir aquí');
 	});
 
 	test('convirtiendo también, aunque no haya nada en el formulario', () => {
@@ -1072,14 +1095,39 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 		assert.deepEqual(cerrados, [], 'se cierra al elegir, no antes');
 	});
 
-	test('"Cerrar de todos modos" cierra las dos ventanas', () => {
-		// No se bloquea la salida: un video de 66 MB tarda minutos y la
-		// conversión otro par. El proceso no necesita que esté delante.
-		const { ctx, cerrados } = montar({ subiendoVideo: true });
+	test('convirtiendo, "Cerrar de todos modos" cierra las dos ventanas', () => {
+		const { ctx, cerrados } = montar({ enCurso: { id: 't1' } });
 		ctx.fijarFirmaProducto();
 		ctx.salirConProcesoEnMarcha();
 
 		assert.deepEqual(cerrados, ['procesoModal', 'productModal']);
+	});
+
+	test('subiendo, "Cerrar de todos modos" no cierra nada', () => {
+		// Si la subida empezó con la ventana de «convirtiendo» ya abierta, su
+		// botón seguiría a la vista: la guarda es de la función, no del botón.
+		const { ctx, cerrados, mapa } = montar({ subiendoVideo: true });
+		ctx.fijarFirmaProducto();
+		ctx.salirConProcesoEnMarcha();
+
+		assert.deepEqual(cerrados, []);
+		assert.equal(mapa.procesoSalir.style.display, 'none');
+	});
+
+	test('recargar la página con un video subiendo pide el aviso del navegador', () => {
+		const escuchas = {};
+		const ctx = cargar('video-subiendo.js', [['video-subiendo.js', 'window.addEventListener', null]], {
+			window: { addEventListener: (ev, f) => { escuchas[ev] = f; } },
+			state: { subiendoVideo: false },
+		});
+		const evento = () => ({ bloqueado: false, preventDefault() { this.bloqueado = true; } });
+		const libre = evento();
+		escuchas.beforeunload(libre);
+		assert.equal(libre.bloqueado, false, 'sin subida, recargar no pregunta nada');
+		ctx.state.subiendoVideo = true;
+		const subiendo = evento();
+		escuchas.beforeunload(subiendo);
+		assert.equal(subiendo.bloqueado, true);
 	});
 
 	test('el proceso manda sobre los cambios del formulario', () => {
