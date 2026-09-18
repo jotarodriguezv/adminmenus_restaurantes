@@ -766,6 +766,24 @@ trabajo figuraría «en marcha» para siempre y la ficha no se cerraría nunca. 
 ese caso (`'sin-noticias'` en `procesoEnMarchaDelPlato`) vuelve el aviso de
 antes, con «Cerrar de todos modos».
 
+**El bloqueo de la conversión no funcionaba al subir** (visto por el usuario el
+mismo 18/09/2026, ya desplegado, con un `.mov` en Voro). La puerta busca el
+trabajo en `state.trabajosVideo`, que se carga al entrar, y la subida no lo
+apuntaba: solo se bloqueaba al **reabrir** el plato. Las pruebas no lo vieron
+porque le daban el trabajo hecho a `trabajoEnCursoDe`. Ahora
+`anotarTrabajoEnCurso` lo apunta en cuanto llega, antes de que baje
+`state.subiendoVideo`.
+
+**«Guardar cambios» era una quinta salida:** `saveProduct` cerraba la ficha
+por su cuenta. Ahora guarda y, con el video en marcha, la deja abierta. No
+había riesgo para el video: el servidor lo copia siempre de lo guardado
+(`atributosProducto`), así que un guardado con datos viejos no lo pisa.
+
+**Un video subido no hay que guardarlo:** lo escribe el servidor en el plato
+al terminar la conversión. Por eso el aviso final dice «✓ Video guardado en el
+plato» y no «✓ Video listo», y la lista se repinta para que salga la portada:
+sin eso seguía la foto de antes y parecía que faltaba guardar.
+
 ### Ocho diálogos del navegador sin unificar
 
 **Hecho el 18/09/2026, decidido con el equipo:** se usa la ventana del panel,
