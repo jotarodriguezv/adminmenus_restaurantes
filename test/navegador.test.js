@@ -619,7 +619,9 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 				// El aviso de "este video quedó en el formato anterior".
 				'videoDesfasado', 'videoDesfasadoTexto', 'videoDesfasadoEstado', 'btnReconvertir',
 				// La vuelta de un video retirado.
-				'videoRetirado', 'videoRetiradoEstado', 'btnRecuperarVideo'];
+				'videoRetirado', 'videoRetiradoEstado', 'btnRecuperarVideo',
+				// El aviso del plato nuevo y la zona que sustituye.
+				'videoNuevo', 'zonaVideo'];
 		const mapa = {};
 		for (const id of ids) mapa[id] = {
 			style: {}, textContent: '', value: '', disabled: false,
@@ -666,6 +668,22 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		const m = pintar(true, null, pantalla());
 		assert.equal(m.btnSubirVideo.disabled, true);
 		assert.match(m.videoEditVacio.textContent, /Guarda el plato primero/);
+	});
+
+	test('un plato nuevo no enseña los botones apagados: dice qué hacer', () => {
+		// 18/09/2026, pedido por el usuario: dos botones que no se pueden usar
+		// confunden. Se esconde la zona y se explica el camino.
+		const m = pintar(true, null, pantalla());
+		assert.equal(m.videoNuevo.style.display, 'block');
+		assert.equal(m.zonaVideo.style.display, 'none');
+	});
+
+	test('un plato guardado sí enseña la zona, sin el aviso', () => {
+		const m = pintar(true, { id: 'p1' }, pantalla());
+		assert.equal(m.videoNuevo.style.display, 'none');
+		assert.equal(m.zonaVideo.style.display, '');
+		// «Sin video» sobra: debajo se pregunta si quiere añadirle uno.
+		assert.equal(m.videoEditVacio.style.display, 'none');
 	});
 
 	test('un plato con video ya convertido lo muestra', () => {
@@ -721,7 +739,7 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		m.btnSubirVideo.textContent = '🎬 Cambiar archivo';
 		pintar(true, { id: 'p1' }, m);
 
-		assert.match(m.btnSubirVideo.textContent, /Elegir video/);
+		assert.match(m.btnSubirVideo.textContent, /Subir un video/);
 	});
 
 	// ── UN VIDEO RETIRADO TIENE QUE PODER VOLVER ──────────────
@@ -1222,6 +1240,7 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 			extraImgsGroup:   { style: {} },
 			labelImagen:      { innerHTML: '' },
 			labelVideo:       { innerHTML: '' },
+			videoSubirDetalle: { textContent: '' },
 			videoEditPreview: { style: {} },
 		};
 		// Dos trozos: la lista de modelos que pintan video y la función que
@@ -1273,9 +1292,13 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 		// El servidor deriva el formato del modelo: 'vertical' pide 720x1280 y
 		// todo lo demás 1280x720. Si la ficha dijera 16:9 a un restaurante
 		// vertical, estaría prometiendo un recorte que no se va a hacer.
-		assert.match(conModelo('vertical').labelVideo.innerHTML, /9:16/);
+		//
+		// Se dice en la tarjeta de subir, no en la etiqueta de la sección: la
+		// proporción y los 8 segundos son del video subido, y el de la IA dura 6.
+		assert.match(conModelo('vertical').videoSubirDetalle.textContent, /9:16/);
 		for (const nav of ['video', 'topnav', 'carrito', undefined])
-			assert.match(conModelo(nav).labelVideo.innerHTML, /16:9/, `en ${nav}`);
+			assert.match(conModelo(nav).videoSubirDetalle.textContent, /16:9/, `en ${nav}`);
+		assert.equal(conModelo('video').labelVideo.innerHTML, 'Video del plato');
 	});
 
 	test('la previsualización tiene el hueco del formato que se guarda', () => {
@@ -2843,6 +2866,22 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		const m = pantalla();
 		await correr(m, { enCurso: { id: 't1' } });
 		assert.equal(m.btnGenerarIA.disabled, true);
+	});
+
+	test('con algo en marcha, ni el motivo ni el aviso de la foto hacen ruido', async () => {
+		// 18/09/2026: mientras genera, la barra ya lo cuenta. «Ya se está
+		// generando…» encima de ella, y el aviso naranja de la proporción de
+		// una animación que ya está pedida, solo estorbaban.
+		const m = pantalla();
+		await correr(m, { enCurso: { id: 't1' }, encaje: { veredicto: 'avisa', mensaje: 'se recortará el 25%' } });
+		assert.equal(m.iaMotivo.textContent, '');
+		assert.equal(m.iaEncaje.textContent, '');
+	});
+
+	test('sin nada en marcha, el aviso de la foto sigue', async () => {
+		const m = pantalla();
+		await correr(m, { encaje: { veredicto: 'avisa', mensaje: 'se recortará el 25%' } });
+		assert.equal(m.iaEncaje.textContent, 'se recortará el 25%');
 	});
 
 	test('con uno esperando revisión se apaga y se dice por qué', async () => {

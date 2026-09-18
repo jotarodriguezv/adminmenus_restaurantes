@@ -1651,7 +1651,16 @@
 						<!-- El texto de la proporción lo reescribe ajustarFichaAlModelo:
 						     depende del modelo, y aquí clavado decía 16:9 también a
 						     los restaurantes verticales. -->
-						<label class="form-label" id="labelVideo">Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a 16:9 y se guardan 8 segundos)</span></label>
+						<label class="form-label" id="labelVideo">Video del plato</label>
+						<!-- Un plato sin guardar no tiene id al que colgar un video, así que
+						     los dos botones solo podían estar apagados. En vez de enseñarlos
+						     muertos (18/09/2026, pedido por el usuario), se dice qué hay que
+						     hacer para llegar a ellos. -->
+						<div id="videoNuevo" class="video-nuevo" style="display:none">
+							Esta carta permite que tus productos tengan video. Primero guarda el
+							producto con su foto; después podrás subir un video o generarlo con IA
+							a partir de esa foto.
+						</div>
 						<div id="zonaVideo" style="border:1px solid var(--border);border-radius:8px;padding:12px;">
 							<video id="videoEditPreview" style="display:none;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:#000" muted loop playsinline controls></video>
 							<div id="videoEditVacio" style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">Sin video</div>
@@ -1677,13 +1686,8 @@
 								<div id="videoDesdeAviso" style="font-family:var(--mono);font-size:10px;color:var(--danger);margin-top:6px;"></div>
 							</div>
 
-							<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
-								<button type="button" id="btnSubirVideo" onclick="document.getElementById('videoFileInput').click()"
-									style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;
-									color:var(--text);font-family:var(--mono);font-size:9px;letter-spacing:1px;
-									cursor:pointer;white-space:nowrap;">
-									🎬 Elegir video
-								</button>
+							<!-- Lo que se hace con el archivo elegido o con el video ya puesto. -->
+							<div id="videoAcciones" style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
 								<button type="button" id="btnConfirmarVideo" onclick="confirmarSubidaVideo()"
 									style="display:none;padding:6px 12px;border-radius:6px;border:1px solid var(--success);
 									background:transparent;color:var(--success);font-family:var(--mono);font-size:9px;
@@ -1702,27 +1706,42 @@
 								</button>
 								<div id="videoUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
 							</div>
-							<div class="pista-arrastre" style="margin-top:6px;font-size:11px;color:var(--text-muted)">También puedes arrastrar el video hasta este recuadro</div>
 
-							<!-- ── GENERAR A PARTIR DE LA FOTO ──────────────────────
-							     Solo aparece si el plato TIENE foto: la foto es la
-							     entrada del modelo, no un adorno. Sin ella no hay nada
-							     que animar, y el servidor lo rechaza igual.
+							<!-- ── LOS DOS CAMINOS, UNO AL LADO DEL OTRO ────────────
+							     18/09/2026, pedido por el usuario: estaban uno encima
+							     del otro, con la proporción y los 8 segundos arriba del
+							     todo aunque solo valen para el video subido —el de la IA
+							     dura 6—. Cada camino dice ahora lo suyo.
 
-							     El contador de cupo va pegado al botón a propósito.
-							     Cada pulsación cuesta dinero de verdad, así que lo que
-							     queda tiene que estar donde se decide, no en otra
-							     pantalla. -->
-							<div id="iaBloque" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-								<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-									<button type="button" id="btnGenerarIA" onclick="generarConIA()"
-										style="padding:6px 12px;border-radius:6px;border:1px solid var(--accent);
-										background:transparent;color:var(--accent);font-family:var(--mono);font-size:9px;
-										letter-spacing:1px;cursor:pointer;white-space:nowrap;">
-										✨ Generar video con IA
-									</button>
-									<div id="iaCupo" style="font-size:10px;font-family:var(--mono);color:var(--text-muted)"></div>
+							     Mientras algo está en marcha o espera revisión se
+							     esconden: la barra, el estado y el bloque de revisión ya
+							     cuentan lo que pasa, y dos botones apagados solo hacen
+							     ruido. Ver pintarCaminosVideo(). -->
+							<div id="videoCaminos">
+								<div id="videoCaminosTitulo" class="video-caminos-titulo">¿Quieres añadir un video a este plato?</div>
+								<div class="video-caminos">
+									<div class="video-camino">
+										<button type="button" id="btnSubirVideo" class="video-camino-boton" onclick="document.getElementById('videoFileInput').click()">🎬 Subir un video</button>
+										<!-- Lo reescribe ajustarFichaAlModelo: la proporción depende del modelo. -->
+										<div id="videoSubirDetalle" class="video-camino-detalle">MP4 o MOV · se recorta a 16:9 y se guardan 8 segundos</div>
+										<div class="pista-arrastre" style="font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--text-muted)">O arrástralo hasta este recuadro</div>
+									</div>
+									<!-- ── GENERAR A PARTIR DE LA FOTO ──────────────────
+									     El contador de cupo va pegado al botón a propósito.
+									     Cada pulsación cuesta dinero de verdad, así que lo que
+									     queda tiene que estar donde se decide, no en otra
+									     pantalla. -->
+									<div class="video-camino" id="iaBloque" style="display:none">
+										<button type="button" id="btnGenerarIA" class="video-camino-boton video-camino-ia" onclick="generarConIA()">✨ Generar video con IA</button>
+										<div class="video-camino-detalle">Un video de 6 segundos a partir de la foto del plato</div>
+										<div id="iaCupo" class="video-camino-detalle"></div>
+									</div>
 								</div>
+							</div>
+
+							<!-- Los avisos de la IA van fuera de su tarjeta para tener el
+							     ancho entero; se enseñan y esconden con ella (iaBloque). -->
+							<div id="iaAvisos" style="display:none">
 								<!-- La nota sobre la proporción de la foto vive APARTE del estado.
 								     Compartían elemento, y como refrescarCupoIA() se llama justo
 								     después de pedir la generación, la nota borraba el
@@ -3659,7 +3678,7 @@ function pintarVideoPlato(p) {
 	conf.style.display = 'none';
 	conf.style.background = 'transparent';
 	conf.style.color = 'var(--success)';
-	btn.textContent = '🎬 Elegir video';
+	btn.textContent = '🎬 Subir un video';
 
 	// Si su última conversión falló, decirlo aquí y ofrecer descartarla. El
 	// motivo viene de ffmpeg y suele ser legible ("el video dura 1,4 s y
@@ -3777,8 +3796,34 @@ function pintarVideoPlato(p) {
 	btn.disabled = bloqueado;
 	btn.style.opacity = bloqueado ? '.4' : '1';
 	btn.style.cursor  = bloqueado ? 'not-allowed' : 'pointer';
+	// Un plato nuevo no enseña los botones apagados: dice qué hacer para
+	// llegar a ellos (ver videoNuevo en el HTML).
+	const nuevo = document.getElementById('videoNuevo');
+	const zona  = document.getElementById('zonaVideo');
+	if (nuevo) nuevo.style.display = esNuevo ? 'block' : 'none';
+	if (zona)  zona.style.display  = esNuevo ? 'none' : '';
 	if (esNuevo) vacio.textContent = 'Guarda el plato primero y luego súbele el video';
-	else if (!enCurso && !url) vacio.textContent = 'Sin video';
+	// "Sin video" sobra: justo debajo se pregunta si quiere añadirle uno.
+	else if (!enCurso && !url) vacio.style.display = 'none';
+	pintarCaminosVideo();
+}
+
+// Los dos caminos —subir o generar— se esconden mientras algo está en marcha o
+// espera revisión, que es cuando no se puede usar ninguno y la barra, el estado
+// o el bloque de revisión ya dicen lo que pasa. 'sin-noticias' no cuenta: ahí
+// se vuelve a poder subir, igual que se vuelve a poder salir de la ficha.
+function pintarCaminosVideo() {
+	const caja = document.getElementById('videoCaminos');
+	if (!caja) return;
+	const id = document.getElementById('editProductId')?.value;
+	// typeof porque las pruebas cargan trozos del archivo donde no están.
+	const proceso = typeof procesoEnMarchaDelPlato === 'function' ? procesoEnMarchaDelPlato() : null;
+	const ocupado = typeof procesoBloquea === 'function' && procesoBloquea(proceso);
+	caja.style.display = ocupado ? 'none' : '';
+	const titulo = document.getElementById('videoCaminosTitulo');
+	if (titulo) titulo.textContent = tieneVideoPuesto(id)
+		? '¿Quieres cambiar el video de este plato?'
+		: '¿Quieres añadir un video a este plato?';
 }
 
 // Elegir el archivo ya no lo sube: primero se previsualiza en local para
@@ -3977,6 +4022,7 @@ async function confirmarSubidaVideo() {
 	btn.disabled = true;
 	// Lo mira la puerta de salida para contar qué pasa si se cierra ahora.
 	state.subiendoVideo = true;
+	pintarCaminosVideo();
 
 	try {
 		const fd = new FormData();
@@ -4003,6 +4049,7 @@ async function confirmarSubidaVideo() {
 		// cerrar.
 		anotarTrabajoEnCurso(r.trabajo_id, productoId);
 		vigilarVideo(r.trabajo_id, productoId);
+		pintarCaminosVideo();
 	} catch (e) {
 		st.textContent = e.message || 'Error al subir';
 		st.style.color = 'var(--danger)';
@@ -4025,6 +4072,7 @@ async function confirmarSubidaVideo() {
 	} finally {
 		btn.disabled = false;
 		state.subiendoVideo = false;
+		pintarCaminosVideo();
 	}
 }
 
@@ -4088,6 +4136,7 @@ function vigilarVideo(trabajoId, productoId) {
 		if (!enPantalla()) return;
 		const b = document.getElementById('btnSubirVideo');
 		b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer';
+		pintarCaminosVideo();
 	};
 
 	vigilanciaVideo = setInterval(async () => {
@@ -4581,7 +4630,12 @@ async function refrescarCupoIA() {
 		// se sabe de verdad si esta carta genera. Se esconde el bloque entero:
 		// apagada no es "no te quedan", es que esta carta no hace esto.
 		const bloque = document.getElementById('iaBloque');
-		if (c.activa === false) { if (bloque) bloque.style.display = 'none'; return; }
+		if (c.activa === false) {
+			if (bloque) bloque.style.display = 'none';
+			const avisos = document.getElementById('iaAvisos');
+			if (avisos) avisos.style.display = 'none';
+			return;
+		}
 
 		if (c.disponibles > 0) {
 			el.textContent = `quedan ${c.disponibles} de ${c.cupo}`;
@@ -4662,11 +4716,18 @@ async function refrescarCupoIA() {
 				// a cuánto habría que recortarla. Repetirlo aquí sería decir
 				// dos veces lo mismo con menos precisión.
 				'foto':        '',
-				'en-curso':    'Ya se está generando un video para este plato. Espera a que termine.',
+				// Vacío a propósito (18/09/2026): mientras genera ya lo dicen la
+				// barra y su texto, y este mensaje repetía lo mismo encima.
+				'en-curso':    '',
 				'sin-revisar': 'Este plato tiene un video generado esperando tu revisión. ' +
 				               'Publícalo o descártalo antes de generar otro.',
 			};
 			const razon = document.getElementById('iaMotivo');
+
+			// Con algo en marcha o esperando revisión, el aviso de la proporción
+			// ya no sirve para decidir nada —la animación está pedida— y solo
+			// hace ruido junto a la barra.
+			if (nota && (motivo === 'en-curso' || motivo === 'sin-revisar')) nota.textContent = '';
 
 			if (motivo) {
 				btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
@@ -4791,6 +4852,9 @@ async function generarConIA() {
 		state.generandoIA = null;
 		est.textContent = ''; est.style.color = 'var(--text-muted)';
 		vigilarGeneracion(productoId);
+		// Después de vigilar, no antes: sin vigilancia la generación cuenta
+		// como 'sin-noticias-ia' y los dos caminos seguían a la vista.
+		pintarCaminosVideo();
 		await refrescarCupoIA();
 	} catch (e) {
 		// No llegó a salir: el plato queda libre para volver a intentarlo.
@@ -4838,6 +4902,7 @@ function vigilarGeneracion(productoId) {
 			detenerVigilanciaIA(productoId);
 			pintarProgresoIA();
 			decir('La generación está tardando más de lo normal. Vuelve a abrir el plato más tarde para ver cómo quedó.', 'var(--danger)');
+			if (enPantalla()) pintarCaminosVideo();
 			return;
 		}
 
@@ -4858,6 +4923,7 @@ function vigilarGeneracion(productoId) {
 				const motivo = g.error ? `La generación falló: ${g.error}` : 'La generación falló';
 				decir(motivo, 'var(--danger)');
 				avisarFuera(motivo, 'error');
+				if (enPantalla()) pintarCaminosVideo();
 				return;
 			}
 
@@ -4911,9 +4977,12 @@ function ajustarFichaAlModelo() {
 	const vertical = formatoDeLaCarta() === 'vertical';
 	const proporcion = vertical ? '9:16' : '16:9';
 
+	// La proporción y los 8 segundos son del video SUBIDO: el de la IA dura 6.
+	// Por eso van en su tarjeta y no en la etiqueta de la sección.
 	const etiquetaVideo = document.getElementById('labelVideo');
-	if (etiquetaVideo) etiquetaVideo.innerHTML =
-		`Video del plato <span style="color:var(--text-dim);font-weight:400">(MP4 o MOV · se recorta a ${proporcion} y se guardan 8 segundos)</span>`;
+	if (etiquetaVideo) etiquetaVideo.innerHTML = 'Video del plato';
+	const detalleSubir = document.getElementById('videoSubirDetalle');
+	if (detalleSubir) detalleSubir.textContent = `MP4 o MOV · se recorta a ${proporcion} y se guardan 8 segundos`;
 
 	// ── EL BLOQUE DE IA SE VE SIEMPRE QUE LA CARTA LA TENGA ───
 	// Antes se escondía sin foto. El razonamiento era bueno —la foto ES la
@@ -4930,7 +4999,9 @@ function ajustarFichaAlModelo() {
 		// se quitó a propósito. El estado real lo da el servidor y se relee
 		// cada vez: state.cupoIA puede ser de otro restaurante o de antes.
 		const apagada = state.cupoIA?.activa === false;
-		bloqueIA.style.display = esVideo && !apagada ? 'block' : 'none';
+		bloqueIA.style.display = esVideo && !apagada ? '' : 'none';   // '' y no 'block': es una tarjeta flex
+		const avisosIA = document.getElementById('iaAvisos');
+		if (avisosIA) avisosIA.style.display = bloqueIA.style.display;
 		if (esVideo) refrescarCupoIA();
 	}
 

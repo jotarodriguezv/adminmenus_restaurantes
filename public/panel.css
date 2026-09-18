@@ -479,6 +479,17 @@ select.form-input{padding-right:42px;}
 #productModal .producto-personalizacion{order:10;}
 #productModal .producto-filtros{order:11;}
 #productModal .producto-destacados{order:12;}
+/* Video del plato: los dos caminos, uno al lado del otro. En móvil, uno debajo
+   del otro (auto-fit), y si la carta no tiene IA el de subir ocupa todo. */
+.video-caminos-titulo{font-size:13px;color:var(--text);margin:12px 0 10px;}
+.video-caminos{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;}
+.video-camino{border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px;}
+.video-camino-boton{padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;
+  color:var(--text);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;text-align:left;}
+.video-camino-boton:hover:not(:disabled){border-color:var(--accent);}
+.video-camino-ia{border-color:var(--accent);color:var(--accent);}
+.video-camino-detalle{font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--text-muted);}
+.video-nuevo{border:1px dashed var(--border2);border-radius:8px;padding:12px;font-size:12px;line-height:1.6;color:var(--text-muted);}
 #productModal .producto-foto .img-edit-wrap{width:100%;height:160px;aspect-ratio:auto;}
 .producto-imagenes-adicionales{border-top:1px solid var(--border);padding-top:14px;}
 .producto-imagenes-adicionales summary{cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
