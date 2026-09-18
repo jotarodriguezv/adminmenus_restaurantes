@@ -741,7 +741,7 @@ corte. El riesgo de una pestaña abierta es que otra persona use el equipo, y
 eso lo cubre la pregunta por inactividad. La renovación comprueba que el
 restaurante sigue existiendo.
 
-### Decidido: con un video SUBIENDO no se sale de la ficha
+### Decidido: con un video subiendo o convirtiéndose no se sale de la ficha
 
 **Decidido por el equipo del usuario el 18/09/2026.** Estuvo abierto desde el
 3 de septiembre: la ventana `procesoModal` avisaba y dejaba salir, con el
@@ -754,10 +754,17 @@ pantalla entera, así que las pestañas y «Salir» tampoco se alcanzan. Recarga
 o cerrar la página, que sí corta la subida, pide el aviso del navegador
 (`public/video-subiendo.js`): es el único que existe para eso.
 
-**Convirtiendo sí se deja salir**, como antes: eso ocurre en el servidor, nada
-de lo que haga el panel lo corta, y puede tardar varios minutos (hasta media
-hora en el peor caso). Si el equipo lo quiere bloqueado también, es cambiar
-la condición de `pintarAvisoProceso`.
+**Convirtiéndose, tampoco** (pedido por el usuario el mismo 18/09/2026, tras
+ver la subida bloqueada): mismo aviso sin botón de salir. Recargar ahí no pide
+nada, porque no corta la conversión, que ocurre en el servidor; al volver a
+abrir el plato el bloqueo vuelve.
+
+**La salida de emergencia:** solo se bloquea mientras el panel **vigila** ese
+trabajo (`state.vigilandoTrabajo`). La vigilancia se rinde a la media hora
+(`LIMITE_VIGILANCIA_VIDEO_MS`) y a partir de ahí los datos no se refrescan: el
+trabajo figuraría «en marcha» para siempre y la ficha no se cerraría nunca. En
+ese caso (`'sin-noticias'` en `procesoEnMarchaDelPlato`) vuelve el aviso de
+antes, con «Cerrar de todos modos».
 
 ### Ocho diálogos del navegador sin unificar
 

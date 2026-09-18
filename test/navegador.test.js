@@ -947,7 +947,7 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 	// una firma del formulario en vez de levantar una bandera al primer
 	// tecleo: escribir algo y borrarlo no debe contar como cambio, porque
 	// preguntar cuando no hay nada que perder enseña a decir que sí sin leer.
-	const montar = ({ videoElegido = null, subiendoVideo = false, enCurso = null } = {}) => {
+	const montar = ({ videoElegido = null, subiendoVideo = false, enCurso = null, vigilando = null } = {}) => {
 		const mapa = {
 			editNombre:       { value: 'Croquetas' },
 			editCategoria:    { value: 'cat-1' },
@@ -964,7 +964,7 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 		};
 		const abiertos = [], cerrados = [];
 		const ctx = cargar('index.html', 'function firmaProducto', 'async function saveProduct', {
-			state: { pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {}, subiendoVideo },
+			state: { pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {}, subiendoVideo, vigilandoTrabajo: vigilando },
 			videoElegido,
 			document: { getElementById: id => mapa[id] },
 			openModal:  id => abiertos.push(id),
@@ -1066,25 +1066,47 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 		assert.match(mapa.procesoNota.textContent, /recargues/, 'recargar sí corta la subida: hay que decirlo');
 	});
 
-	test('convirtiendo SÍ se puede salir: eso ya ocurre en el servidor', () => {
-		const { ctx, mapa } = montar({ enCurso: { id: 't1' } });
+	test('convirtiendo tampoco se puede salir', () => {
+		// Pedido el 18/09/2026, tras bloquear la subida: el equipo quiere que se
+		// vea terminar, que es donde aparece un fallo.
+		const { ctx, mapa } = montar({ enCurso: { id: 't1' }, vigilando: 't1' });
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+
+		assert.equal(mapa.procesoSalir.style.display, 'none');
+		assert.equal(mapa.procesoSeguir.textContent, 'Entendido');
+	});
+
+	test('si ya nadie vigila el trabajo, se vuelve a poder salir', () => {
+		// La vigilancia se rinde a la media hora y los datos dejan de
+		// refrescarse: el trabajo figuraría «en marcha» para siempre, y
+		// bloquear sería encerrar a alguien en la ficha sin salida.
+		const { ctx, mapa } = montar({ enCurso: { id: 't1' }, vigilando: null });
 		ctx.fijarFirmaProducto();
 		ctx.intentarCerrarProducto();
 
 		assert.equal(mapa.procesoSalir.style.display, '');
-		assert.equal(mapa.procesoSeguir.textContent, 'Seguir aquí');
+		assert.match(mapa.procesoTexto.textContent, /más de lo normal/);
+	});
+
+	test('vigilar OTRO trabajo no cuenta como vigilar este', () => {
+		const { ctx, mapa } = montar({ enCurso: { id: 't1' }, vigilando: 't2' });
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+
+		assert.equal(mapa.procesoSalir.style.display, '');
 	});
 
 	test('convirtiendo también, aunque no haya nada en el formulario', () => {
 		// Este era el hueco: la subida al menos ensuciaba la firma y disparaba
 		// el aviso equivocado. La conversión no dejaba rastro y la ficha se
 		// cerraba en silencio.
-		const { ctx, mapa, abiertos } = montar({ enCurso: { id: 't1' } });
+		const { ctx, mapa, abiertos } = montar({ enCurso: { id: 't1' }, vigilando: 't1' });
 		ctx.fijarFirmaProducto();
 		ctx.intentarCerrarProducto();
 
 		assert.deepEqual(abiertos, ['procesoModal']);
-		assert.match(mapa.procesoTexto.textContent, /convirtiendo/);
+		assert.match(mapa.procesoTexto.textContent, /termine de convertirse/);
 	});
 
 	test('mientras la ventana está abierta, la ficha no se cierra', () => {
@@ -1095,7 +1117,15 @@ describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 		assert.deepEqual(cerrados, [], 'se cierra al elegir, no antes');
 	});
 
-	test('convirtiendo, "Cerrar de todos modos" cierra las dos ventanas', () => {
+	test('convirtiendo, "Cerrar de todos modos" no cierra nada', () => {
+		const { ctx, cerrados } = montar({ enCurso: { id: 't1' }, vigilando: 't1' });
+		ctx.fijarFirmaProducto();
+		ctx.salirConProcesoEnMarcha();
+
+		assert.deepEqual(cerrados, []);
+	});
+
+	test('sin nadie vigilando, "Cerrar de todos modos" cierra las dos ventanas', () => {
 		const { ctx, cerrados } = montar({ enCurso: { id: 't1' } });
 		ctx.fijarFirmaProducto();
 		ctx.salirConProcesoEnMarcha();

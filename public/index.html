@@ -4803,8 +4803,14 @@ function intentarCerrarProducto() {
 	// recargaba o cerraba la página —eso sí corta la subida— sin saber que
 	// seguía. Esperar a que llegue es más claro que explicarlo.
 	//
-	// Convirtiendo sí se deja salir: eso ya ocurre en el servidor, nada de lo
-	// que se haga aquí lo corta, y puede tardar varios minutos.
+	// MIENTRAS SE CONVIERTE, tampoco (18/09/2026, pedido por el usuario el
+	// mismo día). La conversión ocurre en el servidor y nada de aquí la corta,
+	// pero el equipo prefiere que se vea terminar: es donde aparece un fallo.
+	//
+	// Con una salida de emergencia: si el panel dejó de preguntar por el
+	// trabajo —media hora sin terminar, ver LIMITE_VIGILANCIA_VIDEO_MS—, ya
+	// nadie va a avisar de que acabó, y bloquear sería encerrar a alguien en la
+	// ficha para siempre. Ahí se vuelve a avisar y dejar salir.
 	const proceso = procesoEnMarchaDelPlato();
 	if (proceso) {
 		pintarAvisoProceso(proceso);
@@ -4818,42 +4824,65 @@ function intentarCerrarProducto() {
 	openModal('cambiosModal');
 }
 
+// Qué dice la ventana en cada caso. Solo 'sin-noticias' trae botón de salir.
+const AVISO_PROCESO = {
+	subiendo: {
+		titulo: 'Video subiendo',
+		texto: 'Espera a que termine de subir para cerrar la ficha. Puedes ver cómo va debajo del video.',
+		nota: 'No cierres ni recargues la página hasta entonces: eso sí corta la subida.',
+	},
+	convirtiendo: {
+		titulo: 'Video convirtiéndose',
+		texto: 'Espera a que termine de convertirse para cerrar la ficha. Suele tardar uno o dos minutos; puedes ver cómo va debajo del video.',
+		nota: 'Si algo falla, lo verás aquí mismo y podrás subirlo otra vez.',
+	},
+	'sin-noticias': {
+		titulo: 'Video en proceso',
+		texto: 'La conversión está tardando más de lo normal. Si cierras, sigue en el servidor.',
+		nota: 'Vuelve a abrir el plato más tarde para ver cómo quedó.',
+	},
+};
+
+function pintarAvisoProceso(proceso) {
+	const $ = id => document.getElementById(id);
+	const aviso = AVISO_PROCESO[proceso] || AVISO_PROCESO['sin-noticias'];
+	const bloquea = proceso === 'subiendo' || proceso === 'convirtiendo';
+	if ($('procesoTitulo')) $('procesoTitulo').textContent = aviso.titulo;
+	if ($('procesoTexto')) $('procesoTexto').textContent = aviso.texto;
+	if ($('procesoNota')) $('procesoNota').textContent = aviso.nota;
+	if ($('procesoSeguir')) $('procesoSeguir').textContent = bloquea ? 'Entendido' : 'Seguir aquí';
+	// Sin botón de salir: la única salida es esperar.
+	if ($('procesoSalir')) $('procesoSalir').style.display = bloquea ? 'none' : '';
+}
+
 // ¿Hay un video de este plato a medias? Devuelve cuál, o null.
 //
 // La subida se sabe por una bandera porque ocurre en esta pestaña y no deja
 // rastro en ningún sitio hasta que termina. La conversión se saca de los
 // datos —que es más fiable— y así sigue detectándose después de recargar la
-// página, cuando la bandera ya no existiría.
-function pintarAvisoProceso(proceso) {
-	const $ = id => document.getElementById(id);
-	const subiendo = proceso === 'subiendo';
-	if ($('procesoTitulo')) $('procesoTitulo').textContent = subiendo ? 'Video subiendo' : 'Video en proceso';
-	if ($('procesoTexto')) $('procesoTexto').textContent = subiendo
-		? 'Espera a que termine de subir para cerrar la ficha. Puedes ver cómo va debajo del video.'
-		: 'Se está convirtiendo el video. Si cierras, la conversión sigue y te avisamos al terminar.';
-	if ($('procesoNota')) $('procesoNota').textContent = subiendo
-		? 'No cierres ni recargues la página hasta entonces: eso sí corta la subida.'
-		: 'Puedes volver a abrir el plato para ver cómo va.';
-	if ($('procesoSeguir')) $('procesoSeguir').textContent = subiendo ? 'Entendido' : 'Seguir aquí';
-	// Sin botón de salir: la única salida es esperar.
-	if ($('procesoSalir')) $('procesoSalir').style.display = subiendo ? 'none' : '';
-}
-
+// página, cuando la bandera ya no existiría (al abrir el plato se vuelve a
+// vigilar su trabajo).
+//
+// 'sin-noticias' es un trabajo que los datos dan por en marcha pero que nadie
+// está vigilando: la vigilancia se rindió a la media hora, y esos datos ya no
+// se van a refrescar solos.
 function procesoEnMarchaDelPlato() {
 	if (state.subiendoVideo) return 'subiendo';
 	const id = document.getElementById('editProductId')?.value;
 	// typeof porque las pruebas cargan trozos del archivo donde este ayudante
 	// no está, y sin la guarda sería un ReferenceError al cerrar la ficha.
-	if (id && typeof trabajoEnCursoDe === 'function' && trabajoEnCursoDe(id)) return 'convirtiendo';
-	return null;
+	const enCurso = id && typeof trabajoEnCursoDe === 'function' ? trabajoEnCursoDe(id) : null;
+	if (!enCurso) return null;
+	return state.vigilandoTrabajo === enCurso.id ? 'convirtiendo' : 'sin-noticias';
 }
 
-// Cerrar con la conversión en marcha. No se pierde nada: sigue sola en el
-// servidor y avisa al terminar. Con la subida en marcha el botón ni se ve (ver
-// intentarCerrarProducto); la guarda de abajo es por si la subida empezó con
-// la ventana ya abierta.
+// Cerrar con un video que ya nadie vigila. No se pierde nada: la conversión
+// sigue sola en el servidor. Mientras sube o se convierte el botón ni se ve
+// (ver intentarCerrarProducto); la guarda de abajo es por si el proceso
+// empezó con la ventana ya abierta.
 function salirConProcesoEnMarcha() {
-	if (state.subiendoVideo) return pintarAvisoProceso('subiendo');
+	const proceso = procesoEnMarchaDelPlato();
+	if (proceso === 'subiendo' || proceso === 'convirtiendo') return pintarAvisoProceso(proceso);
 	closeModal('procesoModal');
 	state.firmaProducto = undefined;
 	closeModal('productModal');
