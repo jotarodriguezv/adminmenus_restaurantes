@@ -8316,3 +8316,19 @@ describe('«Este plato no lleva foto» · solo sin foto', () => {
 		assert.equal(montar({ id: '' }), '');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('los formatos se llaman horizontal y vertical', () => {
+	// 18/09/2026, dicho por el usuario: «apaisada» no se usa en Colombia y no
+	// se entiende. Una carta es horizontal (16:9) o vertical (9:16). Se mira
+	// solo lo que va entre comillas —lo que llega a la pantalla—: en los
+	// comentarios del código no estorba a nadie.
+	const entreComillas = src => [...src.matchAll(/(['"`])((?:(?!\1)[^\n\\]|\\.)*)\1/g)].map(m => m[2]);
+
+	test('ni el panel ni los avisos del servidor dicen «apaisada»', () => {
+		const fuentes = codigoDelPanel() + fs.readFileSync(path.join(__dirname, '..', 'video.js'), 'utf8')
+			+ fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+		const malos = entreComillas(fuentes).filter(t => /apaisad/i.test(t));
+		assert.deepEqual(malos, []);
+	});
+});

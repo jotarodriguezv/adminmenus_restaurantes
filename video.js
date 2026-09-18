@@ -323,7 +323,7 @@ function recorteIdeal(ancho, alto, objetivo) {
 }
 
 const NOMBRE_FORMATO = {
-  horizontal: 'apaisada (16:9)',
+  horizontal: 'horizontal (16:9)',
   vertical:   'vertical (9:16)',
 };
 // Un ejemplo concreto de foto que encaja del todo. No es un mínimo ni un
