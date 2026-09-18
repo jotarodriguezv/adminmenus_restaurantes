@@ -162,8 +162,9 @@ async function saveAjustes() {
     const faltaNumero = cartaTieneCarrito(data.atributos, planActual()) && !recibePedidos(data.atributos);
     st.textContent = faltaNumero ? '✓ Guardado · falta el número de WhatsApp para recibir los pedidos' : '✓ Guardado';
     st.style.color = faltaNumero ? 'var(--warn)' : 'var(--success)';
-    showToast(faltaNumero ? 'Guardado. Ahora pon el número de WhatsApp al que llegan los pedidos' : 'Ajustes guardados',
-              faltaNumero ? 'info' : 'success');
+    // Si falta el número, lo que toca es ponerlo, no ir a mirar la carta.
+    if (faltaNumero) showToast('Guardado. Ahora pon el número de WhatsApp al que llegan los pedidos', 'info');
+    else avisarGuardadoConCarta('Ajustes guardados');
   } catch (e) {
     // El motivo lo escribe el servidor para quien lo lee: «El enlace de
     // Instagram tiene que empezar por https://», «Hay más de 40 filtros».

@@ -3098,7 +3098,7 @@ describe('moveCat · reordenar cuando dos categorías empatan en "orden"', () =>
 		], {
 			state: { categorias, restaurante: { id: 'r1' } },
 			apiFetch: async (m, ruta, cuerpo) => { patches.push({ ruta, ...cuerpo }); return {}; },
-			renderCatList() {}, renderCatFilter() {}, showToast() {},
+			renderCatList() {}, renderCatFilter() {}, showToast() {}, avisarGuardadoConCarta() {},
 			document: { querySelector: () => null },
 		});
 		await ctx.moveCat(id, dir);
@@ -4568,7 +4568,7 @@ describe('el primer día de un restaurante', () => {
 			{
 				String, parseInt, document: { getElementById: $ }, state: estado,
 				apiFetch: async (metodo) => (metodo === 'POST' ? { id: 'c-nueva', nombre: 'Entradas', orden: 0 } : { nombre: 'Entradas' }),
-				renderCatList() {}, renderCatFilter() {}, renderProducts() {}, closeModal() {}, showToast() {},
+				renderCatList() {}, renderCatFilter() {}, renderProducts() {}, closeModal() {}, showToast() {}, avisarGuardadoConCarta() {},
 				// La regla de qué falta y el marcado del campo viven antes en el
 				// archivo, fuera del trozo que carga esta prueba.
 				erroresDeCategoria: ({ nombre }) => (String(nombre || '').trim() ? [] : [{ campo: 'editCatNombre', mensaje: 'falta' }]),
@@ -6357,7 +6357,7 @@ describe('las categorías se reordenan arrastrando', () => {
 		const ctx = cargar('index.html', TRAMO, {
 			state: { categorias: cats(), restaurante: { id: 'r1' } },
 			apiFetch: async (m, ruta, cuerpo) => { patches.push({ ruta, ...cuerpo }); return {}; },
-			renderCatList() {}, renderCatFilter() {}, showToast: (m) => avisos.push(m),
+			renderCatList() {}, renderCatFilter() {}, showToast: (m) => avisos.push(m), avisarGuardadoConCarta: (m) => avisos.push(m),
 			document: { querySelector: () => null }, ...extra,
 		});
 		return { ctx, patches, avisos };
@@ -6583,7 +6583,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 			carritoEnPantalla: () => false,
 			planActual: () => ({}), recibePedidos: () => false,
 			state: { restaurante: { id: 'r1', atributos } },
-			showToast: (m, t) => avisos.push([t, m]),
+			showToast: (m, t) => avisos.push([t, m]), avisarGuardadoConCarta: (m) => avisos.push(['success', m]),
 			apiFetch, Object,
 		});
 		return { ctx, campos: $, avisos };
@@ -7547,5 +7547,73 @@ describe('un plato que no lleva foto a propósito', () => {
 		const firma = src.match(/function firmaProducto\(\) \{[\s\S]*?\n\}/)[0];
 		assert.match(firma, /editSinFoto/);
 		assert.match(firma, /editPrecioGratis/, 'y «Gratis», que tampoco estaba');
+	});
+});
+
+describe('«guardado» con un botón para ver la carta', () => {
+	// 18/09/2026: tras guardar, lo siguiente es ir a mirar cómo quedó. El botón
+	// solo va donde lo guardado ya se ve: prometer un cambio que al abrir la
+	// carta no está es peor que no ofrecer nada.
+	const reglas = (extra = {}) => cargar('ver-en-la-carta.js', [
+		['index.html', 'const VMENUS_PUBLIC_URL', '// ── PLAN EN APARIENCIA'],
+		['ver-en-la-carta.js', 'const VER_CARTA_DURACION_MS', null],
+	], Object.assign({ state: { restaurante: null } }, extra));
+	const BONZAS = { slug: 'bonzas', activo: true, atributos: {} };
+
+	test('lleva a la dirección oficial de la carta, y a /tv para la pantalla', () => {
+		const ctx = reglas();
+		assert.equal(ctx.destinoVerCarta(BONZAS), 'https://menu.vmenus.co/bonzas');
+		assert.equal(ctx.destinoVerCarta({ ...BONZAS, atributos: { url_modo: 'subdominio' } }), 'https://bonzas.vmenus.co');
+		assert.equal(ctx.destinoVerCarta(BONZAS, 'tv'), 'https://menu.vmenus.co/bonzas/tv');
+	});
+
+	test('sin restaurante, o con uno suspendido, no hay botón', () => {
+		const ctx = reglas();
+		assert.equal(ctx.destinoVerCarta(null), null);
+		assert.equal(ctx.destinoVerCarta({ ...BONZAS, slug: '' }), null);
+		assert.equal(ctx.destinoVerCarta({ ...BONZAS, activo: false }), null, 'su carta dice «no disponible»');
+	});
+
+	test('el aviso trae el botón y el botón abre la carta en otra pestaña', () => {
+		const avisos = [], abiertas = [];
+		const ctx = reglas({
+			state: { restaurante: BONZAS },
+			showToast: (msg, tipo, accion) => avisos.push({ msg, tipo, accion }),
+			window: { open: (...a) => abiertas.push(a) },
+		});
+		ctx.avisarGuardadoConCarta('Producto guardado');
+		assert.equal(avisos[0].tipo, 'success');
+		assert.match(avisos[0].accion.texto, /Ver en tu carta/);
+		avisos[0].accion.alPulsar();
+		assert.deepEqual([...abiertas[0]], ['https://menu.vmenus.co/bonzas', '_blank', 'noopener']);
+	});
+
+	test('sin a dónde ir, el aviso de siempre sin botón', () => {
+		const avisos = [];
+		const ctx = reglas({ state: { restaurante: { ...BONZAS, activo: false } }, showToast: (...a) => avisos.push(a) });
+		ctx.avisarGuardadoConCarta('Producto guardado');
+		assert.deepEqual([...avisos[0]], ['Producto guardado', 'success']);
+	});
+
+	test('un destacado en borrador no se ve en ningún sitio', () => {
+		const ctx = reglas();
+		assert.equal(ctx.pantallaDelDestacado({ activa: false, en_popup: true, en_tv: true }), null);
+		assert.equal(ctx.pantallaDelDestacado({ activa: true, en_popup: true, en_tv: true }), 'carta');
+		assert.equal(ctx.pantallaDelDestacado({ activa: true, en_popup: false, en_tv: true }), 'tv');
+		assert.equal(ctx.pantallaDelDestacado({ activa: true, en_popup: false, en_tv: false }), null);
+	});
+
+	test('los «guardado» con otra mitad pendiente no llevan el botón', () => {
+		// La carta enseñaría una mezcla de lo guardado y lo de antes.
+		const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.match(html, /if \(aparienciaPendiente\) showToast\('Datos guardados/);
+		assert.match(html, /if \(datosPendientes\) showToast\('Configuración guardada · los datos/);
+		assert.match(fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8'), /if \(faltaNumero\) showToast\(/);
+	});
+
+	test('el archivo se carga después de comun.js e index.html lo usa', () => {
+		const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.ok(html.indexOf('src="ver-en-la-carta.js"') > html.indexOf('src="comun.js"'));
+		assert.ok((html.match(/avisarGuardadoConCarta\(/g) || []).length >= 10);
 	});
 });

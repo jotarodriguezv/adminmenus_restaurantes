@@ -338,7 +338,7 @@ async function impAplicar() {
     // no quedó marcada. Se enseña como error a propósito: es lo único que
     // impide que alguien vuelva a pulsar y duplique la carta entera.
     if (r.aviso) showToast(r.aviso, 'error');
-    else showToast(`Listo: ${r.platos_creados} platos en ${r.categorias_creadas + r.categorias_reutilizadas} categorías`, 'success');
+    else avisarGuardadoConCarta(`Listo: ${r.platos_creados} platos en ${r.categorias_creadas + r.categorias_reutilizadas} categorías`);
     impActual = null;
     document.getElementById('impRevision').style.display = 'none';
     document.getElementById('impEstado').textContent = '';

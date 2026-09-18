@@ -432,7 +432,9 @@ async function guardarPromo(id, caja, elegidos) {
     const i = (state.promociones || []).findIndex(x => x.id === id);
     if (i >= 0 && data) state.promociones[i] = data;
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
-    showToast('Destacado guardado', 'success');
+    const pantalla = pantallaDelDestacado(data || cuerpo);
+    if (pantalla) avisarGuardadoConCarta('Destacado guardado', pantalla);
+    else showToast('Destacado guardado', 'success');
     pintarQueSaleAhora();
     avisarSiCompitenPromociones();
   } catch (e) {
@@ -596,7 +598,9 @@ async function reemplazarImagenDePromo(input) {
     const i = (state.promociones || []).findIndex(x => x.id === id);
     if (i >= 0 && data) state.promociones[i] = data;
     pintarPromociones();
-    showToast('Imagen actualizada', 'success');
+    const pantalla = pantallaDelDestacado(data);
+    if (pantalla) avisarGuardadoConCarta('Imagen actualizada', pantalla);
+    else showToast('Imagen actualizada', 'success');
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
   }
