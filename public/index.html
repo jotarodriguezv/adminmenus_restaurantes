@@ -1739,6 +1739,13 @@
 								     pareciera rota. Apagado + motivo es una instrucción. -->
 								<div id="iaMotivo" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:8px;line-height:1.5"></div>
 								<div id="iaEstado" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:8px;line-height:1.5"></div>
+								<!-- Estimada: Replicate no da porcentaje. Ver progresoIA(). -->
+								<div id="iaProgreso" style="display:none;margin-top:10px">
+									<div role="progressbar" aria-label="Generando el video" style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+										<div id="iaProgresoBarra" style="height:100%;width:0;background:var(--accent);transition:width 1s linear"></div>
+									</div>
+									<div id="iaProgresoTexto" style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:6px;line-height:1.5"></div>
+								</div>
 							</div>
 						</div>
 						<!-- Un trabajo que falló mientras nadie miraba no aparecía en ningún
@@ -3285,7 +3292,11 @@ function openEditProductModal(id) {
 	document.getElementById('editProductId').value=p.id;
 	// El estado de la generación es de la ficha anterior: si no se limpia, el
 	// plato nuevo abre diciendo "generando..." de otro.
-	detenerVigilanciaIA();
+	//
+	// Pero la vigilancia NO se para, que es lo que hacía: al reabrir el plato
+	// nadie volvía a preguntar y la ficha decía «Ya se está generando» para
+	// siempre (18/09/2026). Cada plato tiene la suya; pintarVideoPlato la
+	// retoma si hace falta.
 	const estIA = document.getElementById('iaEstado');
 	if (estIA) { estIA.textContent = ''; estIA.style.color = 'var(--text-muted)'; }
 	document.getElementById('editNombre').value=p.nombre||'';
@@ -3333,6 +3344,9 @@ function openEditProductModal(id) {
 	fijarFirmaProducto();
 	avisarNombreRepetido();
 	openModal('productModal');
+	// Otra vez, ya con la ficha abierta: la de pintarVideoPlato la ve cerrada
+	// y esconde la barra, que no volvía hasta el siguiente refresco (10 s).
+	pintarProgresoIA();
 }
 
 // ── VIDEO DEL PLATO ───────────────────────────────────────────
@@ -3347,10 +3361,16 @@ function openEditProductModal(id) {
 // aparecía en ningún sitio: el plato se quedaba sin video y sin explicación,
 // y volver a subirlo daba exactamente el mismo error.
 async function cargarTrabajosVideo() {
-	if (!planActual().videos) { state.trabajosVideo = []; state.videosPorAprobar = []; return; }
+	if (!planActual().videos) { state.trabajosVideo = []; state.videosPorAprobar = []; state.generacionesIA = []; return; }
 	try {
 		state.trabajosVideo = await apiFetch('GET', `/api/video/trabajos?restaurante_id=${state.restaurante.id}`) || [];
 	} catch { state.trabajosVideo = []; }
+
+	// Las generaciones con IA que siguen en Replicate: todavía no tienen
+	// trabajo de video, así que la lista de arriba no las ve.
+	try {
+		state.generacionesIA = await apiFetch('GET', `/api/ia/generaciones?restaurante_id=${state.restaurante.id}`) || [];
+	} catch { state.generacionesIA = []; }
 
 	// En una llamada aparte porque trae lo que la otra no puede traer: la URL
 	// del archivo. Aprobar sin poder VER el video sería firmar a ciegas, que es
@@ -3406,6 +3426,76 @@ function anotarTrabajoEnCurso(trabajoId, productoId) {
 		id: trabajoId, producto_id: productoId, estado: 'pendiente',
 		origen_tipo: 'subido', creado_en: new Date().toISOString(),
 	});
+}
+
+// ── LA GENERACIÓN CON IA, SACADA DE LOS DATOS ─────────────────
+// Antes la única señal de "la IA está generando" era state.generandoIA, una
+// bandera en memoria: se perdía al recargar y nada la bajaba si la vigilancia
+// se paraba. Al reabrir la ficha la vigilancia SE paraba, y el plato decía
+// «Ya se está generando» para siempre aunque Replicate hubiera terminado al
+// minuto. Pasó el 18/09/2026: diez minutos mirando un mensaje que no iba a
+// cambiar. Ahora sale de generaciones_ia (GET /api/ia/generaciones).
+function generacionEnCursoDe(productoId) {
+	return (state.generacionesIA || [])
+		.filter(g => g.producto_id === productoId && (g.estado === 'reservada' || g.estado === 'generando'))
+		.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0] || null;
+}
+
+// Lo mismo que anotarTrabajoEnCurso: la respuesta de generar ya dice que
+// existe, y esperar al siguiente refresco dejaría la ficha sin bloqueo ni barra.
+function anotarGeneracionEnCurso(generacionId, productoId) {
+	state.generacionesIA = (state.generacionesIA || []).filter(g => g.id !== generacionId);
+	state.generacionesIA.push({
+		id: generacionId, producto_id: productoId, estado: 'generando',
+		creado_en: new Date().toISOString(),
+	});
+}
+
+// Un video retirado que se puede volver a poner. Un video generado que nadie
+// publicó NO es eso: también está 'listo', con master y sin estar en el plato,
+// y la ficha lo ofrecía como «este plato tuvo un video y se quitó». Recuperarlo
+// hacía una copia que heredaba el «sin revisar»: dos esperando revisión.
+function trabajoRecuperableDe(productoId) {
+	return (state.trabajosVideo || [])
+		.filter(t => t.producto_id === productoId && t.estado === 'listo' && t.tiene_master &&
+			(t.origen_tipo !== 'ia' || t.aprobado === true))
+		.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0] || null;
+}
+
+// ── LA BARRA DE LA GENERACIÓN ─────────────────────────────────
+// Replicate no dice cuánto le falta: solo "generando" o "terminado". Así que
+// esto es una estimación, y está hecha para no mentir en lo que importa: nunca
+// llega al final por su cuenta —se acerca cada vez más despacio— y el salto de
+// paso sí es real, porque sale de los datos. Lo decidió el usuario sabiendo que
+// es estimada (18/09/2026). Las constantes salen de lo medido: la IA tardó 73 s
+// en la prueba de ese día.
+const PROGRESO_IA = { finPaso1: 70, ritmoPaso1: 45, ritmoPaso2: 30 };
+
+function progresoIA(productoId, ahora = Date.now()) {
+	const seg = desde => Math.max(0, (ahora - Date.parse(desde)) / 1000) || 0;
+	const reloj = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+	const g = generacionEnCursoDe(productoId);
+	if (g) {
+		const s = seg(g.creado_en);
+		return {
+			// Con tope: al cabo de un rato la curva redondea a finPaso1 justo, y
+			// el paso 2 lo tiene que marcar el dato, no el reloj.
+			pct: Math.min(PROGRESO_IA.finPaso1 - 1,
+				PROGRESO_IA.finPaso1 * (1 - Math.exp(-s / PROGRESO_IA.ritmoPaso1))),
+			texto: `Paso 1 de 2 · la IA está creando el video · ${reloj(s)} (suele tardar 1-2 min)`,
+		};
+	}
+	const t = trabajoEnCursoDe(productoId);
+	if (t && t.origen_tipo === 'ia') {
+		const s = seg(t.creado_en);
+		const resto = 100 - PROGRESO_IA.finPaso1 - 2;
+		return {
+			pct: PROGRESO_IA.finPaso1 + resto * (1 - Math.exp(-s / PROGRESO_IA.ritmoPaso2)),
+			texto: `Paso 2 de 2 · convirtiendo el video · ${reloj(s)}`,
+		};
+	}
+	return null;
 }
 
 // El trabajo terminado de un plato: el que produjo el video que se está
@@ -3597,8 +3687,8 @@ function pintarVideoPlato(p) {
 	// Se pregunta por el master y no solo por el trabajo porque la vuelta se
 	// hace reconvirtiendo desde él. Un trabajo listo al que ya no le queda
 	// master no puede volver, y ofrecerlo sería un botón que falla al pulsarlo.
-	const retirado = (p?.id && !url) ? trabajoListoDe(p.id) : null;
-	const recuperable = retirado?.tiene_master ? retirado : null;
+	// Un video generado sin publicar no cuenta: ver trabajoRecuperableDe.
+	const recuperable = (p?.id && !url) ? trabajoRecuperableDe(p.id) : null;
 	state.videoRetiradoActual = recuperable;
 	document.getElementById('videoRetirado').style.display = recuperable ? 'block' : 'none';
 	document.getElementById('videoRetiradoEstado').textContent = '';
@@ -3666,6 +3756,12 @@ function pintarVideoPlato(p) {
 		// la cuenta de 5 s sin ganar nada.
 		if (state.vigilandoTrabajo !== enCurso.id) vigilarVideo(enCurso.id, p.id);
 	}
+
+	// ── UNA GENERACIÓN CON IA EN MARCHA ───────────────────────
+	// Igual que la conversión: si nadie la vigila —se recargó la página— se
+	// retoma. Y la barra se pinta ya, sin esperar al primer segundo.
+	if (p?.id && generacionEnCursoDe(p.id) && !vigilanciasIA.has(p.id)) vigilarGeneracion(p.id);
+	pintarProgresoIA();
 
 	// Un video se cuelga de un plato, y un plato nuevo todavía no tiene id
 	// al que colgarlo. Se deja a la vista pero apagado, para que se entienda
@@ -4421,10 +4517,39 @@ function reintentarEncajeAlCargarLaFoto() {
 	img.addEventListener('load', () => refrescarCupoIA(), { once: true });
 }
 
-let vigilanciaIA = null;
+// Una vigilancia por plato. Con una sola, generar en un segundo plato dejaba al
+// primero sin nadie que avisara de que terminó.
+const vigilanciasIA = new Map();
+let relojProgresoIA = null;
 
-function detenerVigilanciaIA() {
-	if (vigilanciaIA) { clearInterval(vigilanciaIA); vigilanciaIA = null; }
+// Sin plato, todas: al salir de la sesión o del restaurante.
+function detenerVigilanciaIA(productoId) {
+	for (const [id, t] of vigilanciasIA) {
+		if (productoId && id !== productoId) continue;
+		clearInterval(t);
+		vigilanciasIA.delete(id);
+	}
+	if (!productoId && relojProgresoIA) { clearInterval(relojProgresoIA); relojProgresoIA = null; }
+}
+
+// Pinta la barra del plato abierto, y se apaga sola cuando ya no hay nada que
+// contar. Cada segundo para que el reloj corra; los datos que la mueven de
+// paso se refrescan en vigilarGeneracion, cada diez.
+function pintarProgresoIA() {
+	const caja = document.getElementById('iaProgreso');
+	if (!caja) return;
+	const abierta = document.getElementById('productModal')?.classList.contains('open');
+	const id = document.getElementById('editProductId')?.value;
+	const pr = abierta && id ? progresoIA(id) : null;
+
+	caja.style.display = pr ? 'block' : 'none';
+	if (!pr) {
+		if (relojProgresoIA) { clearInterval(relojProgresoIA); relojProgresoIA = null; }
+		return;
+	}
+	document.getElementById('iaProgresoBarra').style.width = `${pr.pct.toFixed(1)}%`;
+	document.getElementById('iaProgresoTexto').textContent = pr.texto;
+	if (!relojProgresoIA) relojProgresoIA = setInterval(pintarProgresoIA, 1000);
 }
 
 // Cuánto le queda al restaurante. Se pide al abrir la ficha y se vuelve a
@@ -4509,6 +4634,7 @@ async function refrescarCupoIA() {
 				// exista el trabajo; trabajoEnCursoDe() cubre la conversión, y
 				// sobrevive a recargar la página.
 				((state.generandoIA && state.generandoIA === productoId) ||
+				 (productoId && generacionEnCursoDe(productoId)) ||
 				 (productoId && trabajoEnCursoDe(productoId))) ? 'en-curso' :
 				// 3. Ya hay una generada esperando que la mires. Pedir otra es
 				//    pagar dos veces por una decisión que aún no se ha tomado.
@@ -4656,15 +4782,16 @@ async function generarConIA() {
 	est.textContent = 'Pidiendo la generación...'; est.style.color = 'var(--text-muted)';
 
 	try {
-		await apiFetch('POST', '/api/ia/generar', {
+		const r = await apiFetch('POST', '/api/ia/generar', {
 			restaurante_id: state.restaurante.id, producto_id: productoId,
 		});
-		await refrescarCupoIA();
-		// El estado se escribe DESPUÉS de refrescar el cupo, no antes. Al revés
-		// —que es como estaba— el refresco pisaba este mensaje.
-		est.textContent = '✨ Generando... esto tarda un par de minutos. Puedes cerrar esta ficha.';
-		est.style.color = 'var(--accent)';
+		// Apuntada ya, y la bandera fuera: desde aquí lo que bloquea la ficha y
+		// mueve la barra son los datos, que sobreviven a cerrarla y a recargar.
+		anotarGeneracionEnCurso(r?.generacion_id || `local-${Date.now()}`, productoId);
+		state.generandoIA = null;
+		est.textContent = ''; est.style.color = 'var(--text-muted)';
 		vigilarGeneracion(productoId);
+		await refrescarCupoIA();
 	} catch (e) {
 		// No llegó a salir: el plato queda libre para volver a intentarlo.
 		state.generandoIA = null;
@@ -4681,45 +4808,80 @@ async function generarConIA() {
 // que esperar a Replicate y descargar el resultado. Así que esto espera a que
 // APAREZCA ese trabajo y, en cuanto lo hace, le pasa el testigo a la
 // vigilancia de siempre — que ya sabe enseñar la conversión y el video final.
-function vigilarGeneracion(productoId) {
-	detenerVigilanciaIA();
-	const desde = Date.now();
-	const conocidos = new Set((state.trabajosVideo || []).map(t => t.id));
+//
+// Pregunta por la generación y no solo por los trabajos: si Replicate falla,
+// nunca aparece trabajo, y antes eso se esperaba un cuarto de hora para
+// terminar diciendo "está tardando más de lo normal" sobre algo que ya había
+// fallado. Ahora se dice el motivo en cuanto se sabe.
+//
+// La cola de IA se rinde a la media hora (LIMITE_GENERACION_MS en colaia.js)
+// y marca la generación fallida; esto espera un poco más para enterarse.
+const LIMITE_VIGILANCIA_IA_MS = 35 * 60 * 1000;
 
-	vigilanciaIA = setInterval(async () => {
-		// Un cuarto de hora es más de lo que tarda; pasado eso, algo pasó y es
-		// mejor decirlo que dejar un "generando..." eterno en pantalla.
-		if (Date.now() - desde > 15 * 60 * 1000) {
-			detenerVigilanciaIA();
-			// Se suelta el plato: si no, el botón queda apagado para siempre
-			// por una generación que ya nadie está esperando.
-			state.generandoIA = null;
-			const est = document.getElementById('iaEstado');
-			if (est) {
-				est.textContent = 'La generación está tardando más de lo normal. Mira el estado más tarde.';
-				est.style.color = 'var(--danger)';
-			}
+function vigilarGeneracion(productoId) {
+	detenerVigilanciaIA(productoId);
+	const desde = Date.now();
+
+	const enPantalla = () =>
+		document.getElementById('productModal')?.classList.contains('open') &&
+		document.getElementById('editProductId')?.value === productoId;
+	const decir = (texto, color) => {
+		const est = document.getElementById('iaEstado');
+		if (!est || !enPantalla()) return;
+		est.textContent = texto; est.style.color = color;
+	};
+	// Un final con la ficha cerrada solo se ve en el aviso flotante.
+	const avisarFuera = (texto, tipo) => { if (!enPantalla()) showToast(texto, tipo); };
+
+	const t = setInterval(async () => {
+		if (Date.now() - desde > LIMITE_VIGILANCIA_IA_MS) {
+			detenerVigilanciaIA(productoId);
+			pintarProgresoIA();
+			decir('La generación está tardando más de lo normal. Vuelve a abrir el plato más tarde para ver cómo quedó.', 'var(--danger)');
 			return;
 		}
 
 		try {
-			const trabajos = await apiFetch('GET', `/api/video/trabajos?restaurante_id=${state.restaurante.id}`);
-			state.trabajosVideo = trabajos || [];
-			const nuevo = state.trabajosVideo.find(t => t.producto_id === productoId && !conocidos.has(t.id));
-			if (!nuevo) return;
+			// Primero las generaciones y después los trabajos, en ese orden: la
+			// cola encola el trabajo ANTES de marcar la generación lista, así que
+			// si esta ya dice "lista", la lista de trabajos pedida después lo trae.
+			const gens = await apiFetch('GET', `/api/ia/generaciones?restaurante_id=${state.restaurante.id}`);
+			if (!gens) return;   // sesión caducada: apiFetch ya lleva al login
+			state.generacionesIA = gens;
+			const g = gens.filter(x => x.producto_id === productoId)
+				.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0];
 
-			// Ya está en la cola de conversión: de aquí en adelante es un video
-			// como cualquier otro y lo cuenta quien ya sabía contarlo.
-			detenerVigilanciaIA();
-			// La generación terminó: de aquí en adelante quien impide la
-			// segunda pulsación es el trabajo de conversión, que sí se ve en
-			// los datos.
-			state.generandoIA = null;
-			const est = document.getElementById('iaEstado');
-			if (est) { est.textContent = '✓ Video generado, convirtiendo...'; est.style.color = 'var(--success)'; }
-			vigilarVideo(nuevo.id, productoId);
+			if (g && (g.estado === 'error' || g.estado === 'liberada')) {
+				detenerVigilanciaIA(productoId);
+				pintarProgresoIA();
+				await refrescarCupoIA();   // una liberada devuelve la animación
+				const motivo = g.error ? `La generación falló: ${g.error}` : 'La generación falló';
+				decir(motivo, 'var(--danger)');
+				avisarFuera(motivo, 'error');
+				return;
+			}
+
+			if (g && g.estado === 'lista') {
+				const trabajos = await apiFetch('GET', `/api/video/trabajos?restaurante_id=${state.restaurante.id}`);
+				if (!trabajos) return;
+				state.trabajosVideo = trabajos;
+				const hecho = trabajos
+					.filter(x => x.producto_id === productoId && x.origen_tipo === 'ia' &&
+						Date.parse(x.creado_en) >= Date.parse(g.creado_en))
+					.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0];
+				if (hecho) {
+					// De aquí en adelante es un video como cualquier otro y lo
+					// cuenta quien ya sabía contarlo, también si ya terminó.
+					detenerVigilanciaIA(productoId);
+					decir('', 'var(--text-muted)');
+					vigilarVideo(hecho.id, productoId);
+				}
+			}
+			pintarProgresoIA();
 		} catch { /* un fallo suelto de red no tiene por qué cortar la espera */ }
-	}, 15000);
+	}, 10000);
+	vigilanciasIA.set(productoId, t);
+	pintarProgresoIA();
 }
 
 function ajustarFichaAlModelo() {
@@ -4843,6 +5005,11 @@ function intentarCerrarProducto() {
 	// trabajo —media hora sin terminar, ver LIMITE_VIGILANCIA_VIDEO_MS—, ya
 	// nadie va a avisar de que acabó, y bloquear sería encerrar a alguien en la
 	// ficha para siempre. Ahí se vuelve a avisar y dejar salir.
+	//
+	// MIENTRAS LA IA GENERA, tampoco, y con un video generado SIN REVISAR,
+	// hasta publicarlo o descartarlo (18/09/2026, decidido por el usuario).
+	// Lo generado no se pierde al salir —espera en el plato—, pero publicar es
+	// lo que lo pone en la carta, y quien se iba creía haber terminado.
 	const proceso = procesoEnMarchaDelPlato();
 	if (proceso) {
 		pintarAvisoProceso(proceso);
@@ -4868,17 +5035,39 @@ const AVISO_PROCESO = {
 		texto: 'Espera a que termine de convertirse para cerrar la ficha. Suele tardar uno o dos minutos; puedes ver cómo va debajo del video.',
 		nota: 'Si algo falla, lo verás aquí mismo y podrás subirlo otra vez.',
 	},
+	generando: {
+		titulo: 'Video generándose',
+		texto: 'Espera a que la IA termine de crear el video para cerrar la ficha. Puedes ver cómo va en la barra, debajo de «Generar con IA».',
+		nota: 'Cuando termine tendrás que publicarlo o descartarlo: la carta no lo enseña hasta que lo publiques.',
+	},
+	'por-revisar': {
+		titulo: 'Video generado sin revisar',
+		texto: 'Publícalo en la carta o descártalo antes de cerrar la ficha.',
+		nota: 'Mientras no lo publiques, la carta sigue enseñando lo que tenía.',
+	},
 	'sin-noticias': {
 		titulo: 'Video en proceso',
 		texto: 'La conversión está tardando más de lo normal. Si cierras, sigue en el servidor.',
 		nota: 'Vuelve a abrir el plato más tarde para ver cómo quedó.',
 	},
+	'sin-noticias-ia': {
+		titulo: 'Video en proceso',
+		texto: 'La generación está tardando más de lo normal. Si cierras, sigue en el servidor.',
+		nota: 'Vuelve a abrir el plato más tarde para ver cómo quedó.',
+	},
 };
+
+// Los que no dejan salir. Los 'sin-noticias' sí: ya nadie vigila ese trabajo,
+// y bloquear sería encerrar a alguien en la ficha para siempre.
+function procesoBloquea(proceso) {
+	return proceso === 'subiendo' || proceso === 'convirtiendo' ||
+		proceso === 'generando' || proceso === 'por-revisar';
+}
 
 function pintarAvisoProceso(proceso) {
 	const $ = id => document.getElementById(id);
 	const aviso = AVISO_PROCESO[proceso] || AVISO_PROCESO['sin-noticias'];
-	const bloquea = proceso === 'subiendo' || proceso === 'convirtiendo';
+	const bloquea = procesoBloquea(proceso);
 	if ($('procesoTitulo')) $('procesoTitulo').textContent = aviso.titulo;
 	if ($('procesoTexto')) $('procesoTexto').textContent = aviso.texto;
 	if ($('procesoNota')) $('procesoNota').textContent = aviso.nota;
@@ -4897,15 +5086,25 @@ function pintarAvisoProceso(proceso) {
 //
 // 'sin-noticias' es un trabajo que los datos dan por en marcha pero que nadie
 // está vigilando: la vigilancia se rindió a la media hora, y esos datos ya no
-// se van a refrescar solos.
+// se van a refrescar solos. 'sin-noticias-ia', lo mismo con una generación.
+//
+// El orden es el del camino de un video generado: la IA lo crea, se convierte
+// y queda esperando revisión.
 function procesoEnMarchaDelPlato() {
 	if (state.subiendoVideo) return 'subiendo';
 	const id = document.getElementById('editProductId')?.value;
-	// typeof porque las pruebas cargan trozos del archivo donde este ayudante
-	// no está, y sin la guarda sería un ReferenceError al cerrar la ficha.
-	const enCurso = id && typeof trabajoEnCursoDe === 'function' ? trabajoEnCursoDe(id) : null;
-	if (!enCurso) return null;
-	return state.vigilandoTrabajo === enCurso.id ? 'convirtiendo' : 'sin-noticias';
+	if (!id) return null;
+	// typeof porque las pruebas cargan trozos del archivo donde estos ayudantes
+	// no están, y sin la guarda sería un ReferenceError al cerrar la ficha.
+	const gen = typeof generacionEnCursoDe === 'function' ? generacionEnCursoDe(id) : null;
+	if (gen) {
+		const vigilada = typeof vigilanciasIA !== 'undefined' && vigilanciasIA.has(id);
+		return vigilada ? 'generando' : 'sin-noticias-ia';
+	}
+	const enCurso = typeof trabajoEnCursoDe === 'function' ? trabajoEnCursoDe(id) : null;
+	if (enCurso) return state.vigilandoTrabajo === enCurso.id ? 'convirtiendo' : 'sin-noticias';
+	const porRevisar = typeof videoPorAprobarDe === 'function' ? videoPorAprobarDe(id) : null;
+	return porRevisar ? 'por-revisar' : null;
 }
 
 // Cerrar con un video que ya nadie vigila. No se pierde nada: la conversión
@@ -4914,7 +5113,7 @@ function procesoEnMarchaDelPlato() {
 // empezó con la ventana ya abierta.
 function salirConProcesoEnMarcha() {
 	const proceso = procesoEnMarchaDelPlato();
-	if (proceso === 'subiendo' || proceso === 'convirtiendo') return pintarAvisoProceso(proceso);
+	if (procesoBloquea(proceso)) return pintarAvisoProceso(proceso);
 	closeModal('procesoModal');
 	state.firmaProducto = undefined;
 	closeModal('productModal');
@@ -5104,11 +5303,12 @@ async function saveProduct() {
 		renderInicio();
 		// ── GUARDAR NO ES UNA SALIDA MÁS ────────────────────────
 		// Cerraba la ficha sin pasar por intentarCerrarProducto, y con eso era
-		// la quinta salida mientras el video sube o se convierte. Se guarda
+		// la quinta salida mientras el video sube, se convierte, se genera o
+		// espera revisión. Se guarda
 		// igual —el servidor conserva el video, ver atributosProducto— pero la
 		// ficha se queda abierta hasta que el video termine.
 		const proceso = procesoEnMarchaDelPlato();
-		if (proceso === 'subiendo' || proceso === 'convirtiendo') {
+		if (procesoBloquea(proceso)) {
 			// La firma se fija como quedará tras la subida, sin el archivo
 			// elegido: la subida lo suelta al llegar, y si contara aquí, al
 			// cerrar saldría "cambios sin guardar" sin haber nada pendiente.
@@ -5116,7 +5316,9 @@ async function saveProduct() {
 			videoElegido = null;
 			fijarFirmaProducto();
 			videoElegido = elegido;
-			showToast('Guardado. La ficha sigue abierta hasta que termine el video.', 'success');
+			showToast(proceso === 'por-revisar'
+				? 'Guardado. Publica o descarta el video generado para cerrar la ficha.'
+				: 'Guardado. La ficha sigue abierta hasta que termine el video.', 'success');
 			return;
 		}
 		// Guardado: ya no hay nada pendiente que avisar al cerrar.

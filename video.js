@@ -608,8 +608,26 @@ async function publicarTrabajo(supabase, trabajo) {
 // La fila NO se borra. Se marca, y así queda constancia de que esa generación
 // —que se pagó igual— se miró y no valía. generaciones_ia dice que se generó;
 // lo que se decidió después solo consta aquí.
+//
+// ── UN ARCHIVO COMPARTIDO NO SE BORRA ──────────────────────────
+// Una reconversión parte del master de otro trabajo y lo apunta como suyo, así
+// que dos filas pueden nombrar el mismo master. Pasó el 18/09/2026 en «Tacos
+// birria» (Voro): una copia sin publicar compartía master con el video que sí
+// estaba en la carta, y descartarla se lo habría llevado. Lo que otra fila del
+// plato sigue nombrando se queda; si no se puede averiguar, tampoco se borra
+// nada. El limpiador cuenta referencias igual y recoge después lo que sobre.
 async function descartarTrabajo(supabase, trabajo) {
+  let hermanos = null;
+  try {
+    const { data, error } = await supabase.from('trabajos_video')
+      .select('video, master, portada, origen')
+      .eq('producto_id', trabajo.producto_id).neq('id', trabajo.id);
+    if (!error) hermanos = data || [];
+  } catch { /* sin saberlo, no se borra nada: ver arriba */ }
+  const enUso = new Set((hermanos || []).flatMap(h => [h.video, h.master, h.portada, h.origen]));
+
   for (const relativa of [trabajo.video, trabajo.master, trabajo.portada]) {
+    if (!hermanos || enUso.has(relativa)) continue;
     const abs = relativa && rutaDentroDeUploads(relativa);
     if (abs && fs.existsSync(abs)) { try { fs.unlinkSync(abs); } catch {} }
   }
@@ -788,6 +806,12 @@ async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 
 async function reconvertir(supabase, trabajo, formato) {
   if (!trabajo?.master)
     throw new ErrorDefinitivo('Ese video no tiene master del que reconvertir');
+  // Un video generado que nadie ha publicado no se recorta de nuevo: la copia
+  // hereda el «sin revisar» y el plato acaba con dos esperando revisión. Pasó
+  // el 18/09/2026, cuando la ficha lo ofreció como «video retirado». Se va por
+  // aquí y no por la ruta porque la reconversión en bloque también llama.
+  if (trabajo.origen_tipo === 'ia' && trabajo.aprobado !== true)
+    throw new ErrorDefinitivo('Ese video generado no se ha publicado: publícalo o descártalo primero');
 
   const abs = rutaDentroDeUploads(trabajo.master);
   if (!abs || !fs.existsSync(abs))

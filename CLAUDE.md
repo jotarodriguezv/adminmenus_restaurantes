@@ -779,6 +779,34 @@ por su cuenta. Ahora guarda y, con el video en marcha, la deja abierta. No
 había riesgo para el video: el servidor lo copia siempre de lo guardado
 (`atributosProducto`), así que un guardado con datos viejos no lo pisa.
 
+**Con la IA, igual, y además hasta decidir** (decidido por el usuario el
+18/09/2026, tras probarlo en «Tacos birria», Voro): mientras genera, mientras
+convierte **y** con el video generado esperando revisión, la ficha no se cierra
+(`'generando'` y `'por-revisar'`, ver `procesoBloquea`). Publicar es lo que lo
+pone en la carta, y quien se iba creía haber terminado. Si la generación se
+queda sin vigilancia, `'sin-noticias-ia'` deja salir, como con la conversión.
+
+Lo que falló esa tarde, para no repetirlo:
+
+- **Al reabrir la ficha se paraba la vigilancia de la generación** y quedaba la
+  bandera `state.generandoIA` puesta: «Ya se está generando» durante diez
+  minutos, con el video listo en Replicate al minuto. Ahora hay una vigilancia
+  por plato (`vigilanciasIA`) que no se para al abrir otra ficha, y lo que está
+  en marcha sale de `GET /api/ia/generaciones`, no de una bandera. Si la IA
+  falla, el panel lo dice al siguiente refresco en vez de esperar 15 minutos.
+- **Al recargar, un video generado sin publicar salía como «video retirado»**
+  (`listo`, con master, sin estar en el plato). Recuperarlo creaba una copia que
+  heredaba el «sin revisar». Ahora `trabajoRecuperableDe` los excluye y
+  `video.reconvertir` se niega.
+- **Esa copia compartía master con el video publicado**, y «Descartar» se lo
+  habría llevado. `descartarTrabajo` ya no borra lo que otra fila del plato
+  sigue nombrando.
+
+**La barra es estimada** (`progresoIA`), elegido así por el usuario sabiendo
+que Replicate no da porcentaje: dos pasos reales —IA y conversión— y dentro de
+cada uno una curva que se acerca al final sin llegar. Las constantes están en
+`PROGRESO_IA`, sacadas de los 73 s que tardó la IA en esa prueba.
+
 **Un video subido no hay que guardarlo:** lo escribe el servidor en el plato
 al terminar la conversión. Por eso el aviso final dice «✓ Video guardado en el
 plato» y no «✓ Video listo», y la lista se repinta para que salga la portada:

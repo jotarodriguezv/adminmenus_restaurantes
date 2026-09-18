@@ -568,11 +568,13 @@ una manera distinta:
 - **El aviso tiene su propio elemento** (`iaEncaje`). No puede pisar el estado
   aunque quiera.
 - **El botón no se enciende solo** mientras haya algo en marcha para ese plato,
-  y hay tres señales encadenadas para que no quede ningún hueco: la bandera
-  `state.generandoIA` cubre los dos minutos entre pedirla y que exista el
-  trabajo; `trabajoEnCursoDe()` cubre la conversión; `videoPorAprobarDe()` cubre
-  el video ya convertido esperando revisión. Las dos últimas salen de los datos,
-  así que **siguen en pie después de recargar la página** — la bandera no.
+  y hay cuatro señales encadenadas para que no quede ningún hueco: la bandera
+  `state.generandoIA` cubre solo el viaje de la petición;
+  `generacionEnCursoDe()` cubre el tiempo en Replicate (desde el 18/09/2026, con
+  `GET /api/ia/generaciones`; antes lo cubría la bandera, que se perdía al
+  recargar); `trabajoEnCursoDe()` cubre la conversión; `videoPorAprobarDe()`
+  cubre el video ya convertido esperando revisión. Las tres últimas salen de los
+  datos, así que **siguen en pie después de recargar la página** — la bandera no.
 - **El servidor rechaza con 409** una segunda generación para un plato que ya
   tiene una en camino o una esperando revisión. Es el único freno que cuenta:
   los otros dos son la puerta bonita.

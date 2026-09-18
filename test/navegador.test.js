@@ -640,6 +640,8 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		], {
 				clearInterval() {},
 				planActual: () => ({ videos }),
+				// Viven más abajo en el archivo: la barra y la vigilancia de la IA.
+				vigilanciasIA: new Map(), pintarProgresoIA() {}, vigilarGeneracion() {},
 				state: { trabajosVideo: trabajos, videosPorAprobar: porAprobar,
 				         restaurante: { atributos: { nav } } },
 				document: { getElementById: id => mapa[id] },
@@ -735,6 +737,20 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 	test('sin video pero con master, se ofrece volver a ponerlo', () => {
 		const m = pintar(true, { id: 'p1' }, pantalla(), listo('horizontal'));
 		assert.equal(m.videoRetirado.style.display, 'block');
+	});
+
+	test('un video generado sin publicar NO es un video retirado', () => {
+		// 18/09/2026: al recargar, la ficha decía «este plato tuvo un video y se
+		// quitó» sobre uno recién generado, y recuperarlo hacía una copia que
+		// también quedaba esperando revisión.
+		const generado = aprobado => [{
+			id: 't1', producto_id: 'p1', estado: 'listo', formato: 'horizontal', tiene_master: true,
+			origen_tipo: 'ia', aprobado, creado_en: '2026-09-18T20:37:37Z',
+		}];
+		for (const aprobado of [null, false])
+			assert.equal(pintar(true, { id: 'p1' }, pantalla(), generado(aprobado)).videoRetirado.style.display, 'none', `aprobado: ${aprobado}`);
+		// Uno generado que SÍ se publicó y luego se quitó, sí se ofrece.
+		assert.equal(pintar(true, { id: 'p1' }, pantalla(), generado(true)).videoRetirado.style.display, 'block');
 	});
 
 	test('con el video puesto NO se ofrece: no hay nada que recuperar', () => {
@@ -2789,6 +2805,7 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 			reintentarEncajeAlCargarLaFoto: () => {},
 			videoPorAprobarDe: () => porAprobar,
 			trabajoEnCursoDe: () => enCurso,
+			generacionEnCursoDe: () => null,
 		});
 		return ctx.refrescarCupoIA();
 	};
@@ -8061,5 +8078,168 @@ describe('guardar con el video en marcha · guarda, pero no saca de la ficha', (
 		assert.equal(ctx.videoElegido.name, 'plato.mov', 'el archivo sigue elegido mientras sube');
 		ctx.videoElegido = null;
 		assert.equal(ctx.productoTieneCambios(), false);
+	});
+
+	test('con un video generado sin revisar, guarda y dice qué falta', async () => {
+		const { ctx, cerrados, avisos } = montar();
+		ctx.videoPorAprobarDe = () => ({ id: 't1' });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, []);
+		assert.match(avisos[0], /Publica o descarta/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('generación con IA · se sigue viendo, y la ficha no se deja a medias', () => {
+	// 18/09/2026: al reabrir la ficha se paraba la vigilancia y el plato decía
+	// «Ya se está generando» para siempre, aunque Replicate había terminado al
+	// minuto. Y la ficha dejaba salir en todo momento.
+	const montar = ({ generaciones = [], trabajos = [], porAprobar = null, vigiladas = [], vigilando = null } = {}) => {
+		const mapa = {
+			editProductId:  { value: 'p1' },
+			procesoTexto:   { textContent: '' },
+			procesoTitulo:  { textContent: '' },
+			procesoNota:    { textContent: '' },
+			procesoSeguir:  { textContent: '' },
+			procesoSalir:   { style: {} },
+		};
+		const abiertos = [], cerrados = [];
+		const ctx = cargar('index.html', [
+			['function trabajoEnCursoDe', '// El trabajo terminado de un plato'],
+			['function firmaProducto', 'async function saveProduct'],
+		], {
+			state: { pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {},
+				subiendoVideo: false, vigilandoTrabajo: vigilando,
+				trabajosVideo: trabajos, generacionesIA: generaciones },
+			videoElegido: null,
+			vigilanciasIA: new Map(vigiladas.map(id => [id, 1])),
+			videoPorAprobarDe: () => porAprobar,
+			document: { getElementById: id => mapa[id] },
+			openModal:  id => abiertos.push(id),
+			closeModal: id => cerrados.push(id),
+		});
+		return { ctx, mapa, abiertos, cerrados };
+	};
+	const HACE = seg => new Date(Date.now() - seg * 1000).toISOString();
+	const generando = () => [{ id: 'g1', producto_id: 'p1', estado: 'generando', creado_en: HACE(10) }];
+
+	test('una generación en Replicate cuenta como en marcha', () => {
+		const { ctx } = montar({ generaciones: generando() });
+		assert.equal(ctx.generacionEnCursoDe('p1').id, 'g1');
+		assert.equal(ctx.generacionEnCursoDe('p2'), null, 'solo la de su plato');
+	});
+
+	test('las terminadas, falladas o liberadas no', () => {
+		for (const estado of ['lista', 'error', 'liberada']) {
+			const { ctx } = montar({ generaciones: [{ id: 'g1', producto_id: 'p1', estado, creado_en: HACE(10) }] });
+			assert.equal(ctx.generacionEnCursoDe('p1'), null, estado);
+		}
+	});
+
+	test('apuntarla al pedirla basta para que cuente, sin esperar al refresco', () => {
+		const { ctx } = montar();
+		ctx.anotarGeneracionEnCurso('g9', 'p1');
+		ctx.anotarGeneracionEnCurso('g9', 'p1');
+		assert.equal(ctx.state.generacionesIA.length, 1, 'sin duplicados');
+		assert.equal(ctx.generacionEnCursoDe('p1').id, 'g9');
+	});
+
+	test('mientras genera, la ficha no se cierra', () => {
+		const { ctx, mapa, abiertos, cerrados } = montar({ generaciones: generando(), vigiladas: ['p1'] });
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+		assert.deepEqual(abiertos, ['procesoModal']);
+		assert.deepEqual(cerrados, []);
+		assert.equal(mapa.procesoSalir.style.display, 'none');
+		assert.match(mapa.procesoTexto.textContent, /la IA termine/);
+	});
+
+	test('si nadie la vigila, se puede salir: no se encierra a nadie', () => {
+		const { ctx, mapa } = montar({ generaciones: generando() });
+		assert.equal(ctx.procesoEnMarchaDelPlato(), 'sin-noticias-ia');
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+		assert.equal(mapa.procesoSalir.style.display, '');
+		assert.match(mapa.procesoTexto.textContent, /generación está tardando/);
+	});
+
+	test('con un video generado sin revisar, no se sale hasta decidir', () => {
+		// Decidido por el usuario el 18/09/2026: publicar es lo que lo pone en
+		// la carta, y quien se iba creía haber terminado.
+		const { ctx, mapa, cerrados } = montar({ porAprobar: { id: 't1' } });
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+		assert.equal(ctx.procesoEnMarchaDelPlato(), 'por-revisar');
+		assert.deepEqual(cerrados, []);
+		assert.equal(mapa.procesoSalir.style.display, 'none');
+		assert.match(mapa.procesoTexto.textContent, /Publícalo en la carta o descártalo/);
+	});
+
+	test('"Cerrar de todos modos" tampoco saca con uno sin revisar', () => {
+		const { ctx, cerrados } = montar({ porAprobar: { id: 't1' } });
+		ctx.salirConProcesoEnMarcha();
+		assert.deepEqual(cerrados, []);
+	});
+
+	test('la conversión va antes que la revisión', () => {
+		// Un plato puede tener uno esperando revisión y otro convirtiéndose: lo
+		// que manda es lo que está en marcha.
+		const { ctx } = montar({
+			trabajos: [{ id: 't2', producto_id: 'p1', estado: 'procesando', creado_en: HACE(5) }],
+			porAprobar: { id: 't1' }, vigilando: 't2',
+		});
+		assert.equal(ctx.procesoEnMarchaDelPlato(), 'convirtiendo');
+	});
+
+	test('sin nada de eso, la ficha se cierra como siempre', () => {
+		const { ctx, cerrados } = montar();
+		ctx.fijarFirmaProducto();
+		ctx.intentarCerrarProducto();
+		assert.deepEqual(cerrados, ['productModal']);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('progresoIA · la barra estimada', () => {
+	// Replicate no da porcentaje. La barra es una estimación, y lo que tiene que
+	// cumplir es no mentir en lo importante: no llegar al final sola, y que el
+	// salto de paso salga de los datos.
+	const conDatos = ({ generaciones = [], trabajos = [] } = {}) => cargar('index.html',
+		'function trabajoEnCursoDe', '// El trabajo terminado de un plato',
+		{ state: { generacionesIA: generaciones, trabajosVideo: trabajos } });
+	const T0 = '2026-09-18T20:00:00Z';
+	const en = seg => Date.parse(T0) + seg * 1000;
+
+	test('paso 1: avanza, y nunca llega al 70 por su cuenta', () => {
+		const ctx = conDatos({ generaciones: [{ id: 'g1', producto_id: 'p1', estado: 'generando', creado_en: T0 }] });
+		const a = ctx.progresoIA('p1', en(10)).pct, b = ctx.progresoIA('p1', en(75)).pct;
+		const c = ctx.progresoIA('p1', en(3600)).pct;
+		assert.ok(a > 0 && a < b, 'avanza');
+		assert.ok(c < 70 && c >= 68, 'se acerca sin llegar');
+		assert.match(ctx.progresoIA('p1', en(75)).texto, /Paso 1 de 2.*1:15/);
+	});
+
+	test('paso 2: arranca donde acabó el 1 y no llega al 100', () => {
+		const ctx = conDatos({ trabajos: [{ id: 't1', producto_id: 'p1', estado: 'procesando', origen_tipo: 'ia', creado_en: T0 }] });
+		const a = ctx.progresoIA('p1', en(0)).pct, z = ctx.progresoIA('p1', en(3600)).pct;
+		assert.ok(a >= 70 && a < 71);
+		assert.ok(z < 100, 'el 100 solo lo pone terminar de verdad');
+		assert.match(ctx.progresoIA('p1', en(20)).texto, /Paso 2 de 2.*0:20/);
+	});
+
+	test('un video subido a mano no pinta la barra de la IA', () => {
+		const ctx = conDatos({ trabajos: [{ id: 't1', producto_id: 'p1', estado: 'procesando', origen_tipo: 'subido', creado_en: T0 }] });
+		assert.equal(ctx.progresoIA('p1', en(10)), null);
+	});
+
+	test('sin nada en marcha, no hay barra', () => {
+		assert.equal(conDatos().progresoIA('p1', en(10)), null);
+	});
+
+	test('un reloj desfasado no da tiempos negativos', () => {
+		const ctx = conDatos({ generaciones: [{ id: 'g1', producto_id: 'p1', estado: 'generando', creado_en: '2026-09-18T20:00:30Z' }] });
+		const pr = ctx.progresoIA('p1', en(0));
+		assert.equal(pr.pct, 0);
+		assert.match(pr.texto, /0:00/);
 	});
 });
