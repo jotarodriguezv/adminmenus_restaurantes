@@ -366,7 +366,21 @@ Dos comportamientos que hay que decidir a conciencia:
 
   Se comparan los nombres con la misma regla que las categorías —sin tildes ni
   mayúsculas— para que la pantalla no diga dos cosas distintas sobre el mismo
-  texto.
+  texto. **Y dentro de la misma categoría** (18/09/2026): mirando solo el nombre,
+  el «CHICKEN» de Desgranados de Bonzas salía repetido del de Sándwiches, que es
+  otro plato, y «Quitar los repetidos» lo borraba del borrador.
+
+- **Aplicar dos veces a la vez.** El servidor comprobaba el estado al empezar y
+  lo marcaba `aplicado` al terminar, después de crear todo: dos peticiones
+  simultáneas —un doble clic con la red lenta— pasaban las dos y duplicaban la
+  carta. Desde el 18/09/2026 la importación se **reclama** antes de escribir con
+  un `update … where estado = 'listo'`: solo una de las dos lo consigue. Si algo
+  falla después, vuelve a `listo` para poder reintentar. Sin estado intermedio,
+  porque el `CHECK` de la tabla no admite otros y no valía una migración.
+- **Categorías borradas.** Borrar archiva (sql/23). Al aplicar solo se
+  reutilizan las visibles —si no, los platos iban a parar a una categoría que
+  no ve nadie— y el slug de una nueva se busca libre también de las archivadas,
+  que lo siguen ocupando (`slugLibre` en `importacion.js`).
 - **Categoría que ya existe.** Si la carta trae `POSTRES` y el restaurante ya
   tiene `Postres`, los platos van a la que existe. Casar por nombre normalizado
   (sin tildes, sin mayúsculas); si no hay coincidencia, se crea.

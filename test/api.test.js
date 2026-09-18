@@ -1201,6 +1201,42 @@ describe('un nombre vacío no es un nombre', () => {
 	});
 });
 
+describe('POST /api/categorias · una categoría con un nombre que ya existe', () => {
+	// Hasta el 18/09/2026 acababa en un 500 con el texto crudo de Postgres: el
+	// slug se deriva del nombre y es único por restaurante.
+	const conCategorias = lista => S.conTabla(st => {
+		if (st.tabla === 'categorias' && st.op === 'select') return { data: lista, error: null };
+		if (st.tabla === 'categorias' && st.op === 'insert') return { data: { id: 'nueva', ...st.payload[0] }, error: null };
+		if (st.tabla === 'restaurantes') return { data: { atributos: {} }, error: null };
+		return { data: null, error: null };
+	});
+	const crear = nombre => S.pedir('POST', '/api/categorias', { restaurante_id: IDS.restaurante, nombre }, tokenCliente);
+
+	test('si ya existe una visible, se dice en castellano', async () => {
+		conCategorias([{ nombre: 'Postres', slug: 'postres', archivado_en: null }]);
+		const r = await crear('POSTRES');
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /Ya tienes una categoría «Postres»/);
+		assert.equal(S.llamadas.filter(l => l.tabla === 'categorias' && l.op === 'insert').length, 0);
+	});
+
+	test('una borrada no impide crearla, y no choca con su slug', async () => {
+		// Borrar archiva (sql/23): la archivada sigue ocupando 'postres'.
+		conCategorias([{ nombre: 'Postres', slug: 'postres', archivado_en: '2026-09-17T10:00:00Z' }]);
+		const r = await crear('Postres');
+		assert.equal(r.status, 200);
+		const ins = S.llamadas.find(l => l.tabla === 'categorias' && l.op === 'insert');
+		assert.equal(ins.payload[0].slug, 'postres_2');
+	});
+
+	test('sin choques, el slug de siempre', async () => {
+		conCategorias([]);
+		await crear('Bebidas calientes');
+		const ins = S.llamadas.find(l => l.tabla === 'categorias' && l.op === 'insert');
+		assert.equal(ins.payload[0].slug, 'bebidas_calientes');
+	});
+});
+
 describe('DELETE /api/productos/:id/video · retirar un video sin perderlo', () => {
 	// Hasta ahora no se podía quitar. 'video' vive en
 	// ATRIBUTOS_PRODUCTO_DEL_SERVIDOR, así que atributosProducto() lo copia

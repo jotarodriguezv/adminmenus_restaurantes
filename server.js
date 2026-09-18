@@ -1489,8 +1489,22 @@ app.post('/api/categorias', auth, async (req, res) => {
   if (malNombreCat) return res.status(400).json({ error: malNombreCat });
   const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', restaurante_id).single();
   const atributosFiltrados = atributosCategoria(atributos, null, req.user.rol === 'admin', planDe(resto?.atributos));
+  // Dos categorías con el mismo nombre en la misma carta son un error casi
+  // siempre, y hasta el 18/09/2026 acababan en un 500 con el texto crudo de
+  // Postgres («duplicate key value violates…»): el slug se deriva del nombre y
+  // es único por restaurante. Ahora se dice en castellano.
+  // Solo cuentan las VISIBLES: una archivada no la ve nadie, y pedirle al
+  // restaurante que elija otro nombre por algo que borró sería incomprensible.
+  const { data: suyas } = await supabase.from('categorias')
+    .select('nombre, slug, archivado_en').eq('restaurante_id', restaurante_id);
+  const lista = Array.isArray(suyas) ? suyas : [];
+  const igual = lista.find(c => !c.archivado_en && importacion.normalizar(c.nombre) === importacion.normalizar(nombre));
+  if (igual) return res.status(400).json({ error: `Ya tienes una categoría «${igual.nombre}». Usa esa o ponle otro nombre a esta.` });
+  // Y el slug, libre también de las archivadas, que siguen ocupándolo.
+  const slugFinal = importacion.slugLibre(slug || nombre, lista.map(c => c.slug));
+
   const { data, error } = await supabase.from('categorias')
-    .insert([{ restaurante_id, nombre, slug: slug || nombre.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''), emoji: emoji || '', orden: parseInt(orden) || 0, sin_fotos: sin_fotos || false, atributos: atributosFiltrados }])
+    .insert([{ restaurante_id, nombre, slug: slugFinal, emoji: emoji || '', orden: parseInt(orden) || 0, sin_fotos: sin_fotos || false, atributos: atributosFiltrados }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -2885,7 +2899,12 @@ app.post('/api/importaciones/:id/aplicar', auth, async (req, res) => {
   if (fila.estado !== 'listo')    return res.status(409).json({ error: 'Esta importación todavía no está lista' });
 
   const rid = fila.restaurante_id;
-  const { data: cats }  = await supabase.from('categorias').select('id, nombre, orden').eq('restaurante_id', rid);
+  // Solo las categorías VISIBLES se reutilizan. Borrar archiva (sql/23), y sin
+  // este filtro una carta con «POSTRES» metía sus platos en una «Postres»
+  // borrada, donde no los ve ni el panel ni el comensal. El panel, que calcula
+  // lo mismo para pintar el botón, ya partía solo de las visibles.
+  const { data: todas } = await supabase.from('categorias').select('id, nombre, orden, slug, archivado_en').eq('restaurante_id', rid);
+  const cats = (Array.isArray(todas) ? todas : []).filter(c => !c.archivado_en);
   const { data: prods } = await supabase.from('productos').select('categoria_id, orden').eq('restaurante_id', rid);
 
   // El orden más alto que ya tiene cada categoría, para que lo nuevo entre
@@ -2897,16 +2916,44 @@ app.post('/api/importaciones/:id/aplicar', auth, async (req, res) => {
   const plan = importacion.planDeAplicacion(fila.borrador, cats || [], ordenPorCat);
   if (!plan.totales.platos) return res.status(400).json({ error: 'El borrador no tiene ningún plato' });
 
+  // Lo de arriba NO bastaba, aunque el comentario decía que sí. Leía el estado
+  // al empezar y lo marcaba 'aplicado' al TERMINAR, después de crear todo: dos
+  // peticiones a la vez —un doble clic con la red lenta, un reintento— leían
+  // 'listo' las dos y duplicaban la carta entera (visto el 18/09/2026).
+  //
+  // Ahora se RECLAMA antes de escribir nada, de forma atómica: solo una de las dos consigue
+  // pasar de 'listo' a 'aplicado', y la otra se va con un 409 sin tocar nada.
+  // Se usa 'aplicado' y no un estado intermedio porque el CHECK de la tabla no
+  // admite otros, y cambiarlo sería una migración para esto. Si algo falla
+  // después, se devuelve a 'listo' para que se pueda reintentar.
+  //
+  // Va aquí, justo antes de escribir, y no nada más empezar: un borrador vacío
+  // se rechaza arriba sin llegar a marcarse.
+  const { data: tomada, error: errTomar } = await supabase.from('importaciones_carta')
+    .update({ estado: 'aplicado' }).eq('id', fila.id).eq('estado', 'listo').select('id');
+  if (errTomar) return res.status(500).json({ error: 'No se pudo reservar la importación. No se creó nada; inténtalo otra vez.' });
+  if (!tomada || (Array.isArray(tomada) && !tomada.length))
+    return res.status(409).json({ error: 'Esta importación ya se está aplicando o ya se aplicó' });
+  const devolverALista = async (motivo) => {
+    const { error } = await supabase.from('importaciones_carta').update({ estado: 'listo' }).eq('id', fila.id);
+    if (error) console.error(`⚠️ importación ${fila.id}: falló (${motivo}) y no se pudo devolver a 'listo': ${error.message}`);
+  };
+
+
   // Primero las categorías, porque los platos necesitan su id.
   const nuevas = plan.categorias.filter((c) => !c.existia);
   if (nuevas.length) {
+    // El slug, libre de TODAS las que ocupan uno, archivadas incluidas: la base
+    // lo exige único por restaurante.
+    const usados = (Array.isArray(todas) ? todas : []).map(c => c.slug).filter(Boolean);
+    for (const c of nuevas) { c.slug = importacion.slugLibre(c.nombre, usados); usados.push(c.slug); }
     const { data: creadas, error } = await supabase.from('categorias').insert(
       nuevas.map((c) => ({
         restaurante_id: rid, nombre: c.nombre, slug: c.slug,
         emoji: '', orden: c.orden, sin_fotos: false, atributos: {},
       }))
     ).select('id, nombre');
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) { await devolverALista('categorías'); return res.status(500).json({ error: error.message }); }
 
     const porNombre = new Map((creadas || []).map((c) => [importacion.normalizar(c.nombre), c.id]));
     for (const c of nuevas) c.id = porNombre.get(importacion.normalizar(c.nombre)) || null;
@@ -2929,18 +2976,12 @@ app.post('/api/importaciones/:id/aplicar', auth, async (req, res) => {
   }
 
   const { error: errProd } = await supabase.from('productos').insert(filas);
-  if (errProd) return res.status(500).json({ error: errProd.message });
+  if (errProd) { await devolverALista('platos'); return res.status(500).json({ error: errProd.message }); }
 
-  // Marcarla es lo ÚNICO que impide aplicarla dos veces, así que si esto falla
-  // hay que decirlo. Y hay que decirlo SIN dar el 500 que pediría reintentar:
-  // los platos ya están creados, y reintentar los duplicaría, que es
-  // exactamente el desastre del que protege el estado.
-  const { error: errEstado } = await supabase.from('importaciones_carta')
-    .update({ estado: 'aplicado' }).eq('id', fila.id);
-  if (errEstado) console.error(`⚠️ importación ${fila.id}: se creó todo pero no se pudo marcar como aplicada: ${errEstado.message}`);
-  // Solo si quedó marcada: una fila que no dice 'aplicado' todavía parece viva,
-  // y dejarla sin archivo sería el único estado raro que se puede evitar aquí.
-  else borrarArchivoCarta(fila.archivo);
+  // Ya quedó marcada al reclamarla, así que ninguna otra petición puede
+  // aplicarla y el archivo se puede borrar.
+  borrarArchivoCarta(fila.archivo);
+  const errEstado = null;
 
   res.json({
     ok: true,

@@ -34,6 +34,20 @@ function slugDe(nombre) {
   return String(nombre || '').toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 }
 
+// Un slug que no choque con ninguno de los que ya tiene el restaurante,
+// ARCHIVADAS INCLUIDAS. La base exige (restaurante_id, slug) único, y borrar una
+// categoría la archiva en vez de quitarla (sql/23): sin esto, crear «Postres»
+// después de haber borrado otra «Postres» reventaba con el error crudo de
+// Postgres. Se añade _2, _3…
+//
+// Un nombre sin ninguna letra ni número —«¿¿»— daría un slug vacío.
+function slugLibre(nombre, usados) {
+  const base = slugDe(nombre) || 'categoria';
+  const ocupados = new Set(usados || []);
+  if (!ocupados.has(base)) return base;
+  for (let n = 2; ; n++) if (!ocupados.has(`${base}_${n}`)) return `${base}_${n}`;
+}
+
 // Los platos que la carta no pone bajo ningún título tienen que ir a alguna
 // parte: la columna 'categoria_id' de productos es NOT NULL.
 const SIN_CATEGORIA = 'Otros';
@@ -123,4 +137,4 @@ function planDeAplicacion(borrador, existentes = [], ordenPorCat = {}) {
   };
 }
 
-module.exports = { planDeAplicacion, normalizar, slugDe, SIN_CATEGORIA };
+module.exports = { planDeAplicacion, normalizar, slugDe, slugLibre, SIN_CATEGORIA };
