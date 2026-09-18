@@ -90,9 +90,7 @@ function renderToppingList(containerId, tipo) {
   items.forEach((item, idx) => {
     const chip = document.createElement('div');
     chip.className = 'topping-chip';
-    const label = tipo === 'premium'
-      ? `${item.nombre} · $${Number(item.precio || 0).toLocaleString('es-CO')}`
-      : item.nombre;
+    const label = etiquetaDeTopping(item, tipo);
     // El nombre es un botón: renombrar es lo que este cambio vuelve seguro,
     // y una función que no se ve desde ningún sitio es una función que no
     // existe. El aspecto es el mismo de antes; solo se puede pulsar.
@@ -122,6 +120,11 @@ function addTopping(tipo) {
   document.getElementById('toppingNombre').value = '';
   document.getElementById('toppingPrecio').value = tipo === 'premium' ? '4000' : '';
   document.getElementById('toppingPrecioGroup').style.display = tipo === 'premium' ? 'block' : 'none';
+  // Nace sin repetición: es lo de siempre, y encenderla es una decisión.
+  document.getElementById('toppingRepetibleGroup').style.display = tipo === 'premium' ? 'block' : 'none';
+  document.getElementById('toppingRepetible').checked = false;
+  document.getElementById('toppingTope').value = '3';
+  pintarTopeTopping();
   const titles = { platino: 'Nuevo adicional sin costo', premium: 'Nuevo adicional con costo', salsas: 'Nueva salsa' };
   document.getElementById('toppingModalTitle').textContent = titles[tipo];
   document.getElementById('btnGuardarTopping').textContent = 'Añadir';
@@ -141,10 +144,39 @@ function editarTopping(tipo, idx) {
   document.getElementById('toppingNombre').value = item.nombre;
   document.getElementById('toppingPrecio').value = tipo === 'premium' ? String(item.precio ?? '') : '';
   document.getElementById('toppingPrecioGroup').style.display = tipo === 'premium' ? 'block' : 'none';
+  document.getElementById('toppingRepetibleGroup').style.display = tipo === 'premium' ? 'block' : 'none';
+  document.getElementById('toppingRepetible').checked = tipo === 'premium' && item.repetible === true;
+  document.getElementById('toppingTope').value = String(topeDeAdicional(item.max));
+  pintarTopeTopping();
   document.getElementById('toppingModalTitle').textContent = tipo === 'salsas' ? 'Editar salsa' : 'Editar adicional';
   document.getElementById('btnGuardarTopping').textContent = 'Guardar';
   openModal('toppingModal');
   setTimeout(() => document.getElementById('toppingNombre').focus(), 100);
+}
+
+// El tope que se guarda. Espejo de topeDeAdicional() en
+// vmenus-app/core/carrito.js: son dos aplicaciones desplegadas por separado y
+// no pueden compartir el módulo. Si cambia allí, cambia aquí — y que
+// discrepen es cómo el panel promete un máximo que la carta no respeta.
+const TOPE_MAXIMO_ADICIONAL = 20;
+function topeDeAdicional(valor) {
+  const n = Math.floor(Number(valor));
+  if (!Number.isFinite(n) || n < 2) return 2;
+  return Math.min(n, TOPE_MAXIMO_ADICIONAL);
+}
+
+function pintarTopeTopping() {
+  const repetible = document.getElementById('toppingRepetible').checked;
+  document.getElementById('toppingTopeFila').style.display = repetible ? 'block' : 'none';
+}
+
+// Lo que se enseña en el chip del catálogo: «Tocineta · $4.000 · hasta 3».
+// Sin esto, «se puede repetir» solo se veía abriendo cada uno.
+function etiquetaDeTopping(t, tipo) {
+  const partes = [t.nombre];
+  if (tipo === 'premium') partes.push('$' + Number(t.precio || 0).toLocaleString('es-CO'));
+  if (t.repetible) partes.push(`hasta ${topeDeAdicional(t.max)}`);
+  return partes.join(' · ');
 }
 
 function confirmAddTopping() {
@@ -167,10 +199,20 @@ function confirmAddTopping() {
   }
 
   const precio = tipo === 'premium' ? (parseFloat(document.getElementById('toppingPrecio').value) || 0) : null;
+  // Solo los de costo se repiten. Si alguien apaga el interruptor, la clave se
+  // BORRA en vez de quedarse en false: así un catálogo se sigue leyendo de un
+  // vistazo en la base, como los horarios de las categorías.
+  const repetible = tipo === 'premium' && document.getElementById('toppingRepetible').checked;
+  const conRepeticion = obj => {
+    if (!repetible) { delete obj.repetible; delete obj.max; return obj; }
+    obj.repetible = true;
+    obj.max = topeDeAdicional(document.getElementById('toppingTope').value);
+    return obj;
+  };
 
   if (idx >= 0) {
     // Renombrar conserva el identificador: es todo el objetivo del cambio.
-    lista[idx] = { ...lista[idx], nombre };
+    lista[idx] = conRepeticion({ ...lista[idx], nombre });
     if (tipo === 'premium') lista[idx].precio = precio;
   } else {
     // Un identificador nuevo que no choque con ninguno de los tres grupos:
@@ -179,7 +221,7 @@ function confirmAddTopping() {
     const usados = new Set([...toppingState.platino, ...toppingState.premium, ...toppingState.salsas].map(t => t.id));
     let id = nuevoIdTopping();
     while (usados.has(id)) id = nuevoIdTopping();
-    lista.push(tipo === 'premium' ? { id, nombre, precio } : { id, nombre });
+    lista.push(tipo === 'premium' ? conRepeticion({ id, nombre, precio }) : { id, nombre });
   }
 
   renderToppingList(CONTENEDOR_TOPPING[tipo], tipo);
