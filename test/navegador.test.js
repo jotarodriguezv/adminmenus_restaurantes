@@ -7457,3 +7457,55 @@ describe('Inicio: qué pide una acción y qué tiene encendido la carta', () => 
 		assert.equal(f.encendido, true);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('un plato que no lleva foto a propósito', () => {
+	// 18/09/2026, pedido por el usuario: hay platos a los que no les toca foto
+	// aunque su categoría las lleve —una bebida, un adicional—, y sin marcarlo
+	// Inicio los contaba como pendientes para siempre.
+	const src = codigoDelPanel();
+	const reglas = () => cargar('inicio.js', [
+		['index.html', '// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
+		['index.html', 'function recibePedidos', 'function formatoDeLaCarta'],
+		['inicio.js', 'function productoGratis', '// ── PINTAR'],
+	], {
+		MODELO_POR_DEFECTO: 'topnav', MODELOS_CARRITO_OPCIONAL: [],
+		esModeloDeVideo: nav => ['video', 'vertical'].includes(nav),
+		MINIMO_PLATOS_BUSCADOR: 8, Number, String, Array, Set,
+	});
+	const cats = [{ id: 'c', nombre: 'Limonadas', sin_fotos: false }];
+	const plato = (id, extra = {}) => ({ id, nombre: id, categoria_id: 'c', precio_numerico: 1, disponible: true, imagen_url: null, atributos: {}, ...extra });
+
+	test('marcado «no lleva foto», no cuenta como pendiente', () => {
+		const r = reglas().revisionDeInicio({ categorias: cats, atributos: {}, plan: {},
+			productos: [plato('a', { atributos: { sin_foto: true } }), plato('b')] });
+		assert.equal(r.pendientes[0].titulo, '1 plato sin foto');
+	});
+
+	test('el aviso dice en qué categorías faltan y cómo marcarlo', () => {
+		const r = reglas().revisionDeInicio({ categorias: cats, atributos: {}, plan: {}, productos: [plato('b')] });
+		assert.match(r.pendientes[0].nota, /En: Limonadas\./);
+		assert.match(r.pendientes[0].nota, /márcalo así en su ficha/);
+	});
+
+	test('ya no dice «recuadro vacío» donde no lo hay', () => {
+		// En Topnav y Sidebar un plato sin foto sale como una fila compacta.
+		const ctx = reglas();
+		assert.doesNotMatch(ctx.notaDeImagen('topnav', false), /recuadro/);
+		assert.match(ctx.notaDeImagen('explorar', false), /recuadro/);
+	});
+
+	test('el servidor la acepta y la guarda como booleano', () => {
+		// Sin estar en la lista de atributos permitidos, la casilla se
+		// descartaría en silencio al guardar.
+		const servidor = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+		assert.match(servidor.match(/const ATRIBUTOS_PRODUCTO_PERMITIDOS = \[[^\]]*\]/)[0], /'sin_foto'/);
+		assert.match(servidor, /\['precio_gratis', 'sin_foto'\]\.includes\(clave\) \? entrantes\[clave\] === true/);
+	});
+
+	test('marcar la casilla cuenta como cambio sin guardar', () => {
+		const firma = src.match(/function firmaProducto\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(firma, /editSinFoto/);
+		assert.match(firma, /editPrecioGratis/, 'y «Gratis», que tampoco estaba');
+	});
+});

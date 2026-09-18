@@ -1004,6 +1004,25 @@ describe('productos · la categoría tiene que ser del mismo restaurante', () =>
 		assert.match(r.body.error, /no existe/);
 	});
 
+	test('«no lleva foto» se guarda, y solo como booleano', async () => {
+		// 18/09/2026. Sin estar en la lista de atributos permitidos, la casilla
+		// del panel se descartaba en silencio; y un "false" de texto es verdadero
+		// para cualquier if, así que desmarcarla la dejaría marcada.
+		const escrito = async valor => {
+			S.conTabla(st => st.tabla === 'productos'
+				? { data: { restaurante_id: IDS.restaurante, atributos: {} }, error: null }
+				: { data: null, error: null });
+			const antes = S.llamadas.length;
+			const r = await S.pedir('PATCH', `/api/productos/${IDS.producto}`, { atributos: { sin_foto: valor } }, tokenCliente);
+			assert.equal(r.status, 200);
+			const upd = S.llamadas.slice(antes).find(l => l.tabla === 'productos' && l.op === 'update');
+			return upd.payload.atributos.sin_foto;
+		};
+		assert.equal(await escrito(true), true);
+		assert.equal(await escrito(false), false);
+		assert.equal(await escrito('false'), false, 'el texto «false» no puede marcarla');
+	});
+
 	test('la categoría propia sí pasa', async () => {
 		conCategoriaDe(IDS.restaurante);
 		const r = await S.pedir('PATCH', `/api/productos/${IDS.producto}`,
