@@ -7343,6 +7343,133 @@ describe('lo que cada plato tiene marcado, visto desde la lista', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('la sesión: se renueva usándola y pregunta si nadie la usa', () => {
+	// 18/09/2026, decidido con el equipo. Antes: 8 h fijas desde el login y
+	// al login sin aviso, llevándose lo que se estuviera escribiendo.
+	const reglas = (extra = {}) => cargar('sesion.js', [['sesion.js', 'const SESION_INACTIVA_MS', null]],
+		Object.assign({ Date, Math, String, JSON, atob: s => Buffer.from(s, 'base64').toString('binary') }, extra));
+	const MIN = 60 * 1000;
+	const T0 = 1_000_000_000_000;
+	const decidir = (ctx, ahora, o) => ctx.decisionDeSesion(T0 + ahora,
+		Object.assign({ ultimaActividad: T0, ultimaRenovacion: T0, preguntadaEn: null, subiendoVideo: false }, o));
+
+	test('usándolo, no pregunta nada', () => {
+		const ctx = reglas();
+		assert.equal(decidir(ctx, 5 * MIN, { ultimaActividad: T0 + 4 * MIN }), 'nada');
+	});
+
+	test('usándolo, renueva el token como mucho cada diez minutos', () => {
+		// Así las 8 h del servidor cuentan desde el último uso: quien trabaja
+		// no se topa nunca con el corte.
+		const ctx = reglas();
+		assert.equal(decidir(ctx, 9 * MIN, { ultimaActividad: T0 + 8 * MIN }), 'nada');
+		assert.equal(decidir(ctx, 10 * MIN, { ultimaActividad: T0 + 9 * MIN }), 'renovar');
+	});
+
+	test('sin actividad desde la última renovación, no renueva', () => {
+		// Una pestaña olvidada no puede estirar su sesión sola.
+		const ctx = reglas();
+		assert.equal(decidir(ctx, 30 * MIN, { ultimaActividad: T0 - MIN }), 'nada');
+	});
+
+	test('una hora sin tocar nada: pregunta', () => {
+		const ctx = reglas();
+		assert.equal(decidir(ctx, 59 * MIN), 'nada');
+		assert.equal(decidir(ctx, 60 * MIN), 'preguntar');
+	});
+
+	test('preguntado y sin respuesta en dos minutos: cierra', () => {
+		const ctx = reglas();
+		assert.equal(decidir(ctx, 61 * MIN, { preguntadaEn: T0 + 60 * MIN }), 'esperar');
+		assert.equal(decidir(ctx, 62 * MIN, { preguntadaEn: T0 + 60 * MIN }), 'cerrar');
+	});
+
+	test('volviendo de una suspensión larga cierra sin preguntar', () => {
+		// Con el portátil cerrado los temporizadores se paran. Al abrirlo ya pasó
+		// todo el tiempo: preguntar daría dos minutos a una sesión desatendida.
+		const ctx = reglas();
+		assert.equal(decidir(ctx, 5 * 60 * MIN), 'cerrar');
+	});
+
+	test('con un video subiendo no pregunta ni cierra: renueva', () => {
+		// Cerrar la sesión cortaría la subida, y quien sube está delante.
+		const ctx = reglas();
+		assert.equal(decidir(ctx, 5 * 60 * MIN, { subiendoVideo: true }), 'renovar');
+		assert.equal(decidir(ctx, 5 * MIN, { subiendoVideo: true }), 'nada');
+	});
+
+	test('la última renovación se lee del token, no de la hora de carga', () => {
+		// Tras recargar, un token de hace 7 h 55 min no puede esperar diez
+		// minutos más a renovarse: caducaría antes.
+		const ctx = reglas();
+		const jwt = require('jsonwebtoken');
+		const t = jwt.sign({ rol: 'cliente' }, 'x');
+		const iat = JSON.parse(Buffer.from(t.split('.')[1], 'base64').toString()).iat;
+		assert.equal(ctx.emitidoEn(t), iat * 1000);
+		assert.equal(ctx.emitidoEn('basura'), 0, 'ilegible: se renueva al primer uso');
+	});
+
+	function pantalla() {
+		const els = {};
+		const cls = () => { const s = new Set(); return { add: c => s.add(c), remove: c => s.delete(c), contains: c => s.has(c) }; };
+		const $ = id => (els[id] ||= { id, textContent: '', style: {}, classList: cls(), focus() {} });
+		const hechos = [];
+		const ctx = reglas({
+			document: { getElementById: $, body: { style: {} }, querySelector: () => null },
+			state: { subiendoVideo: false },
+			sessionStorage: { setItem: (k, v) => hechos.push(['guardar', k, v]) },
+			apiFetch: async (m, ruta) => { hechos.push([m, ruta]); return { token: 'nuevo' }; },
+			logout: () => hechos.push(['logout']),
+		});
+		vm.runInContext('var token = "viejo";', ctx);
+		return { ctx, $, hechos };
+	}
+
+	test('«Sigo aquí» cierra la pregunta y renueva', async () => {
+		const { ctx, $, hechos } = pantalla();
+		ctx.preguntarSiSigue();
+		assert.equal($('sesionModal').classList.contains('open'), true);
+		assert.equal($('sesionCuenta').textContent, '2:00');
+		await ctx.sigoAqui();
+		assert.equal($('sesionModal').classList.contains('open'), false);
+		assert.deepEqual(hechos[0], ['POST', '/api/sesion/renovar']);
+		assert.equal(vm.runInContext('token', ctx), 'nuevo');
+		assert.deepEqual(hechos[1], ['guardar', 'menuAdminToken', 'nuevo']);
+	});
+
+	test('con la pregunta a la vista, mover el ratón no cuenta como respuesta', () => {
+		// Un roce la dejaría ahí para siempre sin haberla leído.
+		const { ctx } = pantalla();
+		ctx.preguntarSiSigue();
+		const antes = vm.runInContext('sesionUltimaActividad', ctx);
+		vm.runInContext('sesionUltimaActividad = 0;', ctx);
+		ctx.anotarActividad();
+		assert.equal(vm.runInContext('sesionUltimaActividad', ctx), 0);
+		assert.ok(antes > 0);
+	});
+
+	test('sin respuesta, cierra la sesión y lo dice en el login', () => {
+		const { ctx, $, hechos } = pantalla();
+		ctx.cerrarSesionPorInactividad();
+		assert.deepEqual(hechos, [['logout']]);
+		assert.match($('loginError').textContent, /no hubo actividad/);
+	});
+
+	test('sin sesión abierta, el vigilante no hace nada', () => {
+		const { ctx, hechos } = pantalla();
+		vm.runInContext('token = null; sesionUltimaActividad = 0;', ctx);
+		ctx.revisarSesion();
+		assert.deepEqual(hechos, []);
+	});
+
+	test('el panel lo arranca, y «¿Sigues ahí?» queda por encima de todo', () => {
+		const src = codigoDelPanel();
+		assert.match(src, /vigilarMenusMas\(\);\nvigilarSesion\(\);/);
+		assert.match(src, /<script src="sesion\.js"><\/script>/);
+		assert.match(src, /id="sesionModal" style="z-index:600"/);
+	});
+});
+
 describe('adicionales que se pueden pedir varias veces', () => {
 	// 17/09/2026, decidido con el usuario: solo los de COSTO y solo si el
 	// restaurante lo enciende en ESE adicional. La carta lo lee en

@@ -709,33 +709,37 @@ un plato lo suma al pedido en vez de abrir su ficha.
   Completo, y pasarían a Fotos Pro.
 - **La IA no entra en esto:** va por cupo, aparte del plan (§4 del documento).
 
-### Decisión abierta: la sesión caduca en seco a las 8 horas
+### La sesión se renueva usándola, y pregunta si nadie la usa
 
-**Marcado el 14/09/2026. La decide el equipo del usuario.** No implementar nada
-hasta que lo digan.
+**Decidido por el equipo del usuario el 18/09/2026.** Estuvo abierto desde el
+14/09: el login firmaba un JWT de **8 h fijas**, y pasadas esas horas la
+pestaña parecía abierta pero la primera petición devolvía 401 y mandaba al
+login sin aviso, llevándose lo que se estuviera escribiendo.
 
-Cómo es hoy: el login firma un JWT de **8 h fijas desde que se entra** —no se
-renueva usándolo— y el panel lo guarda en `sessionStorage`, así que cerrar la
-pestaña ya cierra la sesión. Pasadas las 8 h la pestaña **parece abierta**, pero
-la primera petición devuelve 401 y `apiFetch` llama a `logout()`.
+Cómo funciona ahora (`public/sesion.js` y `POST /api/sesion/renovar`):
 
-**El problema no es de seguridad, es perder trabajo.** Quien lleva un rato
-escribiendo la descripción de un plato y pulsa guardar justo después de las 8 h
-acaba en el login sin aviso, y lo escrito se pierde. Afecta igual a los
-restaurantes, que usan la misma sesión.
+- **Mientras se usa, el token se renueva solo**, como mucho cada 10 minutos y
+  solo si hubo actividad desde la última vez. Las 8 h del servidor cuentan
+  desde el último uso, no desde el login.
+- **Tras 60 minutos sin actividad** (clic, tecla, rueda o toque) sale
+  «¿Sigues ahí?» con una cuenta atrás de 2 minutos. «Sigo aquí», Escape o un
+  clic fuera renuevan; «Cerrar sesión» o dejar correr la cuenta cierran, y el
+  login dice por qué.
+- **Con un video subiendo** nunca pregunta ni cierra: renueva.
+- **Al volver de una suspensión** larga (portátil cerrado) cierra sin
+  preguntar: todo se mide con `Date.now()`, no contando ticks.
+- La última renovación se lee del `iat` del propio token: tras recargar, una
+  variable diría «ahora» y un token de casi 8 h no se renovaría a tiempo.
 
-Sobre la seguridad se concluyó que **acortar la sesión no es la respuesta**: el
-riesgo de una pestaña abierta es que otra persona use el equipo, y eso lo tapa
-bloquear el computador, no una sesión de 2 h que obliga a entrar más veces.
+Los dos tiempos son constantes al principio de `sesion.js`.
 
-Las dos opciones puestas sobre la mesa:
+**Por qué renovar y no solo avisar:** un aviso sin renovación habría llegado,
+y a las 8 h el servidor habría cortado igual.
 
-1. **Avisar antes de caducar** («tu sesión caduca en 5 minutos, guarda lo que
-   estés editando»). Solo frontend: el panel ya tiene el token y puede leer su
-   `exp`.
-2. **Renovar mientras se usa** (caduca tras X tiempo sin actividad, no a las 8 h
-   del login). Mejor para quien trabaja y cierra antes una pestaña olvidada,
-   pero toca servidor y panel.
+Sin tope absoluto a propósito: quien trabaja no vuelve a toparse con un
+corte. El riesgo de una pestaña abierta es que otra persona use el equipo, y
+eso lo cubre la pregunta por inactividad. La renovación comprueba que el
+restaurante sigue existiendo.
 
 ### Decisión abierta: ¿avisar o impedir salir con un video a medias?
 

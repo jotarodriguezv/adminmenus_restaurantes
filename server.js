@@ -528,6 +528,26 @@ app.post('/api/login', async (req, res) => {
   res.json({ token, rol: 'cliente', restauranteId: data.id });
 });
 
+// ── RENOVAR LA SESIÓN ─────────────────────────────────────────
+// El panel la llama mientras se usa (public/sesion.js): así las 8 h cuentan
+// desde el último uso y no desde el login, y quien trabaja no se topa con el
+// corte. Decidido con el equipo el 18/09/2026.
+//
+// Solo con un token que todavía vale: uno caducado ya no entra por auth, y se
+// vuelve al login como siempre. Se firma con los mismos datos que el de antes.
+app.post('/api/sesion/renovar', auth, async (req, res) => {
+  const { slug, rol, restauranteId } = req.user;
+  // Un restaurante borrado no puede seguir renovando para siempre una sesión
+  // que se abrió cuando existía.
+  if (rol === 'cliente') {
+    const { data, error } = await supabase.from('restaurantes').select('id').eq('id', restauranteId).maybeSingle();
+    if (error) return res.status(500).json({ error: 'No se pudo renovar la sesión' });
+    if (!data) return res.status(401).json({ error: 'Este restaurante ya no existe' });
+  }
+  const token = jwt.sign({ slug, rol, restauranteId }, process.env.JWT_SECRET, { expiresIn: '8h' });
+  res.json({ token });
+});
+
 // ── RESTAURANTES ──────────────────────────────────────────────
 app.get('/api/restaurantes', auth, async (req, res) => {
   let q = supabase.from('restaurantes').select('*').order('nombre');
