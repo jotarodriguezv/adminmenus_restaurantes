@@ -107,6 +107,12 @@ es el VPS: es la memoria y la GPU del televisor.
     "mostrar_categoria": true,
     "color_categoria": "marca",
     "tema": "carta",
+    "mostrar_descripcion": false,
+    "cintas": [
+      { "texto": "Hoy 2x1 en hamburguesas", "posicion": "arriba" },
+      { "texto": "Pregunta por nuestros postres", "posicion": "abajo" }
+    ],
+    "reloj": false,
     "cada": 4,
     "intercalados": [
       { "tipo": "promocion" },
@@ -243,6 +249,13 @@ lo elimina: un computador conectado por HDMI puede quedarse encendido días.
 
 - Solo productos **disponibles y con foto**. Sin foto no hay slide: es un medio
   visual y un hueco gris se ve peor que un plato menos.
+- La **descripción** es opcional y solo se pinta cuando hay un plato por
+  pantalla. Con dos a cuatro se ignora aunque esté marcada: una descripción
+  pequeña quita espacio a las fotos y deja de leerse desde las mesas.
+- Puede haber hasta **cinco cintas de aviso**, cada una arriba o abajo. Se
+  desplazan continuamente y se agrupan por franja; no son pantallas del ciclo
+  ni cambian su duración. El reloj con fecha es también opcional y toma la zona
+  horaria del restaurante.
 - **Se respetan los horarios de categoría** si el plan los incluye. Un
   restaurante que esconde los desayunos a las 4 de la tarde no querría verlos
   en la pantalla de la sala.
