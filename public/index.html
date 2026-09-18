@@ -1996,6 +1996,23 @@
         <label for="toppingPrecio" class="form-label">Precio adicional</label>
         <input type="number" class="form-input" id="toppingPrecio" placeholder="4000" min="0" step="500">
       </div>
+      <!-- Repetir solo se ofrece en los de costo, y por adicional: doble
+           tocineta sí, doble punto de la carne no. En los gratis no existe
+           —repetirlos no cambia la cuenta y sí invita a pedir cinco de
+           cebolla— (decidido con el usuario el 17/09/2026). -->
+      <div class="form-group" id="toppingRepetibleGroup" style="margin-bottom:0">
+        <div class="form-check" style="margin-bottom:0">
+          <label class="toggle"><input type="checkbox" id="toppingRepetible" onchange="pintarTopeTopping()"><span class="toggle-slider"></span></label>
+          <span style="font-size:13px;color:var(--text-muted)">El cliente puede pedirlo varias veces</span>
+        </div>
+        <div id="toppingTopeFila" style="display:none;margin-top:12px">
+          <label for="toppingTope" class="form-label">Máximo por plato</label>
+          <input type="number" class="form-input" id="toppingTope" min="2" max="20" step="1" placeholder="3">
+          <div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5">
+            Cada unidad cobra su precio: con dos, el plato sube el doble.
+          </div>
+        </div>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn-cancel" onclick="closeModal('toppingModal')">Cancelar</button>
@@ -3031,7 +3048,13 @@ function catalogoDe(attr) {
 		const nombre = String(obj.nombre ?? '').trim();
 		if (!nombre) return null;
 		const base = { id: String(obj.id || nombre), nombre };
-		return conPrecio ? { ...base, precio: Number(obj.precio) || 0 } : base;
+		if (!conPrecio) return base;
+		// 'repetible' y 'max' viajan tal cual: los lee la carta
+		// (vmenus-app/core/carrito.js) y perderlos aquí apagaría la repetición
+		// al guardar cualquier otra cosa de Ajustes.
+		const conCosto = { ...base, precio: Number(obj.precio) || 0 };
+		if (obj.repetible === true) { conCosto.repetible = true; conCosto.max = topeDeAdicional(obj.max); }
+		return conCosto;
 	}).filter(Boolean);
 
 	return {

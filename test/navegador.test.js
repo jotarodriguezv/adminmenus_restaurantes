@@ -5377,6 +5377,8 @@ describe('la pestaña de toppings vacía explica para qué sirve', () => {
 		const nodo = () => ({ style: {}, innerHTML: '', textContent: '', appendChild() {}, querySelector: () => ({}) });
 		const ctx = cargar('toppings.js', 'function renderToppingList', 'const CONTENEDOR_TOPPING', {
 			toppingState: catalogo, esc: x => x, Number,
+			// La etiqueta del chip vive más abajo en el archivo, con el tope.
+			etiquetaDeTopping: t => t.nombre,
 			document: { getElementById: id => (nodos[id] ||= nodo()), createElement: nodo },
 		});
 		const guia = cargar('toppings.js', '// La guía sale mientras el catálogo esté entero vacío', 'function renderToppingList', {
@@ -7289,5 +7291,58 @@ describe('lo que cada plato tiene marcado, visto desde la lista', () => {
 		const ctx = reglas({ nav: 'topnav', carrito: true, filtros_disponibles: CATALOGO_FILTROS, ...TOPPINGS });
 		assert.deepEqual([...ctx.marcasDePlato(plato(null, { platino: [], premium: [], salsas: [] }))], []);
 		assert.equal(ctx.filaDeMarcas(plato(null, { platino: [], premium: [], salsas: [] })), null);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('adicionales que se pueden pedir varias veces', () => {
+	// 17/09/2026, decidido con el usuario: solo los de COSTO y solo si el
+	// restaurante lo enciende en ESE adicional. La carta lo lee en
+	// vmenus-app/core/carrito.js.
+	const reglas = () => cargar('toppings.js', '// El tope que se guarda', 'function confirmAddTopping', {});
+
+	test('el tope se sanea igual que en la carta', () => {
+		const ctx = reglas();
+		assert.equal(ctx.topeDeAdicional(0), 2, 'un tope de cero no puede desactivar el chip');
+		assert.equal(ctx.topeDeAdicional('tres'), 2);
+		assert.equal(ctx.topeDeAdicional(999), 20);
+		assert.equal(ctx.topeDeAdicional(3), 3);
+	});
+
+	test('y el número es el mismo que el de la carta', () => {
+		// Dos aplicaciones desplegadas por separado no pueden compartir el
+		// módulo; discrepar es prometer un máximo que la carta no respeta.
+		const otroRepo = path.join(__dirname, '..', '..', 'vmenus-app', 'core', 'carrito.js');
+		const nuestro = codigoDelPanel().match(/TOPE_MAXIMO_ADICIONAL = (\d+)/)?.[1];
+		assert.ok(nuestro, 'el panel tiene que declarar el techo');
+		// En CI solo se clona este repositorio (ver CLAUDE.md).
+		if (!fs.existsSync(otroRepo)) return;
+		const suyo = fs.readFileSync(otroRepo, 'utf8').match(/TOPE_MAXIMO_ADICIONAL = (\d+)/)?.[1];
+		assert.equal(nuestro, suyo);
+	});
+
+	test('el chip del catálogo dice hasta cuántas veces', () => {
+		// Si no, «se puede repetir» solo se veía abriendo cada uno.
+		const ctx = reglas();
+		assert.equal(ctx.etiquetaDeTopping({ nombre: 'Tocineta', precio: 4000, repetible: true, max: 3 }, 'premium'),
+			'Tocineta · $4.000 · hasta 3');
+		assert.equal(ctx.etiquetaDeTopping({ nombre: 'Huevo', precio: 2000 }, 'premium'), 'Huevo · $2.000');
+		assert.equal(ctx.etiquetaDeTopping({ nombre: 'Queso' }, 'platino'), 'Queso');
+	});
+
+	test('el catálogo que se guarda conserva la repetición', () => {
+		// Se lee con catalogoDe en cada guardado de Ajustes: perderla aquí la
+		// apagaría al cambiar cualquier otra cosa de esa pantalla.
+		const ctx = cargar('index.html', 'function catalogoDe', 'function marcadoPorId',
+			{ Array, Number, String, topeDeAdicional: v => Math.min(Math.max(Math.floor(Number(v)) || 2, 2), 20) });
+		const cat = ctx.catalogoDe({
+			toppings_premium: [
+				{ id: 't1', nombre: 'Tocineta', precio: 4000, repetible: true, max: 3 },
+				{ id: 't2', nombre: 'Huevo', precio: 2000 },
+			],
+		});
+		assert.equal(cat.premium[0].repetible, true);
+		assert.equal(cat.premium[0].max, 3);
+		assert.equal('repetible' in cat.premium[1], false, 'lo que no se repite no guarda la clave');
 	});
 });
