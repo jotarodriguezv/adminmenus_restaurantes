@@ -2147,6 +2147,25 @@
   </div>
 </div>
 
+<!-- «¿Sigues ahí?»: ver public/sesion.js. Un z-index por encima de las
+     demás ventanas porque puede salir con cualquiera abierta, y tiene que
+     verse. Un clic fuera cuenta como respuesta: quien hace clic, está. -->
+<div class="modal-bg" id="sesionModal" style="z-index:600" onclick="if(event.target===this)sigoAqui()">
+  <div class="modal-box" style="max-width:380px;" role="alertdialog" aria-modal="true" aria-labelledby="sesionTitulo">
+    <div class="modal-head">
+      <span class="modal-title" id="sesionTitulo">¿Sigues ahí?</span>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-text">Hace un rato que no hay actividad en el panel. Por seguridad, la sesión se cerrará en <b id="sesionCuenta">2:00</b>.</p>
+      <p style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;line-height:1.55">Si tienes algo a medio escribir sin guardar, pulsa «Sigo aquí» y guárdalo.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="cerrarSesionPorInactividad()">Cerrar sesión</button>
+      <button class="btn-save" id="sesionSigo" onclick="sigoAqui()">Sigo aquí</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CONFIRMAR ELIMINAR -->
 <!-- Aviso de salida con un video a medio subir o convertir.
      Mismas reglas que el de cambios sin guardar: sin ✕, dos botones, y un
@@ -2264,6 +2283,7 @@
 <script src="video-subiendo.js"></script>
 <script src="toppings.js"></script>
 <script src="pedidos.js"></script>
+<script src="sesion.js"></script>
 <script src="ajustes.js"></script>
 <script src="restaurantes-filtros.js"></script>
 <script src="productos-marcas.js"></script>
@@ -7490,6 +7510,7 @@ vigilarErroresFicha();
 vigilarErrores(CAMPOS_CATEGORIA);
 vigilarErrores(CAMPOS_METODOS_PAGO);
 vigilarMenusMas();
+vigilarSesion();
 
 if(token && state.rol && state.restauranteSlug) {
   if(state.rol==='admin' && !sessionStorage.getItem('menuAdminEditingResto')) {

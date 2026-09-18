@@ -1915,3 +1915,46 @@ describe('carrito · lo enciende el restaurante, si su plan lo incluye', () => {
 		assert.equal(S.ultimaEscritura('restaurantes').atributos.carrito, true);
 	});
 });
+
+describe('POST /api/sesion/renovar · la sesión cuenta desde el último uso', () => {
+	// 18/09/2026, decidido con el equipo. Antes el token duraba 8 h desde el
+	// login y quien seguía trabajando se topaba con el corte.
+	const jwt = require('jsonwebtoken');
+	const leer = t => jwt.verify(t, process.env.JWT_SECRET);
+
+	test('devuelve un token nuevo con los mismos datos y 8 h por delante', async () => {
+		S.conTabla(() => ({ data: { id: IDS.restaurante }, error: null }));
+		const r = await S.pedir('POST', '/api/sesion/renovar', {}, tokenCliente);
+		assert.equal(r.status, 200);
+		const nuevo = leer(r.body.token);
+		assert.equal(nuevo.rol, 'cliente');
+		assert.equal(nuevo.restauranteId, IDS.restaurante);
+		assert.equal(nuevo.slug, 'pruebas');
+		assert.ok(Math.abs(nuevo.exp - nuevo.iat - 8 * 3600) <= 1);
+	});
+
+	test('el superadmin también, sin mirar ningún restaurante', async () => {
+		const r = await S.pedir('POST', '/api/sesion/renovar', {}, tokenAdmin);
+		assert.equal(r.status, 200);
+		assert.equal(leer(r.body.token).rol, 'admin');
+		assert.equal(S.llamadas.length, 0);
+	});
+
+	test('un token caducado no se renueva: se vuelve al login', async () => {
+		const viejo = jwt.sign({ slug: 'pruebas', rol: 'cliente', restauranteId: IDS.restaurante, exp: Math.floor(Date.now() / 1000) - 60 }, process.env.JWT_SECRET);
+		const r = await S.pedir('POST', '/api/sesion/renovar', {}, viejo);
+		assert.equal(r.status, 401);
+	});
+
+	test('sin token, tampoco', async () => {
+		const r = await S.pedir('POST', '/api/sesion/renovar', {});
+		assert.equal(r.status, 401);
+	});
+
+	test('si el restaurante ya no existe, no se renueva', async () => {
+		S.conTabla(() => ({ data: null, error: null }));
+		const r = await S.pedir('POST', '/api/sesion/renovar', {}, tokenCliente);
+		assert.equal(r.status, 401);
+		assert.equal(r.body.token, undefined);
+	});
+});
