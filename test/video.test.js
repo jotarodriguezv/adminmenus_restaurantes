@@ -829,3 +829,59 @@ describe('purgarAnteriores · lo que espera revisión no es "un anterior"', () =
 		}
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('el encuadre de la foto · lo que se recorta antes de generar', () => {
+	// 18/09/2026: el restaurante arrastra un recuadro con la proporción de la
+	// carta sobre la foto, y se recorta a ese recuadro antes de mandarla al
+	// modelo. Del panel solo llega el centro.
+
+	test('centrado, el recuadro más grande que cabe, en el medio', () => {
+		// La foto de la prueba del usuario: 800×1067 en una carta horizontal.
+		const r = video.recorteCentradoEn(800, 1067, 'horizontal', 0.5, 0.5);
+		assert.equal(r.ancho, 800);
+		assert.equal(r.alto, 450);
+		assert.equal(r.x, 0);
+		assert.equal(r.y, 308);
+	});
+
+	test('pegado arriba y pegado abajo', () => {
+		assert.equal(video.recorteCentradoEn(800, 1067, 'horizontal', 0.5, 0).y, 0);
+		// 1067 − 450 = 617, que se redondea al par de abajo: nunca se sale.
+		assert.equal(video.recorteCentradoEn(800, 1067, 'horizontal', 0.5, 1).y, 616);
+	});
+
+	test('un centro fuera de sitio se ajusta al borde, nunca se sale de la foto', () => {
+		for (const [cx, cy] of [[0, 0], [1, 1], [0.99, 0.01], [0.2, 0.93]]) {
+			for (const [a, al, f] of [[800, 1067, 'horizontal'], [600, 800, 'vertical'], [1600, 1000, 'horizontal']]) {
+				const r = video.recorteCentradoEn(a, al, f, cx, cy);
+				assert.ok(r.x >= 0 && r.y >= 0, `${a}×${al} en (${cx}, ${cy})`);
+				assert.ok(r.x + r.ancho <= a && r.y + r.alto <= al, `${a}×${al} en (${cx}, ${cy})`);
+			}
+		}
+	});
+
+	test('la proporción es la de la carta, y los píxeles son pares', () => {
+		for (const [a, al, f, objetivo] of [[800, 1067, 'horizontal', 16 / 9], [600, 800, 'vertical', 9 / 16]]) {
+			const r = video.recorteCentradoEn(a, al, f, 0.5, 0.5);
+			assert.ok(Math.abs(r.ancho / r.alto - objetivo) < 0.01, `${f}: ${r.ancho}×${r.alto}`);
+			for (const v of [r.x, r.y, r.ancho, r.alto]) assert.equal(v % 2, 0);
+		}
+	});
+
+	test('solo se acepta un centro con dos números entre 0 y 1', () => {
+		assert.deepEqual(video.encuadreValido({ cx: 0.3, cy: 0.7 }), { cx: 0.3, cy: 0.7 });
+		// Lo que no sirve se ignora y se genera como antes, con el recorte central.
+		for (const malo of [null, 'centro', { cx: '0.3', cy: 0.5 }, { cx: 1.2, cy: 0.5 }, { cx: -0.1, cy: 0.5 },
+			{ cx: NaN, cy: 0.5 }, { cx: 0.5 }, { cx: Infinity, cy: 0 }])
+			assert.equal(video.encuadreValido(malo), null, JSON.stringify(malo));
+	});
+
+	test('ffmpeg recibe el recorte tal cual, sin leer la consola', () => {
+		const args = video.argumentosRecorteFoto('e.jpg', 's.jpg', { x: 0, y: 308, ancho: 800, alto: 450 });
+		assert.equal(valorDe(args, '-vf'), 'crop=800:450:0:308');
+		assert.ok(args.includes('-nostdin'));
+		assert.equal(valorDe(args, '-frames:v'), '1');
+		assert.equal(args.at(-1), 's.jpg');
+	});
+});

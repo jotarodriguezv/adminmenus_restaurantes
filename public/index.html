@@ -2310,10 +2310,36 @@
   </div>
 </div>
 
+<!-- Elegir qué parte de la foto anima la IA: ver public/encuadre.js. Detrás de
+     preguntaModal por lo mismo que ella: se abre encima de la ficha del plato. -->
+<div class="modal-bg" id="encuadreModal" onclick="if(event.target===this)responderEncuadre(false)">
+  <div class="modal-box" style="max-width:560px;" role="dialog" aria-modal="true" aria-labelledby="encuadreTitulo" aria-describedby="encuadreTexto">
+    <div class="modal-head">
+      <span class="modal-title" id="encuadreTitulo">Elige qué parte de la foto se anima</span>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-text" id="encuadreTexto" style="line-height:1.55;margin-bottom:12px"></p>
+      <div style="text-align:center">
+        <div id="encuadreEscenario" class="encuadre-escenario" onpointerdown="empezarArrastreEncuadre(event)">
+          <img id="encuadreFoto" alt="Foto del plato" draggable="false">
+          <div id="encuadreMarco" class="encuadre-marco" tabindex="0"
+            aria-label="Parte de la foto que se anima. Muévela con las flechas." onkeydown="teclaEncuadre(event)"></div>
+        </div>
+      </div>
+      <p id="encuadreNota" style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:12px;line-height:1.55"></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="responderEncuadre(false)">Cancelar</button>
+      <button class="btn-save" onclick="responderEncuadre(true)">✨ Generar video</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="comun.js"></script>
 <script src="preguntar.js"></script>
+<script src="encuadre.js"></script>
 <script src="inicio.js"></script>
 <script src="estadisticas.js"></script>
 <script src="tv.js"></script>
@@ -4554,11 +4580,11 @@ function encajeDeFoto(ancho, alto) {
 	// el texto anterior lo decía de refilón y se leyó como un rechazo, y esa
 	// confusión costó una generación pagada.
 	if (conservado < 0.8) return { veredicto: 'avisa', perdido, ideal,
-		mensaje: `Se puede generar igual. Aviso: tu foto es ${tamaño} y esta carta es ` +
-		         `${vertical ? 'vertical (9:16)' : 'horizontal (16:9)'}, así que al video se le ` +
-		         `recortará el ${perdido}% del ${lado}. Suele quedar bien si el plato está ` +
-		         `centrado. Para que no se recorte nada, súbela recortada a ` +
-		         `${ideal.ancho}×${ideal.alto}.` };
+		// Desde el 18/09/2026 el recorte lo elige el restaurante (encuadre.js):
+		// el aviso ya no tiene que pedir que el plato esté centrado.
+		mensaje: `Tu foto es ${tamaño} y esta carta es ` +
+		         `${vertical ? 'vertical (9:16)' : 'horizontal (16:9)'}. Al generar podrás ` +
+		         `elegir qué parte de la foto se anima.` };
 
 	return { veredicto: 'bien', perdido, ideal, mensaje: '' };
 }
@@ -4860,17 +4886,30 @@ async function generarConIA() {
 
 	const quedan = state.cupoIA?.disponibles ?? 0;
 	// Se pregunta porque esto gasta dinero y no tiene vuelta atrás: una vez
-	// pedida, la generación se paga salga bien o mal. Y si la foto encaja
-	// regular, se dice AQUÍ: es lo último que se lee antes de gastarla.
-	const ok = await preguntar({
-		titulo: 'Generar el video con IA',
-		texto: 'Se va a generar un video de 6 segundos a partir de la foto de este plato.' +
-			(enc?.veredicto === 'avisa' ? `\n\n⚠ ${enc.mensaje}` : ''),
-		nota: `Esto consume 1 de las ${quedan} animaciones que te quedan, y se consume ` +
-			`aunque el resultado no te guste.`,
-		si: 'Generar',
-	});
-	if (!ok) return;
+	// pedida, la generación se paga salga bien o mal.
+	const nota = `Esto consume 1 de las ${quedan} animaciones que te quedan, y se consume ` +
+		`aunque el resultado no te guste.`;
+
+	// Con una foto que no tiene la forma de la carta, se elige primero qué
+	// parte se anima (encuadre.js). Esa ventana ya trae la nota del coste, así
+	// que hace de pregunta: no se pregunta dos veces por lo mismo.
+	let encuadre = null;
+	if (enc?.veredicto === 'avisa') {
+		encuadre = await abrirEncuadre({
+			src: document.getElementById('imgEditPreview').src,
+			formato: formatoDeLaCarta(),
+			nota,
+		});
+		if (!encuadre) return;
+	} else {
+		const ok = await preguntar({
+			titulo: 'Generar el video con IA',
+			texto: 'Se va a generar un video de 6 segundos a partir de la foto de este plato.',
+			nota,
+			si: 'Generar',
+		});
+		if (!ok) return;
+	}
 
 	// Se marca ANTES de llamar. Es lo que impide que refrescarCupoIA() vuelva a
 	// encender el botón cuando se llame dos líneas más abajo.
@@ -4881,6 +4920,7 @@ async function generarConIA() {
 	try {
 		const r = await apiFetch('POST', '/api/ia/generar', {
 			restaurante_id: state.restaurante.id, producto_id: productoId,
+			...(encuadre ? { encuadre } : {}),
 		});
 		// Apuntada ya, y la bandera fuera: desde aquí lo que bloquea la ficha y
 		// mueve la barra son los datos, que sobreviven a cerrarla y a recargar.
@@ -7128,6 +7168,7 @@ document.addEventListener('keydown',e=>{
   const abierto = id => document.getElementById(id)?.classList.contains('open');
   // La primera: se abre encima de las demás, y Escape es «no», no cerrar todo.
   if(hayPreguntaAbierta()) return responderPregunta(false);
+  if(hayEncuadreAbierto()) return responderEncuadre(false);
   // Escape sobre el aviso de cambios es "seguir editando": la opción que no
   // pierde nada. Si cerrara las dos ventanas de golpe, la tecla de escape
   // sería el atajo más rápido para tirar el trabajo.

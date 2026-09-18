@@ -8332,3 +8332,82 @@ describe('los formatos se llaman horizontal y vertical', () => {
 		assert.deepEqual(malos, []);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('el encuadre · el recuadro que se arrastra sobre la foto', () => {
+	// 18/09/2026, pedido por el usuario: elegir qué parte de la foto se anima
+	// en vez de fiarse de que el plato esté centrado.
+	const ctx = cargar('encuadre.js', 'function marcoEncuadre', 'function abrirEncuadre', {});
+
+	test('una foto vertical en una carta horizontal: todo el ancho, y se mueve de arriba abajo', () => {
+		const m = ctx.marcoEncuadre(300, 400, 16 / 9, 0.5, 0.5);
+		assert.equal(m.w, 300);
+		assert.ok(Math.abs(m.h - 168.75) < 0.01);
+		assert.equal(m.eje, 'y');
+		assert.ok(Math.abs(m.top - (400 - 168.75) / 2) < 0.01, 'centrado de entrada');
+	});
+
+	test('una foto horizontal en una carta vertical: toda la altura, y se mueve de lado', () => {
+		const m = ctx.marcoEncuadre(400, 300, 9 / 16, 0.5, 0.5);
+		assert.equal(m.h, 300);
+		assert.equal(m.eje, 'x');
+	});
+
+	test('no se sale de la foto, y el centro que se manda es el ajustado', () => {
+		// Arrastrar más allá del borde deja el recuadro pegado al borde. Lo que
+		// se manda al servidor tiene que ser ESE centro, no el del dedo.
+		const arriba = ctx.marcoEncuadre(300, 400, 16 / 9, 0.5, -3);
+		assert.equal(arriba.top, 0);
+		assert.ok(Math.abs(arriba.cy - (168.75 / 2) / 400) < 1e-9);
+		const abajo = ctx.marcoEncuadre(300, 400, 16 / 9, 0.5, 5);
+		assert.ok(Math.abs(abajo.top + abajo.h - 400) < 1e-9);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('generarConIA · con una foto que no encaja, primero el encuadre', () => {
+	const montar = ({ veredicto, contestaEncuadre = { cx: 0.5, cy: 0.2 }, contestaPregunta = true }) => {
+		const mapa = {
+			editProductId:  { value: 'p1' },
+			iaEstado:       { textContent: '', style: {} },
+			btnGenerarIA:   { disabled: false, style: {} },
+			imgEditPreview: { src: '/uploads/productos/a.jpg' },
+		};
+		const llamadas = { encuadre: 0, pregunta: 0, enviado: null };
+		const ctx = cargar('index.html', 'async function generarConIA()', '// La generación no crea un trabajo', {
+			state: { restaurante: { id: 'r1' }, cupoIA: { disponibles: 5 } },
+			document: { getElementById: id => mapa[id] },
+			encajeDeLaFotoActual: () => ({ veredicto, mensaje: 'aviso' }),
+			videoPorAprobarDe: () => null,
+			formatoDeLaCarta: () => 'horizontal',
+			abrirEncuadre: async () => { llamadas.encuadre++; return contestaEncuadre; },
+			preguntar: async () => { llamadas.pregunta++; return contestaPregunta; },
+			apiFetch: async (m, url, body) => { llamadas.enviado = body; return { generacion_id: 'g1' }; },
+			anotarGeneracionEnCurso() {}, vigilarGeneracion() {}, pintarCaminosVideo() {},
+			refrescarCupoIA: async () => {},
+		});
+		return { ctx, llamadas };
+	};
+
+	test('si la foto no encaja, se elige el encuadre y se manda con la petición', async () => {
+		const { ctx, llamadas } = montar({ veredicto: 'avisa' });
+		await ctx.generarConIA();
+		assert.equal(llamadas.encuadre, 1);
+		assert.equal(llamadas.pregunta, 0, 'la ventana del encuadre ya es la pregunta');
+		assert.deepEqual({ ...llamadas.enviado.encuadre }, { cx: 0.5, cy: 0.2 });
+	});
+
+	test('cancelar el encuadre no genera nada', async () => {
+		const { ctx, llamadas } = montar({ veredicto: 'avisa', contestaEncuadre: null });
+		await ctx.generarConIA();
+		assert.equal(llamadas.enviado, null);
+	});
+
+	test('si la foto encaja, se pregunta como siempre y no se manda encuadre', async () => {
+		const { ctx, llamadas } = montar({ veredicto: 'bien' });
+		await ctx.generarConIA();
+		assert.equal(llamadas.encuadre, 0);
+		assert.equal(llamadas.pregunta, 1);
+		assert.equal('encuadre' in llamadas.enviado, false);
+	});
+});
