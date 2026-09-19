@@ -629,12 +629,14 @@ Tiene que decir `no-cache`. Mientras diga `max-age=14400`, sigue sin aplicarse.
   despliegue. **En curso desde el 18/09/2026.** Paso 1, en el código: la parada
   ya detiene también la cola de IA y el limpiador (antes solo la de video), que
   es lo que hace seguro que el panel viejo siga vivo minutos junto al nuevo.
-  Paso 2, en Dokploy, **después** de desplegar el paso 1 y en este orden:
-  1. Orden de actualización **«start-first»**: arranca el contenedor nuevo
-     antes de parar el viejo. **Sin esto, no seguir**: alargar el plazo sería
-     tener el panel caído hasta 16 minutos en cada despliegue. Requiere que el
-     servicio no publique puertos en el anfitrión (con Traefik delante no
-     debería); mirarlo antes.
+  Paso 2, en Dokploy, **después** de desplegar el paso 1:
+  1. ~~Orden de actualización «start-first»~~ **Ya lo estaba** (comprobado el
+     18/09/2026: `puertos=null`, `Order: start-first`, `gracia=10s`). El nuevo
+     arranca antes de parar el viejo, así que alargar el plazo no deja el panel
+     caído. Si algún día cambia a stop-first, **no alargar el plazo**: sería
+     tener el panel caído hasta 16 minutos en cada despliegue. Consecuencia que
+     no se había visto: **cada despliegue ya tenía unos segundos con los dos
+     paneles vivos**, y hasta el paso 1 los dos con la cola de IA en marcha.
   2. **Stop grace period** del servicio a **16 minutos**: el plazo que Docker da
      antes del SIGKILL.
   3. `PARADA_MAX_MS=930000` (15,5 min) en las variables de entorno: por debajo
