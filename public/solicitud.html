@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Solicitud de alta · VMenus</title>
+	<meta name="robots" content="noindex">
+	<!-- La página de solicitud de alta (18-19/09/2026). Aparte del panel a
+	     propósito: la abre gente sin sesión —el equipo en la calle, un cliente
+	     con el enlace— y no tiene por qué descargar el panel entero. Las reglas
+	     del servidor están en solicitudes.js. -->
+	<style>
+		:root {
+			--fondo: #f4f5f2; --hoja: #ffffff; --texto: #17231f; --tenue: #5b6b65; --linea: #d5ddd8;
+			--acento: #1d6f50; --acento-texto: #ffffff; --error: #a8402b; --ok: #1d6f50;
+		}
+		@media (prefers-color-scheme: dark) {
+			:root {
+				--fondo: #0e1412; --hoja: #151e1b; --texto: #e2eae6; --tenue: #93a39c; --linea: #2b3833;
+				--acento: #52c28f; --acento-texto: #062b1c; --error: #e8876f; --ok: #52c28f;
+			}
+		}
+		* { box-sizing: border-box; }
+		body { margin: 0; background: var(--fondo); color: var(--texto); font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; padding: 24px 16px 48px; }
+		main { max-width: 520px; margin: 0 auto; }
+		h1 { font-size: 24px; margin: 0 0 6px; }
+		.bajada { color: var(--tenue); margin: 0 0 22px; }
+		form, .gracias { background: var(--hoja); border: 1px solid var(--linea); border-radius: 14px; padding: 20px; display: grid; gap: 16px; }
+		label { display: grid; gap: 6px; font-weight: 600; font-size: 14px; }
+		label .opcional { font-weight: 400; color: var(--tenue); }
+		input, select, textarea { font: inherit; color: inherit; background: var(--fondo); border: 1px solid var(--linea); border-radius: 10px; padding: 11px 12px; width: 100%; }
+		input:focus, select:focus, textarea:focus { outline: 2px solid var(--acento); outline-offset: 1px; }
+		textarea { min-height: 84px; resize: vertical; }
+		.ayuda { font-weight: 400; font-size: 13px; color: var(--tenue); }
+		.autoriza { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; font-size: 14px; }
+		.autoriza input { width: 20px; height: 20px; margin-top: 2px; flex: 0 0 auto; }
+		.autoriza a { color: var(--acento); }
+		button { font: 600 16px system-ui, sans-serif; padding: 13px 18px; border-radius: 10px; border: 0; background: var(--acento); color: var(--acento-texto); cursor: pointer; }
+		button:disabled { opacity: .6; cursor: wait; }
+		.error { color: var(--error); font-size: 14px; min-height: 1em; }
+		/* El campo trampa: fuera de la vista y del teclado, pero en el
+		   formulario. Una persona no lo ve; un robot que rellena todo, sí. */
+		.trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+		.gracias h2 { margin: 0; color: var(--ok); }
+		[hidden] { display: none !important; }
+	</style>
+</head>
+<body>
+	<main>
+		<h1>Solicita tu carta digital</h1>
+		<p class="bajada">Déjanos los datos del negocio y te escribimos por WhatsApp para activarla.</p>
+
+		<form id="formulario" novalidate>
+			<label>Nombre del negocio
+				<input name="negocio" maxlength="120" autocomplete="organization" required>
+			</label>
+			<label>Tu nombre
+				<input name="contacto" maxlength="120" autocomplete="name" required>
+			</label>
+			<label>WhatsApp
+				<input name="whatsapp" type="tel" inputmode="tel" maxlength="20" autocomplete="tel" placeholder="300 123 4567" required>
+				<span class="ayuda">Si no es de Colombia, escríbelo con el indicativo del país.</span>
+			</label>
+			<label><span>Ciudad <span class="opcional">(opcional)</span></span>
+				<input name="ciudad" maxlength="80" autocomplete="address-level2">
+			</label>
+			<label><span>Tipo de negocio <span class="opcional">(opcional)</span></span>
+				<select name="tipo_negocio">
+					<option value="">Elige uno</option>
+					<option>Restaurante</option>
+					<option>Comidas rápidas</option>
+					<option>Café o panadería</option>
+					<option>Bar</option>
+					<option>Otro</option>
+				</select>
+			</label>
+			<label><span>Algo más que debamos saber <span class="opcional">(opcional)</span></span>
+				<textarea name="notas" maxlength="1000"></textarea>
+			</label>
+			<label><span>¿Quién del equipo la envía? <span class="opcional">(solo si eres de VMenus)</span></span>
+				<input name="comercial" maxlength="80" autocomplete="off">
+			</label>
+
+			<div class="trampa" aria-hidden="true">
+				<label>No rellenes este campo <input name="sitio_web" tabindex="-1" autocomplete="off"></label>
+			</div>
+
+			<label class="autoriza">
+				<input type="checkbox" name="autoriza_datos" required>
+				<span id="textoAutoriza">Autorizo el tratamiento de mis datos personales para gestionar esta solicitud y que me contacten por WhatsApp.</span>
+			</label>
+
+			<div id="captcha"></div>
+			<div class="error" id="error" role="alert"></div>
+			<button type="submit" id="enviar">Enviar solicitud</button>
+		</form>
+
+		<div class="gracias" id="gracias" hidden>
+			<h2>¡Solicitud enviada!</h2>
+			<p>Te escribimos por WhatsApp muy pronto para activar tu carta.</p>
+			<button type="button" id="otra">Enviar otra solicitud</button>
+		</div>
+	</main>
+	<script src="solicitud.js"></script>
+</body>
+</html>

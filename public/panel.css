@@ -915,3 +915,25 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 .encuadre-marco{position:absolute;box-sizing:border-box;border:2px solid #fff;border-radius:4px;
   box-shadow:0 0 0 9999px rgba(0,0,0,.55);outline:none;}
 .encuadre-marco:focus-visible{border-color:var(--accent);}
+
+/* ── Bandeja de solicitudes de alta (bandeja-solicitudes.js) ── */
+#solicitudesPanel .resto-filtros-fila{margin:2px 0 12px;}
+/* [hidden] explícito: el display:flex de abajo le ganaría al atributo. */
+.solicitudes-lote[hidden]{display:none;}
+.solicitudes-lote{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;
+  font-family:var(--mono);font-size:11px;color:var(--text-muted);}
+.solicitud-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:14px 16px;margin-bottom:10px;display:grid;gap:6px;}
+.solicitud-cabeza{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.solicitud-cabeza input[type="checkbox"]{width:18px;height:18px;flex:0 0 auto;}
+.solicitud-negocio{font-size:15px;font-weight:600;color:var(--text);overflow-wrap:anywhere;}
+.solicitud-estado{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  padding:3px 8px;border-radius:5px;border:1px solid var(--border);color:var(--text-muted);}
+.solicitud-estado.estado-nueva{border-color:var(--accent);color:var(--accent);}
+.solicitud-estado.estado-aprobada{border-color:var(--success);color:var(--success);}
+.solicitud-datos{font-size:12px;color:var(--text-muted);overflow-wrap:anywhere;}
+/* Las notas conservan los saltos de línea que escribió la persona. */
+.solicitud-notas{font-size:12px;color:var(--text);white-space:pre-line;overflow-wrap:anywhere;
+  background:var(--card);border-radius:6px;padding:8px 10px;}
+.solicitud-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px;}
+.solicitud-creado{font-family:var(--mono);font-size:11px;color:var(--success);}

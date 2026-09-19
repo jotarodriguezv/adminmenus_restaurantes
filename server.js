@@ -18,6 +18,7 @@ const precios  = require('./precios');
 const lectorpdf   = require('./lectorpdf');
 const lectorcarta = require('./lectorcarta');
 const importacion = require('./importacion');
+const solicitudes = require('./solicitudes');
 const { formatoPrecio } = precios;
 
 const app  = express();
@@ -2356,6 +2357,195 @@ app.post('/api/video/reconvertir', auth, async (req, res) => {
   res.json({ formato, encolados: encolados.length, saltados });
 });
 
+// ── SOLICITUDES DE ALTA ───────────────────────────────────────
+// Para vender el panel con publicidad (18-19/09/2026). Las reglas están en
+// solicitudes.js y la tabla en sql/25; aquí solo las puertas.
+//
+// Tres entradas distintas, cada una con su candado:
+//   · POST /api/solicitudes        — la página /solicitud. Pública: captcha
+//     (si hay clave de Turnstile), campo trampa, tiempo mínimo y límite por IP.
+//   · POST /api/solicitudes/meta   — el n8n del usuario, con los leads de los
+//     anuncios. Solo con la clave secreta: sin ella, cualquiera podría meter
+//     leads por aquí saltándose el captcha.
+//   · GET/PATCH /api/solicitudes   — la bandeja. Solo el superadmin.
+//
+// Variables de entorno (todas opcionales; sin ellas, lo suyo no se hace):
+//   TURNSTILE_SITE_KEY / TURNSTILE_SECRET — el captcha de Cloudflare.
+//   SOLICITUDES_CLAVE — la clave compartida con n8n, en los dos sentidos.
+//   N8N_SOLICITUDES_WEBHOOK — adónde avisar de cada solicitud nueva.
+//   POLITICA_PRIVACIDAD_URL — el enlace de la casilla de autorización.
+
+// Veinte por hora desde la misma IP. Un comercial manda una por restaurante que
+// visita, pero el equipo puede mandarlas juntas desde el wifi de la oficina, y
+// ahí todos comparten IP. Veinte deja trabajar al equipo y frena una avalancha;
+// el captcha y el campo trampa hacen el resto.
+const SOLICITUD_VENTANA_MS = 60 * 60 * 1000;
+const SOLICITUD_MAX_POR_VENTANA = 20;
+const solicitudesPorIp = new Map();
+
+function solicitudPermitida(ip) {
+  const ahora = Date.now();
+  const reg = solicitudesPorIp.get(ip);
+  if (!reg || ahora - reg.desde >= SOLICITUD_VENTANA_MS) { solicitudesPorIp.set(ip, { desde: ahora, n: 1 }); return true; }
+  reg.n++;
+  return reg.n <= SOLICITUD_MAX_POR_VENTANA;
+}
+
+setInterval(() => {
+  const limite = Date.now() - SOLICITUD_VENTANA_MS;
+  for (const [ip, reg] of solicitudesPorIp) if (reg.desde < limite) solicitudesPorIp.delete(ip);
+}, SOLICITUD_VENTANA_MS).unref();
+
+// El captcha de Cloudflare. Sin TURNSTILE_SECRET no se comprueba —para poder
+// probar en local—, y se avisa en el registro para que no pase inadvertido en
+// producción.
+async function turnstileValido(token, ip) {
+  const secreto = process.env.TURNSTILE_SECRET;
+  if (!secreto) return true;
+  if (!token) return false;
+  try {
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: secreto, response: token, remoteip: ip }),
+      signal: AbortSignal.timeout(8000),
+    });
+    return !!(await res.json())?.success;
+  } catch (e) {
+    // Si Cloudflare no contesta, se rechaza: es preferible que alguien lo
+    // vuelva a intentar a abrir la puerta a los robots mientras dure la caída.
+    console.error(`⚠️  Turnstile no respondió: ${e.message}`);
+    return false;
+  }
+}
+if (!process.env.TURNSTILE_SECRET) console.log('🤖 solicitudes: sin TURNSTILE_SECRET, el formulario va sin captcha');
+
+// Guarda y avisa. Si el número ya tiene una solicitud abierta, no se guarda
+// otra: es el mismo cliente, y dos avisos harían que lo llamaran dos personas.
+// Se contesta igual que si se hubiera guardado —a quien lo envía le da igual,
+// y a un robot no se le enseña qué números existen—.
+async function guardarSolicitud(datos) {
+  const { data: previas } = await supabase.from('solicitudes')
+    .select('id').eq('whatsapp', datos.whatsapp).in('estado', solicitudes.ESTADOS_ABIERTOS).limit(1);
+  if (previas?.length) return { repetida: true };
+
+  const { data, error } = await supabase.from('solicitudes').insert([datos]).select().single();
+  // El mismo lead de Meta dos veces: n8n reintentó. Ya está guardado.
+  if (error?.code === '23505') return { repetida: true };
+  if (error) throw new Error(error.message);
+
+  // Sin await: quien envió el formulario no tiene por qué esperar a Telegram.
+  // avisarN8n nunca lanza.
+  if (data) solicitudes.avisarN8n(data, {
+    url: process.env.N8N_SOLICITUDES_WEBHOOK,
+    clave: process.env.SOLICITUDES_CLAVE,
+    enlacePanel: process.env.BASE_URL || null,
+  });
+  return { guardada: data };
+}
+
+// Lo que necesita la página para pintarse: la clave pública del captcha y el
+// enlace de la política. Nada secreto.
+app.get('/api/solicitudes/config', (req, res) => {
+  res.json({
+    turnstile: process.env.TURNSTILE_SITE_KEY || null,
+    politica: process.env.POLITICA_PRIVACIDAD_URL || null,
+  });
+});
+
+app.post('/api/solicitudes', async (req, res) => {
+  if (!solicitudPermitida(req.ip)) {
+    console.warn(`🤖 solicitudes: límite por hora alcanzado · ip ${req.ip}`);
+    return res.status(429).json({ error: 'Has enviado varias solicitudes seguidas. Espera un rato y vuelve a intentarlo.' });
+  }
+  const robot = solicitudes.pareceRobot(req.body);
+  if (robot) {
+    console.warn(`🤖 solicitud descartada (${robot}) · ip ${req.ip}`);
+    return res.json({ ok: true });
+  }
+  if (!(await turnstileValido(req.body?.turnstile, req.ip)))
+    return res.status(400).json({ error: 'No pudimos comprobar que no eres un robot. Recarga la página y vuelve a intentarlo.' });
+
+  const { datos, error } = solicitudes.validarSolicitud(req.body, 'web');
+  if (error) return res.status(400).json({ error });
+  try {
+    await guardarSolicitud(datos);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(`⚠️  guardando una solicitud: ${e.message}`);
+    res.status(500).json({ error: 'No se pudo enviar la solicitud. Inténtalo de nuevo en un momento.' });
+  }
+});
+
+// La puerta de n8n. Sin SOLICITUDES_CLAVE configurada no se abre: una puerta
+// sin candado aquí dejaría meter leads saltándose el captcha.
+app.post('/api/solicitudes/meta', async (req, res) => {
+  const clave = process.env.SOLICITUDES_CLAVE;
+  if (!clave) return res.status(503).json({ error: 'La entrada de Meta no está configurada' });
+  if (!igualSeguro(req.get('x-clave-solicitudes') || '', clave)) return res.status(401).json({ error: 'Clave incorrecta' });
+
+  const { datos, error } = solicitudes.validarSolicitud(req.body, 'meta');
+  if (error) return res.status(400).json({ error });
+  const metaLead = String(req.body?.meta_lead_id || '').slice(0, 100);
+  if (metaLead) datos.meta_lead_id = metaLead;
+  // Qué campaña, anuncio y formulario: lo que diga saber qué publicidad trae
+  // clientes. Solo esas claves, y como texto corto.
+  const origen = {};
+  for (const k of ['campana', 'anuncio', 'formulario', 'plataforma']) {
+    if (req.body?.[k]) origen[k] = String(req.body[k]).slice(0, 200);
+  }
+  datos.datos_origen = origen;
+  try {
+    const r = await guardarSolicitud(datos);
+    res.json({ ok: true, repetida: !!r.repetida });
+  } catch (e) {
+    console.error(`⚠️  guardando un lead de Meta: ${e.message}`);
+    res.status(500).json({ error: 'No se pudo guardar el lead' });
+  }
+});
+
+app.get('/api/solicitudes', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  const { data, error } = await supabase.from('solicitudes')
+    .select('*').order('creado_en', { ascending: false }).limit(300);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+app.patch('/api/solicitudes/:id', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'Solicitud no válida' });
+  const cambios = {};
+  if (req.body?.estado !== undefined) {
+    if (!solicitudes.ESTADOS.includes(req.body.estado)) return res.status(400).json({ error: 'Estado no válido' });
+    cambios.estado = req.body.estado;
+  }
+  if (req.body?.restaurante_id !== undefined) {
+    if (req.body.restaurante_id !== null && !UUID_RE.test(req.body.restaurante_id))
+      return res.status(400).json({ error: 'Restaurante no válido' });
+    cambios.restaurante_id = req.body.restaurante_id;
+  }
+  if (req.body?.notas_internas !== undefined) {
+    const n = String(req.body.notas_internas ?? '').trim();
+    if (n.length > 1000) return res.status(400).json({ error: 'Las notas son demasiado largas' });
+    cambios.notas_internas = n || null;
+  }
+  if (!Object.keys(cambios).length) return res.status(400).json({ error: 'Nada que cambiar' });
+  const { data, error } = await supabase.from('solicitudes').update(cambios).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// Descartar varias de golpe: por si un día se cuela una tanda de basura.
+app.post('/api/solicitudes/descartar', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(id => UUID_RE.test(id)).slice(0, 300) : [];
+  if (!ids.length) return res.status(400).json({ error: 'No hay solicitudes que descartar' });
+  const { error } = await supabase.from('solicitudes').update({ estado: 'descartada' }).in('id', ids);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true, descartadas: ids.length });
+});
+
 // ── ANALÍTICA ─────────────────────────────────────────────────
 // Registro de eventos: sin auth (lo llama el sitio público, que no
 // tiene credenciales). Solo inserta, nunca lee.
@@ -3095,6 +3285,9 @@ app.use((err, req, res, next) => {
 });
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// La página de solicitud de alta, con una dirección que se pueda dictar por
+// teléfono o poner en un QR: /solicitud y no /solicitud.html.
+app.get('/solicitud', (req, res) => res.sendFile(path.join(__dirname, 'public', 'solicitud.html')));
 
 const servidor = app.listen(PORT, () => {
   console.log(`✅ Panel corriendo en puerto ${PORT}`);

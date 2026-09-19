@@ -8515,3 +8515,46 @@ describe('imprimir la carta · qué sale en el papel', () => {
 		assert.match(html, /\.barra \{ display: none; \}/, 'la barra no sale en el papel');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('la bandeja de solicitudes de alta', () => {
+	// 18-19/09/2026. Lo que se pinta aquí lo escribió un desconocido en un
+	// formulario público, y se ve con la sesión del superadmin.
+	const ctx = cargar('bandeja-solicitudes.js', 'const FILTROS_SOLICITUDES', '// ── ESTADO Y CARGA', { crypto: require('node:crypto').webcrypto });
+	const lista = [
+		{ id: 'a', estado: 'nueva' }, { id: 'b', estado: 'contactada' },
+		{ id: 'c', estado: 'aprobada' }, { id: 'd', estado: 'descartada' },
+	];
+	const ids = (filtro) => [...ctx.solicitudesVisibles(lista, filtro).map(s => s.id)];
+
+	test('pendientes son las nuevas y las contactadas', () => {
+		assert.deepEqual(ids('pendientes'), ['a', 'b']);
+		assert.deepEqual(ids('aprobada'), ['c']);
+		assert.deepEqual(ids('descartada'), ['d']);
+		assert.equal(ids('todas').length, 4);
+	});
+
+	test('la dirección propuesta sale del nombre, sin tildes ni símbolos', () => {
+		assert.equal(ctx.slugDesdeNombre('La Ñapa & Café Colombiano'), 'la-napa-cafe-colombiano');
+		assert.equal(ctx.slugDesdeNombre('  ¡Pizzería Don Luis!  '), 'pizzeria-don-luis');
+	});
+
+	test('el PIN propuesto son seis cifras', () => {
+		for (let i = 0; i < 20; i++) assert.match(ctx.pinPropuesto(), /^[0-9]{6}$/);
+	});
+
+	test('nunca se pinta como HTML', () => {
+		// Con innerHTML, un «nombre del negocio» con código dentro se ejecutaría
+		// con la sesión del superadmin. Todo va por textContent.
+		const src = fs.readFileSync(path.join(PUBLIC, 'bandeja-solicitudes.js'), 'utf8')
+			.replace(/^\s*\/\/.*$/gm, '');
+		assert.doesNotMatch(src, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
+	});
+
+	test('crear el restaurante marca la solicitud como aprobada', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(crear, /const creado = await apiFetch\('POST','\/api\/restaurantes'/);
+		assert.match(crear, /marcarSolicitudCreada\(creado\.id\)/);
+	});
+});
