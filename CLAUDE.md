@@ -73,6 +73,11 @@ corregir el documento en la misma tarea.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.
 - `public/ajustes.js` — la pestaña Ajustes: lo que el restaurante configura de
   su carta. Hoy, el carrito, las redes sociales y los filtros y etiquetas.
+- `public/imprimir.js` — «🖨 Imprimir carta», en Inicio: una vista previa en A4
+  para imprimir o guardar en PDF con el cuadro de impresión del navegador. Sin
+  librería de PDF. Si el navegador bloquea la pestaña nueva, se abre dentro del
+  panel. Todo lo del restaurante pasa por `esc()`: la página comparte origen
+  con el panel.
 - `public/encuadre.js` — elegir qué parte de la foto anima la IA cuando no
   tiene la proporción de la carta. El recorte lo hace el servidor; ver
   `docs/video-con-ia.md`, «El encuadre».

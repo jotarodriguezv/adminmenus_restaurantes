@@ -180,6 +180,8 @@
 							<!-- Un enlace y no un botón: así el clic central y «abrir en pestaña
 							     nueva» funcionan como en cualquier enlace. -->
 							<a class="btn-sm" id="inicioVerCarta" target="_blank" rel="noopener noreferrer">Ver mi carta ↗</a>
+							<!-- Vista previa para imprimir o guardar en PDF: ver public/imprimir.js. -->
+							<button type="button" class="btn-sm" onclick="imprimirCarta()">🖨 Imprimir carta</button>
 							<button type="button" class="btn-sm accent" onclick="abrirDesdeInicio('productos')">+ Nuevo producto</button>
 						</div>
 					</div>
@@ -2341,6 +2343,7 @@
 <script src="preguntar.js"></script>
 <script src="encuadre.js"></script>
 <script src="inicio.js"></script>
+<script src="imprimir.js"></script>
 <script src="estadisticas.js"></script>
 <script src="tv.js"></script>
 <script src="promocion.js"></script>
@@ -7230,6 +7233,7 @@ document.addEventListener('keydown',e=>{
   // La primera: se abre encima de las demás, y Escape es «no», no cerrar todo.
   if(hayPreguntaAbierta()) return responderPregunta(false);
   if(hayEncuadreAbierto()) return responderEncuadre(false);
+  if(document.getElementById('capaImpresion')) return cerrarImpresionEnElPanel();
   // Escape sobre el aviso de cambios es "seguir editando": la opción que no
   // pierde nada. Si cerrara las dos ventanas de golpe, la tecla de escape
   // sería el atajo más rápido para tirar el trabajo.
