@@ -7695,7 +7695,9 @@ describe('la sesión: se renueva usándola y pregunta si nadie la usa', () => {
 
 	test('el panel lo arranca, y «¿Sigues ahí?» queda por encima de todo', () => {
 		const src = codigoDelPanel();
-		assert.match(src, /vigilarMenusMas\(\);\nvigilarSesion\(\);/);
+		// \r?\n y no \n: en Windows git baja los archivos con CRLF, y con \n
+		// esta prueba fallaba solo allí, siempre, mientras en CI pasaba.
+		assert.match(src, /vigilarMenusMas\(\);\r?\nvigilarSesion\(\);/);
 		assert.match(src, /<script src="sesion\.js"><\/script>/);
 		assert.match(src, /id="sesionModal" style="z-index:600"/);
 	});
