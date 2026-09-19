@@ -8424,3 +8424,87 @@ describe('generarConIA · con una foto que no encaja, primero el encuadre', () =
 		assert.equal('encuadre' in llamadas.enviado, false);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('imprimir la carta · qué sale en el papel', () => {
+	// 18/09/2026, pedido por el usuario: un botón en Inicio para imprimir la
+	// carta o guardarla en PDF.
+	const ctx = cargar('index.html', [
+		['comun.js', 'function formatPrecio', '// ── SESIÓN Y ESTADO'],
+		['imprimir.js', 'const ORDEN_IMPRESO', 'function imprimirCarta'],
+	]);
+	const cats = [
+		{ id: 'c2', nombre: 'Bebidas', emoji: '🥤', orden: 1, sin_fotos: true },
+		{ id: 'c1', nombre: 'Hamburguesas', emoji: '🍔', orden: 0 },
+		{ id: 'c3', nombre: 'Vacía', orden: 2 },
+	];
+	const prods = [
+		{ id: 'p1', categoria_id: 'c1', nombre: 'Doble', precio_numerico: 30000, orden: 2, imagen_url: '/uploads/productos/doble.jpg' },
+		{ id: 'p2', categoria_id: 'c1', nombre: 'Sencilla', precio_numerico: 20000, orden: 1, imagen_url: '/uploads/productos/sencilla.jpg', descripcion_avanzada: 'Con queso' },
+		{ id: 'p3', categoria_id: 'c1', nombre: 'Agotada', precio_numerico: 10000, disponible: false },
+		{ id: 'p4', categoria_id: 'c2', nombre: 'Gaseosa', precio_numerico: 5000, imagen_url: '/uploads/productos/gaseosa.jpg' },
+		{ id: 'p5', categoria_id: 'c3', nombre: 'Fantasma', disponible: false },
+	];
+
+	test('categorías en su orden, sin las que no tienen nada disponible', () => {
+		const s = ctx.cartaParaImprimir({ categorias: cats, productos: prods });
+		assert.deepEqual([...s.map(c => c.nombre)], ['Hamburguesas', 'Bebidas']);
+	});
+
+	test('solo platos disponibles, en el orden que ve el comensal', () => {
+		const nombres = modo => [...ctx.cartaParaImprimir({ categorias: cats, productos: prods, atributos: { orden_productos: modo } })[0].platos.map(p => p.nombre)];
+		assert.deepEqual(nombres(undefined), ['Sencilla', 'Doble'], 'por defecto, de menor a mayor precio, como la carta');
+		assert.deepEqual(nombres('precio_desc'), ['Doble', 'Sencilla']);
+		assert.deepEqual(nombres('personalizado'), ['Sencilla', 'Doble']);
+		assert.deepEqual(nombres('nombre_az'), ['Doble', 'Sencilla']);
+	});
+
+	test('la foto respeta la vista lista, el «no lleva foto» y el video', () => {
+		const s = ctx.cartaParaImprimir({ categorias: cats, productos: [
+			...prods,
+			{ id: 'p6', categoria_id: 'c1', nombre: 'Sin foto a propósito', precio_numerico: 1, imagen_url: '/uploads/productos/x.jpg', atributos: { sin_foto: true } },
+			{ id: 'p7', categoria_id: 'c1', nombre: 'Solo video', precio_numerico: 2, atributos: { video: { portada: 'https://panel/uploads/miniaturas/v.jpg' } } },
+			{ id: 'p8', categoria_id: 'c1', nombre: 'Foto rara', precio_numerico: 3, imagen_url: 'javascript:alert(1)' },
+		] });
+		const foto = n => s.flatMap(c => c.platos).find(p => p.nombre === n).foto;
+		assert.equal(foto('Sencilla'), '/uploads/productos/sencilla.jpg');
+		assert.equal(foto('Gaseosa'), null, 'en una categoría de vista lista no hay foto');
+		assert.equal(foto('Sin foto a propósito'), null);
+		assert.equal(foto('Solo video'), 'https://panel/uploads/miniaturas/v.jpg', 'un video no se imprime: su portada sí');
+		assert.equal(foto('Foto rara'), null, 'lo que no es una dirección de imagen no entra en un src');
+	});
+
+	test('un plato gratis dice «Gratis», y la descripción es la corta', () => {
+		const s = ctx.cartaParaImprimir({ categorias: cats, productos: [
+			...prods, { id: 'p9', categoria_id: 'c1', nombre: 'Salsa', precio_numerico: 0, atributos: { precio_gratis: true } },
+		] });
+		const p = s[0].platos;
+		assert.equal(p.find(x => x.nombre === 'Salsa').precio, 'Gratis');
+		assert.equal(p.find(x => x.nombre === 'Sencilla').descripcion, 'Con queso');
+		assert.match(p.find(x => x.nombre === 'Doble').precio, /30\.000/);
+	});
+
+	test('lo que escribe el restaurante no puede meter código en la página', () => {
+		// La ventana comparte origen con el panel: un nombre con código se
+		// ejecutaría con la sesión abierta.
+		const html = ctx.paginaParaImprimir({
+			restaurante: { nombre: '<script>alert(1)</script>', logo_url: '/uploads/logos/l.png' },
+			secciones: [{ nombre: 'Cat<b>', emoji: '', platos: [{ nombre: '<img src=x onerror=alert(1)>', descripcion: '"><svg onload=alert(1)>', precio: '$ 1', foto: '/uploads/a.jpg" onerror="alert(1)' }] }],
+			enlace: 'https://menu.vmenus.co/demo',
+		});
+		assert.doesNotMatch(html, /<img src=x/);
+		assert.doesNotMatch(html, /<script>alert/);
+		assert.doesNotMatch(html, /<svg onload/);
+		assert.doesNotMatch(html, /" onerror="/);
+		// Y el único script es el fijo de la página.
+		assert.equal((html.match(/<script>/g) || []).length, 1);
+	});
+
+	test('la vista previa trae el botón de imprimir y el interruptor de fotos', () => {
+		const html = ctx.paginaParaImprimir({ restaurante: { nombre: 'Demo' }, secciones: [], enlace: 'https://menu.vmenus.co/demo' });
+		assert.match(html, /Imprimir o guardar en PDF/);
+		assert.match(html, /id="conFotos" checked/, 'con fotos por defecto');
+		assert.match(html, /@page \{ size: A4/);
+		assert.match(html, /\.barra \{ display: none; \}/, 'la barra no sale en el papel');
+	});
+});
