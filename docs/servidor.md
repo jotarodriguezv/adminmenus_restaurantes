@@ -625,26 +625,36 @@ Tiene que decir `no-cache`. Mientras diga `max-age=14400`, sigue sin aplicarse.
   viejo. En el segundo, `Exited (0)` y en su registro
   `🛑 panel parado en 3 ms`. **Para comprobar un cambio en la parada hacen
   falta dos despliegues.**
-- **Una subida de video de más de 8 s sigue cortándose** si coincide con un
-  despliegue. **En curso desde el 18/09/2026.** Paso 1, en el código: la parada
+- ~~Una subida de video de más de 8 s se cortaba~~ si coincidía con un
+  despliegue. **Hecho y aplicado el 18/09/2026** (PR #203 y Dokploy). Comprobado
+  en el servidor: `gracia=16m0s`, `PARADA_MAX_MS=930000` dentro del contenedor,
+  y el anterior salió `Exited (0)` («plazo 8000 ms», porque era anterior al
+  cambio; el siguiente despliegue ya dirá 930000). Lo que queda de ver en un
+  caso real: un video subiendo justo mientras se despliega. Paso 1, en el código: la parada
   ya detiene también la cola de IA y el limpiador (antes solo la de video), que
   es lo que hace seguro que el panel viejo siga vivo minutos junto al nuevo.
-  Paso 2, en Dokploy, **después** de desplegar el paso 1 y en este orden:
-  1. Orden de actualización **«start-first»**: arranca el contenedor nuevo
-     antes de parar el viejo. **Sin esto, no seguir**: alargar el plazo sería
-     tener el panel caído hasta 16 minutos en cada despliegue. Requiere que el
-     servicio no publique puertos en el anfitrión (con Traefik delante no
-     debería); mirarlo antes.
-  2. **Stop grace period** del servicio a **16 minutos**: el plazo que Docker da
+  Paso 2, en Dokploy, **después** de desplegar el paso 1:
+  1. ~~Orden de actualización «start-first»~~ **Ya lo estaba** (comprobado el
+     18/09/2026: `puertos=null`, `Order: start-first`, `gracia=10s`). El nuevo
+     arranca antes de parar el viejo, así que alargar el plazo no deja el panel
+     caído. Si algún día cambia a stop-first, **no alargar el plazo**: sería
+     tener el panel caído hasta 16 minutos en cada despliegue. Consecuencia que
+     no se había visto: **cada despliegue ya tenía unos segundos con los dos
+     paneles vivos**, y hasta el paso 1 los dos con la cola de IA en marcha.
+  2. **Stop grace period** del servicio a **16 minutos** (hecho en Dokploy): el plazo que Docker da
      antes del SIGKILL.
-  3. `PARADA_MAX_MS=930000` (15,5 min) en las variables de entorno: por debajo
+  3. `PARADA_MAX_MS=930000` (15,5 min) en las variables de entorno (hecho): por debajo
      del de Docker, para salir ordenadamente antes del SIGKILL, y por encima de
      `SUBIDA_MAX_MS` (900 s), que es lo más que puede durar una subida.
 
   Sin subidas en curso el panel sale en milisegundos igual que ahora: el plazo
   largo solo se usa si hay algo que esperar. Para comprobarlo: **dos
   despliegues** (el que se para es el contenedor anterior) y
-  `docker service inspect $(docker service ls -q --filter name=adminvmenus) --format 'puertos={{json .Endpoint.Ports}} | actualizar={{json .Spec.UpdateConfig}} | gracia={{.Spec.TaskTemplate.ContainerSpec.StopGracePeriod}}'`.
+  `docker service inspect vmenus-adminvmenus-eciumg --format 'puertos={{json .Endpoint.Ports}} | actualizar={{json .Spec.UpdateConfig}} | gracia={{.Spec.TaskTemplate.ContainerSpec.StopGracePeriod}}'`.
+  **El servicio no se llama como el contenedor**: Dokploy le antepone el
+  proyecto (`vmenus-adminvmenus-eciumg`), y `--filter name=adminvmenus` no
+  encuentra nada porque en los servicios filtra por el principio del nombre.
+  `docker service ls --format '{{.Name}}'` los lista todos.
 - **La salida por IPv6 no respondió** a Docker Hub (`i/o timeout` hacia una
   dirección `2600:…`) al intentar bajar una imagen. Hoy no rompe nada; mirar si
   el día que un despliegue falle bajando imágenes.
