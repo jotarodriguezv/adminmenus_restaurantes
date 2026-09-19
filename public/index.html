@@ -70,6 +70,18 @@
 			</div>
 			
 			<div class="admin-content">
+				<!-- Solicitudes de alta (18-19/09/2026): lo primero que se ve al entrar,
+				     porque un lead que espera se enfría. Ver public/bandeja-solicitudes.js. -->
+				<div class="section-card" id="solicitudesPanel">
+					<div class="section-title">Solicitudes de alta <span class="inicio-cuenta" id="solicitudesCuenta"></span></div>
+					<div class="resto-filtros-fila" id="solicitudesFiltros" role="group" aria-label="Filtrar solicitudes"></div>
+					<div class="solicitudes-lote" id="solicitudesLote" hidden>
+						<span id="solicitudesLoteTexto"></span>
+						<button type="button" class="btn-sm danger" onclick="descartarSeleccionadas()">Descartar seleccionadas</button>
+					</div>
+					<div id="solicitudesLista"><div class="empty-state">Cargando...</div></div>
+				</div>
+
 				<!-- Nuevo restaurante. S4 en docs/revision-ux.md: abierto ocupaba la
 				     pantalla entera del móvil antes del primer restaurante (seis gestos),
 				     y crear uno es cosa de una vez al mes. <details> y no un botón con
@@ -2349,6 +2361,7 @@
 
 <script src="comun.js"></script>
 <script src="preguntar.js"></script>
+<script src="bandeja-solicitudes.js"></script>
 <script src="encuadre.js"></script>
 <script src="inicio.js"></script>
 <script src="imprimir.js"></script>
@@ -7277,6 +7290,9 @@ async function enterAdmin() {
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appScreen').style.display='none';
   document.getElementById('adminScreen').style.display='block';
+  // Las solicitudes van aparte y sin esperar: si fallan, la lista de
+  // restaurantes se tiene que ver igual.
+  cargarSolicitudes();
   await cargarListaRestos();
 }
 
@@ -7769,7 +7785,9 @@ async function crearRestaurante() {
 
   status.textContent='Creando...'; status.style.color='var(--text-muted)';
   try {
-    await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de});
+    const creado = await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de});
+    // Si venía de una solicitud de alta, queda aprobada y enlazada a él.
+    if (creado?.id) await marcarSolicitudCreada(creado.id);
     status.textContent='✓ Restaurante creado correctamente'; status.style.color='var(--success)';
     document.getElementById('newRestoNombre').value='';
     document.getElementById('newRestoSlug').value='';
