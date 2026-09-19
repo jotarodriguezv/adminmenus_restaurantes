@@ -3112,7 +3112,12 @@ const servidor = app.listen(PORT, () => {
 // Sin esto, cada despliegue mataba el panel a los 10 s con SIGKILL, y una
 // conversión a medias se quedaba en "convirtiendo" hasta una hora y media. El
 // detalle, en parada.js.
-const parar = pararOrdenadamente({ servidor, colas: [video.detener] });
+//
+// Las tres colas, no solo la de video (18/09/2026): para que una subida larga
+// sobreviva a un despliegue el panel viejo puede quedarse vivo minutos junto al
+// nuevo, y con la cola de IA o el limpiador aún en marcha harían el trabajo dos
+// veces. Pararlas tiene que ir ANTES de alargar el plazo (PARADA_MAX_MS).
+const parar = pararOrdenadamente({ servidor, colas: [video.detener, colaia.detener, limpieza.detener] });
 process.on('SIGTERM', () => parar('SIGTERM'));
 process.on('SIGINT',  () => parar('SIGINT'));
 

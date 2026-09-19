@@ -163,14 +163,32 @@ async function pasada(supabase) {
   return pasada_;
 }
 
+let temporizadores = [];
+let pasadaEnCurso = null;
+
 function arrancar(supabase) {
-  const correr = () => pasada(supabase).catch(e => console.error('🧹 limpieza falló:', e.message));
+  const correr = () => {
+    if (pasadaEnCurso) return;
+    pasadaEnCurso = pasada(supabase)
+      .catch(e => console.error('🧹 limpieza falló:', e.message))
+      .finally(() => { pasadaEnCurso = null; });
+  };
 
   // No al arrancar: un despliegue reinicia el proceso y no tiene sentido
   // ponerse a recorrer el disco mientras el servidor todavía se levanta.
-  setTimeout(correr, 5 * 60 * 1000).unref();
-  setInterval(correr, INTERVALO_MS).unref();
+  temporizadores = [setTimeout(correr, 5 * 60 * 1000), setInterval(correr, INTERVALO_MS)];
+  temporizadores.forEach(t => t.unref());
   console.log(`🧹 limpieza programada cada 24 h · gracia ${DIAS_GRACIA} días · tope ${(TOPE_FRACCION * 100).toFixed(0)}% · ${BORRAR ? 'BORRANDO' : 'simulacro'}`);
 }
 
-module.exports = { arrancar, pasada, recogerNombres, archivosEnDisco, CARPETAS, TABLAS };
+// Al parar, no se empieza otra pasada. La que esté corriendo se deja acabar:
+// borra lo que ya sobraba, y cortarla a medias no deja nada inconsistente, pero
+// esperarla evita que el panel viejo y el nuevo recorran el disco a la vez
+// mientras conviven en un despliegue (ver parada.js).
+async function detener() {
+  temporizadores.forEach(t => { clearTimeout(t); clearInterval(t); });
+  temporizadores = [];
+  if (pasadaEnCurso) await pasadaEnCurso;
+}
+
+module.exports = { arrancar, detener, pasada, recogerNombres, archivosEnDisco, CARPETAS, TABLAS };

@@ -21,10 +21,28 @@
 // Todo dentro de un plazo por debajo de los 10 s de Docker: si algo se cuelga,
 // se sale igual antes de que llegue el SIGKILL, que no deja registrar nada.
 //
-// La cola de IA y el limpiador no se esperan a propósito. Una generación en
-// curso vive en Replicate, no aquí: queda 'generando' y el panel nuevo la
-// vuelve a recoger. Una pasada del limpiador cortada a mitad no deja nada
-// inconsistente —solo borra lo que ya sobraba— y la siguiente sigue.
+// Las tres colas se paran (18/09/2026; antes solo la de video). La cola de IA
+// y el limpiador no dejaban nada roto al morir —una generación vive en
+// Replicate y queda 'generando'; una pasada cortada solo borraba lo que ya
+// sobraba—, pero hacía falta pararlas para poder alargar el plazo: si el panel
+// viejo sigue vivo minutos junto al nuevo, las dos colas de IA recogerían las
+// mismas generaciones y el plato acabaría con dos videos.
+//
+// ── EL PLAZO, Y LAS SUBIDAS LARGAS ──────────────────────────────
+// Con los 8 s de siempre, una subida de video que dure más se corta si coincide
+// con un despliegue: server.close() la espera, pero el plazo vence antes. Para
+// que sobreviva, el plazo tiene que llegar a lo que puede durar una subida
+// (SUBIDA_MAX_MS en server.js, 900 s), y eso exige TRES cambios juntos, dos de
+// ellos en Dokploy y no aquí (docs/servidor.md, «Subidas largas durante un
+// despliegue»):
+//   1. Arrancar el contenedor nuevo ANTES de parar el viejo (Swarm, orden
+//      «start-first»). Sin esto, alargar el plazo es tener el panel caído
+//      hasta ese tiempo en cada despliegue.
+//   2. Dar a Docker un plazo mayor que este (stop grace period), o el SIGKILL
+//      llega antes que la salida ordenada.
+//   3. PARADA_MAX_MS en las variables de entorno.
+// Sin tocar nada, se queda en 8 s, que es lo seguro con los 10 s de Docker.
+// Solo espera si hay algo en curso: sin subidas, el panel sale en milisegundos.
 
 const PLAZO_MS = Number(process.env.PARADA_MAX_MS || 8_000);
 

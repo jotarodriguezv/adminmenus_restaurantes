@@ -231,3 +231,68 @@ describe('server.js · la señal de verdad', () => {
 		}
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('las tres colas se paran, no solo la de video', () => {
+	// 18/09/2026: para que una subida larga sobreviva a un despliegue, el panel
+	// viejo puede quedarse vivo minutos junto al nuevo. Con la cola de IA en
+	// marcha en los dos, recogerían la misma generación y el plato acabaría con
+	// dos videos. Ver la cabecera de parada.js.
+
+	// Un supabase de mentira que acepta cualquier cadena de llamadas. Lo que se
+	// espera con await queda retenido hasta soltar(), para simular una vuelta
+	// de la cola que todavía no ha terminado.
+	function supabaseRetenido() {
+		let soltar;
+		const retenido = new Promise(r => { soltar = r; });
+		let consultas = 0;
+		const cadena = () => new Proxy(function () {}, {
+			get(_, clave) {
+				if (clave === 'then') return (ok, mal) => retenido.then(() => ({ data: [], error: null })).then(ok, mal);
+				return () => cadena();
+			},
+			apply: () => cadena(),
+		});
+		return { sb: { from() { consultas++; return cadena(); }, rpc: () => cadena() }, soltar: () => soltar(), consultas: () => consultas };
+	}
+
+	test('la cola de IA deja de dar vueltas y espera la que tiene a medias', async (t) => {
+		t.mock.timers.enable({ apis: ['setInterval'] });
+		const colaia = require('../colaia.js');
+		const { sb, soltar, consultas } = supabaseRetenido();
+
+		colaia.arrancar(sb);
+		t.mock.timers.tick(colaia.INTERVALO_MS);
+		await new Promise(r => setImmediate(r));
+		assert.ok(consultas() > 0, 'la vuelta tenía que haber empezado');
+
+		let parada = false;
+		const p = colaia.detener().then(() => { parada = true; });
+		await new Promise(r => setImmediate(r));
+		assert.equal(parada, false, 'no puede dar por parada una cola que sigue descargando');
+
+		soltar();
+		await p;
+		const antes = consultas();
+		t.mock.timers.tick(colaia.INTERVALO_MS * 3);
+		await new Promise(r => setImmediate(r));
+		assert.equal(consultas(), antes, 'parada, no vuelve a mirar Replicate');
+	});
+
+	test('el limpiador no vuelve a arrancar después de parar', async (t) => {
+		t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+		const limpieza = require('../limpieza.js');
+		const { sb, consultas } = supabaseRetenido();
+
+		limpieza.arrancar(sb);
+		await limpieza.detener();
+		t.mock.timers.tick(48 * 60 * 60 * 1000);
+		await new Promise(r => setImmediate(r));
+		assert.equal(consultas(), 0);
+	});
+
+	test('server.js le pasa las tres a la parada', () => {
+		const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+		assert.match(src, /pararOrdenadamente\(\{ servidor, colas: \[video\.detener, colaia\.detener, limpieza\.detener\] \}\)/);
+	});
+});
