@@ -112,6 +112,7 @@ es el VPS: es la memoria y la GPU del televisor.
       { "texto": "Hoy 2x1 en hamburguesas", "posicion": "arriba" },
       { "texto": "Pregunta por nuestros postres", "posicion": "abajo" }
     ],
+    "velocidad_cintas": "normal",
     "reloj": false,
     "cada": 4,
     "intercalados": [
@@ -253,9 +254,9 @@ lo elimina: un computador conectado por HDMI puede quedarse encendido días.
   pantalla. Con dos a cuatro se ignora aunque esté marcada: una descripción
   pequeña quita espacio a las fotos y deja de leerse desde las mesas.
 - Puede haber hasta **cinco cintas de aviso**, cada una arriba o abajo. Se
-  desplazan continuamente y se agrupan por franja; no son pantallas del ciclo
-  ni cambian su duración. El reloj con fecha es también opcional y toma la zona
-  horaria del restaurante.
+  desplazan continuamente, se agrupan por franja y su velocidad puede ser lenta,
+  normal o rápida; no son pantallas del ciclo ni cambian su duración. El reloj
+  con fecha es también opcional y toma la zona horaria del restaurante.
 - **Se respetan los horarios de categoría** si el plan los incluye. Un
   restaurante que esconde los desayunos a las 4 de la tarde no querría verlos
   en la pantalla de la sala.
