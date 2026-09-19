@@ -643,9 +643,12 @@ Se hace en tres pasos, cada uno un PR que sale de `main`:
 1. **Código que entiende los nombres nuevos y los viejos** (servidor, panel y
    carta). Carrito sale del selector y queda como opción escondida. Hecho el
    17/09/2026: vmenus-app#34 y el PR del panel del mismo día.
-2. **Migrar la base**: cada restaurante a `fotos` o `video`, y `aojocerrado` y
-   `perroscriollos` de Carrito a Sidebar con el carrito encendido. Escritura en
-   producción: **avisar antes**.
+2. ~~**Migrar la base**~~ **Aplicado el 17/09/2026** (`sql/24`): cada
+   restaurante a `fotos` o `video` según su modelo, y `aojocerrado` y
+   `perroscriollos` de Carrito a Sidebar con el carrito encendido. Ya no queda
+   ningún plan viejo ni modelo Carrito en la base (comprobado de nuevo el
+   18/09/2026). Esta nota y la de `sql/24` se habían quedado fuera de `main`:
+   se subieron a la rama del PR #170 después de mergearlo.
 3. ~~**Limpieza**~~ **Hecho el 17/09/2026**: borrados el tema Carrito
    (vmenus-app#35), `PLANES_ANTIGUOS` en los tres sitios y la opción escondida
    del selector. Un restaurante con plan desconocido cae en el de su modelo, y
