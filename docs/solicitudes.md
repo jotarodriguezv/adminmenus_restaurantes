@@ -79,7 +79,7 @@ solicitud sigue en la bandeja.
 
 ## El orden al desplegar
 
-1. Aplicar `sql/25_solicitudes.sql` en Supabase (escritura en producción:
+1. ~~Aplicar `sql/25_solicitudes.sql`~~ **Aplicado el 19/09/2026**, con el visto bueno del usuario. Comprobado: anon y authenticated sin acceso, RLS encendido, y la clave pública recibe «permission denied» al leer y al escribir. (Escritura en producción:
    avisar antes) y hacer las comprobaciones del final del archivo.
 2. Desplegar el código.
 3. Poner las variables de entorno y volver a desplegar.

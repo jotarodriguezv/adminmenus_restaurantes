@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- SOLICITUDES DE ALTA DE RESTAURANTES — SIN APLICAR
+-- SOLICITUDES DE ALTA DE RESTAURANTES — APLICADO EL 19/09/2026
 -- ═══════════════════════════════════════════════════════════════
 -- Decidido con el usuario el 18-19/09/2026, para empezar a comercializar el
 -- panel con publicidad en Facebook e Instagram.
