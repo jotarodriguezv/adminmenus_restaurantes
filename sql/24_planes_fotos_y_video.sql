@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- PLANES FOTOS Y VIDEO, Y RETIRAR EL MODELO CARRITO — SIN APLICAR
+-- PLANES FOTOS Y VIDEO, Y RETIRAR EL MODELO CARRITO — APLICADO EL 17/09/2026
 -- ═══════════════════════════════════════════════════════════════
 -- Paso 2 de 3 de los planes nuevos (CLAUDE.md, «Los planes nuevos»). No cambia
 -- el esquema: mueve datos dentro de restaurantes.atributos.
@@ -34,6 +34,10 @@
 --   sanjavier       (ninguno) explorar  → fotos
 --   indigo, pierrot, zz-pruebas-ux  video  vertical  → sin cambios
 --   juanmar, voro                   video  video     → sin cambios
+--
+-- Aplicado con el visto bueno del usuario; la comprobación del final devolvió
+-- cero filas y las cartas de bonzas, malparados, aojocerrado y perroscriollos
+-- cargaron bien justo después.
 --
 -- Se puede volver a ejecutar: cada update solo toca las filas que aún no
 -- cumplen su regla.
