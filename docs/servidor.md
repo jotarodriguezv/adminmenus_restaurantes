@@ -644,7 +644,11 @@ Tiene que decir `no-cache`. Mientras diga `max-age=14400`, sigue sin aplicarse.
   Sin subidas en curso el panel sale en milisegundos igual que ahora: el plazo
   largo solo se usa si hay algo que esperar. Para comprobarlo: **dos
   despliegues** (el que se para es el contenedor anterior) y
-  `docker service inspect $(docker service ls -q --filter name=adminvmenus) --format 'puertos={{json .Endpoint.Ports}} | actualizar={{json .Spec.UpdateConfig}} | gracia={{.Spec.TaskTemplate.ContainerSpec.StopGracePeriod}}'`.
+  `docker service inspect vmenus-adminvmenus-eciumg --format 'puertos={{json .Endpoint.Ports}} | actualizar={{json .Spec.UpdateConfig}} | gracia={{.Spec.TaskTemplate.ContainerSpec.StopGracePeriod}}'`.
+  **El servicio no se llama como el contenedor**: Dokploy le antepone el
+  proyecto (`vmenus-adminvmenus-eciumg`), y `--filter name=adminvmenus` no
+  encuentra nada porque en los servicios filtra por el principio del nombre.
+  `docker service ls --format '{{.Name}}'` los lista todos.
 - **La salida por IPv6 no respondió** a Docker Hub (`i/o timeout` hacia una
   dirección `2600:…`) al intentar bajar una imagen. Hoy no rompe nada; mirar si
   el día que un despliegue falle bajando imágenes.
