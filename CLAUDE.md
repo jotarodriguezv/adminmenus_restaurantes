@@ -454,7 +454,10 @@ Cuesta **diez segundos** (9 s → 19 s). No es precio para nadie.
 quita la condición que lo provoca; no arregla el ejecutor. Si vuelve a aparecer
 con un solo hijo, la hipótesis era falsa y hay que volver aquí.
 
-### 14/09/2026 — volvió con un solo hijo: la hipótesis era falsa. **Pendiente.**
+### 14/09/2026 — volvió con un solo hijo: la hipótesis era falsa
+
+**Resuelto el 18/09/2026**: ver «encontrado: un emoji al principio de un
+console.log», más abajo. Lo de aquí queda como historia.
 
 Con `--test-concurrency=1` ya puesto, en las últimas 25 ejecuciones hubo **dos
 fallos completos** (el reintento también cayó: un merge a `main` y el PR #131,
@@ -506,6 +509,59 @@ Cuando se retome:
   que está puesto por un incidente real.
 - La prueba que se corta **no se borra**. Cubre un fallo que ocurrió de verdad;
   lo que hay que arreglar es cómo se cuenta su excepción, no dejar de probarlo.
+
+### 18/09/2026 — encontrado: un emoji al principio de un console.log. **Arreglado.**
+
+**No era ni la concurrencia, ni la subida cortada, ni `api.test.js`.** Era un
+fallo de Node 22 en el lector del proceso padre del ejecutor de pruebas, que se
+dispara con las líneas de consola que **empiezan por un emoji**.
+
+Cómo se encontró. De las 100 ejecuciones anteriores, **10** chocaron con el fallo
+(todas salvadas por el reintento; las 3 en rojo eran fallos reales). En las 10,
+lo último que se escribió antes de romperse fue una línea «🎬 …»: nueve veces
+«🎬 video retirado del plato…» y una «🎬 parada: trabajo t1 devuelto…» —esa en
+`parada.test.js`, así que no era cosa de un archivo—.
+
+Qué pasa. El hijo de cada archivo le habla al padre por stdout con mensajes
+binarios (2 bytes de cabecera, 4 de tamaño, contenido) y por el mismo stdout
+salen los `console.log`. En `#processRawBuffer`, al terminar un mensaje, si
+detrás viene texto pegado en el mismo bloque **no comprueba que sea texto**: lee
+sus bytes 3 a 6 como un tamaño y lo calcula con signo (`<< 24`). Una línea que
+empieza por emoji tiene el tercer byte por encima de 0x7F, el tamaño sale
+negativo, «cabe», y el texto se intenta leer como mensaje: *invalid or
+unsupported version*. Con letras sale un tamaño enorme, espera, y al siguiente
+intento lo reconoce como texto: por eso solo fallaba con emoji, y solo cuando
+los dos caían en el mismo bloque. «✅ Panel corriendo» no fallaba porque sale al
+arrancar, sin un mensaje delante.
+
+Reproducido a voluntad, también en Windows, escribiendo de una vez un mensaje
+del ejecutor seguido de una línea: con «🎬», «✅» o «🧹» se rompe siempre; con la
+misma línea sin emoji, nunca.
+
+Node lo arregló el 26/07/2026 (`>>> 0`, commit `1ba3ce45b`, «convert to uint
+during deserialization») en la rama 24, **no en la 22**. Subir de versión sigue
+descartado: producción es `node:22-alpine`.
+
+**El arreglo:** `npm test` carga `test/helpers/consola-a-stderr.js` con
+`--require`, que Node pasa a cada archivo. En los hijos, `console.log`, `info` y
+`debug` escriben en stderr, que el padre enseña tal cual sin interpretarlo. Por
+stdout ya solo viajan los mensajes del ejecutor. Los registros se siguen viendo
+igual. `test/consola.test.js` falla si se quita el `--require` o si la precarga
+deja de hacer efecto. **Cuando el panel pase a Node 24, sobra.**
+
+**Lo que no se pudo medir en Linux.** En una rama desechable se corrió la suite
+25 veces sin el arreglo y 25 con él, sin reintento: **0 fallos en las dos**. No
+demuestra nada —con un 10 % por ejecución, 0 de 25 sale por azar un 7 % de las
+veces— y seguramente faltaba la carga: el fallo necesita que el padre lea más
+despacio de lo que escribe el hijo, que es lo que pasa en un runner compartido y
+cargado. Una segunda tanda con la CPU ocupada se canceló a petición del usuario:
+la causa ya estaba probada de forma determinista, y la confirmación real son los
+próximos PRs. **Si el aviso del reintento («Primer intento roto por el fallo
+conocido…») vuelve a salir, esta explicación no era toda y hay que volver aquí.**
+
+El reintento del workflow se queda de momento: es inofensivo y, si vuelve a
+saltar su aviso, la explicación de arriba no era toda. Si pasan unas semanas
+sin que aparezca, se puede quitar.
 
 ### En pausa: la cartelera, a evaluación del equipo
 

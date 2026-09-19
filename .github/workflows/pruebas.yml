@@ -57,8 +57,11 @@ jobs:
       # El primer intento se conserva en el registro a propósito: si esto
       # empieza a saltar a menudo, tiene que verse.
       #
-      # Investigado el 06/09/2026 sin encontrar la causa. Lo descartado está en
-      # CLAUDE.md, para no repetir el camino.
+      # CAUSA ENCONTRADA el 18/09/2026: un fallo de Node 22 con los console.log
+      # que empiezan por emoji, esquivado con test/helpers/consola-a-stderr.js.
+      # Este reintento se queda un tiempo por si la explicación no fuera toda;
+      # si su aviso no vuelve a salir en unas semanas, se puede quitar. Historia
+      # completa en CLAUDE.md.
       - name: Ejecutar pruebas
         run: |
           set +e
