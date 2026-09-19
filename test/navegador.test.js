@@ -1876,13 +1876,13 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		assert.match(campos.tvResumen.textContent, /1 min/);
 	});
 
-	test('un plato por pantalla avisa de la resolución de las fotos', () => {
-		// Se guardan a 800 px: repartidas entre dos sobran, ocupando un
-		// televisor entero se nota.
+	test('un plato por pantalla explica el formato detalle', () => {
+		// Ya no ocupa el televisor entero: comparte la pantalla con título,
+		// categoría, descripción y precio, pero una buena foto sigue importando.
 		const { ctx, campos } = montar({ porSlide: 1 });
 		ctx.tvAvisoTamano();
 		assert.equal(campos.tvAvisoTamano.style.display, 'block');
-		assert.match(campos.tvAvisoTamano.textContent, /borrosa/);
+		assert.match(campos.tvAvisoTamano.textContent, /formato detalle/);
 
 		const b = montar({ porSlide: 3 });
 		b.ctx.tvAvisoTamano();
