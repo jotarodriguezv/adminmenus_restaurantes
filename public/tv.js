@@ -948,11 +948,11 @@ function tvPintarResumen() {
 // dejar que lo descubra con la tele puesta delante de los clientes.
 function tvAvisoTamano() {
   const el = document.getElementById('tvAvisoTamano');
-  const uno = document.getElementById('tvPorSlide').value === '1';
-  el.style.display = uno ? 'block' : 'none';
-  el.textContent = uno
-    ? '⚠ Con un plato por pantalla la foto se ve a tamaño completo y puede salir algo borrosa en televisores grandes. Míralo en tu televisor antes de dejarlo así.'
-    : '';
+	const uno = document.getElementById('tvPorSlide').value === '1';
+	el.style.display = uno ? 'block' : 'none';
+	el.textContent = uno
+		? '⚠ El formato detalle reserva espacio para el texto. Usa una foto nítida y bien encuadrada: seguirá siendo la mitad visual de la pantalla.'
+		: '';
   tvPintarResumen();
 }
 
