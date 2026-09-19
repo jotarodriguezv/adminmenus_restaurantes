@@ -6550,7 +6550,8 @@ describe('las categorías se reordenan arrastrando', () => {
 		const clases = () => ({ add() {}, remove() {} });
 		const escuchas = [];
 		const fila = { classList: clases() };
-		const lista = { classList: clases(), querySelectorAll: () => [], insertBefore() {} };
+		const lista = { classList: clases(), querySelectorAll: () => [], insertBefore() {},
+			getBoundingClientRect: () => ({ top: 0 }) };
 		const ctx = cargar('index.html', [['let arrastreCat=null;', '// ── ELIMINAR']], {
 			document: { getElementById: () => lista, addEventListener: (t) => escuchas.push(t), removeEventListener() {} },
 			requestAnimationFrame: () => 1, cancelAnimationFrame() {}, window: { innerHeight: 800, scrollBy() {} },
@@ -6567,6 +6568,16 @@ describe('las categorías se reordenan arrastrando', () => {
 		assert.match(src, /asa\.addEventListener\('pointerdown',ev=>empezarArrastreCat\(ev,row\)\)/);
 		const tecla = src.match(/function teclaArrastreCat\(ev\) \{[\s\S]*?\n\}/)[0];
 		assert.match(tecla, /Escape[\s\S]*cancelarArrastreCat/);
+	});
+
+	test('se desliza, pero respeta «reducir movimiento» y mide desde la lista', () => {
+		// 18/09/2026: la fila saltaba de hueco en hueco. Ahora las demás se
+		// deslizan; quien pidió al sistema menos movimiento no tiene que verlo.
+		assert.match(src, /prefers-reduced-motion: reduce/);
+		const mover = src.match(/function moverArrastreCat\(ev\) \{[\s\S]*?\n\}/)[0];
+		assert.match(mover, /menosMovimiento\(\)/);
+		// offsetTop se mide desde el ancestro posicionado: sin esto, desde la página.
+		assert.match(src, /\.cat-list\{[^}]*position:relative/);
 	});
 });
 
