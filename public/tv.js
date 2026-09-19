@@ -21,7 +21,7 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          productos: [], aleatorio: false, animacion: 'suave',
                          mostrar_categoria: false, color_categoria: 'oscuro',
                          tema: 'oscuro', mostrar_descripcion: false,
-                         cintas: [], reloj: false,
+                         cintas: [], velocidad_cintas: 'normal', reloj: false,
                          // Por defecto SÍ, que es lo que hacía la cartelera
                          // antes de existir esta clave.
                          respetar_horarios: true };
@@ -58,6 +58,8 @@ function renderTV() {
     document.getElementById(`tvCinta${i}`).value = cinta.texto || '';
     document.getElementById(`tvCintaPos${i}`).value = cinta.posicion === 'abajo' ? 'abajo' : 'arriba';
   }
+  document.getElementById('tvVelocidadCintas').value =
+    ['lenta', 'normal', 'rapida'].includes(cfg.velocidad_cintas) ? cfg.velocidad_cintas : 'normal';
   document.getElementById('tvReloj').checked = !!cfg.reloj;
   // '!== false' y no '!!': quien no tenga la clave guardada tiene que salir
   // encendido, que es lo que su cartelera lleva haciendo desde siempre.
@@ -1076,6 +1078,7 @@ function tvDelFormulario() {
     // ignora mientras no haya un solo plato protagonista.
     mostrar_descripcion: document.getElementById('tvMostrarDescripcion').checked,
     cintas: tvCintasDelFormulario(),
+    velocidad_cintas: document.getElementById('tvVelocidadCintas').value,
     reloj: document.getElementById('tvReloj').checked,
     respetar_horarios: document.getElementById('tvRespetarHorarios').checked,
     programaciones: tvProgramacionesParaGuardar(),

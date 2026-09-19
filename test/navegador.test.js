@@ -1770,6 +1770,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvCinta3: { value: '' }, tvCintaPos3: { value: 'arriba' },
 			tvCinta4: { value: '' }, tvCintaPos4: { value: 'arriba' },
 			tvCinta5: { value: '' }, tvCintaPos5: { value: 'arriba' },
+			tvVelocidadCintas: { value: 'normal' },
 			tvReloj: { checked: !!opciones.reloj },
 			tvRespetarHorarios: { checked: opciones.respetarHorarios !== false },
 			tvProgramaciones: { innerHTML: '', appendChild() {} },
@@ -1898,6 +1899,12 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		await ctx.saveTV();
 		assert.deepEqual(Object.keys(enviado[0].atributos), ['tv']);
 		assert.deepEqual(Object.keys(enviado[0]).sort(), ['atributos', 'promo_en_tv']);
+	});
+
+	test('guarda la velocidad elegida para las cintas', () => {
+		const { ctx, campos } = montar();
+		campos.tvVelocidadCintas.value = 'rapida';
+		assert.equal(ctx.tvDelFormulario().velocidad_cintas, 'rapida');
 	});
 
 	test('no deja encender una cartelera que no enseñaría nada', async () => {
