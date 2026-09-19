@@ -6225,12 +6225,29 @@ async function guardarOrdenCategorias(ids) {
 // iOS ni en Android, y el panel se usa desde el móvil.
 let arrastreCat=null;
 
+// ── QUE SE VEA MOVERSE (18/09/2026) ───────────────────────────
+// Pedido por el usuario: la fila saltaba de hueco en hueco y las demás
+// cambiaban de sitio de golpe. Ahora la agarrada sigue al puntero, un poco
+// levantada; las demás se deslizan para abrirle hueco; y al soltar se asienta
+// en su sitio. El orden y el guardado no cambian: esto es solo cómo se ve.
+//
+// Las posiciones se miden con offsetTop, que no incluye los transform: las
+// filas que se están deslizando llevan uno puesto, y medirlas con
+// getBoundingClientRect haría que el hueco bailara a mitad de transición.
+const DURACION_DESLIZ_CAT = 180;
+const menosMovimiento = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
 // Índice en el que caería la fila arrastrada según la altura del puntero,
 // contando las mitades de las demás filas. Pura, para probarla.
 function posicionDeArrastre(mitades, y) {
   let i=0;
   while(i<mitades.length && y>mitades[i]) i++;
   return i;
+}
+
+// Dónde empieza cada fila dentro de la lista, en coordenadas de la ventana.
+function arribaDeFila(a, f) {
+  return a.lista.getBoundingClientRect().top + f.offsetTop;
 }
 
 function empezarArrastreCat(ev, fila) {
@@ -6241,6 +6258,8 @@ function empezarArrastreCat(ev, fila) {
     fila, lista, pointerId:ev.pointerId, y:ev.clientY,
     antes:[...lista.querySelectorAll('.cat-row')].map(f=>f.dataset.id),
   };
+  // Desde dónde se agarró la fila, para que no salte a ponerse bajo el puntero.
+  arrastreCat.agarre = ev.clientY - (fila.getBoundingClientRect?.().top ?? ev.clientY);
   fila.classList.add('arrastrando');
   lista.classList.add('arrastrando-lista');
   document.addEventListener('pointermove', moverArrastreCat);
@@ -6252,6 +6271,7 @@ function empezarArrastreCat(ev, fila) {
   // puesto y sin escuchas: el arrastre quedaba abierto y no se podía volver a
   // arrastrar hasta recargar. Visto en el navegador.
   try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch {}
+  seguirPunteroCat();
   autoDesplazarArrastreCat();
 }
 
@@ -6260,10 +6280,37 @@ function moverArrastreCat(ev) {
   if(!a || ev.pointerId!==a.pointerId) return;
   a.y=ev.clientY;
   const otras=[...a.lista.querySelectorAll('.cat-row')].filter(f=>f!==a.fila);
-  const mitades=otras.map(f=>{ const r=f.getBoundingClientRect(); return r.top+r.height/2; });
+  const mitades=otras.map(f=>arribaDeFila(a, f)+f.offsetHeight/2);
   const i=posicionDeArrastre(mitades, a.y);
   const referencia=otras[i]||null;
-  if(a.fila.nextElementSibling!==referencia) a.lista.insertBefore(a.fila, referencia);
+  if(a.fila.nextElementSibling!==referencia) {
+    // FLIP: se apunta dónde SE VE cada una —con getBoundingClientRect, que sí
+    // cuenta el transform de una que ya se estaba deslizando—, se mueve la
+    // fila en el DOM, y las que cambiaron de sitio arrancan desde ahí y se
+    // deslizan a su hueco nuevo. Así una que cambia dos veces seguidas no brinca.
+    const arribaLista=a.lista.getBoundingClientRect().top;
+    const antes=new Map(otras.map(f=>[f, f.getBoundingClientRect().top-arribaLista]));
+    a.lista.insertBefore(a.fila, referencia);
+    if(!menosMovimiento()) for(const f of otras) {
+      const salto=Math.round(antes.get(f)-f.offsetTop);
+      if(!salto) continue;
+      f.style.transition='none';
+      f.style.transform=`translateY(${salto}px)`;
+      void f.offsetHeight;   // que el navegador pinte el punto de partida
+      f.style.transition=`transform ${DURACION_DESLIZ_CAT}ms ease`;
+      f.style.transform='';
+    }
+  }
+  seguirPunteroCat();
+}
+
+// La fila agarrada se pinta bajo el puntero, aunque su hueco en la lista sea
+// otro: el hueco manda en el orden, el transform solo en lo que se ve.
+function seguirPunteroCat() {
+  const a=arrastreCat; if(!a || !a.fila.style) return;
+  const dy = a.y - a.agarre - arribaDeFila(a, a.fila);
+  a.fila.style.transition='none';
+  a.fila.style.transform=`translateY(${dy}px) scale(1.02)`;
 }
 
 // Cerca del borde de la ventana la página se desplaza sola: la lista no cabe en
@@ -6280,13 +6327,24 @@ function terminarArrastreCat() {
   const a=arrastreCat; if(!a) return null;
   arrastreCat=null;
   cancelAnimationFrame(a.frame);
-  a.fila.classList.remove('arrastrando');
   a.lista.classList.remove('arrastrando-lista');
   document.removeEventListener('pointermove', moverArrastreCat);
   document.removeEventListener('pointerup', soltarArrastreCat);
   document.removeEventListener('pointercancel', cancelarArrastreCat);
   document.removeEventListener('keydown', teclaArrastreCat);
+  asentarFilaCat(a.fila);
   return a;
+}
+
+// Al soltar, la fila baja de donde está el puntero a su hueco, en vez de
+// aparecer allí de golpe; y la sombra de "levantada" se va al llegar.
+function asentarFilaCat(fila) {
+  if(!fila.style) { fila.classList.remove('arrastrando'); return; }
+  const limpiar=()=>{ fila.classList.remove('arrastrando'); fila.style.transition=''; fila.style.transform=''; };
+  if(menosMovimiento()) return limpiar();
+  fila.style.transition=`transform ${DURACION_DESLIZ_CAT}ms ease`;
+  fila.style.transform='';
+  setTimeout(limpiar, DURACION_DESLIZ_CAT);
 }
 
 async function soltarArrastreCat(ev) {
@@ -6294,6 +6352,9 @@ async function soltarArrastreCat(ev) {
   const a=terminarArrastreCat();
   const ahora=[...a.lista.querySelectorAll('.cat-row')].map(f=>f.dataset.id);
   if(ahora.join()===a.antes.join()) return;
+  // Se espera a que la fila se asiente antes de guardar: guardar repinta la
+  // lista entera, y la fila desaparecería a mitad de la transición.
+  if(!menosMovimiento()) await new Promise(r=>setTimeout(r, DURACION_DESLIZ_CAT));
   await guardarOrdenCategorias(ahora);
 }
 
