@@ -626,8 +626,25 @@ Tiene que decir `no-cache`. Mientras diga `max-age=14400`, sigue sin aplicarse.
   `🛑 panel parado en 3 ms`. **Para comprobar un cambio en la parada hacen
   falta dos despliegues.**
 - **Una subida de video de más de 8 s sigue cortándose** si coincide con un
-  despliegue. Para que sobreviva habría que alargar el plazo de parada del
-  servicio en Dokploy (Swarm da 10 s) y `PARADA_MAX_MS` con él. No urgente.
+  despliegue. **En curso desde el 18/09/2026.** Paso 1, en el código: la parada
+  ya detiene también la cola de IA y el limpiador (antes solo la de video), que
+  es lo que hace seguro que el panel viejo siga vivo minutos junto al nuevo.
+  Paso 2, en Dokploy, **después** de desplegar el paso 1 y en este orden:
+  1. Orden de actualización **«start-first»**: arranca el contenedor nuevo
+     antes de parar el viejo. **Sin esto, no seguir**: alargar el plazo sería
+     tener el panel caído hasta 16 minutos en cada despliegue. Requiere que el
+     servicio no publique puertos en el anfitrión (con Traefik delante no
+     debería); mirarlo antes.
+  2. **Stop grace period** del servicio a **16 minutos**: el plazo que Docker da
+     antes del SIGKILL.
+  3. `PARADA_MAX_MS=930000` (15,5 min) en las variables de entorno: por debajo
+     del de Docker, para salir ordenadamente antes del SIGKILL, y por encima de
+     `SUBIDA_MAX_MS` (900 s), que es lo más que puede durar una subida.
+
+  Sin subidas en curso el panel sale en milisegundos igual que ahora: el plazo
+  largo solo se usa si hay algo que esperar. Para comprobarlo: **dos
+  despliegues** (el que se para es el contenedor anterior) y
+  `docker service inspect $(docker service ls -q --filter name=adminvmenus) --format 'puertos={{json .Endpoint.Ports}} | actualizar={{json .Spec.UpdateConfig}} | gracia={{.Spec.TaskTemplate.ContainerSpec.StopGracePeriod}}'`.
 - **La salida por IPv6 no respondió** a Docker Hub (`i/o timeout` hacia una
   dirección `2600:…`) al intentar bajar una imagen. Hoy no rompe nada; mirar si
   el día que un despliegue falle bajando imágenes.

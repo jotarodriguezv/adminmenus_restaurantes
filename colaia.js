@@ -172,28 +172,44 @@ async function pasada(supabase) {
   return recogidas;
 }
 
-function arrancar(supabase) {
-  let ocupado = false;
+let temporizador = null;
+let vueltaEnCurso = null;   // la vuelta que está corriendo, para esperarla al parar
 
+function arrancar(supabase) {
   const tick = async () => {
-    // El flag es suyo, no el de la conversión: las dos colas avanzan a la vez.
-    if (ocupado) return;
-    ocupado = true;
-    try {
-      await cupo.rescatarReservas(supabase);
-      await pasada(supabase);
-    } catch (e) {
-      console.error('⚠️  error en la cola de IA:', e.message);
-    } finally {
-      ocupado = false;
-    }
+    // La marca es suya, no la de la conversión: las dos colas avanzan a la vez.
+    if (vueltaEnCurso) return;
+    vueltaEnCurso = (async () => {
+      try {
+        await cupo.rescatarReservas(supabase);
+        await pasada(supabase);
+      } catch (e) {
+        console.error('⚠️  error en la cola de IA:', e.message);
+      }
+    })();
+    await vueltaEnCurso;
+    vueltaEnCurso = null;
   };
 
-  setInterval(tick, INTERVALO_MS).unref();
+  temporizador = setInterval(tick, INTERVALO_MS);
+  temporizador.unref();
   console.log('✨ cola de generación con IA en marcha');
 }
 
+// ── PARAR SIN DEJAR A DOS RECOGIENDO LO MISMO ─────────────────
+// Hasta el 18/09/2026 la parada no tocaba esta cola: el panel moría en 8 s y
+// con él la cola. Para que una subida larga sobreviva a un despliegue, el panel
+// viejo se queda vivo varios minutos mientras el nuevo ya arrancó, y los dos
+// estarían recogiendo las mismas generaciones: cada uno descargaría el video y
+// lo encolaría, y el plato acabaría con dos. Así que se deja de dar vueltas y
+// se espera a que termine la que esté a medias —que puede estar descargando—.
+// Lo que quede 'generando' lo recoge el panel nuevo.
+async function detener() {
+  if (temporizador) { clearInterval(temporizador); temporizador = null; }
+  if (vueltaEnCurso) await vueltaEnCurso;
+}
+
 module.exports = {
-  arrancar, lanzar, pasada, recoger, descargar,
+  arrancar, detener, lanzar, pasada, recoger, descargar,
   INTERVALO_MS, MAX_DESCARGA_MB, LIMITE_GENERACION_MS,
 };
