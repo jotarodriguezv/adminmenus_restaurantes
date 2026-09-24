@@ -935,6 +935,23 @@
 									</div>
 								</div>
 
+								<!-- 24/09/2026: un solo interruptor para toda la carta, no uno por
+								     plato. El número de personas se escribe en la ficha de cada
+								     plato (opcional), pero decidir si se enseña es del restaurante
+								     entero — con muchos platos, marcarlo uno por uno cansaría para
+								     algo que casi siempre se quiere igual en toda la carta. -->
+								<div class="form-check" style="margin-bottom:16px">
+									<label class="toggle"><input type="checkbox" id="tvMostrarPersonas" onchange="tvAlternarMostrarPersonas()"><span class="toggle-slider"></span></label>
+									<span style="font-size:13px;color:var(--text-muted)">Mostrar para cuántas personas alcanza cada plato</span>
+									<div style="font-size:11px;color:var(--text-dim);margin:6px 0 0 42px;line-height:1.5">
+										Se enseña debajo del precio, en los platos cuya ficha tenga más de una persona. El número se escribe en Productos, al editar cada plato.
+									</div>
+								</div>
+								<div class="form-check" id="tvMostrarPersonasUnoFila" style="margin-bottom:16px">
+									<label class="toggle"><input type="checkbox" id="tvMostrarPersonasUno"><span class="toggle-slider"></span></label>
+									<span style="font-size:13px;color:var(--text-muted)">Mostrarlo también en los platos de una sola persona</span>
+								</div>
+
 							<div class="form-check" style="margin-bottom:14px">
 								<label class="toggle"><input type="checkbox" id="tvMostrarCategoria" onchange="tvAlternarCategoria()"><span class="toggle-slider"></span></label>
 								<span style="font-size:13px;color:var(--text-muted)">Mostrar la categoría en cada plato</span>
@@ -1941,23 +1958,8 @@
 					</div>
 					<div class="form-group producto-personas">
 						<label for="editPersonas" class="form-label">Para cuántas personas <span style="color:var(--text-dim)">(opcional)</span></label>
-						<div class="form-ayuda">Puedes escribir el número de personas para las que alcanza este plato, con el fin de que las personas lo sepan con exactitud.</div>
+						<div class="form-ayuda">Puedes escribir el número de personas para las que alcanza este plato, con el fin de que las personas lo sepan con exactitud. Si se enseña en la pantalla de TV se activa en esa pestaña, para toda la carta a la vez.</div>
 						<input type="number" class="form-input" id="editPersonas" min="1" step="1" style="max-width:120px">
-						<!-- Antes se enseñaba solo por el valor guardado (a partir de 2, sin
-						     preguntar). Pedido el 24/09/2026: quien administra decide si se
-						     enseña, y también si se enseña con 1 —un plato individual que se
-						     quiera aclarar igual—. Los dos son columnas propias
-						     (mostrar_personas, mostrar_personas_uno) y no van dentro de
-						     'atributos' porque tv.html las pide por su nombre, sin poder leer
-						     ese JSON (docs/pantalla-tv.md §13). -->
-						<div class="form-check" id="filaMostrarPersonas" style="margin-top:10px">
-							<label class="toggle"><input type="checkbox" id="editMostrarPersonas" checked><span class="toggle-slider"></span></label>
-							<span style="font-size:12px;color:var(--text-muted)">Mostrar esta información en la pantalla de TV</span>
-						</div>
-						<div class="form-check" id="filaMostrarPersonasUno" style="margin-top:6px;margin-bottom:0">
-							<label class="toggle"><input type="checkbox" id="editMostrarPersonasUno"><span class="toggle-slider"></span></label>
-							<span style="font-size:12px;color:var(--text-muted)">Mostrarla también cuando el plato es para una sola persona</span>
-						</div>
 					</div>
 					<div class="form-group producto-descripcion-corta">
 						<label for="editDescAvanzada" class="form-label">Descripción corta <span style="color:var(--text-dim)">(opcional)</span></label>
@@ -3164,8 +3166,6 @@ function openNewProductModal() {
 	document.getElementById('editNombre').value='';
 	document.getElementById('editPrecioNum').value='';
 	document.getElementById('editPersonas').value='';
-	document.getElementById('editMostrarPersonas').checked=true;
-	document.getElementById('editMostrarPersonasUno').checked=false;
 	document.getElementById('editPrecioGratis').checked=false;
 	document.getElementById('editSinFoto').checked=false;
 	actualizarPrecioGratis();
@@ -3419,8 +3419,6 @@ function openEditProductModal(id) {
 	// 1 no se escribe: es el valor por defecto y dejarlo vacío es lo que hace
 	// que la ficha se lea "para una persona" sin decirlo.
 	document.getElementById('editPersonas').value=(p.personas && p.personas>1) ? p.personas : '';
-	document.getElementById('editMostrarPersonas').checked=p.mostrar_personas !== false;
-	document.getElementById('editMostrarPersonasUno').checked=p.mostrar_personas_uno === true;
 	document.getElementById('editPrecioGratis').checked=!!p.atributos?.precio_gratis;
 	document.getElementById('editSinFoto').checked=p.atributos?.sin_foto === true;
 	actualizarPrecioGratis();
@@ -5175,8 +5173,6 @@ function firmaProducto() {
 		document.getElementById('editDisponible')?.checked,
 		document.getElementById('editPrecioGratis')?.checked,
 		document.getElementById('editSinFoto')?.checked,
-		document.getElementById('editMostrarPersonas')?.checked,
-		document.getElementById('editMostrarPersonasUno')?.checked,
 		state.pendingImgUrl ?? null,
 		state.extraImgs || [],
 		state.prodFiltros || [],
@@ -5474,8 +5470,6 @@ async function saveProduct() {
 		precio:precioTexto,
 		precio_numerico:precioNum,
 		personas:personas,
-		mostrar_personas:document.getElementById('editMostrarPersonas').checked,
-		mostrar_personas_uno:document.getElementById('editMostrarPersonasUno').checked,
 		descripcion:document.getElementById('editDesc').value.trim()||null,
 		descripcion_avanzada:document.getElementById('editDescAvanzada').value.trim()||null,
 		disponible:document.getElementById('editDisponible').checked,

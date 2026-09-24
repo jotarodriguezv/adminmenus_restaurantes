@@ -24,7 +24,16 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          cintas: [], velocidad_cintas: 'normal', reloj: false,
                          // Por defecto SÍ, que es lo que hacía la cartelera
                          // antes de existir esta clave.
-                         respetar_horarios: true };
+                         respetar_horarios: true,
+                         // 24/09/2026 (sql/28): antes eran dos columnas por plato
+                         // (mostrar_personas, mostrar_personas_uno en 'productos'),
+                         // retiradas el mismo día sin que ningún restaurante llegara
+                         // a guardarlas: pedirle a un negocio con muchos platos que
+                         // marque uno por uno es justo el trabajo que esto evita.
+                         // 'mostrar_personas' en true porque ya se enseñaba antes de
+                         // existir esta clave; 'mostrar_personas_uno' en false: 1 es
+                         // el caso normal de casi toda la carta.
+                         mostrar_personas: true, mostrar_personas_uno: false };
 
 let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
 let tvFiltro = 'all';   // categoría que se está mirando en el selector
@@ -53,6 +62,9 @@ function renderTV() {
   document.getElementById('tvTema').value = cfg.tema === 'carta' ? 'carta' : 'oscuro';
   document.getElementById('tvMostrarDescripcion').checked = !!cfg.mostrar_descripcion;
   document.getElementById('tvListaSinFoto').checked = !!cfg.mostrar_sin_foto_lista;
+  document.getElementById('tvMostrarPersonas').checked = cfg.mostrar_personas !== false;
+  document.getElementById('tvMostrarPersonasUno').checked = !!cfg.mostrar_personas_uno;
+  tvAlternarMostrarPersonas();
   const cintas = Array.isArray(cfg.cintas) ? cfg.cintas : [];
   for (let i = 1; i <= 5; i++) {
     const cinta = cintas[i - 1] || {};
@@ -143,6 +155,16 @@ function tvAlternarDescripcion() {
   const control = document.getElementById('tvMostrarDescripcion');
   control.disabled = !una;
   fila.style.opacity = una ? '1' : '.5';
+}
+
+// El segundo interruptor solo tiene sentido con el primero encendido: con la
+// nota apagada del todo, decidir si se ve "también con una" no significa nada.
+function tvAlternarMostrarPersonas() {
+  const on = document.getElementById('tvMostrarPersonas').checked;
+  const fila = document.getElementById('tvMostrarPersonasUnoFila');
+  const control = document.getElementById('tvMostrarPersonasUno');
+  control.disabled = !on;
+  fila.style.opacity = on ? '1' : '.5';
 }
 
 function tvAlternarActiva() {
@@ -1096,6 +1118,8 @@ function tvDelFormulario() {
     // ignora mientras no haya un solo plato protagonista.
 			mostrar_descripcion: document.getElementById('tvMostrarDescripcion').checked,
 			mostrar_sin_foto_lista: document.getElementById('tvListaSinFoto').checked,
+			mostrar_personas: document.getElementById('tvMostrarPersonas').checked,
+			mostrar_personas_uno: document.getElementById('tvMostrarPersonasUno').checked,
     cintas: tvCintasDelFormulario(),
     velocidad_cintas: document.getElementById('tvVelocidadCintas').value,
     reloj: document.getElementById('tvReloj').checked,

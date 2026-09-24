@@ -1766,6 +1766,9 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvMostrarDescripcion: { checked: !!opciones.mostrarDescripcion },
 			tvDescripcionFila: { style: {} },
 			tvListaSinFoto: { checked: !!opciones.listaSinFoto },
+			tvMostrarPersonas: { checked: opciones.mostrarPersonas !== false },
+			tvMostrarPersonasUno: { checked: !!opciones.mostrarPersonasUno, disabled: false },
+			tvMostrarPersonasUnoFila: { style: {} },
 			tvCinta1: { value: '' }, tvCintaPos1: { value: 'arriba' },
 			tvCinta2: { value: '' }, tvCintaPos2: { value: 'arriba' },
 			tvCinta3: { value: '' }, tvCintaPos3: { value: 'arriba' },
@@ -1912,6 +1915,40 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const { ctx, campos } = montar();
 		campos.tvListaSinFoto.checked = true;
 		assert.equal(ctx.tvDelFormulario().mostrar_sin_foto_lista, true);
+	});
+
+	// 24/09/2026 (sql/28): es un interruptor del restaurante, no de cada plato.
+	// El número (personas) se sigue escribiendo por plato, en Productos; lo que
+	// se decide aquí es si esa nota se enseña, para toda la carta a la vez.
+	test('guarda si se enseña para cuántas personas, y si se enseña con una sola', () => {
+		const { ctx, campos } = montar();
+		campos.tvMostrarPersonas.checked = false;
+		campos.tvMostrarPersonasUno.checked = true;
+		const guardado = ctx.tvDelFormulario();
+		assert.equal(guardado.mostrar_personas, false);
+		assert.equal(guardado.mostrar_personas_uno, true);
+	});
+
+	test('lo guardado se relee en las dos casillas', () => {
+		const { ctx, campos } = montar({ guardado: { mostrar_personas: false, mostrar_personas_uno: true } });
+		ctx.renderTV();
+		assert.equal(campos.tvMostrarPersonas.checked, false);
+		assert.equal(campos.tvMostrarPersonasUno.checked, true);
+	});
+
+	test('sin nada guardado, se enseña a partir de dos y no con una sola', () => {
+		// Son los valores por defecto: lo que ya hacía la cartelera antes de que
+		// existiera el interruptor, para que nadie note un cambio sin guardar.
+		const { ctx, campos } = montar();
+		ctx.renderTV();
+		assert.equal(campos.tvMostrarPersonas.checked, true);
+		assert.equal(campos.tvMostrarPersonasUno.checked, false);
+	});
+
+	test('con el interruptor general apagado, el de "también con una" se deshabilita', () => {
+		const { ctx, campos } = montar({ guardado: { mostrar_personas: false } });
+		ctx.renderTV();
+		assert.equal(campos.tvMostrarPersonasUno.disabled, true);
 	});
 
 	test('no deja encender una cartelera que no enseñaría nada', async () => {
@@ -4699,8 +4736,6 @@ describe('el primer día de un restaurante', () => {
 			'«Para cuántas personas» debe ir después de la descripción del producto y antes de la corta');
 		const personas = html.slice(idxPersonas, idxDescCorta);
 		assert.match(personas, /id="editPersonas"/);
-		assert.match(personas, /id="editMostrarPersonas"/);
-		assert.match(personas, /id="editMostrarPersonasUno"/);
 
 		assert.match(html, /Imágenes adicionales <span>\(opcional · máx\. 4\)<\/span><\/summary>/);
 		assert.doesNotMatch(html, /placeholder="22000"/);
@@ -7549,8 +7584,8 @@ describe('lo que cada plato tiene marcado, visto desde la lista', () => {
 		Array, Object, String, Number, Set, document: { createElement: () => ({ appendChild() {}, style: {} }) },
 	});
 
-	const plato = (filtros, pers, personas, extra) => ({
-		id: 'p1', nombre: 'Arepa', ...(personas ? { personas } : {}), ...(extra || {}),
+	const plato = (filtros, pers, personas) => ({
+		id: 'p1', nombre: 'Arepa', ...(personas ? { personas } : {}),
 		atributos: { ...(filtros ? { filtros } : {}), ...(pers ? { personalizacion: pers } : {}) },
 	});
 
@@ -7627,24 +7662,6 @@ describe('lo que cada plato tiene marcado, visto desde la lista', () => {
 		assert.equal(marcas[0].titulo, 'Alcanza para 3 personas');
 	});
 
-	test('con el interruptor apagado no se marca, aunque sean varias', () => {
-		// 24/09/2026: antes era automático a partir de 2 y no se podía apagar.
-		const ctx = reglas({ nav: 'topnav' });
-		assert.deepEqual([...ctx.marcasDePlato(plato(null, null, 4, { mostrar_personas: false }))], []);
-	});
-
-	test('con "también con una" se marca en singular', () => {
-		const ctx = reglas({ nav: 'topnav' });
-		const marcas = [...ctx.marcasDePlato(plato(null, null, 1, { mostrar_personas_uno: true }))];
-		assert.deepEqual(marcas.map(m => m.texto), ['👥 1 persona']);
-		assert.equal(marcas[0].titulo, 'Alcanza para 1 persona');
-	});
-
-	test('el interruptor general manda por encima del de "también con una"', () => {
-		const ctx = reglas({ nav: 'topnav' });
-		const conflicto = plato(null, null, 1, { mostrar_personas: false, mostrar_personas_uno: true });
-		assert.deepEqual([...ctx.marcasDePlato(conflicto)], []);
-	});
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -8141,8 +8158,6 @@ describe('guardar con el video en marcha · guarda, pero no saca de la ficha', (
 			editNombre:       { value: 'Croquetas' },
 			editPrecioNum:    { value: '24000' },
 			editPersonas:     { value: '' },
-			editMostrarPersonas:    { checked: true },
-			editMostrarPersonasUno: { checked: false },
 			editDesc:         { value: '' },
 			editDescAvanzada: { value: '' },
 			editDisponible:   { checked: true },
