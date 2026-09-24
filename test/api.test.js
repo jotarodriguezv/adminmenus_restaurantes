@@ -885,6 +885,51 @@ describe('POST /api/restaurantes · la dirección repetida se explica', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('POST /api/restaurantes · plan y modelo al crear', () => {
+	// Antes, un restaurante sin "copiar apariencia" nacía sin 'plan' ni 'nav' en
+	// atributos, y planDe() / el modelo por defecto de la carta decidían en
+	// silencio (Fotos + Topnav) hasta que alguien lo cambiara a mano en
+	// Superadmin. El panel manda los dos desde el formulario de creación.
+	const conExito = () => S.conTabla(st =>
+		st.tabla === 'restaurantes' && st.op === 'insert'
+			? { data: { id: IDS.restaurante }, error: null }
+			: { data: { id: IDS.restaurante }, error: null });
+
+	test('guarda el plan y el modelo elegidos', async () => {
+		conExito();
+		await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Nueva', slug: 'nueva', pin: '1234', plan: 'video', nav: 'vertical' }, tokenAdmin);
+		const guardado = S.ultimaEscritura('restaurantes');
+		assert.equal(guardado.atributos.plan, 'video');
+		assert.equal(guardado.atributos.nav, 'vertical');
+	});
+
+	test('un plan que no existe no se guarda, y sin ninguno de los dos el restaurante nace sin ellos', async () => {
+		conExito();
+		await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Nueva', slug: 'nueva2', pin: '1234', plan: 'inventado' }, tokenAdmin);
+		const guardado = S.ultimaEscritura('restaurantes');
+		assert.equal('plan' in guardado.atributos, false);
+		assert.equal('nav' in guardado.atributos, false);
+	});
+
+	test('se combina con "copiar apariencia": el modelo clonado se pisa con el elegido aquí', async () => {
+		S.conTabla(st => {
+			if (st.tabla === 'restaurantes' && st.op === 'select') {
+				return { data: { atributos: { nav: 'sidebar', estilo: 'clasico' } }, error: null };
+			}
+			return { data: { id: IDS.restaurante }, error: null };
+		});
+		await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Nueva', slug: 'nueva3', pin: '1234', clonar_de: IDS.restaurante, plan: 'video', nav: 'video' }, tokenAdmin);
+		const guardado = S.ultimaEscritura('restaurantes');
+		assert.equal(guardado.atributos.nav, 'video', 'el nav elegido en el formulario gana sobre el clonado');
+		assert.equal(guardado.atributos.estilo, 'clasico', 'lo demás clonado se conserva');
+		assert.equal(guardado.atributos.plan, 'video');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('POST /api/upload · el contenido, no solo el nombre', () => {
 	// Salió de la revisión de seguridad del 06/09/2026, probando el servidor de
 	// verdad: la extensión se validaba bien desde hacía tiempo, pero NADA
