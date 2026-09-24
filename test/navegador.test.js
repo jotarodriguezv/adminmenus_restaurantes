@@ -6762,15 +6762,14 @@ describe('el formulario de crear restaurante va plegado', () => {
 	// Antes solo se podían elegir colores y "copiar apariencia de"; sin copiar,
 	// el restaurante nacía con el plan y el modelo por defecto (Fotos + Topnav)
 	// sin ninguna forma de cambiarlo desde aquí.
-	test('trae Plan y Modelo de página, con las mismas opciones que Superadmin', () => {
+	test('trae Plan y Modelo de página; el Modelo se puebla por JS, filtrado', () => {
 		const i = src.indexOf('id="nuevoRestoPanel"');
 		const f = src.indexOf('</details>', i);
 		const cuerpo = src.slice(i, f);
-		assert.ok(cuerpo.includes('id="newRestoPlan"'));
-		assert.ok(cuerpo.includes('id="newRestoModelo"'));
-		for (const modelo of ['topnav', 'sidebar', 'explorar', 'video', 'vertical']) {
-			assert.ok(cuerpo.includes(`value="${modelo}"`), `falta la opción ${modelo}`);
-		}
+		assert.match(cuerpo, /id="newRestoPlan" onchange="filtrarModeloNuevoResto\(\)"/);
+		assert.match(cuerpo, /<option value="fotos">Fotos<\/option>/);
+		assert.match(cuerpo, /<option value="video">Video<\/option>/);
+		assert.match(cuerpo, /<select class="form-select" id="newRestoModelo"><\/select>/);
 	});
 
 	test('al crear, manda el plan y el modelo elegidos', () => {
@@ -6779,12 +6778,97 @@ describe('el formulario de crear restaurante va plegado', () => {
 		assert.match(crear, /getElementById\('newRestoModelo'\)\.value/);
 		assert.match(crear, /plan,nav:modelo/);
 	});
+});
 
-	test('al clonar, el modelo previsto refleja el "nav" que el servidor va a copiar', () => {
-		// ATRIBUTOS_CLONABLES incluye 'nav', así que el selector no puede quedarse
-		// mostrando uno que el guardado real va a pisar.
-		const clon = src.match(/function aplicarClonPreview\(id\) \{[\s\S]*?\n\}/)[0];
-		assert.match(clon, /getElementById\('newRestoModelo'\)\.value = origen\.atributos\?\.nav \|\| MODELO_POR_DEFECTO/);
+// ═══════════════════════════════════════════════════════════════
+describe('filtrarModeloNuevoResto · un restaurante de Fotos no puede quedar con un modelo de Video, ni al revés', () => {
+	// docs/planesymodelos.md §3: son cuadrículas y proporciones distintas. A
+	// diferencia de Superadmin —que solo avisa, porque ahí puede haber un
+	// restaurante ya existente con un modelo que su plan actual ya no trae—,
+	// aquí no hay nada que preservar: el restaurante todavía no existe.
+	const montar = (plan, modelo) => {
+		const campos = {
+			newRestoPlan: { value: plan },
+			newRestoModelo: { value: modelo, innerHTML: '' },
+		};
+		const ctx = cargar('index.html', [
+			['const TODO_INCLUIDO = {', 'function renderPlanResumen'],
+			['const DESCRIPCION_MODELO', 'async function crearRestaurante'],
+		], { document: { getElementById: id => campos[id] } });
+		return { ctx, campos };
+	};
+
+	test('con el plan Fotos, solo ofrece Topnav, Sidebar y Explorar', () => {
+		const { ctx, campos } = montar('fotos', 'topnav');
+		ctx.filtrarModeloNuevoResto();
+		for (const m of ['topnav', 'sidebar', 'explorar'])
+			assert.match(campos.newRestoModelo.innerHTML, new RegExp(`value="${m}"`), m);
+		for (const m of ['video', 'vertical'])
+			assert.doesNotMatch(campos.newRestoModelo.innerHTML, new RegExp(`value="${m}"`), m);
+	});
+
+	test('con el plan Video, solo ofrece Video horizontal y Vertical — y con ese nombre', () => {
+		const { ctx, campos } = montar('video', 'video');
+		ctx.filtrarModeloNuevoResto();
+		for (const m of ['video', 'vertical'])
+			assert.match(campos.newRestoModelo.innerHTML, new RegExp(`value="${m}"`), m);
+		for (const m of ['topnav', 'sidebar', 'explorar'])
+			assert.doesNotMatch(campos.newRestoModelo.innerHTML, new RegExp(`value="${m}"`), m);
+		assert.match(campos.newRestoModelo.innerHTML, /Video horizontal/);
+	});
+
+	test('si el modelo puesto sigue valiendo en el plan elegido, se conserva', () => {
+		const { ctx, campos } = montar('fotos', 'sidebar');
+		ctx.filtrarModeloNuevoResto();
+		assert.equal(campos.newRestoModelo.value, 'sidebar');
+	});
+
+	test('si deja de valer al cambiar de plan, cae al primero del plan nuevo', () => {
+		const { ctx, campos } = montar('fotos', 'explorar');
+		campos.newRestoPlan.value = 'video';
+		ctx.filtrarModeloNuevoResto();
+		assert.equal(campos.newRestoModelo.value, 'video');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('aplicarClonPreview · el modelo clonado respeta el plan del origen', () => {
+	// 'nav' va en ATRIBUTOS_CLONABLES y el servidor lo copia; sin ajustar el
+	// Plan del selector, un modelo de Video clonado con el Plan en Fotos (el
+	// que trae por defecto) no tendría ni la opción para mostrarse.
+	const montar = origen => {
+		const campos = {
+			newRestoColor1: { value: '' }, prevColor1: { value: '' },
+			newRestoColor2: { value: '' }, prevColor2: { value: '' },
+			newRestoPlan: { value: 'fotos' },
+			newRestoModelo: { value: 'topnav', innerHTML: '' },
+		};
+		const ctx = cargar('index.html', [
+			['const TODO_INCLUIDO = {', 'function renderPlanResumen'],
+			['const DESCRIPCION_MODELO', 'async function crearRestaurante'],
+		], {
+			document: { getElementById: id => campos[id] },
+			state: { listaRestos: [origen] },
+			hex6: (v, d) => v || d,
+		});
+		return { ctx, campos };
+	};
+
+	test('clonar un restaurante de plan Video pone el Plan en Video y el modelo real', () => {
+		const { ctx, campos } = montar({
+			id: 'r1', color_primario: '#111111', color_secundario: '#222222',
+			atributos: { nav: 'vertical', plan: 'video' },
+		});
+		ctx.aplicarClonPreview('r1');
+		assert.equal(campos.newRestoPlan.value, 'video');
+		assert.equal(campos.newRestoModelo.value, 'vertical');
+	});
+
+	test('clonar un restaurante de Fotos pone el Plan en Fotos', () => {
+		const { ctx, campos } = montar({ id: 'r2', atributos: { nav: 'sidebar' } });
+		ctx.aplicarClonPreview('r2');
+		assert.equal(campos.newRestoPlan.value, 'fotos');
+		assert.equal(campos.newRestoModelo.value, 'sidebar');
 	});
 });
 

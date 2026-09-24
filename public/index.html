@@ -109,24 +109,24 @@
 					<!-- Sin esto, un restaurante sin "copiar apariencia" nacía con el plan
 					     y el modelo que planDe()/MODELO_POR_DEFECTO eligen en silencio
 					     (Fotos + Topnav), y para ponerle otro había que ir después a
-					     Superadmin. Mismas opciones que ahí (apPlan y apNavModelo). -->
+					     Superadmin.
+					     El Modelo se puebla por JS (filtrarModeloNuevoResto(), junto a
+					     crearRestaurante) con SOLO los modelos del plan elegido: un
+					     restaurante de Fotos no puede quedar con un modelo de Video ni al
+					     revés (docs/planesymodelos.md §3), y aquí -a diferencia de
+					     Superadmin, que solo avisa- no hay nada de un restaurante ya
+					     existente que preservar, así que se filtra de verdad. -->
 					<div class="form-row" style="margin-bottom:16px;">
 						<div class="form-group" style="margin-bottom:0">
 							<label for="newRestoPlan" class="form-label">Plan</label>
-							<select class="form-select" id="newRestoPlan">
+							<select class="form-select" id="newRestoPlan" onchange="filtrarModeloNuevoResto()">
 								<option value="fotos">Fotos</option>
 								<option value="video">Video</option>
 							</select>
 						</div>
 						<div class="form-group" style="margin-bottom:0">
 							<label for="newRestoModelo" class="form-label">Modelo de página</label>
-							<select class="form-select" id="newRestoModelo">
-								<option value="topnav">Topnav — header centrado + menú horizontal</option>
-								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
-								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
-								<option value="video">Video — una columna, un plato por fila</option>
-								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
-							</select>
+							<select class="form-select" id="newRestoModelo"></select>
 						</div>
 					</div>
 					<div class="color-row" style="margin-bottom:16px;">
@@ -364,7 +364,7 @@
 								<option value="topnav">Topnav — header centrado + menú horizontal</option>
 								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
 								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
-								<option value="video">Video — una columna, un plato por fila</option>
+								<option value="video">Video horizontal — una columna, un plato por fila</option>
 								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
 							</select>
 						</div>
@@ -6927,7 +6927,7 @@ function urlPublica(restaurante, modo) {
 }
 
 // ── PLAN EN APARIENCIA ────────────────────────────────────────
-const ETIQUETA_MODELO = { topnav: 'Topnav', sidebar: 'Sidebar', explorar: 'Explorar', video: 'Video', vertical: 'Vertical' };
+const ETIQUETA_MODELO = { topnav: 'Topnav', sidebar: 'Sidebar', explorar: 'Explorar', video: 'Video horizontal', vertical: 'Vertical' };
 
 // Se pasa por aquí y no se lee la tabla directamente. Un modelo sin etiqueta
 // salía como "undefined" en el resumen del plan —pasó con 'video', que se
@@ -7821,6 +7821,32 @@ async function toggleSuspension(id, nuevoActivo, nombre) {
   } catch(e) { showToast('Error al cambiar estado','error'); }
 }
 
+// Las mismas 5 opciones que apNavModelo en Superadmin (con el mismo texto),
+// pero aquí viven en JS porque este selector se reconstruye entero cada vez
+// que cambia el Plan: ver filtrarModeloNuevoResto().
+const DESCRIPCION_MODELO = {
+  topnav: 'Topnav — header centrado + menú horizontal',
+  sidebar: 'Sidebar — header fijo + menú lateral',
+  explorar: 'Explorar — portada, búsqueda y filtros',
+  video: 'Video horizontal — una columna, un plato por fila',
+  vertical: 'Vertical — pantalla completa, se desliza como reels',
+};
+
+// Un restaurante de Fotos no puede quedar con un modelo de Video ni al revés
+// (docs/planesymodelos.md §3: son cuadrículas y proporciones distintas), así
+// que el selector solo ofrece los del plan elegido. Se reconstruye entero en
+// vez de esconder <option> para que, si el modelo puesto ya no vale, caiga al
+// primero del plan nuevo en vez de dejar una opción oculta seleccionada.
+function filtrarModeloNuevoResto() {
+  const planSel = document.getElementById('newRestoPlan');
+  const modeloSel = document.getElementById('newRestoModelo');
+  if (!planSel || !modeloSel) return;
+  const modelos = (PLANES[planSel.value] || PLANES[PLAN_POR_DEFECTO]).modelos;
+  const actual = modeloSel.value;
+  modeloSel.innerHTML = modelos.map(m => `<option value="${m}">${DESCRIPCION_MODELO[m] || m}</option>`).join('');
+  modeloSel.value = modelos.includes(actual) ? actual : modelos[0];
+}
+
 function aplicarClonPreview(id) {
   if (!id) return;
   const origen = (state.listaRestos || []).find(r => r.id === id);
@@ -7831,9 +7857,13 @@ function aplicarClonPreview(id) {
   document.getElementById('prevColor1').value = hex6(c1, '#3dd68c');
   document.getElementById('newRestoColor2').value = c2;
   document.getElementById('prevColor2').value = hex6(c2, '#a374af');
-  // 'nav' va en ATRIBUTOS_CLONABLES: el servidor lo copia del origen. Reflejarlo
-  // aquí para que el selector de Modelo no muestre uno que el guardado real pisa.
-  // El plan NO se clona —no está en esa lista—, así que se deja como esté.
+  // 'nav' va en ATRIBUTOS_CLONABLES: el servidor lo copia del origen. El plan
+  // NO —no está en esa lista—, pero aquí se ajusta igual: el modelo clonado
+  // solo puede elegirse si el plan de este selector lo incluye, así que sin
+  // esto un modelo de Video clonado con el Plan en Fotos no tendría ni la
+  // opción para mostrarse.
+  document.getElementById('newRestoPlan').value = nombrePlanDe(origen);
+  filtrarModeloNuevoResto();
   document.getElementById('newRestoModelo').value = origen.atributos?.nav || MODELO_POR_DEFECTO;
 }
 
@@ -7863,7 +7893,7 @@ async function crearRestaurante() {
     document.getElementById('newRestoPin').value='';
     document.getElementById('newRestoClonar').value='';
     document.getElementById('newRestoPlan').value=PLAN_POR_DEFECTO;
-    document.getElementById('newRestoModelo').value=MODELO_POR_DEFECTO;
+    filtrarModeloNuevoResto();
     await cargarListaRestos();
     // Se pliega: lo siguiente es la lista, donde llevarARestauranteNuevo lleva a él.
     document.getElementById('nuevoRestoPanel').open=false;
@@ -8095,6 +8125,7 @@ function habilitarArrastre() {
 }
 
 // ── ARRANQUE ──────────────────────────────────────────────────
+filtrarModeloNuevoResto();
 habilitarArrastre();
 vigilarCambiosApariencia();
 vigilarBordesDeTabs();

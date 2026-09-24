@@ -41,7 +41,7 @@ clientes, y los niveles (sin estadísticas, sin filtros…) se pensarán entonce
 | Plan | Modelos | Subir videos | Destacados, TV, filtros, carrito, QR, estadísticas, horarios | Pie «Hecho con VMenus» |
 |---|---|---|---|---|
 | **Fotos** | Topnav · Sidebar · Explorar | — | ✓ | no sale |
-| **Video** | Video · Vertical | ✓ | ✓ | no sale |
+| **Video** | Video horizontal · Vertical | ✓ | ✓ | no sale |
 
 Un modelo de fotos no sirve para una carta de video ni al revés: las
 cuadrículas y las proporciones son distintas. Todo lo demás son interruptores
