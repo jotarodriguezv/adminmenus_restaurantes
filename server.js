@@ -1650,6 +1650,20 @@ function normalizarPrecio(body) {
   return null;
 }
 
+// Para cuántas personas alcanza el plato. Por defecto 1 —lo que ya es cierto
+// para casi toda la carta—, así que ningún plato existente cambia de
+// significado. Se valida aquí, igual que el precio, para no depender del
+// mensaje crudo de la restricción de la base (sql/26).
+function normalizarPersonas(body) {
+  if (body.personas === undefined || body.personas === null || body.personas === '') return null;
+  // Number() y no parseInt(): parseInt(1.5) da 1 sin quejarse, y eso guardaría
+  // un valor distinto del que se rechazó.
+  const n = Number(body.personas);
+  if (!Number.isInteger(n) || n < 1 || n > 50) return 'Personas inválido';
+  body.personas = n;
+  return null;
+}
+
 // Lo que se puede escribir dentro de "atributos" de un PRODUCTO. Mismo
 // criterio que ya se aplica a restaurantes y a categorías, que aquí faltaba:
 // el objeto llegaba entero desde el navegador y se guardaba tal cual.
@@ -1725,10 +1739,12 @@ app.post('/api/productos', auth, async (req, res) => {
   const p = { precio: req.body.precio, precio_numerico: req.body.precio_numerico };
   const errPrecio = normalizarPrecio(p);
   if (errPrecio) return res.status(400).json({ error: errPrecio });
+  const errPersonas = normalizarPersonas(req.body);
+  if (errPersonas) return res.status(400).json({ error: errPersonas });
   const errCat = await categoriaAjena(categoria_id, restaurante_id);
   if (errCat) return res.status(400).json({ error: errCat });
   const { data, error } = await supabase.from('productos')
-    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, atributos: atributosProducto(atributos, null) }])
+    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, personas: req.body.personas ?? 1, atributos: atributosProducto(atributos, null) }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -1738,7 +1754,7 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
   // 'atributos' hace falta para conservar lo que pone el worker (el video).
   const { data: prod } = await supabase.from('productos').select('restaurante_id, atributos').eq('id', req.params.id).single();
   if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
-  const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden', 'atributos'];
+  const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden', 'atributos', 'personas'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
   // Solo si viene: un PATCH es parcial, y no mandar el nombre significa
   // dejarlo como está, no borrarlo. Lo que se cierra aquí es mandarlo vacío,
@@ -1749,6 +1765,8 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
   }
   const errPrecio = normalizarPrecio(body);
   if (errPrecio) return res.status(400).json({ error: errPrecio });
+  const errPersonas = normalizarPersonas(body);
+  if (errPersonas) return res.status(400).json({ error: errPersonas });
   if (body.atributos !== undefined) body.atributos = atributosProducto(body.atributos, prod.atributos);
   // Mover un plato de categoría es normal; moverlo a la de otro negocio no.
   if (body.categoria_id !== undefined) {

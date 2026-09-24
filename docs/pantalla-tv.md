@@ -779,3 +779,36 @@ imagen libre para la pantalla ya era una promoción con `en_tv` y sin
   enciende sola cada mañana.
 - **El lavado del fondo es muy sutil a propósito** (11 % y 9 %). Si se quiere
   más marca, es un número; si se sube mucho, compite con las fotos.
+
+---
+
+## 13. Para cuántas personas alcanza un plato (24/09/2026)
+
+Lo pidió el restaurante: platos para compartir —una salchipapa grande, una
+bandeja para dos— y el comensal pregunta en la mesa para cuántos alcanza.
+`productos.personas` (`sql/26_personas_por_plato.sql`), entero, por defecto 1.
+
+**Por defecto no se dice nada.** Con 1 —lo que ya es cierto para casi toda la
+carta— ni el panel ni la pantalla muestran nada: decirlo siempre sería ruido
+en una carta donde lo normal es una persona. A partir de 2, sale una nota
+sutil, del mismo tono que la etiqueta de categoría (§10.quater): apoya, no
+compite con el nombre ni el precio por la atención de la mesa.
+
+**Dónde vive cada pieza:**
+
+| Repositorio | Qué hace |
+|---|---|
+| `adminmenus_restaurantes` | `sql/26` añade la columna; `server.js` la valida (entero de 1 a 50) en POST y PATCH de `/api/productos`; la ficha del plato tiene el campo «Para cuántas personas»; la lista de Productos la enseña como una marca más (`productos-marcas.js`, junto a filtros y toppings) |
+| `vmenus-app` | `tv.html` la pide por su nombre en el `select` de productos y la pinta bajo el precio de cada plato, solo si `personas > 1` |
+
+**No entra en la carta del comensal (`temas/`), a propósito.** Se pidió para
+el panel y la pantalla de TV, que es donde hoy se contesta esa pregunta —el
+mesero mirando la pantalla, o quien administra viendo la lista—. Añadirlo a la
+carta pública es una extensión natural si se pide, pero no se hizo por
+adelantado.
+
+**El orden de despliegue es el de siempre: la base antes que el código**
+(§5.2, 11.bis). `tv.html` pide las columnas de `productos` una por una, nunca
+con asterisco: aplicar `sql/26` después de desplegar el `select` con
+`personas` deja a **todos** los restaurantes con la pantalla en «sin
+conexión», aunque la red esté perfecta.

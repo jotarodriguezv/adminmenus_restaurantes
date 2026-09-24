@@ -1934,6 +1934,11 @@
 						     puede distinguirlos. Esto solo pregunta. -->
 						<div id="precioAviso" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
 					</div>
+					<div class="form-group producto-personas">
+						<label for="editPersonas" class="form-label">Para cuántas personas <span style="color:var(--text-dim)">(opcional)</span></label>
+						<div class="form-ayuda">Para platos que se comparten, como una salchipapa grande. Con 1 no se enseña nada en la lista ni en la pantalla de TV.</div>
+						<input type="number" class="form-input" id="editPersonas" min="1" step="1" style="max-width:120px">
+					</div>
 					<div class="form-group producto-descripcion">
 						<label for="editDesc" class="form-label">Descripción del producto <span style="color:var(--text-dim)">(opcional)</span></label>
 						<div class="form-ayuda">Se muestra cuando el cliente abre el producto.</div>
@@ -3143,6 +3148,7 @@ function openNewProductModal() {
 	document.getElementById('editProductId').value='';
 	document.getElementById('editNombre').value='';
 	document.getElementById('editPrecioNum').value='';
+	document.getElementById('editPersonas').value='';
 	document.getElementById('editPrecioGratis').checked=false;
 	document.getElementById('editSinFoto').checked=false;
 	actualizarPrecioGratis();
@@ -3393,6 +3399,9 @@ function openEditProductModal(id) {
 	if (estIA) { estIA.textContent = ''; estIA.style.color = 'var(--text-muted)'; }
 	document.getElementById('editNombre').value=p.nombre||'';
 	document.getElementById('editPrecioNum').value=p.precio_numerico ?? '';
+	// 1 no se escribe: es el valor por defecto y dejarlo vacío es lo que hace
+	// que la ficha se lea "para una persona" sin decirlo.
+	document.getElementById('editPersonas').value=(p.personas && p.personas>1) ? p.personas : '';
 	document.getElementById('editPrecioGratis').checked=!!p.atributos?.precio_gratis;
 	document.getElementById('editSinFoto').checked=p.atributos?.sin_foto === true;
 	actualizarPrecioGratis();
@@ -5142,7 +5151,7 @@ function ajustarFichaAlModelo() {
 function firmaProducto() {
 	const v = id => document.getElementById(id)?.value ?? '';
 	return JSON.stringify([
-		v('editNombre'), v('editCategoria'), v('editPrecioNum'),
+		v('editNombre'), v('editCategoria'), v('editPrecioNum'), v('editPersonas'),
 		v('editDesc'), v('editDescAvanzada'),
 		document.getElementById('editDisponible')?.checked,
 		document.getElementById('editPrecioGratis')?.checked,
@@ -5432,12 +5441,18 @@ async function saveProduct() {
 	const nombrePlato=document.getElementById('editNombre').value.trim();
 	const precioNum=Number(document.getElementById('editPrecioNum').value.trim());
 	const precioTexto=formatPrecio(precioNum);
+	// Vacío es 1: el campo se deja en blanco a propósito para el caso normal
+	// (ver openEditProductModal/openNewProductModal), así que en blanco no
+	// significa "sin dato" sino "una persona".
+	const personasTexto=document.getElementById('editPersonas').value.trim();
+	const personas=personasTexto ? parseInt(personasTexto,10) : 1;
 	const filtroActual=state.catFiltro; // conservar filtro activo
 	const body={
 		nombre:nombrePlato,
 		categoria_id:catId,
 		precio:precioTexto,
 		precio_numerico:precioNum,
+		personas:personas,
 		descripcion:document.getElementById('editDesc').value.trim()||null,
 		descripcion_avanzada:document.getElementById('editDescAvanzada').value.trim()||null,
 		disponible:document.getElementById('editDisponible').checked,
