@@ -106,6 +106,29 @@
 							<option value="">Ninguno — empezar en blanco</option>
 						</select>
 					</div>
+					<!-- Sin esto, un restaurante sin "copiar apariencia" nacía con el plan
+					     y el modelo que planDe()/MODELO_POR_DEFECTO eligen en silencio
+					     (Fotos + Topnav), y para ponerle otro había que ir después a
+					     Superadmin. Mismas opciones que ahí (apPlan y apNavModelo). -->
+					<div class="form-row" style="margin-bottom:16px;">
+						<div class="form-group" style="margin-bottom:0">
+							<label for="newRestoPlan" class="form-label">Plan</label>
+							<select class="form-select" id="newRestoPlan">
+								<option value="fotos">Fotos</option>
+								<option value="video">Video</option>
+							</select>
+						</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label for="newRestoModelo" class="form-label">Modelo de página</label>
+							<select class="form-select" id="newRestoModelo">
+								<option value="topnav">Topnav — header centrado + menú horizontal</option>
+								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
+								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
+								<option value="video">Video — una columna, un plato por fila</option>
+								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
+							</select>
+						</div>
+					</div>
 					<div class="color-row" style="margin-bottom:16px;">
 						<div class="form-group" style="margin-bottom:0">
 							<label for="prevColor1" class="form-label">Color primario</label>
@@ -7808,11 +7831,17 @@ function aplicarClonPreview(id) {
   document.getElementById('prevColor1').value = hex6(c1, '#3dd68c');
   document.getElementById('newRestoColor2').value = c2;
   document.getElementById('prevColor2').value = hex6(c2, '#a374af');
+  // 'nav' va en ATRIBUTOS_CLONABLES: el servidor lo copia del origen. Reflejarlo
+  // aquí para que el selector de Modelo no muestre uno que el guardado real pisa.
+  // El plan NO se clona —no está en esa lista—, así que se deja como esté.
+  document.getElementById('newRestoModelo').value = origen.atributos?.nav || MODELO_POR_DEFECTO;
 }
 
 async function crearRestaurante() {
   const nombre=document.getElementById('newRestoNombre').value.trim();
   const slug=document.getElementById('newRestoSlug').value.trim();
+  const plan=document.getElementById('newRestoPlan').value;
+  const modelo=document.getElementById('newRestoModelo').value;
   const color1=document.getElementById('newRestoColor1').value.trim();
   const color2=document.getElementById('newRestoColor2').value.trim();
   const pin=document.getElementById('newRestoPin').value.trim();
@@ -7825,7 +7854,7 @@ async function crearRestaurante() {
 
   status.textContent='Creando...'; status.style.color='var(--text-muted)';
   try {
-    const creado = await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de});
+    const creado = await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de,plan,nav:modelo});
     // Si venía de una solicitud de alta, queda aprobada y enlazada a él.
     if (creado?.id) await marcarSolicitudCreada(creado.id);
     status.textContent='✓ Restaurante creado correctamente'; status.style.color='var(--success)';
@@ -7833,6 +7862,8 @@ async function crearRestaurante() {
     document.getElementById('newRestoSlug').value='';
     document.getElementById('newRestoPin').value='';
     document.getElementById('newRestoClonar').value='';
+    document.getElementById('newRestoPlan').value=PLAN_POR_DEFECTO;
+    document.getElementById('newRestoModelo').value=MODELO_POR_DEFECTO;
     await cargarListaRestos();
     // Se pliega: lo siguiente es la lista, donde llevarARestauranteNuevo lleva a él.
     document.getElementById('nuevoRestoPanel').open=false;

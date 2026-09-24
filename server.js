@@ -626,7 +626,7 @@ const ATRIBUTOS_CLONABLES = ['nav', 'estilo', 'fuente_titulo', 'fuente_cuerpo', 
 
 app.post('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
-  const { nombre, slug, color_primario, color_secundario, activo, pin, clonar_de } = req.body;
+  const { nombre, slug, color_primario, color_secundario, activo, pin, clonar_de, plan, nav } = req.body;
   if (!nombre || !slug) return res.status(400).json({ error: 'Nombre y slug requeridos' });
   const malSlug = errorDeSlug(slug);
   if (malSlug) return res.status(400).json({ error: malSlug });
@@ -642,6 +642,13 @@ app.post('/api/restaurantes', auth, async (req, res) => {
       atributos = Object.fromEntries(Object.entries(origen.atributos).filter(([k]) => ATRIBUTOS_CLONABLES.includes(k)));
     }
   }
+  // Plan y modelo de página, elegidos al crear. Sin esto, un restaurante nacía
+  // sin ninguno de los dos escritos en 'atributos' y planDe()/el modelo por
+  // defecto de la carta decidían en silencio (Fotos + Topnav); para ponerle
+  // otro había que ir después a Superadmin. 'nav' no se valida contra una
+  // lista, igual que en el PATCH de más abajo: el superadmin ya es de fiar.
+  if (PLANES[plan]) atributos.plan = plan;
+  if (nav) atributos.nav = nav;
 
   const { data, error } = await supabase.from('restaurantes')
     .insert([{ nombre, slug, color_primario: color_primario||'#3dd68c', color_secundario: color_secundario||'#a374af', activo: activo!==false, promo_activa: false, atributos }])

@@ -6758,6 +6758,34 @@ describe('el formulario de crear restaurante va plegado', () => {
 		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
 		assert.match(crear, /pin\.length>10/);
 	});
+
+	// Antes solo se podían elegir colores y "copiar apariencia de"; sin copiar,
+	// el restaurante nacía con el plan y el modelo por defecto (Fotos + Topnav)
+	// sin ninguna forma de cambiarlo desde aquí.
+	test('trae Plan y Modelo de página, con las mismas opciones que Superadmin', () => {
+		const i = src.indexOf('id="nuevoRestoPanel"');
+		const f = src.indexOf('</details>', i);
+		const cuerpo = src.slice(i, f);
+		assert.ok(cuerpo.includes('id="newRestoPlan"'));
+		assert.ok(cuerpo.includes('id="newRestoModelo"'));
+		for (const modelo of ['topnav', 'sidebar', 'explorar', 'video', 'vertical']) {
+			assert.ok(cuerpo.includes(`value="${modelo}"`), `falta la opción ${modelo}`);
+		}
+	});
+
+	test('al crear, manda el plan y el modelo elegidos', () => {
+		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(crear, /getElementById\('newRestoPlan'\)\.value/);
+		assert.match(crear, /getElementById\('newRestoModelo'\)\.value/);
+		assert.match(crear, /plan,nav:modelo/);
+	});
+
+	test('al clonar, el modelo previsto refleja el "nav" que el servidor va a copiar', () => {
+		// ATRIBUTOS_CLONABLES incluye 'nav', así que el selector no puede quedarse
+		// mostrando uno que el guardado real va a pisar.
+		const clon = src.match(/function aplicarClonPreview\(id\) \{[\s\S]*?\n\}/)[0];
+		assert.match(clon, /getElementById\('newRestoModelo'\)\.value = origen\.atributos\?\.nav \|\| MODELO_POR_DEFECTO/);
+	});
 });
 
 // ═══════════════════════════════════════════════════════════════
