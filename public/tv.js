@@ -19,8 +19,8 @@
 const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          segundos: 8, modo: 'todos', categoria_id: null,
                          productos: [], aleatorio: false, animacion: 'suave',
-                         mostrar_categoria: false, color_categoria: 'oscuro',
-                         tema: 'oscuro', mostrar_descripcion: false,
+							 mostrar_categoria: false, color_categoria: 'oscuro',
+							 tema: 'oscuro', mostrar_descripcion: false, mostrar_sin_foto_lista: false,
                          cintas: [], velocidad_cintas: 'normal', reloj: false,
                          // Por defecto SÍ, que es lo que hacía la cartelera
                          // antes de existir esta clave.
@@ -29,11 +29,11 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
 let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
 let tvFiltro = 'all';   // categoría que se está mirando en el selector
 
-// Solo los platos que la cartelera puede enseñar. Sin foto no hay slide: es un
-// medio visual y un hueco gris se ve peor que un plato de menos, así que aquí
-// tampoco se ofrecen — elegir uno que no va a salir es una trampa.
+// Sin foto normalmente no hay slide. El restaurante puede incluirlos como una
+// lista por categoría: útil para bebidas y complementos que no necesitan foto.
 function tvPlatosPosibles() {
-  return (state.productos || []).filter(p => p.disponible && p.imagen_url);
+  const incluirSinFoto = !!document.getElementById('tvListaSinFoto')?.checked;
+  return (state.productos || []).filter(p => p.disponible && (p.imagen_url || incluirSinFoto));
 }
 
 function renderTV() {
@@ -52,6 +52,7 @@ function renderTV() {
     ['oscuro', 'claro', 'marca'].includes(cfg.color_categoria) ? cfg.color_categoria : 'oscuro';
   document.getElementById('tvTema').value = cfg.tema === 'carta' ? 'carta' : 'oscuro';
   document.getElementById('tvMostrarDescripcion').checked = !!cfg.mostrar_descripcion;
+  document.getElementById('tvListaSinFoto').checked = !!cfg.mostrar_sin_foto_lista;
   const cintas = Array.isArray(cfg.cintas) ? cfg.cintas : [];
   for (let i = 1; i <= 5; i++) {
     const cinta = cintas[i - 1] || {};
@@ -95,19 +96,8 @@ function renderTV() {
   document.getElementById('tvEnlace').value = urlPublica(state.restaurante) + '/tv';
   document.getElementById('tvStatus').textContent = '';
 
-  // Solo categorías con platos que la cartelera pueda enseñar.
-  const sel = document.getElementById('tvCategoria');
-  const posibles = tvPlatosPosibles();
-  sel.innerHTML = '';
-  (state.categorias || []).forEach(c => {
-    const n = posibles.filter(p => p.categoria_id === c.id).length;
-    if (!n) return;
-    const o = document.createElement('option');
-    o.value = c.id;
-    o.textContent = `${c.emoji || ''} ${c.nombre}`.trim() + ` (${n})`;
-    sel.appendChild(o);
-  });
-  if (cfg.categoria_id) sel.value = cfg.categoria_id;
+	// Solo categorías con platos que la cartelera pueda enseñar.
+	tvPintarCategorias(cfg.categoria_id);
 
   tvFiltro = 'all';
   tvPintarFiltroCat();
@@ -121,6 +111,30 @@ function renderTV() {
   tvAvisoTamano();
   tvAlternarDescripcion();
   tvPintarAhora();
+}
+
+function tvPintarCategorias(elegida) {
+  const sel = document.getElementById('tvCategoria');
+  const posibles = tvPlatosPosibles();
+  const anterior = elegida || sel.value;
+  sel.innerHTML = '';
+  (state.categorias || []).forEach(c => {
+    const n = posibles.filter(p => p.categoria_id === c.id).length;
+    if (!n) return;
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = `${c.emoji || ''} ${c.nombre}`.trim() + ` (${n})`;
+    sel.appendChild(o);
+  });
+  if (anterior) sel.value = anterior;
+}
+
+function tvCambiarListaSinFoto() {
+  tvPintarCategorias();
+  tvPintarFiltroCat();
+  tvPintarPlatos();
+  tvPintarMarcarTodos();
+  tvPintarResumen();
 }
 
 function tvAlternarDescripcion() {
@@ -802,7 +816,7 @@ function tvRejillaDePlatos(cont, seleccion, filtro, alCambiar) {
   cont.innerHTML = '';
   const todos = tvPlatosPosibles();
   if (!todos.length) {
-    cont.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">Ningún plato tiene foto todavía. La cartelera solo puede mostrar platos con fotografía.</span>';
+		cont.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">No hay platos disponibles para la cartelera.</span>';
     return;
   }
   const posibles = filtro === 'all' ? todos : todos.filter(p => p.categoria_id === filtro);
@@ -819,7 +833,11 @@ function tvRejillaDePlatos(cont, seleccion, filtro, alCambiar) {
     // con textContent, que es donde estaría el riesgo.
     b.innerHTML = '<div style="height:74px;background:#16151f center/cover no-repeat"></div>' +
                   '<div style="padding:6px 7px;font-size:10.5px;line-height:1.25;height:38px;overflow:hidden"></div>';
-    b.firstChild.style.backgroundImage = `url("${String(p.imagen_url).replace(/"/g, '%22')}")`;
+		if (p.imagen_url) b.firstChild.style.backgroundImage = `url("${String(p.imagen_url).replace(/"/g, '%22')}")`;
+		else {
+			b.firstChild.textContent = 'LISTA';
+			b.firstChild.style.cssText += ';display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:10px;font-weight:700;letter-spacing:.08em';
+		}
     b.lastChild.textContent = p.nombre || '';
     b.onclick = () => {
       const i = seleccion.indexOf(p.id);
@@ -1076,7 +1094,8 @@ function tvDelFormulario() {
     // Guardar la decisión aunque hoy haya más de un plato: al volver a uno no
     // obliga a acordarse de encender la descripción otra vez. tv.html la
     // ignora mientras no haya un solo plato protagonista.
-    mostrar_descripcion: document.getElementById('tvMostrarDescripcion').checked,
+			mostrar_descripcion: document.getElementById('tvMostrarDescripcion').checked,
+			mostrar_sin_foto_lista: document.getElementById('tvListaSinFoto').checked,
     cintas: tvCintasDelFormulario(),
     velocidad_cintas: document.getElementById('tvVelocidadCintas').value,
     reloj: document.getElementById('tvReloj').checked,
