@@ -798,8 +798,8 @@ compite con el nombre ni el precio por la atención de la mesa.
 
 | Repositorio | Qué hace |
 |---|---|
-| `adminmenus_restaurantes` | `sql/26` y `sql/27` añaden las columnas; `server.js` las valida en POST y PATCH de `/api/productos`; la ficha del plato tiene el campo «Para cuántas personas», debajo de la descripción, con sus dos interruptores; la lista de Productos la enseña como una marca más (`productos-marcas.js`, junto a filtros y toppings) |
-| `vmenus-app` | `tv.html` las pide por su nombre en el `select` de productos y pinta la nota bajo el precio de cada plato, según la misma regla que el panel |
+| `adminmenus_restaurantes` | `sql/26` añade la columna `productos.personas`; `server.js` la valida en POST y PATCH de `/api/productos`; la ficha del plato tiene el campo «Para cuántas personas», debajo de la descripción; la lista de Productos la enseña como una marca más (`productos-marcas.js`, junto a filtros y toppings); la pestaña **Pantalla TV** tiene los dos interruptores de §13.bis |
+| `vmenus-app` | `tv.html` pide `personas` por su nombre en el `select` de productos, lee los dos interruptores de `atributos.tv` (que ya viaja completo en el `select` de `restaurantes`) y pinta la nota bajo el precio de cada plato |
 
 **No entra en la carta del comensal (`temas/`), a propósito.** Se pidió para
 el panel y la pantalla de TV, que es donde hoy se contesta esa pregunta —el
@@ -808,35 +808,52 @@ carta pública es una extensión natural si se pide, pero no se hizo por
 adelantado.
 
 **El orden de despliegue es el de siempre: la base antes que el código**
-(§5.2, 11.bis). `tv.html` pide las columnas de `productos` una por una, nunca
-con asterisco: aplicar una migración de esta serie después de desplegar el
-`select` que ya la pide deja a **todos** los restaurantes con la pantalla en
-«sin conexión», aunque la red esté perfecta.
+(§5.2, 11.bis). `tv.html` pide `personas` por su nombre y nunca con asterisco:
+aplicar `sql/26` después de desplegar ese `select` deja a **todos** los
+restaurantes con la pantalla en «sin conexión», aunque la red esté perfecta.
 
-### 13.bis Dos interruptores, no una regla fija (24/09/2026)
+### 13.bis Un interruptor del restaurante, no uno por plato (24/09/2026)
 
-La primera versión decidía sola: se enseñaba a partir de 2 y nunca con 1, sin
-que quien administra pudiera cambiarlo. Pedido el mismo día de probarlo:
-«no la veo de manera opcional». `sql/27_mostrar_personas.sql` añade dos
-columnas:
+**Primer intento, el mismo 24/09/2026: dos columnas en `productos`.** La
+primera versión decidía sola —se enseñaba a partir de 2 y nunca con 1, sin que
+quien administra pudiera cambiarlo—, y al pedir que fuera opcional la
+respuesta inicial fue `sql/27_mostrar_personas.sql`: `mostrar_personas` y
+`mostrar_personas_uno` **por plato**. Corregido a los minutos, antes de que
+ningún restaurante llegara a guardarlas: con una carta de muchos platos, tener
+que marcar uno por uno es exactamente el trabajo repetitivo que el usuario no
+quería. Pidió textualmente «uno general», para toda la carta.
 
-| columna | pregunta que contesta | por defecto |
+**Lo que quedó, en `sql/28_mostrar_personas_es_del_restaurante.sql`:** las dos
+columnas de `sql/27` se retiran de `productos`, y sus equivalentes pasan a
+`restaurantes.atributos.tv` —junto a `mostrar_categoria` y
+`mostrar_descripcion`, que ya viven ahí—, con sus controles en la pestaña
+**Pantalla TV** del panel, no en la ficha de cada plato:
+
+| clave en `atributos.tv` | pregunta que contesta | por defecto |
 |---|---|---|
-| `mostrar_personas` | ¿se enseña esta información, sea cual sea el número? | `true` |
-| `mostrar_personas_uno` | con 1, ¿se enseña igual? | `false` |
+| `mostrar_personas` | ¿se enseña esta información, en toda la carta? | `true` |
+| `mostrar_personas_uno` | con 1, ¿se enseña igual, en toda la carta? | `false` |
 
-Los valores por defecto son los que ya se comportaba el código: nadie tiene
-que tocar nada para seguir viendo lo mismo. La regla completa, igual en
-`productos-marcas.js` y en `tv.html` (duplicada a propósito: `tv.html` no
-puede importar nada, ver §2):
+`productos.personas` (sql/26) se queda donde estaba: es un dato **del plato**
+—cuántas alcanza esa salchipapa—, y no tiene sustituto en `atributos.tv`. Lo
+que cambió es solo si esa información se enseña, no dónde se escribe.
+
+Los valores por defecto son los que ya venía haciendo el código: nadie tiene
+que volver a guardar nada para seguir viendo lo mismo. La regla completa, en
+`tv.html` (`config()`, `mostrar_personas`/`mostrar_personas_uno` del
+restaurante) y en `public/tv.js` (`tvDelFormulario()`), no en
+`productos-marcas.js`: la lista de Productos del panel enseña la marca
+siempre que `personas > 1`, sin más — es un apunte para quien administra, no
+lo que ve el comensal, así que no depende del interruptor de la pantalla.
 
 ```
 mostrar = mostrar_personas !== false && (personas > 1 || mostrar_personas_uno === true)
 ```
 
-`mostrar_personas` manda siempre: en `false` no se enseña aunque el plato sea
-para diez. Son columnas propias y no claves de `atributos`, por lo mismo que
-`personas` en sql/26: `tv.html` las necesita y no puede leer el jsonb entero.
+**Por qué se cuenta el intento fallido.** `sql/19` cierra lo que abre `sql/18`
+y `sql/22` corrige `sql/21` por la misma razón: una migración no se edita
+después de aplicarla, lo que estaba mal se arregla en la siguiente, y el
+historial de por qué queda escrito para no repetir el razonamiento.
 
 ### Pendiente: una imagen en vez de la frase, en el panel (24/09/2026)
 

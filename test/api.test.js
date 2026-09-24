@@ -191,48 +191,6 @@ describe('PATCH y POST /api/productos · para cuántas personas alcanza', () => 
 });
 
 // ═══════════════════════════════════════════════════════════════
-describe('PATCH y POST /api/productos · si se enseña "para cuántas personas"', () => {
-	// 24/09/2026: antes de sql/27 el panel decidía solo, a partir de 2. Ahora
-	// son dos interruptores que quien administra puede prender o apagar.
-	beforeEach(() => S.conTabla(st =>
-		st.tabla === 'productos' && st.op === 'select'
-			? { data: { restaurante_id: IDS.restaurante }, error: null }
-			: { data: { id: IDS.producto }, error: null }));
-
-	test('se guardan como booleano de verdad, no como lo que mande el cliente', async () => {
-		// Mismo motivo que precio_gratis y sin_foto: un "false" de texto es
-		// verdadero para cualquier if.
-		await S.pedir('PATCH', `/api/productos/${IDS.producto}`,
-			{ mostrar_personas: 'false', mostrar_personas_uno: 'true' }, tokenCliente);
-		const g = S.ultimaEscritura('productos');
-		assert.equal(g.mostrar_personas, false);
-		assert.equal(g.mostrar_personas_uno, false, '"true" de texto no es el booleano true');
-	});
-
-	test('una edición que no los toca no los inventa', async () => {
-		await S.pedir('PATCH', `/api/productos/${IDS.producto}`, { nombre: 'Arepa de huevo' }, tokenCliente);
-		const g = S.ultimaEscritura('productos');
-		assert.equal(g.mostrar_personas, undefined);
-		assert.equal(g.mostrar_personas_uno, undefined);
-	});
-
-	test('el alta sin decir nada deja el comportamiento de siempre', async () => {
-		// mostrar_personas en true (se seguía enseñando a partir de 2) y
-		// mostrar_personas_uno en false (con 1 no se decía nada): son los
-		// valores por defecto de sql/27, y aquí se comprueba que el servidor no
-		// los pisa cuando el panel no manda ninguno de los dos.
-		S.conTabla(st => st.tabla === 'categorias'
-			? { data: { restaurante_id: IDS.restaurante }, error: null }
-			: { data: null, error: null });
-		await S.pedir('POST', '/api/productos',
-			{ restaurante_id: IDS.restaurante, categoria_id: IDS.categoria, nombre: 'Arepa' }, tokenCliente);
-		const g = S.ultimaEscritura('productos');
-		assert.equal(g.mostrar_personas, true);
-		assert.equal(g.mostrar_personas_uno, false);
-	});
-});
-
-// ═══════════════════════════════════════════════════════════════
 describe('PATCH /api/categorias · los horarios dependen del plan', () => {
 	const HORARIO = { activo: true, dias: [1, 2, 3], desde: '11:00', hasta: '15:00' };
 	const conPlan = (plan, horarioGuardado) => S.conTabla(st => {
