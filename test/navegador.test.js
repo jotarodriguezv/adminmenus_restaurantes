@@ -4671,7 +4671,7 @@ describe('el primer día de un restaurante', () => {
 		for (const [clase, orden] of [
 			['producto-nombre', 1], ['producto-categoria', 2], ['producto-precio', 3],
 			['producto-foto', 5],
-			['producto-descripcion', 7], ['producto-imagenes-adicionales', 9],
+			['producto-descripcion', 7], ['producto-personas', 8], ['producto-imagenes-adicionales', 10],
 		]) {
 			assert.match(codigo, new RegExp(`#productModal \\.${clase}\\{order:${orden};\\}`));
 		}
@@ -4689,7 +4689,19 @@ describe('el primer día de un restaurante', () => {
 		assert.match(html, /Foto del producto[\s\S]*?Agrégala ahora o después/);
 		assert.match(html, /Descripción del producto[\s\S]*?Se muestra cuando el cliente abre el producto/);
 		assert.match(html, /Descripción corta[\s\S]*?en las cartas de video es el texto principal/);
-		assert.match(html, /Para cuántas personas[\s\S]*?id="editPersonas"/);
+
+		// 24/09/2026: pedido por el usuario, va debajo de la descripción del
+		// producto y no junto al precio, donde se puso al principio.
+		const idxDescripcion = html.indexOf('class="form-group producto-descripcion"');
+		const idxPersonas = html.indexOf('class="form-group producto-personas"');
+		const idxDescCorta = html.indexOf('class="form-group producto-descripcion-corta"');
+		assert.ok(idxDescripcion > 0 && idxPersonas > idxDescripcion && idxDescCorta > idxPersonas,
+			'«Para cuántas personas» debe ir después de la descripción del producto y antes de la corta');
+		const personas = html.slice(idxPersonas, idxDescCorta);
+		assert.match(personas, /id="editPersonas"/);
+		assert.match(personas, /id="editMostrarPersonas"/);
+		assert.match(personas, /id="editMostrarPersonasUno"/);
+
 		assert.match(html, /Imágenes adicionales <span>\(opcional · máx\. 4\)<\/span><\/summary>/);
 		assert.doesNotMatch(html, /placeholder="22000"/);
 	});
@@ -7537,8 +7549,8 @@ describe('lo que cada plato tiene marcado, visto desde la lista', () => {
 		Array, Object, String, Number, Set, document: { createElement: () => ({ appendChild() {}, style: {} }) },
 	});
 
-	const plato = (filtros, pers, personas) => ({
-		id: 'p1', nombre: 'Arepa', ...(personas ? { personas } : {}),
+	const plato = (filtros, pers, personas, extra) => ({
+		id: 'p1', nombre: 'Arepa', ...(personas ? { personas } : {}), ...(extra || {}),
 		atributos: { ...(filtros ? { filtros } : {}), ...(pers ? { personalizacion: pers } : {}) },
 	});
 
@@ -7613,6 +7625,25 @@ describe('lo que cada plato tiene marcado, visto desde la lista', () => {
 		const marcas = [...ctx.marcasDePlato(plato(null, null, 3))];
 		assert.deepEqual(marcas.map(m => m.texto), ['👥 3 personas']);
 		assert.equal(marcas[0].titulo, 'Alcanza para 3 personas');
+	});
+
+	test('con el interruptor apagado no se marca, aunque sean varias', () => {
+		// 24/09/2026: antes era automático a partir de 2 y no se podía apagar.
+		const ctx = reglas({ nav: 'topnav' });
+		assert.deepEqual([...ctx.marcasDePlato(plato(null, null, 4, { mostrar_personas: false }))], []);
+	});
+
+	test('con "también con una" se marca en singular', () => {
+		const ctx = reglas({ nav: 'topnav' });
+		const marcas = [...ctx.marcasDePlato(plato(null, null, 1, { mostrar_personas_uno: true }))];
+		assert.deepEqual(marcas.map(m => m.texto), ['👥 1 persona']);
+		assert.equal(marcas[0].titulo, 'Alcanza para 1 persona');
+	});
+
+	test('el interruptor general manda por encima del de "también con una"', () => {
+		const ctx = reglas({ nav: 'topnav' });
+		const conflicto = plato(null, null, 1, { mostrar_personas: false, mostrar_personas_uno: true });
+		assert.deepEqual([...ctx.marcasDePlato(conflicto)], []);
 	});
 });
 
@@ -8110,6 +8141,8 @@ describe('guardar con el video en marcha · guarda, pero no saca de la ficha', (
 			editNombre:       { value: 'Croquetas' },
 			editPrecioNum:    { value: '24000' },
 			editPersonas:     { value: '' },
+			editMostrarPersonas:    { checked: true },
+			editMostrarPersonasUno: { checked: false },
 			editDesc:         { value: '' },
 			editDescAvanzada: { value: '' },
 			editDisponible:   { checked: true },

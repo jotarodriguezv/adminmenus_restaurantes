@@ -51,6 +51,21 @@ function toppingsDePlato(p, atributos = state.restaurante?.atributos, plan = pla
   return { ...porGrupo, total: porGrupo.platino.length + porGrupo.premium.length + porGrupo.salsas.length };
 }
 
+// Si se enseña la nota de "para cuántas personas". Columnas propias
+// (sql/26 y sql/27), no de 'atributos': por defecto se enseña a partir de 2,
+// y con 1 solo si se marcó expresamente (24/09/2026, pedido por el usuario:
+// antes era automático y no se podía apagar ni encender a mano). El
+// interruptor manda siempre — en 'false' no se enseña aunque el número sea
+// mayor que 1.
+function debeMostrarPersonas(p) {
+  if (p?.mostrar_personas === false) return false;
+  return (p?.personas || 1) > 1 || p?.mostrar_personas_uno === true;
+}
+
+function textoPersonas(n) {
+  return `${n} ${n === 1 ? 'persona' : 'personas'}`;
+}
+
 // Las marcas de un plato, ya resueltas: qué se escribe y qué dice al pasar el
 // ratón. Aparte de pintarlas para poder probarlo sin navegador.
 function marcasDePlato(p) {
@@ -60,10 +75,9 @@ function marcasDePlato(p) {
   if (p?.atributos?.sin_foto === true && !p.imagen_url) {
     marcas.push({ texto: '📷 sin foto a propósito', titulo: 'Marcado en su ficha: este plato no lleva foto. No cuenta como pendiente.' });
   }
-  // Es una columna del plato, no de 'atributos': por defecto 1, y con 1 no se
-  // dice nada — es el caso normal de casi toda la carta.
-  if (p?.personas > 1) {
-    marcas.push({ texto: `👥 ${p.personas} personas`, titulo: `Alcanza para ${p.personas} personas` });
+  if (debeMostrarPersonas(p)) {
+    const texto = textoPersonas(p.personas || 1);
+    marcas.push({ texto: `👥 ${texto}`, titulo: `Alcanza para ${texto}` });
   }
   const filtros = filtrosDePlato(p);
   for (const f of filtros.slice(0, MAXIMO_MARCAS_VISIBLES)) {

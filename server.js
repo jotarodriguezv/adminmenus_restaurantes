@@ -1732,7 +1732,7 @@ app.get('/api/productos', auth, async (req, res) => {
 });
 
 app.post('/api/productos', auth, async (req, res) => {
-  const { restaurante_id, categoria_id, nombre, descripcion, descripcion_avanzada, imagen_url, disponible, orden, atributos } = req.body;
+  const { restaurante_id, categoria_id, nombre, descripcion, descripcion_avanzada, imagen_url, disponible, orden, atributos, mostrar_personas, mostrar_personas_uno } = req.body;
   if (!canAccessRestaurante(req.user, restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
   const malNombre = errorDeNombre(nombre, 'del plato');
   if (malNombre) return res.status(400).json({ error: malNombre });
@@ -1744,7 +1744,11 @@ app.post('/api/productos', auth, async (req, res) => {
   const errCat = await categoriaAjena(categoria_id, restaurante_id);
   if (errCat) return res.status(400).json({ error: errCat });
   const { data, error } = await supabase.from('productos')
-    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, personas: req.body.personas ?? 1, atributos: atributosProducto(atributos, null) }])
+    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, personas: req.body.personas ?? 1,
+      // Interruptores de sql/27, como booleano: un "false" de texto es
+      // verdadero para cualquier if (mismo criterio que atributosProducto).
+      mostrar_personas: mostrar_personas !== false, mostrar_personas_uno: mostrar_personas_uno === true,
+      atributos: atributosProducto(atributos, null) }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -1754,7 +1758,7 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
   // 'atributos' hace falta para conservar lo que pone el worker (el video).
   const { data: prod } = await supabase.from('productos').select('restaurante_id, atributos').eq('id', req.params.id).single();
   if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
-  const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden', 'atributos', 'personas'];
+  const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden', 'atributos', 'personas', 'mostrar_personas', 'mostrar_personas_uno'];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
   // Solo si viene: un PATCH es parcial, y no mandar el nombre significa
   // dejarlo como está, no borrarlo. Lo que se cierra aquí es mandarlo vacío,
@@ -1767,6 +1771,10 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
   if (errPrecio) return res.status(400).json({ error: errPrecio });
   const errPersonas = normalizarPersonas(body);
   if (errPersonas) return res.status(400).json({ error: errPersonas });
+  // Mismo criterio que atributosProducto: un interruptor se guarda como
+  // booleano de verdad, no como lo que mande el cliente.
+  if (body.mostrar_personas !== undefined) body.mostrar_personas = body.mostrar_personas === true;
+  if (body.mostrar_personas_uno !== undefined) body.mostrar_personas_uno = body.mostrar_personas_uno === true;
   if (body.atributos !== undefined) body.atributos = atributosProducto(body.atributos, prod.atributos);
   // Mover un plato de categoría es normal; moverlo a la de otro negocio no.
   if (body.categoria_id !== undefined) {

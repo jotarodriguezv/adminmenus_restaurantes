@@ -798,8 +798,8 @@ compite con el nombre ni el precio por la atención de la mesa.
 
 | Repositorio | Qué hace |
 |---|---|
-| `adminmenus_restaurantes` | `sql/26` añade la columna; `server.js` la valida (entero de 1 a 50) en POST y PATCH de `/api/productos`; la ficha del plato tiene el campo «Para cuántas personas»; la lista de Productos la enseña como una marca más (`productos-marcas.js`, junto a filtros y toppings) |
-| `vmenus-app` | `tv.html` la pide por su nombre en el `select` de productos y la pinta bajo el precio de cada plato, solo si `personas > 1` |
+| `adminmenus_restaurantes` | `sql/26` y `sql/27` añaden las columnas; `server.js` las valida en POST y PATCH de `/api/productos`; la ficha del plato tiene el campo «Para cuántas personas», debajo de la descripción, con sus dos interruptores; la lista de Productos la enseña como una marca más (`productos-marcas.js`, junto a filtros y toppings) |
+| `vmenus-app` | `tv.html` las pide por su nombre en el `select` de productos y pinta la nota bajo el precio de cada plato, según la misma regla que el panel |
 
 **No entra en la carta del comensal (`temas/`), a propósito.** Se pidió para
 el panel y la pantalla de TV, que es donde hoy se contesta esa pregunta —el
@@ -809,6 +809,40 @@ adelantado.
 
 **El orden de despliegue es el de siempre: la base antes que el código**
 (§5.2, 11.bis). `tv.html` pide las columnas de `productos` una por una, nunca
-con asterisco: aplicar `sql/26` después de desplegar el `select` con
-`personas` deja a **todos** los restaurantes con la pantalla en «sin
-conexión», aunque la red esté perfecta.
+con asterisco: aplicar una migración de esta serie después de desplegar el
+`select` que ya la pide deja a **todos** los restaurantes con la pantalla en
+«sin conexión», aunque la red esté perfecta.
+
+### 13.bis Dos interruptores, no una regla fija (24/09/2026)
+
+La primera versión decidía sola: se enseñaba a partir de 2 y nunca con 1, sin
+que quien administra pudiera cambiarlo. Pedido el mismo día de probarlo:
+«no la veo de manera opcional». `sql/27_mostrar_personas.sql` añade dos
+columnas:
+
+| columna | pregunta que contesta | por defecto |
+|---|---|---|
+| `mostrar_personas` | ¿se enseña esta información, sea cual sea el número? | `true` |
+| `mostrar_personas_uno` | con 1, ¿se enseña igual? | `false` |
+
+Los valores por defecto son los que ya se comportaba el código: nadie tiene
+que tocar nada para seguir viendo lo mismo. La regla completa, igual en
+`productos-marcas.js` y en `tv.html` (duplicada a propósito: `tv.html` no
+puede importar nada, ver §2):
+
+```
+mostrar = mostrar_personas !== false && (personas > 1 || mostrar_personas_uno === true)
+```
+
+`mostrar_personas` manda siempre: en `false` no se enseña aunque el plato sea
+para diez. Son columnas propias y no claves de `atributos`, por lo mismo que
+`personas` en sql/26: `tv.html` las necesita y no puede leer el jsonb entero.
+
+### Pendiente: una imagen en vez de la frase, en el panel (24/09/2026)
+
+Anotado por el usuario al ver la lista de Productos: la marca «👥 N personas»
+funciona —confirma que la lógica ya está bien— pero preferiría un icono o una
+imagen ahí en vez de texto. **No implementar hasta que lo pida expresamente**;
+esto es solo la nota para no perderlo. La pantalla de TV no se mencionó, así
+que de entrada esto es cosa del panel (`productos-marcas.js`), no de
+`tv.html`.
