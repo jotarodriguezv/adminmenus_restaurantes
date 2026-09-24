@@ -477,11 +477,12 @@ select.form-input{padding-right:42px;}
 #productModal .producto-foto{order:5;}
 #productModal .producto-video{order:6;}
 #productModal .producto-descripcion{order:7;}
-#productModal .producto-descripcion-corta{order:8;}
-#productModal .producto-imagenes-adicionales{order:9;}
-#productModal .producto-personalizacion{order:10;}
-#productModal .producto-filtros{order:11;}
-#productModal .producto-destacados{order:12;}
+#productModal .producto-personas{order:8;}
+#productModal .producto-descripcion-corta{order:9;}
+#productModal .producto-imagenes-adicionales{order:10;}
+#productModal .producto-personalizacion{order:11;}
+#productModal .producto-filtros{order:12;}
+#productModal .producto-destacados{order:13;}
 /* Disponible, a la derecha del nombre; gratis, al lado del precio. Así la
    ficha es más corta y lo que saca un plato de la carta está a la vista. */
 #productModal .ficha-cabecera-nombre{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;}
