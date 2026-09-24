@@ -1765,6 +1765,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvTema: { value: 'sin pintar' },
 			tvMostrarDescripcion: { checked: !!opciones.mostrarDescripcion },
 			tvDescripcionFila: { style: {} },
+			tvListaSinFoto: { checked: !!opciones.listaSinFoto },
 			tvCinta1: { value: '' }, tvCintaPos1: { value: 'arriba' },
 			tvCinta2: { value: '' }, tvCintaPos2: { value: 'arriba' },
 			tvCinta3: { value: '' }, tvCintaPos3: { value: 'arriba' },
@@ -1905,6 +1906,12 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const { ctx, campos } = montar();
 		campos.tvVelocidadCintas.value = 'rapida';
 		assert.equal(ctx.tvDelFormulario().velocidad_cintas, 'rapida');
+	});
+
+	test('guarda si los productos sin foto deben salir como lista', () => {
+		const { ctx, campos } = montar();
+		campos.tvListaSinFoto.checked = true;
+		assert.equal(ctx.tvDelFormulario().mostrar_sin_foto_lista, true);
 	});
 
 	test('no deja encender una cartelera que no enseñaría nada', async () => {
