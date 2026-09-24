@@ -315,6 +315,74 @@ recuadro 16:9 que recibe el modelo es de 800×450. Arriba se ve que su salida
 sigue a la entrada (800×1067 → 768×1024), así que hay que mirar a qué
 resolución devuelve el video con una entrada así y si se nota en la carta.
 
+### 24/09/2026 — diagnóstico: el horizontal pierde demasiado con fotos verticales
+
+**Visto por el usuario en producción**, con PAPITO (Skipper, plan Video,
+modelo `video` = horizontal): la hamburguesa salía «muy encima de la
+pantalla», recortada, y la IA alucinaba. Un miembro del equipo generó varias
+veces y descartó las que salían mal sin guardar cuáles, así que no quedó
+registro en `generaciones_ia` de los intentos fallidos — solo el que sí sirvió
+(`prediction_id gbj04xjqk9rmy0d0sbrvwzz98c`, 22/09/2026).
+
+**Diagnosticado con la foto real** (`productos.imagen_url` de PAPITO,
+800×1067, la que quedó tras comprimir a 800 px de ancho el original de
+cámara):
+
+| Foto | Restaurante | Plan / modelo | Proporción de la foto | Se conserva | Se pierde |
+|---|---|---|---|---|---|
+| PAPITO | Skipper | Video / `video` (horizontal) | 800×1067 (0,75:1) | 42% | 58% |
+| LA SALVAJADA | Skipper | Video / `video` (horizontal) | 800×1067 (0,75:1) | 42% | 58% |
+| LA CHIKI | MONTANA | Video / `vertical` | 800×1200 (0,67:1) | 84% | 16% |
+| *LA CHIKI, la misma foto, forzada a horizontal (control)* | — | — | 800×1200 | 38% | 63% |
+
+**La causa no es el cálculo del recuadro — es matemática, no un error.**
+`recorteCentradoEn` (video.js) siempre toma el recuadro **más grande que cabe**
+con la proporción de la carta; con una foto vertical y una carta horizontal
+(16:9), el ancho ya está al máximo (el ancho entero de la foto) y no hay forma
+de que el recuadro sea más alto sin cambiar la foto de entrada. Ni el
+fotógrafo ni quien genera pueden arreglarlo moviendo el centro del recuadro.
+
+**Y el umbral `ENCAJE_AVISA = 0.8` no predice bien el riesgo por sí solo.**
+PAPITO conserva 42%, el mismo porcentaje que la salchipapa medida el
+24/08/2026 (§7, «quedó bien»). La diferencia no es el porcentaje: una
+salchipapa es un plato plano que un corte horizontal captura entero aunque se
+pierda altura por arriba y por abajo; una hamburguesa apilada, fotografiada de
+cerca en vertical, ocupa la mayoría de esa altura — así que el mismo recorte
+que le sobra a un plato plano le corta el bocado y la base a una hamburguesa.
+
+**La relación real, para pedir fotos**: el objetivo de una carta horizontal es
+16:9 (1,78:1). Cámaras y celulares en modo horizontal normal (3:2 = pierde
+16%; 4:3 = pierde 25%) sirven bien. **Una foto vertical, cualquiera que sea,
+es mala para horizontal** — no importa cuánto se centre, matemáticamente pierde
+más de la mitad del alto. Para una carta `vertical` (9:16) es al revés: una
+foto vertical calza bien (pierde 16-30%) y una horizontal se rechaza de plano
+(regla que ya existía, `formato === 'vertical' && foto >= 1`).
+
+**Queda parqueado, pendiente de resolver** (ver la lista de pendientes,
+tarea «Fotos verticales pierden demasiado al recortar para carta horizontal»):
+tres caminos posibles —(a) rechazar también en horizontal por debajo de un
+umbral más estricto, no solo avisar; (b) en vez de recortar, rellenar el
+recuadro con un fondo difuminado de la misma foto (`contain` + blur) para no
+perder nada del plato, sin validar todavía cómo se ve el giro de cámara de la
+IA sobre ese relleno; (c) guía de fotografía para pedir tomas horizontales en
+restaurantes de plan Video con modelo horizontal, ver abajo. Antes de tocar
+código, probar (b) con una generación real (~unos centavos en Replicate) sobre
+la foto de PAPITO para ver si el giro se nota falso.
+
+### Guía de fotografía para la sesión: qué pedir según el modelo
+
+Para que una sesión de fotos sirva de una vez y no haya que repetirla:
+
+| Modelo del restaurante | Cómo tomar la foto | Proporción ideal | Lo que NO sirve |
+|---|---|---|---|
+| `video` (horizontal) | **Cámara en horizontal (apaisada)**, plato con algo de aire arriba y abajo, no pegado a los bordes | 16:9 directo si la cámara lo permite; si no, el modo horizontal normal (3:2 o 4:3) ya sirve | Foto vertical/retrato — pierde más del 55% del alto sin importar el centrado |
+| `vertical` | **Cámara en vertical (retrato)** | 9:16 directo si se puede; el retrato normal de celular ya sirve bien | Foto horizontal/apaisada — se rechaza al generar, ni siquiera se ofrece el recuadro |
+| `topnav` / `sidebar` / `explorar` (Fotos, sin IA de video) | No aplica: estas cartas no generan video con IA | — | — |
+
+La regla corta: **la orientación de la cámara tiene que ser la misma que la
+carta**. Girar la cámara 90° en el momento de la sesión cuesta cero; arreglarlo
+después, con la foto ya tomada, no siempre se puede.
+
 ---
 
 ## 7. Lo que se verificó, y lo que queda
