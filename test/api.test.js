@@ -145,6 +145,52 @@ describe('PATCH y POST /api/productos · precio coherente', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('PATCH y POST /api/productos · para cuántas personas alcanza', () => {
+	beforeEach(() => S.conTabla(st =>
+		st.tabla === 'productos' && st.op === 'select'
+			? { data: { restaurante_id: IDS.restaurante }, error: null }
+			: { data: { id: IDS.producto }, error: null }));
+
+	test('se guarda tal cual cuando es un entero razonable', async () => {
+		await S.pedir('PATCH', `/api/productos/${IDS.producto}`, { personas: 4 }, tokenCliente);
+		assert.equal(S.ultimaEscritura('productos').personas, 4);
+	});
+
+	test('una edición que no toca personas no lo inventa', async () => {
+		// Igual que el precio: un PATCH parcial no puede escribir un campo que
+		// nadie mandó.
+		await S.pedir('PATCH', `/api/productos/${IDS.producto}`, { nombre: 'Arepa de huevo' }, tokenCliente);
+		assert.equal(S.ultimaEscritura('productos').personas, undefined);
+	});
+
+	test('un valor imposible se rechaza', async () => {
+		for (const cuerpo of [{ personas: 0 }, { personas: -1 }, { personas: 51 }, { personas: 'abc' }, { personas: 1.5 }]) {
+			const r = await S.pedir('PATCH', `/api/productos/${IDS.producto}`, cuerpo, tokenCliente);
+			assert.equal(r.status, 400, JSON.stringify(cuerpo));
+		}
+	});
+
+	test('el alta sin personas queda en 1, no en nulo', async () => {
+		S.conTabla(st => st.tabla === 'categorias'
+			? { data: { restaurante_id: IDS.restaurante }, error: null }
+			: { data: null, error: null });
+		await S.pedir('POST', '/api/productos',
+			{ restaurante_id: IDS.restaurante, categoria_id: IDS.categoria, nombre: 'Arepa' }, tokenCliente);
+		assert.equal(S.ultimaEscritura('productos').personas, 1);
+	});
+
+	test('el alta admite fijarlo desde ya', async () => {
+		S.conTabla(st => st.tabla === 'categorias'
+			? { data: { restaurante_id: IDS.restaurante }, error: null }
+			: { data: null, error: null });
+		await S.pedir('POST', '/api/productos',
+			{ restaurante_id: IDS.restaurante, categoria_id: IDS.categoria, nombre: 'Salchipapa grande', personas: 3 },
+			tokenCliente);
+		assert.equal(S.ultimaEscritura('productos').personas, 3);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('PATCH /api/categorias · los horarios dependen del plan', () => {
 	const HORARIO = { activo: true, dias: [1, 2, 3], desde: '11:00', hasta: '15:00' };
 	const conPlan = (plan, horarioGuardado) => S.conTabla(st => {

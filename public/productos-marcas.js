@@ -60,6 +60,11 @@ function marcasDePlato(p) {
   if (p?.atributos?.sin_foto === true && !p.imagen_url) {
     marcas.push({ texto: '📷 sin foto a propósito', titulo: 'Marcado en su ficha: este plato no lleva foto. No cuenta como pendiente.' });
   }
+  // Es una columna del plato, no de 'atributos': por defecto 1, y con 1 no se
+  // dice nada — es el caso normal de casi toda la carta.
+  if (p?.personas > 1) {
+    marcas.push({ texto: `👥 ${p.personas} personas`, titulo: `Alcanza para ${p.personas} personas` });
+  }
   const filtros = filtrosDePlato(p);
   for (const f of filtros.slice(0, MAXIMO_MARCAS_VISIBLES)) {
     marcas.push({ texto: `${f.emoji || ''} ${f.label}`.trim(), titulo: `Filtro: ${f.label}` });

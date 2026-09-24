@@ -4689,6 +4689,7 @@ describe('el primer día de un restaurante', () => {
 		assert.match(html, /Foto del producto[\s\S]*?Agrégala ahora o después/);
 		assert.match(html, /Descripción del producto[\s\S]*?Se muestra cuando el cliente abre el producto/);
 		assert.match(html, /Descripción corta[\s\S]*?en las cartas de video es el texto principal/);
+		assert.match(html, /Para cuántas personas[\s\S]*?id="editPersonas"/);
 		assert.match(html, /Imágenes adicionales <span>\(opcional · máx\. 4\)<\/span><\/summary>/);
 		assert.doesNotMatch(html, /placeholder="22000"/);
 	});
@@ -7536,8 +7537,8 @@ describe('lo que cada plato tiene marcado, visto desde la lista', () => {
 		Array, Object, String, Number, Set, document: { createElement: () => ({ appendChild() {}, style: {} }) },
 	});
 
-	const plato = (filtros, pers) => ({
-		id: 'p1', nombre: 'Arepa',
+	const plato = (filtros, pers, personas) => ({
+		id: 'p1', nombre: 'Arepa', ...(personas ? { personas } : {}),
 		atributos: { ...(filtros ? { filtros } : {}), ...(pers ? { personalizacion: pers } : {}) },
 	});
 
@@ -7595,6 +7596,23 @@ describe('lo que cada plato tiene marcado, visto desde la lista', () => {
 		const ctx = reglas({ nav: 'topnav', carrito: true, filtros_disponibles: CATALOGO_FILTROS, ...TOPPINGS });
 		assert.deepEqual([...ctx.marcasDePlato(plato(null, { platino: [], premium: [], salsas: [] }))], []);
 		assert.equal(ctx.filaDeMarcas(plato(null, { platino: [], premium: [], salsas: [] })), null);
+	});
+
+	test('con una persona no se marca: es el caso normal de casi toda la carta', () => {
+		const ctx = reglas({ nav: 'topnav' });
+		assert.deepEqual([...ctx.marcasDePlato(plato(null, null, 1))], []);
+	});
+
+	test('sin el campo tampoco se marca', () => {
+		const ctx = reglas({ nav: 'topnav' });
+		assert.deepEqual([...ctx.marcasDePlato(plato(null, null, undefined))], []);
+	});
+
+	test('a partir de dos personas, sale la marca', () => {
+		const ctx = reglas({ nav: 'topnav' });
+		const marcas = [...ctx.marcasDePlato(plato(null, null, 3))];
+		assert.deepEqual(marcas.map(m => m.texto), ['👥 3 personas']);
+		assert.equal(marcas[0].titulo, 'Alcanza para 3 personas');
 	});
 });
 
@@ -8091,6 +8109,7 @@ describe('guardar con el video en marcha · guarda, pero no saca de la ficha', (
 			editCategoria:    { value: 'cat-1' },
 			editNombre:       { value: 'Croquetas' },
 			editPrecioNum:    { value: '24000' },
+			editPersonas:     { value: '' },
 			editDesc:         { value: '' },
 			editDescAvanzada: { value: '' },
 			editDisponible:   { checked: true },
