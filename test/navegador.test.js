@@ -6729,6 +6729,75 @@ describe('el modal de categoría marca las que se piden sin abrir la ficha', () 
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('actualizarPrecioGratis · "Es gratis" no se lleva el precio', () => {
+	// Pedido el 25/09/2026: antes, desmarcar "Es gratis" dejaba el precio en
+	// blanco aunque hubiera uno escrito. Se conserva mientras la ficha sigue
+	// abierta con el mismo plato.
+	const montar = (precioInicial = '') => {
+		const campos = {
+			editPrecioGratis: { checked: false },
+			editPrecioNum: { value: precioInicial, disabled: false },
+			precioPreview: { textContent: '' },
+			precioAviso: { textContent: 'algo que ya no aplica' },
+		};
+		const ctx = cargar('index.html', [
+			['comun.js', 'function formatPrecio(num)', 'function esc(s)'],
+			['let precioAntesDeGratis', 'function limpiarErrorDeCampo'],
+		], { document: { getElementById: id => campos[id] } });
+		return { ctx, campos };
+	};
+
+	test('marcarla guarda lo escrito, apaga el campo y limpia el aviso', () => {
+		const { ctx, campos } = montar('15000');
+		campos.editPrecioGratis.checked = true;
+		ctx.actualizarPrecioGratis();
+		assert.equal(campos.editPrecioNum.value, '0');
+		assert.equal(campos.editPrecioNum.disabled, true);
+		assert.equal(campos.precioPreview.textContent, 'Gratis');
+		assert.equal(campos.precioAviso.textContent, '');
+	});
+
+	test('desmarcarla devuelve el precio que había, y lo vuelve a habilitar', () => {
+		const { ctx, campos } = montar('15000');
+		campos.editPrecioGratis.checked = true;
+		ctx.actualizarPrecioGratis();
+		campos.editPrecioGratis.checked = false;
+		ctx.actualizarPrecioGratis();
+		assert.equal(campos.editPrecioNum.value, '15000');
+		assert.equal(campos.editPrecioNum.disabled, false);
+		assert.equal(campos.precioPreview.textContent, '$ 15.000');
+	});
+
+	test('sin haber escrito nada antes, desmarcarla deja el campo en blanco, como hasta ahora', () => {
+		const { ctx, campos } = montar('');
+		campos.editPrecioGratis.checked = true;
+		ctx.actualizarPrecioGratis();
+		campos.editPrecioGratis.checked = false;
+		ctx.actualizarPrecioGratis();
+		assert.equal(campos.editPrecioNum.value, '');
+	});
+
+	test('un "0" puesto por la propia función no cuenta como "lo que había escrito"', () => {
+		// Sin esto, marcar y desmarcar dos veces seguidas devolvería '0' en vez
+		// de vaciar el campo.
+		const { ctx, campos } = montar('');
+		campos.editPrecioGratis.checked = true; ctx.actualizarPrecioGratis();
+		campos.editPrecioGratis.checked = false; ctx.actualizarPrecioGratis();
+		campos.editPrecioGratis.checked = true; ctx.actualizarPrecioGratis();
+		campos.editPrecioGratis.checked = false; ctx.actualizarPrecioGratis();
+		assert.equal(campos.editPrecioNum.value, '');
+	});
+
+	test('abrir un plato nuevo o distinto no arrastra el precio del anterior', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const nuevo = src.match(/function openNewProductModal\(\) \{[\s\S]*?\n\}/)[0];
+		const editar = src.match(/function openEditProductModal\([^)]*\) \{[\s\S]*?\n\}/)[0];
+		for (const f of [nuevo, editar])
+			assert.match(f, /precioAntesDeGratis = null;[\s\S]{0,40}?actualizarPrecioGratis\(\);/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('la categoría lleva una nota opcional para la carta', () => {
 	// P4 en docs/revision-ux.md: avisos hechos con platos de $ 0.
 	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
