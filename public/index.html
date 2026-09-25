@@ -6791,7 +6791,9 @@ async function handleLogoUpload(input) {
     const url = await uploadImg(blob, 'logos');
     await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: url });
     state.restaurante.logo_url = url; pintarImagenesApariencia();
-    st.textContent = '✓ Logo actualizado'; st.style.color = 'var(--success)';
+    // Aparece «De tu logo» en Colores, con los colores del logo nuevo.
+    renderPaletas();
+    st.textContent = '✓ Logo actualizado · en «Colores» tienes una paleta con sus colores'; st.style.color = 'var(--success)';
     avisarGuardadoConCarta('Logo guardado');
   } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
@@ -6843,6 +6845,7 @@ async function eliminarImagen(tipo) {
     if (tipo === 'logo') {
       await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: null });
       state.restaurante.logo_url = null;
+      renderPaletas();   // sin logo, sin «De tu logo»
     } else if (tipo === 'fondo') {
       await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { fondo_url: null });
       state.restaurante.fondo_url = null;

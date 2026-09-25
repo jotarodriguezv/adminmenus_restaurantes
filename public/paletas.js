@@ -33,8 +33,12 @@ const COLORES_FIJOS_CARTA = { oscuro: '#0a0a0f', texto: '#f0edf8', gris: '#b0b0b
 const REGLAS_COLOR = [
   { a: 'primario',   b: 'oscuro',     min: 4.5, que: 'títulos y precios sobre el fondo oscuro' },
   { a: 'primario',   b: 'tarjeta',    min: 3,   que: 'precios sobre las tarjetas' },
-  { a: 'primario',   b: 'fondo',      min: 3,   que: 'títulos sobre el fondo de la página' },
+  // 4,5 y no 3: además del nombre grande, van sobre el fondo títulos pequeños
+  // como «ENTRANTES» y el subtítulo «CARTA EN VIDEO». Visto con la paleta del
+  // logo de Lobster Boat, que pasaba contra la base oscura y no contra su fondo.
+  { a: 'primario',   b: 'fondo',      min: 4.5, que: 'títulos pequeños sobre el fondo de la página' },
   { a: 'secundario', b: 'oscuro',     min: 4.5, que: 'subtítulo sobre el fondo oscuro' },
+  { a: 'secundario', b: 'fondo',      min: 4.5, que: 'subtítulo sobre el fondo de la página' },
   { a: 'blanco',     b: 'secundario', min: 3,   que: 'letra blanca en los botones del secundario' },
   { a: 'secundario', b: 'tarjeta',    min: 3,   que: 'totales del carrito sobre las tarjetas' },
   { a: 'texto',      b: 'tarjeta',    min: 4.5, que: 'nombre del plato sobre la tarjeta' },
@@ -45,10 +49,10 @@ const REGLAS_COLOR = [
 
 const PALETAS = [
   { id: 'clasica',     nombre: 'Clásica VMenus', para: 'la de siempre',              primario: '#cdfefe', secundario: '#a374af', superficie: '#12111a', tarjeta: '#1a1825', fondo: '#0a0a0f' },
-  { id: 'brasa',       nombre: 'Brasa',          para: 'parrilla y hamburguesas',    primario: '#ff8a4c', secundario: '#d9442b', superficie: '#17100d', tarjeta: '#221713', fondo: '#1c0f0a' },
-  { id: 'marisqueria', nombre: 'Marisquería',    para: 'mar y mariscos',             primario: '#e8454b', secundario: '#1f9e9a', superficie: '#141b33', tarjeta: '#1c2544', fondo: '#101a33' },
+  { id: 'brasa',       nombre: 'Brasa',          para: 'parrilla y hamburguesas',    primario: '#ff8a4c', secundario: '#d9442b', superficie: '#17100d', tarjeta: '#221713', fondo: '#110906' },
+  { id: 'marisqueria', nombre: 'Marisquería',    para: 'mar y mariscos',             primario: '#e8454b', secundario: '#1f9e9a', superficie: '#141b33', tarjeta: '#1c2544', fondo: '#0f182f' },
   { id: 'huerta',      nombre: 'Huerta',         para: 'saludable y vegetariano',    primario: '#8bd17c', secundario: '#3f9b5b', superficie: '#101a12', tarjeta: '#17251a', fondo: '#0d1a10' },
-  { id: 'cafe',        nombre: 'Café',           para: 'cafetería y panadería',      primario: '#e3b27a', secundario: '#b5651d', superficie: '#17110c', tarjeta: '#221912', fondo: '#140e09' },
+  { id: 'cafe',        nombre: 'Café',           para: 'cafetería y panadería',      primario: '#e3b27a', secundario: '#b5651d', superficie: '#17110c', tarjeta: '#221912', fondo: '#0f0a07' },
   { id: 'noche',       nombre: 'Noche',          para: 'bar y coctelería',           primario: '#c792ea', secundario: '#8e6cff', superficie: '#120f1c', tarjeta: '#1c1830', fondo: '#0f0b1f' },
   { id: 'dorada',      nombre: 'Dorada',         para: 'restaurante elegante',       primario: '#e6c36a', secundario: '#d35400', superficie: '#141210', tarjeta: '#1f1b16', fondo: '#100e0b' },
   { id: 'picante',     nombre: 'Picante',        para: 'mexicano y comida rápida',   primario: '#ffc857', secundario: '#e4572e', superficie: '#1a1410', tarjeta: '#261c15', fondo: '#1a0d08' },
@@ -83,8 +87,168 @@ function fallosDeContraste(colores) {
     .filter(r => r.valor < r.min);
 }
 
+// ── LA PALETA DEL LOGO ────────────────────────────────────────
+// Pedido por el usuario el 24/09/2026: casi todo restaurante sube su logo y
+// quiere la carta con los colores de su negocio. Se leen del propio logo, en
+// el navegador y sin servicios externos: el logo vive en /uploads del mismo
+// dominio que el panel, así que el canvas se puede leer.
+//
+// Los colores de un logo casi nunca sirven TAL CUAL: el azul marino de Lobster
+// Boat como color de títulos no se vería sobre la base oscura. Así que a cada
+// color se le da el papel que puede cumplir y se le mueve SOLO la luminosidad,
+// conservando el tono, hasta que cumpla REGLAS_COLOR:
+//   · el más vivo            → primario (títulos, precios)
+//   · el más oscuro del resto → fondo, superficie y tarjeta, muy oscurecidos
+//   · otro, o ese mismo       → secundario, llevado a tono medio
+// Si el logo no tiene colores de marca (blanco y negro, grises), no hay
+// paleta del logo y quedan las fijas.
+
+let paletaDelLogo = null;   // { url, paleta } del logo leído por última vez
+
+// 'state' vive en comun.js; con typeof, las pruebas que cargan solo este
+// archivo no revientan por un nombre que no existe.
+function logoActual() {
+  return (typeof state === 'undefined' ? null : state?.restaurante?.logo_url) || null;
+}
+
+function hexARgb(hex) {
+  const n = parseInt(String(hex).replace('#', ''), 16);
+  return [n >> 16, (n >> 8) & 255, n & 255];
+}
+
+function rgbAHex(rgb) {
+  return '#' + rgb.map(v => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join('');
+}
+
+function rgbAHsl([r, g, b]) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslAHex([h, s, l]) {
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return rgbAHex([f(0), f(8), f(4)].map(v => v * 255));
+}
+
+// Los colores de marca de una imagen, del que más pesa al que menos, a partir
+// de sus píxeles RGBA. Fuera lo transparente y lo neutro (blancos, negros y
+// grises): son el fondo y las letras, no la marca. Se agrupa por tono en
+// tramos de 20°, que junta los matices de un mismo color.
+function coloresDeImagen(px) {
+  const tramos = new Map();
+  let opacos = 0, conColor = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] < 128) continue;
+    opacos++;
+    const [h, s, l] = rgbAHsl([px[i], px[i + 1], px[i + 2]]);
+    if (s < 0.25 || l < 0.08 || l > 0.92) continue;
+    conColor++;
+    const k = Math.round(h / 20) % 18;
+    const t = tramos.get(k) || { n: 0, r: 0, g: 0, b: 0 };
+    t.n++; t.r += px[i]; t.g += px[i + 1]; t.b += px[i + 2];
+    tramos.set(k, t);
+  }
+  // Unos pocos píxeles de color en un logo blanco y negro son bordes
+  // suavizados, no una marca.
+  if (!opacos || conColor / opacos < 0.03) return [];
+  return [...tramos.values()]
+    .map(t => ({ hex: rgbAHex([t.r / t.n, t.g / t.n, t.b / t.n]), peso: t.n / conColor }))
+    .filter(c => c.peso >= 0.05)
+    .sort((a, b) => b.peso - a.peso);
+}
+
+// El color de ese tono y esa saturación más parecido al original que cumpla
+// 'cumple', moviendo solo la luminosidad. null si ninguna luminosidad sirve.
+function acercarLuminosidad([h, s, l], cumple) {
+  for (let d = 0; d <= 1; d += 0.005) {
+    for (const prueba of [l + d, l - d]) {
+      if (prueba < 0 || prueba > 1) continue;
+      const hex = hslAHex([h, s, prueba]);
+      if (cumple(hex)) return hex;
+    }
+  }
+  return null;
+}
+
+function paletaDesdeColores(colores) {
+  if (!colores?.length) return null;
+  const c = colores.map(x => ({ ...x, hsl: rgbAHsl(hexARgb(x.hex)) }));
+  // La base de los fondos es el color OSCURO del logo, que es el que ya hace
+  // de fondo en la marca (el marino de Lobster Boat, el morado de un logo
+  // morado y dorado). Si no tiene ninguno oscuro, el que más pesa.
+  const oscuros = c.filter(x => x.hsl[2] <= 0.45);
+  const base = oscuros.length ? oscuros.reduce((m, x) => (x.hsl[2] < m.hsl[2] ? x : m)) : c[0];
+  // Para títulos, el más vivo de los demás, con algo de ventaja al que más se
+  // ve. Con un solo color, ese mismo.
+  const otros = c.filter(x => x !== base);
+  const pesan = otros.filter(x => x.peso >= 0.10);
+  const prim = otros.length
+    ? (pesan.length ? pesan : otros).reduce((m, x) => (x.hsl[1] * (0.5 + x.peso) > m.hsl[1] * (0.5 + m.peso) ? x : m))
+    : base;
+  const sec = otros.find(x => x !== prim) || base;
+
+  const f = COLORES_FIJOS_CARTA;
+  // Saturación contenida: un fondo muy saturado y oscuro sale turbio.
+  const oscuroDe = l => {
+    const [h, s] = base.hsl;
+    return acercarLuminosidad([h, Math.min(s, 0.4), l], hex =>
+      contrasteColores(f.texto, hex) >= 4.5 && contrasteColores(f.gris, hex) >= 4.5);
+  };
+  const fondo = oscuroDe(0.11), superficie = oscuroDe(0.14), tarjeta = oscuroDe(0.18);
+  if (!fondo || !superficie || !tarjeta) return null;
+
+  const primario = acercarLuminosidad(prim.hsl, hex =>
+    contrasteColores(hex, f.oscuro) >= 4.5 && contrasteColores(hex, tarjeta) >= 3 && contrasteColores(hex, fondo) >= 4.5);
+  const secundario = acercarLuminosidad(sec.hsl, hex =>
+    contrasteColores(hex, f.oscuro) >= 4.5 && contrasteColores(hex, fondo) >= 4.5 &&
+    contrasteColores(f.blanco, hex) >= 3 && contrasteColores(hex, tarjeta) >= 3);
+  if (!primario || !secundario) return null;
+
+  const p = { primario, secundario, superficie, tarjeta, fondo };
+  // Última red: si algo se escapó, mejor ninguna paleta que una que no se lee.
+  if (fallosDeContraste(p).length) return null;
+  const movido = (orig, nuevo) => Math.abs(rgbAHsl(hexARgb(nuevo))[2] - orig.hsl[2]) > 0.06;
+  return {
+    id: 'logo', nombre: 'De tu logo', ...p,
+    para: movido(prim, primario) || movido(sec, secundario)
+      ? 'sus colores, ajustados para que se lean'
+      : 'los colores de tu logo',
+    origen: c.map(x => x.hex),
+  };
+}
+
+// Lee el logo en un canvas pequeño: para saber sus colores no hace falta más.
+async function leerColoresDelLogo(url) {
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = url;
+    await img.decode();
+    const N = 64, lienzo = document.createElement('canvas');
+    lienzo.width = N; lienzo.height = N;
+    const ctx = lienzo.getContext('2d');
+    ctx.drawImage(img, 0, 0, N, N);
+    return coloresDeImagen(ctx.getImageData(0, 0, N, N).data);
+  } catch {
+    // Un logo en otro dominio sin permisos, o que no carga: sin paleta del logo.
+    return [];
+  }
+}
+
+function todasLasPaletas() {
+  const logo = paletaDelLogo?.url === logoActual() ? paletaDelLogo.paleta : null;
+  return logo ? [logo, ...PALETAS] : PALETAS;
+}
+
 function aplicarPaleta(id) {
-  const p = PALETAS.find(x => x.id === id);
+  const p = todasLasPaletas().find(x => x.id === id);
   if (!p) return;
   for (const [clave, [texto, muestra]] of Object.entries(CAMPOS_PALETA)) {
     document.getElementById(texto).value = p[clave];
@@ -97,7 +261,7 @@ function aplicarPaleta(id) {
 // Si se retocó un color a mano ya no es esa paleta, y no se marca ninguna.
 function paletaActual() {
   const valor = id => (document.getElementById(id)?.value || '').trim().toLowerCase();
-  return PALETAS.find(p => Object.entries(CAMPOS_PALETA).every(([c, [texto]]) => valor(texto) === p[c])) || null;
+  return todasLasPaletas().find(p => Object.entries(CAMPOS_PALETA).every(([c, [texto]]) => valor(texto) === p[c])) || null;
 }
 
 function marcarPaletaActual() {
@@ -106,40 +270,53 @@ function marcarPaletaActual() {
     b.setAttribute('aria-pressed', String(b.dataset.paleta === actual?.id)));
 }
 
+function botonPaleta(p) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = p.id === 'logo' ? 'paleta paleta-logo' : 'paleta';
+  b.dataset.paleta = p.id;
+  b.setAttribute('aria-pressed', 'false');
+  b.title = `${p.nombre} — ${p.para}`;
+  b.onclick = () => aplicarPaleta(p.id);
+
+  const tiras = document.createElement('span');
+  tiras.className = 'paleta-tiras';
+  tiras.setAttribute('aria-hidden', 'true');
+  for (const clave of ['fondo', 'tarjeta', 'primario', 'secundario']) {
+    const t = document.createElement('span');
+    t.style.background = p[clave];
+    tiras.appendChild(t);
+  }
+  const nombre = document.createElement('span');
+  nombre.className = 'paleta-nombre';
+  nombre.textContent = p.nombre;
+  const para = document.createElement('span');
+  para.className = 'paleta-para';
+  para.textContent = p.para;
+
+  b.append(tiras, nombre, para);
+  return b;
+}
+
 function renderPaletas() {
   const cont = document.getElementById('apPaletas');
   if (!cont) return;
-  cont.replaceChildren(...PALETAS.map(p => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'paleta';
-    b.dataset.paleta = p.id;
-    b.setAttribute('aria-pressed', 'false');
-    b.title = `${p.nombre} — ${p.para}`;
-    b.onclick = () => aplicarPaleta(p.id);
-
-    const tiras = document.createElement('span');
-    tiras.className = 'paleta-tiras';
-    tiras.setAttribute('aria-hidden', 'true');
-    for (const clave of ['fondo', 'tarjeta', 'primario', 'secundario']) {
-      const t = document.createElement('span');
-      t.style.background = p[clave];
-      tiras.appendChild(t);
-    }
-    const nombre = document.createElement('span');
-    nombre.className = 'paleta-nombre';
-    nombre.textContent = p.nombre;
-    const para = document.createElement('span');
-    para.className = 'paleta-para';
-    para.textContent = p.para;
-
-    b.append(tiras, nombre, para);
-    return b;
-  }));
+  cont.replaceChildren(...todasLasPaletas().map(botonPaleta));
   // Al retocar un color a mano deja de ser esa paleta. addEventListener con la
   // misma función no la duplica, así que llamar a esto en cada visita a
   // Superadmin no acumula escuchas (lo que pasó en P5).
   for (const ids of Object.values(CAMPOS_PALETA))
     for (const id of ids) document.getElementById(id)?.addEventListener('input', marcarPaletaActual);
   marcarPaletaActual();
+
+  // La del logo se calcula aparte y se pinta cuando llega. Si ya se había
+  // leído ese mismo logo, salió arriba con las demás.
+  const url = logoActual();
+  if (url && paletaDelLogo?.url !== url) {
+    leerColoresDelLogo(url).then(colores => {
+      paletaDelLogo = { url, paleta: paletaDesdeColores(colores) };
+      // Si mientras tanto se cambió de restaurante o de logo, no se pinta.
+      if (logoActual() === url && paletaDelLogo.paleta) renderPaletas();
+    });
+  }
 }
