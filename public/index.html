@@ -477,7 +477,7 @@
 							<input type="file" accept="image/*" onchange="handleLogoUpload(this)">
 							<div class="upload-zone-text">
 								<span>Haz clic para subir</span> el logo<span class="pista-arrastre"> o arrástralo aquí</span><br>
-								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · idealmente cuadrado</span>
+								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · idealmente cuadrado y con fondo transparente</span>
 							</div>
 						</label>
 						<div id="apLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
@@ -7089,13 +7089,19 @@ async function handleLogoUpload(input) {
   st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
   try {
     // El único que conserva PNG: un logo con fondo transparente es lo normal.
-    const blob = await compressImage(file, 500, .9, { conservarTransparencia: true });
+    // quitarFondo intenta reconocer un fondo de color sólido y volverlo
+    // transparente cuando el archivo no trae transparencia real (ver el
+    // comentario de quitarFondoDelLogo).
+    const blob = await compressImage(file, 500, .9, { conservarTransparencia: true, quitarFondo: true });
     const url = await uploadImg(blob, 'logos');
     await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: url });
     state.restaurante.logo_url = url; pintarImagenesApariencia();
     // Aparece «De tu logo» en Colores, con los colores del logo nuevo.
     renderPaletas();
-    st.textContent = '✓ Logo actualizado · en «Colores» tienes una paleta con sus colores'; st.style.color = 'var(--success)';
+    st.textContent = blob.fondoAutoQuitado
+      ? '✓ Logo actualizado · le quitamos el fondo automáticamente. Revísalo: si el resultado no queda bien, sube uno con fondo transparente'
+      : '✓ Logo actualizado · en «Colores» tienes una paleta con sus colores';
+    st.style.color = 'var(--success)';
     avisarGuardadoConCarta('Logo guardado');
   } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
@@ -7551,7 +7557,88 @@ const MENSAJE_IMAGEN_INCOMPLETA =
   'Esa foto está incompleta: el archivo se cortó al copiarlo o descargarlo, y se vería rota. ' +
   'Vuelve a descargarla o elige otra.';
 
-function compressImage(file, maxW, q, { conservarTransparencia = false } = {}) {
+// ── QUITAR EL FONDO DEL LOGO AUTOMÁTICAMENTE ────────────────────
+// Pedido por el usuario el 25/09/2026, al ver el logo de Skipper con un
+// recuadro alrededor en la pantalla de TV. No es un logo mal subido: el
+// archivo que llega ya viene con el fondo pintado —herramientas como Canva
+// gratis no ofrecen exportar con transparencia real— y de un archivo así no
+// se puede recuperar un canal alfa que nunca tuvo. Comprobado con el propio
+// logo de Skipper: sus 4096 píxeles muestreados dan alfa 255, sin excepción.
+//
+// Lo que SÍ se puede hacer es reconocer un fondo de color sólido y quitarlo,
+// como la «varita mágica» de cualquier editor de fotos:
+//   1. Mirar el borde entero de la imagen (no solo las cuatro esquinas: un
+//      logo redondo puede tener las esquinas de un color y el resto del
+//      borde de otro) y ver si un color domina claramente.
+//   2. Si lo hay, relleno por inundación desde el borde quitando ESE color
+//      pero solo el que está CONECTADO al borde — nunca el mismo color
+//      suelto dentro del dibujo, como el blanco dentro de una «O».
+//   3. El alfa de cada píxel quitado depende de cuánto se parece al fondo, no
+//      es todo o nada: así el borde antialiasado entre el logo y su fondo
+//      —siempre lo hay— queda suave y no dentado.
+// Si el borde no tiene un color claramente mayoritario (una foto, un
+// degradado, un logo que llega hasta las cuatro esquinas), no se toca nada:
+// mejor dejarlo como está que arriesgarse a comerse parte del dibujo.
+const UMBRAL_FONDO_LOGO = 30; // distancia de color (0–441) para "es del fondo"
+
+function distanciaColor(r1, g1, b1, r2, g2, b2) {
+  return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
+}
+
+// Devuelve true si encontró y quitó un fondo sólido (y entonces pinta el
+// canvas con la transparencia nueva); false si no tocó nada.
+function quitarFondoDelLogo(ctx, w, h) {
+  if (w < 3 || h < 3) return false; // sin borde e interior que distinguir
+  const img = ctx.getImageData(0, 0, w, h);
+  const data = img.data;
+  const idx = (x, y) => (y * w + x) * 4;
+
+  const borde = [];
+  for (let x = 0; x < w; x++) { borde.push([x, 0]); borde.push([x, h - 1]); }
+  for (let y = 1; y < h - 1; y++) { borde.push([0, y]); borde.push([w - 1, y]); }
+
+  // Si el borde ya es mayormente transparente, el logo ya trae su propia
+  // transparencia: se respeta tal cual, no se adivina nada encima.
+  let sumaAlfa = 0;
+  for (const [x, y] of borde) sumaAlfa += data[idx(x, y) + 3];
+  if (sumaAlfa / borde.length < 250) return false;
+
+  // El color de fondo es el que más se repite en el borde, agrupado en
+  // cubos de 4 para absorber el ruido de compresión de un JPEG o un WebP.
+  const cubos = new Map();
+  for (const [x, y] of borde) {
+    const i = idx(x, y);
+    const k = `${data[i] >> 2},${data[i + 1] >> 2},${data[i + 2] >> 2}`;
+    const c = cubos.get(k) || { n: 0, r: 0, g: 0, b: 0 };
+    c.n++; c.r += data[i]; c.g += data[i + 1]; c.b += data[i + 2];
+    cubos.set(k, c);
+  }
+  const mayor = [...cubos.values()].reduce((m, c) => (c.n > m.n ? c : m));
+  // Menos de 6 de cada 10 píxeles del borde: no hay un fondo sólido claro.
+  if (mayor.n / borde.length < 0.6) return false;
+  const bg = [mayor.r / mayor.n, mayor.g / mayor.n, mayor.b / mayor.n];
+
+  const visitado = new Uint8Array(w * h);
+  const pila = borde.map(([x, y]) => y * w + x);
+  while (pila.length) {
+    const p = pila.pop();
+    if (visitado[p]) continue;
+    const i = p * 4;
+    const d = distanciaColor(data[i], data[i + 1], data[i + 2], bg[0], bg[1], bg[2]);
+    if (d > UMBRAL_FONDO_LOGO) continue;
+    visitado[p] = 1;
+    data[i + 3] = Math.round(255 * Math.min(1, d / UMBRAL_FONDO_LOGO));
+    const x = p % w, y = (p / w) | 0;
+    if (x > 0) pila.push(p - 1);
+    if (x < w - 1) pila.push(p + 1);
+    if (y > 0) pila.push(p - w);
+    if (y < h - 1) pila.push(p + w);
+  }
+  ctx.putImageData(img, 0, 0);
+  return true;
+}
+
+function compressImage(file, maxW, q, { conservarTransparencia = false, quitarFondo = false } = {}) {
   // WebP cuando se pueda: la misma foto pesa entre un 30% y un 40% menos, y
   // eso lo paga el comensal en datos móviles cada vez que abre una carta.
   //
@@ -7559,7 +7646,7 @@ function compressImage(file, maxW, q, { conservarTransparencia = false } = {}) {
   // canal alfa, así que un logo con fondo transparente ya no necesita salir
   // en PNG para conservarlo. 'conservarTransparencia' solo decide algo
   // cuando el navegador no hace WebP.
-  const tipo = navegadorHaceWebp()
+  const tipoBase = navegadorHaceWebp()
     ? 'image/webp'
     // PNG solo si además el origen lo es: convertir un JPEG a PNG no recupera
     // una transparencia que nunca tuvo, y sí multiplica el peso.
@@ -7588,9 +7675,19 @@ function compressImage(file, maxW, q, { conservarTransparencia = false } = {}) {
           let w = img.width, h = img.height;
           if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
           c.width = w; c.height = h;
-          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const fondoQuitado = quitarFondo && quitarFondoDelLogo(ctx, w, h);
+          // Si se acaba de crear un canal alfa y el navegador no hace WebP,
+          // 'tipoBase' habría salido en JPEG (el origen no era PNG ni WebP) y
+          // se perdería la transparencia recién ganada.
+          const tipo = fondoQuitado && tipoBase === 'image/jpeg' ? 'image/png' : tipoBase;
           // toBlob puede llamar al callback con null si no puede codificar.
-          c.toBlob(b => b ? res(b) : rej(new Error('No se pudo procesar la imagen')), tipo, q);
+          c.toBlob(b => {
+            if (!b) return rej(new Error('No se pudo procesar la imagen'));
+            if (fondoQuitado) b.fondoAutoQuitado = true; // para el aviso de handleLogoUpload
+            res(b);
+          }, tipo, q);
         } catch (err) { rej(err); }
       };
       img.src = e.target.result;

@@ -3957,6 +3957,86 @@ describe('compressImage · formato de salida y fallos que antes colgaban', () =>
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('quitarFondoDelLogo · la varita mágica para logos sin transparencia', () => {
+	// Pedido el 25/09/2026, al ver el logo de Skipper con un recuadro en la
+	// pantalla de TV: el archivo llegaba sin canal alfa (ver el comentario junto
+	// a la función, en public/index.html). Estas pruebas construyen su propio
+	// canvas falso con un ImageData de verdad, en vez de mockear drawImage: la
+	// función solo toca píxeles, así que probarla con píxeles de verdad es lo
+	// que de verdad la protege.
+	const cargarFn = () => cargar('index.html', 'const UMBRAL_FONDO_LOGO', 'function compressImage');
+
+	// 'pixeles' da el color de cada (x,y); devuelve un ctx con getImageData
+	// real y un putImageData que no hace nada —de sobra, porque getImageData
+	// entrega el MISMO array que la función muta, así que el resultado ya está
+	// en 'data' antes de que se llame a putImageData—.
+	function ctxFalso(w, h, pixeles) {
+		const data = new Uint8ClampedArray(w * h * 4);
+		for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+			const [r, g, b, a] = pixeles(x, y);
+			const i = (y * w + x) * 4;
+			data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = a;
+		}
+		return { data, getImageData: () => ({ data, width: w, height: h }), putImageData() {} };
+	}
+	const alfaEn = (ctx, w, x, y) => ctx.data[(y * w + x) * 4 + 3];
+
+	test('quita un fondo sólido conectado al borde', () => {
+		const { quitarFondoDelLogo } = cargarFn();
+		// 5×5, fondo rojo entero (F) menos un logo azul (L) en el centro.
+		const F = [200, 50, 50, 255], L = [50, 50, 200, 255];
+		const ctx = ctxFalso(5, 5, (x, y) => (x === 2 && y === 2 ? L : F));
+		assert.equal(quitarFondoDelLogo(ctx, 5, 5), true);
+		assert.equal(alfaEn(ctx, 5, 0, 0), 0, 'la esquina, del fondo, queda transparente');
+		assert.equal(alfaEn(ctx, 5, 2, 2), 255, 'el logo, de otro color, se queda intacto');
+	});
+
+	test('no se come el mismo color del fondo si aparece suelto dentro del dibujo', () => {
+		const { quitarFondoDelLogo } = cargarFn();
+		// Anillo azul (L) que encierra un píxel central del mismo rojo (F) que
+		// el fondo: por relleno de 4 vecinos, ese píxel no se toca a través del
+		// anillo. Es el caso de la «O»: el blanco de dentro no es el mismo hueco
+		// que el de fuera.
+		const F = [200, 50, 50, 255], L = [50, 50, 200, 255];
+		const mapa = ['FFFFF', 'FLLLF', 'FLFLF', 'FLLLF', 'FFFFF'];
+		const ctx = ctxFalso(5, 5, (x, y) => (mapa[y][x] === 'L' ? L : F));
+		assert.equal(quitarFondoDelLogo(ctx, 5, 5), true);
+		assert.equal(alfaEn(ctx, 5, 0, 0), 0, 'el fondo de verdad, conectado al borde, se quita');
+		assert.equal(alfaEn(ctx, 5, 2, 2), 255, 'el mismo color, encerrado por el anillo, no se toca');
+	});
+
+	test('un logo que ya trae transparencia real no se toca', () => {
+		const { quitarFondoDelLogo } = cargarFn();
+		const ctx = ctxFalso(4, 4, (x, y) => (x === 0 || y === 0 || x === 3 || y === 3) ? [0, 0, 0, 0] : [10, 10, 10, 255]);
+		const antes = new Uint8ClampedArray(ctx.data);
+		assert.equal(quitarFondoDelLogo(ctx, 4, 4), false);
+		assert.deepEqual(ctx.data, antes, 'sin un "sí" de la función, ni un píxel cambia');
+	});
+
+	test('sin un color de borde que domine claramente, no se arriesga a nada', () => {
+		const { quitarFondoDelLogo } = cargarFn();
+		// El borde alterna dos colores muy distintos a partes iguales: ninguno
+		// llega al 60% que pide la función, así que no hay «el» color de fondo.
+		const A = [200, 50, 50, 255], B = [50, 200, 50, 255];
+		const ctx = ctxFalso(6, 6, (x, y) => ((x + y) % 2 === 0 ? A : B));
+		const antes = new Uint8ClampedArray(ctx.data);
+		assert.equal(quitarFondoDelLogo(ctx, 6, 6), false);
+		assert.deepEqual(ctx.data, antes);
+	});
+
+	test('el borde antialiasado entre el logo y su fondo queda suave, no dentado', () => {
+		const { quitarFondoDelLogo } = cargarFn();
+		// A medio camino de color entre el fondo y el umbral: ni transparente del
+		// todo ni opaco del todo.
+		const F = [0, 0, 0, 255], MEDIO = [15, 0, 0, 255]; // distancia 15, mitad de UMBRAL_FONDO_LOGO (30)
+		const ctx = ctxFalso(3, 3, (x, y) => (x === 1 && y === 1 ? MEDIO : F));
+		quitarFondoDelLogo(ctx, 3, 3);
+		const a = alfaEn(ctx, 3, 1, 1);
+		assert.ok(a > 0 && a < 255, `el píxel a medio camino debería quedar a medias, no en ${a}`);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('importar la carta · lo que se le enseña antes de crear nada', () => {
 	// El panel no puede importar importacion.js, así que la regla de "¿esta
 	// categoría ya existe?" está escrita DOS veces. Si se separan, el número
