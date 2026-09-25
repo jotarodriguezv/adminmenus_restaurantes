@@ -129,6 +129,10 @@
 							<select class="form-select" id="newRestoModelo"></select>
 						</div>
 					</div>
+					<!-- Las mismas paletas de Superadmin → Colores (public/paletas.js). Aquí
+					     no hay «De tu logo»: el logo se sube después, y en Superadmin ya sale. -->
+					<div class="form-label">Paleta de colores <span style="color:var(--text-dim)">(opcional; pone también el fondo y las cajas. Si no eliges, se usan los de siempre)</span></div>
+					<div class="paletas" id="newRestoPaletas" role="group" aria-label="Paletas de colores para el restaurante nuevo"></div>
 					<div class="color-row" style="margin-bottom:16px;">
 						<div class="form-group" style="margin-bottom:0">
 							<label for="prevColor1" class="form-label">Color primario</label>
@@ -7877,6 +7881,9 @@ function aplicarClonPreview(id) {
   document.getElementById('newRestoPlan').value = nombrePlanDe(origen);
   filtrarModeloNuevoResto();
   document.getElementById('newRestoModelo').value = origen.atributos?.nav || MODELO_POR_DEFECTO;
+  // El clon trae sus propios colores de superficie, tarjeta y fondo: una
+  // paleta elegida antes los pisaría sin que se viera en el formulario.
+  soltarPaletaNuevoResto();
 }
 
 async function crearRestaurante() {
@@ -7896,7 +7903,7 @@ async function crearRestaurante() {
 
   status.textContent='Creando...'; status.style.color='var(--text-muted)';
   try {
-    const creado = await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de,plan,nav:modelo});
+    const creado = await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de,plan,nav:modelo,...coloresPaletaNuevoResto()});
     // Si venía de una solicitud de alta, queda aprobada y enlazada a él.
     if (creado?.id) await marcarSolicitudCreada(creado.id);
     status.textContent='✓ Restaurante creado correctamente'; status.style.color='var(--success)';
@@ -7906,6 +7913,7 @@ async function crearRestaurante() {
     document.getElementById('newRestoClonar').value='';
     document.getElementById('newRestoPlan').value=PLAN_POR_DEFECTO;
     filtrarModeloNuevoResto();
+    soltarPaletaNuevoResto();
     await cargarListaRestos();
     // Se pliega: lo siguiente es la lista, donde llevarARestauranteNuevo lleva a él.
     document.getElementById('nuevoRestoPanel').open=false;
@@ -8138,6 +8146,7 @@ function habilitarArrastre() {
 
 // ── ARRANQUE ──────────────────────────────────────────────────
 filtrarModeloNuevoResto();
+renderPaletasNuevoResto();
 habilitarArrastre();
 vigilarCambiosApariencia();
 vigilarBordesDeTabs();

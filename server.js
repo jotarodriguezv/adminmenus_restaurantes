@@ -626,7 +626,8 @@ const ATRIBUTOS_CLONABLES = ['nav', 'estilo', 'fuente_titulo', 'fuente_cuerpo', 
 
 app.post('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
-  const { nombre, slug, color_primario, color_secundario, activo, pin, clonar_de, plan, nav } = req.body;
+  const { nombre, slug, color_primario, color_secundario, activo, pin, clonar_de, plan, nav,
+          color_surface, color_card, fondo_color } = req.body;
   if (!nombre || !slug) return res.status(400).json({ error: 'Nombre y slug requeridos' });
   const malSlug = errorDeSlug(slug);
   if (malSlug) return res.status(400).json({ error: malSlug });
@@ -649,6 +650,12 @@ app.post('/api/restaurantes', auth, async (req, res) => {
   // lista, igual que en el PATCH de más abajo: el superadmin ya es de fiar.
   if (PLANES[plan]) atributos.plan = plan;
   if (nav) atributos.nav = nav;
+  // Los otros tres colores de una paleta elegida al crear (public/paletas.js).
+  // Como el modelo, lo elegido aquí gana sobre lo que copiaría «copiar
+  // apariencia». Solo #rrggbb: la carta mete estos valores en CSS tal cual.
+  const COLOR_HEX = /^#[0-9a-f]{6}$/i;
+  for (const [clave, valor] of Object.entries({ color_surface, color_card, fondo_color }))
+    if (typeof valor === 'string' && COLOR_HEX.test(valor)) atributos[clave] = valor.toLowerCase();
 
   const { data, error } = await supabase.from('restaurantes')
     .insert([{ nombre, slug, color_primario: color_primario||'#3dd68c', color_secundario: color_secundario||'#a374af', activo: activo!==false, promo_activa: false, atributos }])

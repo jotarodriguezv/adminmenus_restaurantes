@@ -6850,6 +6850,8 @@ describe('aplicarClonPreview · el modelo clonado respeta el plan del origen', (
 			document: { getElementById: id => campos[id] },
 			state: { listaRestos: [origen] },
 			hex6: (v, d) => v || d,
+			// Vive en paletas.js, que este trozo de index.html no carga.
+			soltarPaletaNuevoResto: () => {},
 		});
 		return { ctx, campos };
 	};
@@ -9034,5 +9036,59 @@ describe('el aviso de contraste · al elegir colores a mano', () => {
 		const guardar = src.match(/async function saveApariencia\([^)]*\) \{[\s\S]*?\n\}/);
 		assert.ok(guardar, 'saveApariencia cambió de nombre: esta prueba ya no mira nada');
 		assert.doesNotMatch(guardar[0], /revisarContraste|fallosDeContraste/, 'solo avisa: guardar no pasa por el contraste');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('las paletas al crear un restaurante', () => {
+	// Ver «LAS PALETAS AL CREAR UN RESTAURANTE» en public/paletas.js.
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const montar = () => {
+		const campos = {};
+		for (const id of ['newRestoColor1', 'prevColor1', 'newRestoColor2', 'prevColor2']) campos[id] = { value: '' };
+		const sincronizados = [];
+		const c = cargar('paletas.js', 'const COLORES_FIJOS_CARTA', null);
+		c.document = { getElementById: id => campos[id], querySelectorAll: () => [] };
+		c.colorDesdeTexto = (t, m) => sincronizados.push([t, m]);
+		return { c, campos, sincronizados, PALETAS: vm.runInContext('PALETAS', c) };
+	};
+
+	test('elegir una pone primario y secundario en sus campos, y apunta los otros tres', () => {
+		const { c, campos, sincronizados, PALETAS } = montar();
+		const p = PALETAS.find(x => x.id === 'marisqueria');
+		c.elegirPaletaNuevoResto('marisqueria');
+		assert.equal(campos.newRestoColor1.value, p.primario);
+		assert.equal(campos.newRestoColor2.value, p.secundario);
+		assert.equal(sincronizados.length, 2, 'los cuadritos de muestra se ponen al día');
+		const extra = c.coloresPaletaNuevoResto();
+		assert.equal(extra.color_surface, p.superficie);
+		assert.equal(extra.color_card, p.tarjeta);
+		assert.equal(extra.fondo_color, p.fondo);
+	});
+
+	test('sin paleta, o soltada, no añade nada: nace con los colores por defecto', () => {
+		const { c } = montar();
+		assert.equal(Object.keys(c.coloresPaletaNuevoResto()).length, 0);
+		c.elegirPaletaNuevoResto('brasa');
+		c.soltarPaletaNuevoResto();
+		assert.equal(Object.keys(c.coloresPaletaNuevoResto()).length, 0);
+	});
+
+	test('el selector va dentro de «Nuevo restaurante» y se pinta al arrancar', () => {
+		const i = src.indexOf('id="nuevoRestoPanel"');
+		const f = src.indexOf('</details>', i);
+		assert.ok(src.slice(i, f).includes('id="newRestoPaletas"'));
+		assert.match(src, /\/\/ ── ARRANQUE[\s\S]*?renderPaletasNuevoResto\(\);/);
+	});
+
+	test('crear manda los colores de la paleta, y después la suelta', () => {
+		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(crear, /nav:modelo,\.\.\.coloresPaletaNuevoResto\(\)\}/);
+		assert.match(crear, /soltarPaletaNuevoResto\(\);/);
+	});
+
+	test('«Copiar apariencia de» suelta la paleta: trae sus propios colores', () => {
+		const clon = src.match(/function aplicarClonPreview\(id\) \{[\s\S]*?\n\}/)[0];
+		assert.match(clon, /soltarPaletaNuevoResto\(\);/);
 	});
 });
