@@ -1723,7 +1723,7 @@
 						<!-- Con foto sobra: ver pintarSinFoto(). -->
 						<div class="form-check" id="filaSinFoto" style="margin-top:10px;margin-bottom:0">
 							<label class="toggle"><input type="checkbox" id="editSinFoto"><span class="toggle-slider"></span></label>
-							<span style="font-size:12px;color:var(--text-muted)">Este plato no lleva foto <span style="color:var(--text-dim)">(no se contará como pendiente)</span></span>
+							<span style="font-size:12px;color:var(--text-muted)">Este producto no lleva foto <span style="color:var(--text-dim)">(no se contará como pendiente)</span></span>
 						</div>
 					</div>
 					<!-- Solo con el plan de video. Esconderlo no basta: el servidor
@@ -1733,7 +1733,7 @@
 						<!-- El texto de la proporción lo reescribe ajustarFichaAlModelo:
 						     depende del modelo, y aquí clavado decía 16:9 también a
 						     los restaurantes verticales. -->
-						<label class="form-label" id="labelVideo">Video del plato</label>
+						<label class="form-label" id="labelVideo">Video del producto</label>
 						<!-- Un plato sin guardar no tiene id al que colgar un video, así que
 						     los dos botones solo podían estar apagados. En vez de enseñarlos
 						     muertos (18/09/2026, pedido por el usuario), se dice qué hay que
@@ -1810,7 +1810,7 @@
 								IA a partir de ella.
 							</div>
 							<div id="videoCaminos">
-								<div id="videoCaminosTitulo" class="video-caminos-titulo">¿Quieres añadir un video a este plato?</div>
+								<div id="videoCaminosTitulo" class="video-caminos-titulo">¿Quieres añadir un video a este producto?</div>
 								<div class="video-caminos">
 									<div class="video-camino">
 										<button type="button" id="btnSubirVideo" class="video-camino-boton" onclick="document.getElementById('videoFileInput').click()">🎬 Subir un video</button>
@@ -1825,7 +1825,7 @@
 									     pantalla. -->
 									<div class="video-camino" id="iaBloque" style="display:none">
 										<button type="button" id="btnGenerarIA" class="video-camino-boton video-camino-ia" onclick="generarConIA()">✨ Generar video con IA</button>
-										<div class="video-camino-detalle">Un video de 6 segundos a partir de la foto del plato</div>
+										<div class="video-camino-detalle">Un video de 6 segundos a partir de la foto del producto</div>
 										<div id="iaCupo" class="video-camino-detalle"></div>
 									</div>
 								</div>
@@ -1891,7 +1891,7 @@
 						     enseñe a la vez. -->
 						<div id="videoRetirado" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;">
 							<div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);line-height:1.6">
-								Este plato tuvo un video y se quitó. El original sigue guardado, así que
+								Este producto tuvo un video y se quitó. El original sigue guardado, así que
 								se puede volver a poner sin subirlo otra vez.
 							</div>
 							<div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
@@ -1932,7 +1932,7 @@
 							</div>
 							<video id="iaRevisionVideo" style="width:100%;border-radius:6px;background:#000" controls muted loop playsinline></video>
 							<div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:8px;line-height:1.6">
-								Míralo entero y comprueba que el plato es el tuyo: el modelo
+								Míralo entero y comprueba que el producto es el tuyo: el modelo
 								puede añadir algo que no sirves. Si publicas un video que no
 								corresponde con lo que llega a la mesa, el problema es del
 								restaurante.
@@ -2011,8 +2011,8 @@
 						<textarea class="form-textarea" id="editDesc"></textarea>
 					</div>
 					<div class="form-group producto-personas">
-						<label for="editPersonas" class="form-label">Para cuántas personas <span style="color:var(--text-dim)">(opcional)</span></label>
-						<div class="form-ayuda">Puedes escribir el número de personas para las que alcanza este plato, con el fin de que las personas lo sepan con exactitud. Si se enseña en la pantalla de TV se activa en esa pestaña, para toda la carta a la vez.</div>
+						<label for="editPersonas" class="form-label">Porciones <span style="color:var(--text-dim)">(opcional)</span></label>
+						<div class="form-ayuda">Puedes escribir para cuántas personas alcanza este producto, con el fin de que lo sepan con exactitud. Si se enseña en la pantalla de TV se activa en esa pestaña, para toda la carta a la vez.</div>
 						<input type="number" class="form-input" id="editPersonas" min="1" step="1" style="max-width:120px">
 					</div>
 					<div class="form-group producto-descripcion-corta">
@@ -2032,7 +2032,7 @@
 					     ofrece cada uno, porque una hamburguesa lleva de todo y una
 					     gaseosa no lleva nada. -->
 					<div class="form-group producto-personalizacion" id="personalizacionGroup" style="display:none">
-						<label class="form-label">Personalización <span style="color:var(--text-dim);font-weight:400">(qué puede añadirle el cliente a este plato)</span></label>
+						<label class="form-label">Personalización <span style="color:var(--text-dim);font-weight:400">(qué puede añadirle el cliente a este producto)</span></label>
 						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene adicionales. Créalos en la pestaña Ajustes, bajo el carrito, y vuelve aquí.</div>
 						<div id="persPlatinoWrap" style="margin-top:8px;display:none">
 							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Adicionales sin costo</div>
@@ -2048,7 +2048,7 @@
 						</div>
 					</div>
 					<div class="form-group producto-filtros" id="editFiltrosGroup" style="display:none">
-						<label class="form-label">Filtros que aplican <span style="color:var(--text-dim)">(el cliente los usa para filtrar la carta)</span></label>
+						<label class="form-label">Características del producto <span style="color:var(--text-dim)">(el cliente los usa para filtrar la carta)</span></label>
 						<div id="editFiltrosChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						<div id="editFiltrosVacio" style="font-size:11px;color:var(--text-dim);display:none">Tu carta todavía no tiene filtros. Actívalos en la pestaña Ajustes → Filtros y etiquetas.</div>
 					</div>
@@ -2338,7 +2338,7 @@
     </div>
     <div class="modal-body">
       <p class="confirm-text" id="procesoTexto"></p>
-      <p id="procesoNota" style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;">Puedes volver a abrir el plato para ver cómo va.</p>
+      <p id="procesoNota" style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;">Puedes volver a abrir el producto para ver cómo va.</p>
     </div>
     <div class="modal-foot">
       <button class="btn-cancel" id="procesoSeguir" onclick="closeModal('procesoModal')">Seguir aquí</button>
@@ -2433,7 +2433,7 @@
       <p class="confirm-text" id="encuadreTexto" style="line-height:1.55;margin-bottom:12px"></p>
       <div style="text-align:center">
         <div id="encuadreEscenario" class="encuadre-escenario" onpointerdown="empezarArrastreEncuadre(event)">
-          <img id="encuadreFoto" alt="Foto del plato" draggable="false">
+          <img id="encuadreFoto" alt="Foto del producto" draggable="false">
           <div id="encuadreMarco" class="encuadre-marco" tabindex="0"
             aria-label="Parte de la foto que se anima. Muévela con las flechas." onkeydown="teclaEncuadre(event)"></div>
         </div>
@@ -3791,7 +3791,7 @@ async function descartarVideoIA() {
 	const quedan = state.cupoIA?.disponibles;
 	const ok = await preguntar({
 		titulo: 'Descartar el video',
-		texto: 'Se va a descartar este video y el plato se quedará con su foto.',
+		texto: 'Se va a descartar este video y el producto se quedará con su foto.',
 		nota: 'La animación gastada NO vuelve al cupo: ya se generó y ya se pagó' +
 			(typeof quedan === 'number' ? ` (te quedan ${quedan})` : '') + '.',
 		si: 'Descartarlo', no: 'Conservarlo', peligro: true,
@@ -3974,7 +3974,7 @@ function pintarVideoPlato(p) {
 	const zona  = document.getElementById('zonaVideo');
 	if (nuevo) nuevo.style.display = esNuevo ? 'block' : 'none';
 	if (zona)  zona.style.display  = esNuevo ? 'none' : '';
-	if (esNuevo) vacio.textContent = 'Guarda el plato primero y luego súbele el video';
+	if (esNuevo) vacio.textContent = 'Guarda el producto primero y luego súbele el video';
 	// "Sin video" sobra: justo debajo se pregunta si quiere añadirle uno.
 	else if (!enCurso && !url) vacio.style.display = 'none';
 	pintarCaminosVideo();
@@ -4003,8 +4003,8 @@ function pintarCaminosVideo() {
 	if (sinFotoDiv) sinFotoDiv.style.display = (!ocupado && sinFoto) ? 'block' : 'none';
 	const titulo = document.getElementById('videoCaminosTitulo');
 	if (titulo) titulo.textContent = tieneVideoPuesto(id)
-		? '¿Quieres cambiar el video de este plato?'
-		: '¿Quieres añadir un video a este plato?';
+		? '¿Quieres cambiar el video de este producto?'
+		: '¿Quieres añadir un video a este producto?';
 }
 
 // Elegir el archivo ya no lo sube: primero se previsualiza en local para
@@ -4192,7 +4192,7 @@ async function confirmarSubidaVideo() {
 	const st = document.getElementById('videoUploadStatus');
 
 	if (!productoId) {
-		st.textContent = 'Guarda el plato primero'; st.style.color = 'var(--danger)';
+		st.textContent = 'Guarda el producto primero'; st.style.color = 'var(--danger)';
 		return;
 	}
 
@@ -4328,7 +4328,7 @@ function vigilarVideo(trabajoId, productoId) {
 		if (Date.now() - desde > LIMITE_VIGILANCIA_VIDEO_MS) {
 			detenerVigilanciaVideo();
 			permitirSubir();
-			decir('La conversión está tardando más de lo normal. Vuelve a abrir el plato más tarde para ver cómo quedó.', 'var(--warn)');
+			decir('La conversión está tardando más de lo normal. Vuelve a abrir el producto más tarde para ver cómo quedó.', 'var(--warn)');
 			return;
 		}
 		try {
@@ -4367,8 +4367,8 @@ function vigilarVideo(trabajoId, productoId) {
 				// "Guardado" y no solo "listo": el servidor ya lo escribió en el
 				// plato. Con "✓ Video listo" y el botón "Guardar cambios" debajo,
 				// lo natural era creer que faltaba guardarlo.
-				decir('✓ Video guardado en el plato', 'var(--success)');
-				avisarFuera('✓ Video guardado en el plato', 'success');
+				decir('✓ Video guardado en el producto', 'var(--success)');
+				avisarFuera('✓ Video guardado en el producto', 'success');
 
 				// La miniatura de la lista es la portada del video: sin repintar
 				// seguía la foto de antes, y parecía que hacía falta guardar o
@@ -4438,9 +4438,9 @@ async function quitarVideo() {
 	// foto— y que hay vuelta atrás. Sin la primera, alguien cierra la ficha
 	// creyendo que descarta el cambio; sin la segunda, no se atreve a pulsar.
 	if (!await preguntar({
-		titulo: '¿Quitar el video de este plato?',
+		titulo: '¿Quitar el video de este producto?',
 		texto: 'Se aplica al momento, sin esperar a guardar.',
-		nota: 'El plato volverá a mostrar su foto, y el original se conserva: podrás volver a ponerlo desde aquí mismo sin subirlo otra vez.',
+		nota: 'El producto volverá a mostrar su foto, y el original se conserva: podrás volver a ponerlo desde aquí mismo sin subirlo otra vez.',
 		si: 'Quitar el video',
 	})) return;
 
@@ -4457,7 +4457,7 @@ async function quitarVideo() {
 		// "ya guardado" y no solo "quitado": es lo que evita que alguien busque
 		// el botón de guardar para confirmar algo que ya está hecho.
 		st.textContent = 'Video quitado y guardado'; st.style.color = 'var(--success)';
-		avisarGuardadoConCarta('Video quitado del plato');
+		avisarGuardadoConCarta('Video quitado del producto');
 	} catch (e) {
 		st.textContent = 'Error: ' + e.message; st.style.color = 'var(--danger)';
 	}
@@ -4610,8 +4610,8 @@ function quitarFoto() {
 	const nota = document.getElementById('imgAvisoVideo');
 	if (nota) {
 		nota.textContent = generado
-			? 'Ojo: el video de este plato se generó a partir de esta foto. El video se conserva y la carta lo sigue mostrando, pero sin foto no podrás volver a generarlo con IA.'
-			: 'Tranquilo: este plato tiene su propio video, así que la carta lo sigue mostrando. La foto solo haría falta si algún día quitas el video.';
+			? 'Ojo: el video de este producto se generó a partir de esta foto. El video se conserva y la carta lo sigue mostrando, pero sin foto no podrás volver a generarlo con IA.'
+			: 'Tranquilo: este producto tiene su propio video, así que la carta lo sigue mostrando. La foto solo haría falta si algún día quitas el video.';
 		nota.style.color = generado ? 'var(--warn)' : 'var(--text-muted)';
 	}
 }
@@ -4728,7 +4728,7 @@ function encajeDeFoto(ancho, alto) {
 	// aquí ya no hay recorte posible, la foto no sirve para este formato.
 	if (vertical && foto >= 1) return { veredicto: 'rechaza', perdido, ideal,
 		mensaje: `⚠ Tu foto es ${tamaño}, pero esta carta es vertical y el video ocupa toda ` +
-		         `la pantalla: con esta foto, al plato se le irían los lados. Sube una foto ` +
+		         `la pantalla: con esta foto, al producto se le irían los lados. Sube una foto ` +
 		         `vertical, por ejemplo 1080×1920.` };
 
 	// Aviso, NO bloqueo. Lo primero que se lee tiene que ser "se puede generar":
@@ -4909,9 +4909,9 @@ async function refrescarCupoIA() {
 			// administra un restaurante — además de sonar raro en Colombia,
 			// que es donde están los clientes.
 			const MOTIVOS = {
-				'sin-guardar':     'Primero guarda el plato. Después podrás generarle el video: cada video queda asociado a un plato.',
+				'sin-guardar':     'Primero guarda el producto. Después podrás generarle el video: cada video queda asociado a un producto.',
 				'archivo-elegido': 'Termina primero con el video que elegiste: súbelo y conviértelo.',
-				'sin-foto':    'Sube una foto del plato. La IA crea el video a partir de esa foto.',
+				'sin-foto':    'Sube una foto del producto. La IA crea el video a partir de esa foto.',
 				// La proporción ya se explica en 'iaEncaje', con el detalle de
 				// a cuánto habría que recortarla. Repetirlo aquí sería decir
 				// dos veces lo mismo con menos precisión.
@@ -4919,7 +4919,7 @@ async function refrescarCupoIA() {
 				// Vacío a propósito (18/09/2026): mientras genera ya lo dicen la
 				// barra y su texto, y este mensaje repetía lo mismo encima.
 				'en-curso':    '',
-				'sin-revisar': 'Este plato tiene un video generado esperando tu revisión. ' +
+				'sin-revisar': 'Este producto tiene un video generado esperando tu revisión. ' +
 				               'Publícalo o descártalo antes de generar otro.',
 			};
 			const razon = document.getElementById('iaMotivo');
@@ -5020,7 +5020,7 @@ async function generarConIA() {
 	const btn = document.getElementById('btnGenerarIA');
 
 	if (!productoId) {
-		est.textContent = 'Guarda el plato primero'; est.style.color = 'var(--danger)';
+		est.textContent = 'Guarda el producto primero'; est.style.color = 'var(--danger)';
 		return;
 	}
 
@@ -5034,7 +5034,7 @@ async function generarConIA() {
 	// Lo mismo con un video ya generado sin revisar: el servidor lo rechaza
 	// con un 409, pero es mejor decirlo antes que después de pulsar.
 	if (videoPorAprobarDe(productoId)) {
-		est.textContent = 'Este plato ya tiene un video generado esperando revisión. ' +
+		est.textContent = 'Este producto ya tiene un video generado esperando revisión. ' +
 		                  'Publícalo o descártalo antes de generar otro.';
 		est.style.color = 'var(--warn)';
 		return;
@@ -5060,7 +5060,7 @@ async function generarConIA() {
 	} else {
 		const ok = await preguntar({
 			titulo: 'Generar el video con IA',
-			texto: 'Se va a generar un video de 6 segundos a partir de la foto de este plato.',
+			texto: 'Se va a generar un video de 6 segundos a partir de la foto de este producto.',
 			nota,
 			si: 'Generar',
 		});
@@ -5133,7 +5133,7 @@ function vigilarGeneracion(productoId) {
 		if (Date.now() - desde > LIMITE_VIGILANCIA_IA_MS) {
 			detenerVigilanciaIA(productoId);
 			pintarProgresoIA();
-			decir('La generación está tardando más de lo normal. Vuelve a abrir el plato más tarde para ver cómo quedó.', 'var(--danger)');
+			decir('La generación está tardando más de lo normal. Vuelve a abrir el producto más tarde para ver cómo quedó.', 'var(--danger)');
 			if (enPantalla()) pintarCaminosVideo();
 			return;
 		}
@@ -5197,7 +5197,7 @@ function ajustarFichaAlModelo() {
 	// no en un manual.
 	const etiqueta = document.getElementById('labelImagen');
 	if (etiqueta) etiqueta.innerHTML = esVideo
-		? 'Imagen <span style="color:var(--text-dim);font-weight:400">(se muestra mientras el plato no tenga video)</span>'
+		? 'Imagen <span style="color:var(--text-dim);font-weight:400">(se muestra mientras el producto no tenga video)</span>'
 		: 'Imagen';
 
 	// La proporción del corte la decide el modelo, y hasta ahora estaban las
@@ -5216,7 +5216,7 @@ function ajustarFichaAlModelo() {
 	// La proporción y los 8 segundos son del video SUBIDO: el de la IA dura 6.
 	// Por eso van en su tarjeta y no en la etiqueta de la sección.
 	const etiquetaVideo = document.getElementById('labelVideo');
-	if (etiquetaVideo) etiquetaVideo.innerHTML = 'Video del plato';
+	if (etiquetaVideo) etiquetaVideo.innerHTML = 'Video del producto';
 	const detalleSubir = document.getElementById('videoSubirDetalle');
 	if (detalleSubir) detalleSubir.textContent = `MP4 o MOV · se recorta a ${proporcion} y se guardan 8 segundos`;
 
@@ -5355,12 +5355,12 @@ const AVISO_PROCESO = {
 	'sin-noticias': {
 		titulo: 'Video en proceso',
 		texto: 'La conversión está tardando más de lo normal. Si cierras, sigue en el servidor.',
-		nota: 'Vuelve a abrir el plato más tarde para ver cómo quedó.',
+		nota: 'Vuelve a abrir el producto más tarde para ver cómo quedó.',
 	},
 	'sin-noticias-ia': {
 		titulo: 'Video en proceso',
 		texto: 'La generación está tardando más de lo normal. Si cierras, sigue en el servidor.',
-		nota: 'Vuelve a abrir el plato más tarde para ver cómo quedó.',
+		nota: 'Vuelve a abrir el producto más tarde para ver cómo quedó.',
 	},
 };
 
@@ -5446,7 +5446,7 @@ function handleProductBg(e) {
 // Devuelve los errores en el orden de la ficha, que es el orden en que se leen.
 function erroresDeFicha({ categoria, nombre, precio, gratis = false }) {
   const errores = [];
-  if (!String(nombre || '').trim()) errores.push({ campo: 'editNombre', mensaje: 'Escribe el nombre del plato.' });
+  if (!String(nombre || '').trim()) errores.push({ campo: 'editNombre', mensaje: 'Escribe el nombre del producto.' });
   if (!categoria) errores.push({ campo: 'editCategoria', mensaje: 'Elige en qué categoría va.' });
   // El precio no puede caer a 0 por descuido. Desde el 25/09/2026 el campo se
   // ve ya formateado ("$ 20.000"), así que lo que llega no es un número
@@ -5590,7 +5590,7 @@ async function saveProduct() {
 	if(errores.length){
 		pintarErroresFicha(errores);
 		// El aviso de siempre se queda, pero ahora resume: el detalle está en cada campo.
-		showToast(errores.length===1 ? errores[0].mensaje : `Faltan ${errores.length} datos del plato`,'error');
+		showToast(errores.length===1 ? errores[0].mensaje : `Faltan ${errores.length} datos del producto`,'error');
 		btn.disabled=false;btn.textContent=id ? 'Guardar cambios' : 'Crear producto';return;
 	}
 	limpiarErroresFicha();
