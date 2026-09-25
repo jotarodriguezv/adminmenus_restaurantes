@@ -1751,7 +1751,12 @@
 							a partir de esa foto.
 						</div>
 						<div id="zonaVideo" style="border:1px solid var(--border);border-radius:8px;padding:12px;">
-							<video id="videoEditPreview" style="display:none;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:#000" muted loop playsinline controls></video>
+							<!-- Miniatura clicable cuando el video ya está guardado —pintarMiniaturaVideo()
+							     la encoge y le quita los controles nativos, «ampliar» abre #videoAmpliadoModal—;
+							     a tamaño completo y con controles mientras se elige un archivo y se recorta
+							     (prepararVideoElegido() los devuelve), que es cuando de verdad hacen falta. -->
+							<video id="videoEditPreview" style="display:none" muted loop playsinline controls></video>
+							<div id="videoEditDuracion" style="display:none;font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-top:4px;"></div>
 							<div id="videoEditVacio" style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">Sin video</div>
 
 							<!-- Solo aparece con un archivo elegido y todavía sin subir: es
@@ -2077,6 +2082,15 @@
 		     su overlay, cerrarla con un clic fuera cerraría también la ficha entera. -->
 		<div class="foto-ampliada-bg" id="fotoAmpliadaModal" onclick="cerrarFotoAmpliada()">
 			<img id="fotoAmpliadaImg" src="" alt="Foto del producto">
+		</div>
+
+		<!-- Ver el video ya guardado a tamaño completo: la miniatura de la ficha
+		     (#videoEditPreview) lo encoge y le quita los controles; aquí los
+		     recupera. Aparte por el mismo motivo que fotoAmpliadaModal. -->
+		<div class="foto-ampliada-bg" id="videoAmpliadoModal" onclick="cerrarVideoAmpliado()">
+			<!-- Aparte del clic del fondo: con controles nativos, tocar «reproducir»
+			     no puede cerrar la ventana en vez de reproducir. -->
+			<video id="videoAmpliadoEl" src="" controls muted loop playsinline onclick="event.stopPropagation()"></video>
 		</div>
 
 <!-- MODAL EDITAR/CREAR CATEGORÍA -->
@@ -3875,9 +3889,13 @@ function pintarVideoPlato(p) {
 
 	const url = p?.atributos?.video?.url;
 	if (url) {
-		prev.src = url; prev.style.display = 'block'; vacio.style.display = 'none';
+		pintarMiniaturaVideo(p, url);
+		vacio.style.display = 'none';
 	} else {
-		prev.removeAttribute('src'); prev.style.display = 'none'; vacio.style.display = 'block';
+		prev.removeAttribute('src'); prev.removeAttribute('poster'); prev.classList.remove('video-mini');
+		prev.style.display = 'none'; vacio.style.display = 'block';
+		const duracion = document.getElementById('videoEditDuracion');
+		if (duracion) duracion.style.display = 'none';
 	}
 	// Quitar solo tiene sentido sobre un video que ya está en el plato: mientras
 	// se elige o se convierte, lo que hay que ofrecer es cancelar, no retirar.
@@ -4035,6 +4053,15 @@ function prepararVideoElegido(input) {
 	urlPrevia = URL.createObjectURL(file);
 
 	const prev = document.getElementById('videoEditPreview');
+	// Deshace la miniatura de pintarMiniaturaVideo(), si la había: para
+	// recortar el archivo elegido hace falta el reproductor grande, con sus
+	// controles nativos, no la miniatura clicable del video ya guardado.
+	prev.removeAttribute('poster');
+	prev.setAttribute('controls', '');
+	prev.classList.remove('video-mini');
+	prev.onclick = null;
+	const duracion = document.getElementById('videoEditDuracion');
+	if (duracion) duracion.style.display = 'none';
 	prev.src = urlPrevia;
 	prev.style.display = 'block';
 	prev.onloadedmetadata = avisarSiSePasaElVideo;   // la duración no se sabe antes
@@ -4393,10 +4420,10 @@ function vigilarVideo(trabajoId, productoId) {
 				// recargar para que apareciera.
 				if (typeof renderProducts === 'function') renderProducts();
 
-				const url = state.productos.find(x => x.id === productoId)?.atributos?.video?.url;
+				const prodListo = state.productos.find(x => x.id === productoId);
+				const url = prodListo?.atributos?.video?.url;
 				if (url && enPantalla()) {
-					const prev = document.getElementById('videoEditPreview');
-					prev.src = url; prev.style.display = 'block';
+					pintarMiniaturaVideo(prodListo, url);
 					document.getElementById('videoEditVacio').style.display = 'none';
 					document.getElementById('btnQuitarVideo').style.display = 'block';
 					soltarPrevia();   // ya no hace falta el archivo local en memoria
@@ -4644,6 +4671,50 @@ function ampliarFotoPlato() {
 }
 function cerrarFotoAmpliada() {
 	document.getElementById('fotoAmpliadaModal').classList.remove('open');
+}
+
+// ── LA MINIATURA DEL VIDEO YA GUARDADO ────────────────────────
+// Pinta #videoEditPreview como miniatura clicable (poster, tamaño chico, sin
+// controles nativos) en vez del reproductor a ancho completo de antes —
+// pedido en el diagnóstico de UX. NO decide cuándo se enseña: eso lo sigue
+// haciendo quien llama (pintarVideoPlato, o el aviso de "video guardado" de
+// vigilarVideo), exactamente igual que antes. Aparte de generarConIA():
+// prepararVideoElegido() —elegir un archivo para subir— necesita el
+// reproductor grande y con controles para recortarlo, y deshace esto mismo.
+function pintarMiniaturaVideo(p, url) {
+	const prev = document.getElementById('videoEditPreview');
+	prev.src = url;
+	const portada = p?.atributos?.video?.portada || p?.imagen_url;
+	if (portada) prev.poster = portada; else prev.removeAttribute('poster');
+	prev.removeAttribute('controls');
+	prev.classList.add('video-mini');
+	prev.onclick = () => ampliarVideoPlato();
+	prev.style.display = 'block';
+
+	// 8 y 6 segundos son duraciones fijas del sistema —lo que recorta el
+	// servidor siempre—, no algo que medir en el navegador. trabajoListoDe()
+	// da el trabajo que produjo ESTE video.
+	const trabajo = p?.id ? trabajoListoDe(p.id) : null;
+	const duracion = document.getElementById('videoEditDuracion');
+	if (duracion) {
+		duracion.textContent = trabajo ? (trabajo.origen_tipo === 'ia' ? '6 s' : '8 s') : '';
+		duracion.style.display = trabajo ? 'block' : 'none';
+	}
+}
+
+function ampliarVideoPlato() {
+	const prev = document.getElementById('videoEditPreview');
+	if (!prev.src) return;
+	const el = document.getElementById('videoAmpliadoEl');
+	el.src = prev.src;
+	if (prev.poster) el.poster = prev.poster; else el.removeAttribute('poster');
+	document.getElementById('videoAmpliadoModal').classList.add('open');
+}
+function cerrarVideoAmpliado() {
+	document.getElementById('videoAmpliadoModal').classList.remove('open');
+	const el = document.getElementById('videoAmpliadoEl');
+	el.pause();
+	el.removeAttribute('src'); el.load();
 }
 
 // ── IMÁGENES ADICIONALES ──────────────────────────────────────
