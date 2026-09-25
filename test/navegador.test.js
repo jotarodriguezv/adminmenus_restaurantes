@@ -8744,3 +8744,90 @@ describe('la bandeja de solicitudes de alta', () => {
 		assert.match(crear, /marcarSolicitudCreada\(creado\.id\)/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('paletas de colores · combinaciones que se leen en cualquier modelo', () => {
+	// 24/09/2026, visto con Lobster Boat: primario y secundario en negro sobre
+	// el fondo oscuro de la carta dejaban el nombre y la categoría elegida
+	// invisibles. Ver la cabecera de public/paletas.js.
+	const ctx = cargar('paletas.js', 'const COLORES_FIJOS_CARTA', null);
+	// Un 'const' de nivel superior no queda como propiedad del contexto, solo
+	// las funciones: hay que leerlo desde dentro.
+	const PALETAS = vm.runInContext('PALETAS', ctx);
+	const CAMPOS_PALETA = vm.runInContext('CAMPOS_PALETA', ctx);
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	for (const p of PALETAS) {
+		test(`«${p.nombre}» cumple todas las reglas de contraste`, () => {
+			const fallos = ctx.fallosDeContraste(p).map(f => `${f.que}: ${f.valor.toFixed(2)} < ${f.min}`);
+			// Por el largo y no con deepEqual: el array nace en otro contexto de vm.
+			assert.equal(fallos.length, 0, fallos.join(' · '));
+		});
+	}
+
+	test('las reglas detectan los colores que tenía Lobster Boat', () => {
+		// El caso que originó esto: si las reglas no lo ven, no sirven.
+		const fallos = ctx.fallosDeContraste({ primario: '#000000', secundario: '#000000', superficie: '#807d60', tarjeta: '#6f7057', fondo: '#3c57aa' });
+		assert.ok(fallos.some(f => f.a === 'primario' && f.b === 'oscuro'), 'el título negro sobre fondo oscuro');
+		assert.ok(fallos.some(f => f.a === 'gris' && f.b === 'tarjeta'), 'la descripción gris sobre la tarjeta oliva');
+	});
+
+	test('un secundario claro falla: lleva letra blanca encima en los botones', () => {
+		// El crema que se le puso a Lobster Boat al corregirla: se leía como
+		// subtítulo, pero la flecha y el + y − blancos desaparecían encima.
+		const p = { ...PALETAS.find(x => x.id === 'marisqueria'), secundario: '#f5e6c8' };
+		assert.ok(ctx.fallosDeContraste(p).some(f => f.a === 'blanco' && f.b === 'secundario'));
+	});
+
+	test('los ids de las paletas no se repiten', () => {
+		const ids = PALETAS.map(p => p.id);
+		assert.equal(new Set(ids).size, ids.length);
+	});
+
+	const conCampos = (valores = {}) => {
+		const campos = {}, sincronizados = [];
+		for (const [texto, muestra] of Object.values(CAMPOS_PALETA)) {
+			campos[texto] = { value: valores[texto] || '' };
+			campos[muestra] = { value: '' };
+		}
+		const c = cargar('paletas.js', 'const COLORES_FIJOS_CARTA', null);
+		c.document = { getElementById: id => campos[id], querySelectorAll: () => [] };
+		c.colorDesdeTexto = (texto, muestra) => sincronizados.push([texto, muestra]);
+		return { c, campos, sincronizados };
+	};
+
+	test('aplicar una paleta llena los cinco campos y sus cuadritos', () => {
+		const { c, campos, sincronizados } = conCampos();
+		c.aplicarPaleta('brasa');
+		const p = PALETAS.find(x => x.id === 'brasa');
+		assert.equal(campos.apColor1.value, p.primario);
+		assert.equal(campos.apColor2.value, p.secundario);
+		assert.equal(campos.apColorSurface.value, p.superficie);
+		assert.equal(campos.apColorCard.value, p.tarjeta);
+		assert.equal(campos.apFondoColor.value, p.fondo);
+		assert.equal(sincronizados.length, 5, 'cada cuadrito de muestra se pone al día');
+	});
+
+	test('reconoce la paleta puesta, sin importar mayúsculas, y deja de hacerlo al retocar', () => {
+		const p = PALETAS.find(x => x.id === 'marisqueria');
+		const { c, campos } = conCampos({
+			apColor1: p.primario.toUpperCase(), apColor2: p.secundario, apColorSurface: p.superficie,
+			apColorCard: p.tarjeta, apFondoColor: p.fondo,
+		});
+		assert.equal(c.paletaActual()?.id, 'marisqueria');
+		campos.apColor1.value = '#ffffff';
+		assert.equal(c.paletaActual(), null);
+	});
+
+	test('está en la tarjeta «Colores», se carga, y Superadmin la pinta al abrirse', () => {
+		const i = src.indexOf('<div class="section-title">Colores</div>');
+		assert.ok(i > -1 && src.indexOf('id="apPaletas"', i) - i < 600, 'el selector va dentro de «Colores»');
+		assert.ok(src.includes('<script src="paletas.js"></script>'));
+		assert.match(src, /apFondoIntensidad'\)\.value = at\.fondo_intensidad \|\| 'solido';[\s\S]{0,120}?renderPaletas\(\);/);
+	});
+
+	test('pinta con textContent, nunca como HTML', () => {
+		const js = fs.readFileSync(path.join(PUBLIC, 'paletas.js'), 'utf8').replace(/^\s*\/\/.*$/gm, '');
+		assert.doesNotMatch(js, /innerHTML|outerHTML|insertAdjacentHTML/);
+	});
+});

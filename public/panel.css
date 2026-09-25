@@ -938,3 +938,17 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
   background:var(--card);border-radius:6px;padding:8px 10px;}
 .solicitud-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px;}
 .solicitud-creado{font-family:var(--mono);font-size:11px;color:var(--success);}
+
+/* ── Paletas de colores (Superadmin → Colores). Ver public/paletas.js. ── */
+.paletas{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin:6px 0 16px;}
+.paleta{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:8px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  color:var(--text);font-family:var(--sans);text-align:left;cursor:pointer;min-width:0;}
+.paleta:hover{border-color:var(--text-dim);}
+.paleta:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.paleta[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+/* Las cuatro tiras van de lo que más se ve (el fondo) a los acentos. */
+.paleta-tiras{display:flex;width:100%;height:26px;border-radius:5px;overflow:hidden;margin-bottom:3px;}
+.paleta-tiras span{flex:1;}
+.paleta-nombre{font-size:12px;font-weight:600;}
+.paleta-para{font-size:11px;color:var(--text-muted);line-height:1.3;}
