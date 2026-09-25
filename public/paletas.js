@@ -271,14 +271,14 @@ function marcarPaletaActual() {
     b.setAttribute('aria-pressed', String(b.dataset.paleta === actual?.id)));
 }
 
-function botonPaleta(p) {
+function botonPaleta(p, alPulsar = () => aplicarPaleta(p.id)) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = p.id === 'logo' ? 'paleta paleta-logo' : 'paleta';
   b.dataset.paleta = p.id;
   b.setAttribute('aria-pressed', 'false');
   b.title = `${p.nombre} — ${p.para}`;
-  b.onclick = () => aplicarPaleta(p.id);
+  b.onclick = alPulsar;
 
   const tiras = document.createElement('span');
   tiras.className = 'paleta-tiras';
@@ -463,4 +463,50 @@ function revisarContraste() {
     }
     return item;
   }));
+}
+
+// ── LAS PALETAS AL CREAR UN RESTAURANTE ───────────────────────
+// El formulario de «Nuevo restaurante» solo pedía primario y secundario, y el
+// resto nacía con los colores por defecto de la carta: justo cinco colores
+// sueltos sin nadie que los pensara juntos, que es lo que las paletas evitan.
+//
+// Elegir una aquí pone el primario y el secundario en sus campos (se pueden
+// retocar) y deja apuntados superficie, tarjeta y fondo, que ese formulario no
+// tiene: crearRestaurante() los manda al servidor. Lo último que se elige gana:
+// «Copiar apariencia de» suelta la paleta, porque trae sus propios colores.
+let paletaNuevoResto = null;   // id de la paleta elegida, o null
+
+function elegirPaletaNuevoResto(id) {
+  const p = PALETAS.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('newRestoColor1').value = p.primario;
+  colorDesdeTexto('newRestoColor1', 'prevColor1');
+  document.getElementById('newRestoColor2').value = p.secundario;
+  colorDesdeTexto('newRestoColor2', 'prevColor2');
+  paletaNuevoResto = id;
+  marcarPaletaNuevoResto();
+}
+
+function soltarPaletaNuevoResto() {
+  paletaNuevoResto = null;
+  marcarPaletaNuevoResto();
+}
+
+function marcarPaletaNuevoResto() {
+  document.querySelectorAll('#newRestoPaletas .paleta').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.paleta === paletaNuevoResto)));
+}
+
+// Lo que añade la paleta a lo que ya manda el formulario. Vacío sin paleta: el
+// restaurante nace con los colores por defecto, como hasta ahora.
+function coloresPaletaNuevoResto() {
+  const p = PALETAS.find(x => x.id === paletaNuevoResto);
+  return p ? { color_surface: p.superficie, color_card: p.tarjeta, fondo_color: p.fondo } : {};
+}
+
+function renderPaletasNuevoResto() {
+  const cont = document.getElementById('newRestoPaletas');
+  if (!cont) return;
+  cont.replaceChildren(...PALETAS.map(p => botonPaleta(p, () => elegirPaletaNuevoResto(p.id))));
+  marcarPaletaNuevoResto();
 }

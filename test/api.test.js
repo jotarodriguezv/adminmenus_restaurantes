@@ -930,6 +930,49 @@ describe('POST /api/restaurantes · plan y modelo al crear', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('POST /api/restaurantes · la paleta elegida al crear', () => {
+	// El formulario de «Nuevo restaurante» solo tiene primario y secundario; una
+	// paleta manda además superficie, tarjeta y fondo (public/paletas.js).
+	const conExito = () => S.conTabla(() => ({ data: { id: IDS.restaurante }, error: null }));
+
+	test('guarda superficie, tarjeta y fondo, en minúsculas', async () => {
+		conExito();
+		await S.pedir('POST', '/api/restaurantes', { nombre: 'Nueva', slug: 'nueva-paleta', pin: '1234',
+			color_surface: '#141B33', color_card: '#1c2544', fondo_color: '#0f182f' }, tokenAdmin);
+		const at = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(at.color_surface, '#141b33');
+		assert.equal(at.color_card, '#1c2544');
+		assert.equal(at.fondo_color, '#0f182f');
+	});
+
+	test('lo que no es un color #rrggbb no se guarda: la carta lo mete en CSS tal cual', async () => {
+		conExito();
+		await S.pedir('POST', '/api/restaurantes', { nombre: 'Nueva', slug: 'nueva-mala', pin: '1234',
+			color_surface: 'red;background:url(x)', color_card: '#12', fondo_color: ['#0f182f'] }, tokenAdmin);
+		const at = S.ultimaEscritura('restaurantes').atributos;
+		for (const k of ['color_surface', 'color_card', 'fondo_color']) assert.equal(k in at, false, k);
+	});
+
+	test('sin paleta, el restaurante nace sin esos colores, como hasta ahora', async () => {
+		conExito();
+		await S.pedir('POST', '/api/restaurantes', { nombre: 'Nueva', slug: 'nueva-sin', pin: '1234' }, tokenAdmin);
+		const at = S.ultimaEscritura('restaurantes').atributos;
+		for (const k of ['color_surface', 'color_card', 'fondo_color']) assert.equal(k in at, false, k);
+	});
+
+	test('la paleta gana sobre los colores que copiaría «copiar apariencia»', async () => {
+		S.conTabla(st => st.tabla === 'restaurantes' && st.op === 'select'
+			? { data: { atributos: { color_card: '#6f7057', fuente_cuerpo: 'Barlow' } }, error: null }
+			: { data: { id: IDS.restaurante }, error: null });
+		await S.pedir('POST', '/api/restaurantes', { nombre: 'Nueva', slug: 'nueva-clon', pin: '1234',
+			clonar_de: IDS.restaurante, color_card: '#1c2544' }, tokenAdmin);
+		const at = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(at.color_card, '#1c2544');
+		assert.equal(at.fuente_cuerpo, 'Barlow', 'lo demás clonado se conserva');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('POST /api/upload · el contenido, no solo el nombre', () => {
 	// Salió de la revisión de seguridad del 06/09/2026, probando el servidor de
 	// verdad: la extensión se validaba bien desde hacía tiempo, pero NADA
