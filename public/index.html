@@ -3212,6 +3212,7 @@ function openNewProductModal() {
 	document.getElementById('editPersonas').value='';
 	document.getElementById('editPrecioGratis').checked=false;
 	document.getElementById('editSinFoto').checked=false;
+	precioAntesDeGratis = null;   // no es el plato de antes
 	actualizarPrecioGratis();
 	document.getElementById('precioPreview').textContent='—';
 	// Los avisos blandos son del plato anterior: dejarlos puestos sobre una
@@ -3465,6 +3466,7 @@ function openEditProductModal(id) {
 	document.getElementById('editPersonas').value=(p.personas && p.personas>1) ? p.personas : '';
 	document.getElementById('editPrecioGratis').checked=!!p.atributos?.precio_gratis;
 	document.getElementById('editSinFoto').checked=p.atributos?.sin_foto === true;
+	precioAntesDeGratis = null;   // no es el plato de antes
 	actualizarPrecioGratis();
 	// También al abrir, no solo al teclear: un precio con un cero de más ya
 	// guardado no se detecta si el aviso solo salta al escribirlo.
@@ -5430,17 +5432,27 @@ function erroresDeCategoria({ nombre }) {
 }
 const CAMPOS_CATEGORIA = ['editCatNombre'];
 
+// Lo que había escrito antes de marcar "Es gratis", para devolverlo si se
+// desmarca antes de guardar (pedido el 25/09/2026). Solo dura mientras la
+// ficha está abierta: openNewProductModal/openEditProductModal la reinician,
+// para que el precio de un plato no se cuele en el de otro.
+let precioAntesDeGratis = null;
+
 function actualizarPrecioGratis() {
 	const gratis = document.getElementById('editPrecioGratis').checked;
 	const precio = document.getElementById('editPrecioNum');
 	precio.disabled = gratis;
 	if (gratis) {
+		// Un '0' no es un precio que alguien haya escrito —es lo que deja aquí
+		// mismo la vez anterior—, así que no hay nada que conservar de él.
+		if (precio.value && precio.value !== '0') precioAntesDeGratis = precio.value;
 		precio.value = '0';
 		document.getElementById('precioPreview').textContent = 'Gratis';
 		document.getElementById('precioAviso').textContent = '';
-	} else if (precio.value === '0') {
-		precio.value = '';
-		document.getElementById('precioPreview').textContent = '—';
+	} else {
+		precio.value = precioAntesDeGratis ?? (precio.value === '0' ? '' : precio.value);
+		precioAntesDeGratis = null;
+		document.getElementById('precioPreview').textContent = formatPrecio(precio.value);
 	}
 }
 
