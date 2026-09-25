@@ -3241,7 +3241,7 @@ function openNewProductModal() {
 	document.getElementById('editPrecioGratis').checked=false;
 	document.getElementById('editSinFoto').checked=false;
 	precioAntesDeGratis = null;   // no es el plato de antes
-	actualizarPrecioGratis();
+	actualizarPrecioGratis(false);
 	document.getElementById('precioPreview').textContent='—';
 	// Los avisos blandos son del plato anterior: dejarlos puestos sobre una
 	// ficha vacía sería decir algo que no viene de nada que se vea.
@@ -3501,13 +3501,13 @@ function openEditProductModal(id) {
 	document.getElementById('editPrecioGratis').checked=!!p.atributos?.precio_gratis;
 	document.getElementById('editSinFoto').checked=p.atributos?.sin_foto === true;
 	precioAntesDeGratis = null;   // no es el plato de antes
-	actualizarPrecioGratis();
+	actualizarPrecioGratis(false);
 	// También al abrir, no solo al teclear: un precio con un cero de más ya
 	// guardado no se detecta si el aviso solo salta al escribirlo.
 	document.getElementById('imgAvisoVideo').textContent='';
 	document.getElementById('precioPreview').textContent=formatPrecio(p.precio_numerico);
 	avisarSiElPrecioSeSale();
-	actualizarPrecioGratis();
+	actualizarPrecioGratis(false);
 	document.getElementById('editDesc').value=p.descripcion||'';
 	document.getElementById('editDescAvanzada').value=p.descripcion_avanzada||'';
 	contarCaracteres('editDesc','editDescContador');
@@ -5546,21 +5546,34 @@ function formatearPrecioAlEscribir(el) {
 // cuele en el de otro.
 let precioAntesDeGratis = null;
 
-function actualizarPrecioGratis() {
+// esCambioDeUsuario distingue quién llama: el interruptor, al marcarlo o
+// desmarcarlo de verdad (por eso su onchange no manda nada, y el valor por
+// defecto es true), de openNewProductModal/openEditProductModal, que solo
+// necesitan sincronizar el campo apagado y la vista previa con lo que ya
+// pusieron —el precio de verdad, o "$ 0" si el plato es gratis—, sin tocar
+// el valor. Sin esta distinción, abrir la ficha de un plato con precio
+// borraba ese precio: "no gratis" siempre restauraba precioAntesDeGratis,
+// que openEditProductModal acababa de dejar en null. Encontrado el
+// 25/09/2026 por el usuario, con el precio en $ 0 en cada plato que abría.
+function actualizarPrecioGratis(esCambioDeUsuario = true) {
 	const gratis = document.getElementById('editPrecioGratis').checked;
 	const precio = document.getElementById('editPrecioNum');
 	precio.disabled = gratis;
 	if (gratis) {
-		// $ 0 no es un precio que alguien haya escrito —es lo que deja aquí
-		// mismo la vez anterior—, así que no hay nada que conservar de él.
-		const n = precioNumericoDe(precio.value);
-		if (Number.isFinite(n) && n > 0) precioAntesDeGratis = precio.value;
-		precio.value = formatPrecio(0);
+		if (esCambioDeUsuario) {
+			// $ 0 no es un precio que alguien haya escrito —es lo que deja aquí
+			// mismo la vez anterior—, así que no hay nada que conservar de él.
+			const n = precioNumericoDe(precio.value);
+			if (Number.isFinite(n) && n > 0) precioAntesDeGratis = precio.value;
+			precio.value = formatPrecio(0);
+		}
 		document.getElementById('precioPreview').textContent = 'Gratis';
 		document.getElementById('precioAviso').textContent = '';
 	} else {
-		precio.value = precioAntesDeGratis ?? '';
-		precioAntesDeGratis = null;
+		if (esCambioDeUsuario) {
+			precio.value = precioAntesDeGratis ?? '';
+			precioAntesDeGratis = null;
+		}
 		const n = precioNumericoDe(precio.value);
 		document.getElementById('precioPreview').textContent = Number.isFinite(n) ? formatPrecio(n) : '—';
 	}

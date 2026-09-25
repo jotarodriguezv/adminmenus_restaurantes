@@ -6945,7 +6945,36 @@ describe('actualizarPrecioGratis · "Es gratis" no se lleva el precio', () => {
 		const nuevo = src.match(/function openNewProductModal\(\) \{[\s\S]*?\n\}/)[0];
 		const editar = src.match(/function openEditProductModal\([^)]*\) \{[\s\S]*?\n\}/)[0];
 		for (const f of [nuevo, editar])
-			assert.match(f, /precioAntesDeGratis = null;[\s\S]{0,40}?actualizarPrecioGratis\(\);/);
+			assert.match(f, /precioAntesDeGratis = null;[\s\S]{0,40}?actualizarPrecioGratis\(false\);/);
+	});
+
+	// El fallo real, visto el 25/09/2026: abrir CUALQUIER plato guardado
+	// enseñaba el precio en $ 0. La causa era la llamada de arriba: sin el
+	// `false`, "no gratis" restauraba precioAntesDeGratis —recién puesto a
+	// null por la línea de al lado— y se llevaba por delante el precio que
+	// openEditProductModal acababa de escribir en el campo.
+	test('esCambioDeUsuario=false sincroniza sin tocar el precio ya puesto', () => {
+		const { ctx, campos } = montar('$ 20.000');
+		ctx.actualizarPrecioGratis(false);
+		assert.equal(campos.editPrecioNum.value, '$ 20.000', 'el precio no debe borrarse al solo sincronizar');
+		assert.equal(campos.editPrecioNum.disabled, false);
+		assert.equal(campos.precioPreview.textContent, '$ 20.000');
+	});
+
+	test('esCambioDeUsuario=false con el plato gratis apaga el campo sin pisar el "$ 0" ya puesto', () => {
+		const { ctx, campos } = montar('$ 0');
+		campos.editPrecioGratis.checked = true;
+		ctx.actualizarPrecioGratis(false);
+		assert.equal(campos.editPrecioNum.value, '$ 0');
+		assert.equal(campos.editPrecioNum.disabled, true);
+		assert.equal(campos.precioPreview.textContent, 'Gratis');
+	});
+
+	test('el interruptor (onchange) sigue llamando sin argumento, con el comportamiento de siempre', () => {
+		// Si esto cambiara sin querer, marcar/desmarcar "Es gratis" a mano
+		// dejaría de guardar o devolver el precio anterior.
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.match(src, /id="editPrecioGratis"[^>]*onchange="actualizarPrecioGratis\(\)"/);
 	});
 });
 
