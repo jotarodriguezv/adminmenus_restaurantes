@@ -405,6 +405,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;
   border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:1;}
 .modal-title{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text);}
+/* Título y «Ver en mi carta» agrupados: así modal-head sigue teniendo dos
+   hijos (este bloque y el botón de cerrar) y su space-between no cambia. */
+.modal-head-titulo{display:flex;align-items:center;gap:14px;flex-wrap:wrap;row-gap:4px;}
+.modal-ver-carta{font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:var(--accent);
+  text-decoration:none;white-space:nowrap;}
+.modal-ver-carta:hover{text-decoration:underline;}
 .modal-close{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:transparent;
   color:var(--text-muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s;}
 .modal-close:hover{border-color:var(--danger);color:var(--danger);}
