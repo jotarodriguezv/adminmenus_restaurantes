@@ -2008,7 +2008,8 @@
 					<div class="form-group producto-descripcion">
 						<label for="editDesc" class="form-label">Descripción del producto <span style="color:var(--text-dim)">(opcional)</span></label>
 						<div class="form-ayuda">Se muestra cuando el cliente abre el producto.</div>
-						<textarea class="form-textarea" id="editDesc"></textarea>
+						<textarea class="form-textarea" id="editDesc" oninput="contarCaracteres('editDesc','editDescContador')"></textarea>
+						<div class="form-contador" id="editDescContador">0 caracteres</div>
 					</div>
 					<div class="form-group producto-personas">
 						<label for="editPersonas" class="form-label">Porciones <span style="color:var(--text-dim)">(opcional)</span></label>
@@ -2018,7 +2019,8 @@
 					<div class="form-group producto-descripcion-corta">
 						<label for="editDescAvanzada" class="form-label">Descripción corta <span style="color:var(--text-dim)">(opcional)</span></label>
 						<div class="form-ayuda">Se muestra debajo del nombre; en las cartas de video es el texto principal.</div>
-						<input type="text" class="form-input" id="editDescAvanzada">
+						<input type="text" class="form-input" id="editDescAvanzada" oninput="contarCaracteres('editDescAvanzada','editDescAvanzadaContador')">
+						<div class="form-contador" id="editDescAvanzadaContador">0 caracteres</div>
 					</div>
 					<details class="form-group producto-imagenes-adicionales" id="extraImgsGroup">
 						<summary>Imágenes adicionales <span>(opcional · máx. 4)</span></summary>
@@ -3238,6 +3240,8 @@ function openNewProductModal() {
 	document.getElementById('imgAvisoVideo').textContent='';
 	document.getElementById('editDesc').value='';
 	document.getElementById('editDescAvanzada').value='';
+	contarCaracteres('editDesc','editDescContador');
+	contarCaracteres('editDescAvanzada','editDescAvanzadaContador');
 	document.getElementById('editDisponible').checked=true;
 	document.getElementById('editDisponibleLabel').textContent='Disponible';
 	document.getElementById('imgEditPreview').style.display='none';
@@ -3494,6 +3498,8 @@ function openEditProductModal(id) {
 	actualizarPrecioGratis();
 	document.getElementById('editDesc').value=p.descripcion||'';
 	document.getElementById('editDescAvanzada').value=p.descripcion_avanzada||'';
+	contarCaracteres('editDesc','editDescContador');
+	contarCaracteres('editDescAvanzada','editDescAvanzadaContador');
 	document.getElementById('editDisponible').checked=p.disponible;
 	document.getElementById('editDisponibleLabel').textContent=p.disponible?'Disponible':'No disponible';
 	document.getElementById('editDisponible').onchange=function(){
@@ -5434,6 +5440,17 @@ function salirSinGuardar() {
 
 function handleProductBg(e) {
 	if (e.target.id === 'productModal') intentarCerrarProducto();
+}
+
+// ── CONTADOR DE CARACTERES DE LAS DESCRIPCIONES ───────────────
+// Solo informa: no hay tope todavía (25/09/2026, pedido en el diagnóstico de
+// UX). Si algún día se fija uno, aquí es donde se compararía.
+function contarCaracteres(idCampo, idContador) {
+	const campo = document.getElementById(idCampo);
+	const contador = document.getElementById(idContador);
+	if (!campo || !contador) return;
+	const n = campo.value.length;
+	contador.textContent = n === 1 ? '1 carácter' : `${n} caracteres`;
 }
 
 // ── LOS ERRORES DE LA FICHA DEL PLATO ─────────────────────────

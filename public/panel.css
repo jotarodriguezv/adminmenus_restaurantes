@@ -439,6 +439,9 @@ select.form-input{padding-right:42px;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .form-check{display:flex;align-items:center;gap:10px;padding:10px 0;}
 .form-ayuda{font-size:11px;color:var(--text-dim);line-height:1.5;margin:-2px 0 7px;}
+/* Sin límite todavía (25/09/2026, contador de caracteres de las
+   descripciones): solo informa, no bloquea, así que no lleva color de aviso. */
+.form-contador{text-align:right;font-size:10px;font-family:var(--mono);color:var(--text-dim);margin-top:5px;}
 
 /* El alta de un destacado no abre el explorador de archivos de inmediato:
    primero deja elegir entre una imagen propia y un plato que ya existe. */
