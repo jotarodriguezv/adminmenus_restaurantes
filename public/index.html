@@ -1697,6 +1697,7 @@
 						<div class="form-ayuda">Agrégala ahora o después. Una foto hace que tu carta se vea mejor.</div>
 						<div class="img-edit-wrap" id="zonaFotoPlato" onclick="document.getElementById('imgFileInput').click()">
 							<img id="imgEditPreview" class="img-edit-preview" src="" style="display:none">
+							<button type="button" id="btnAmpliarFoto" class="img-edit-ampliar" title="Ver foto en grande" style="display:none" onclick="event.stopPropagation(); ampliarFotoPlato()">🔍</button>
 							<div class="img-edit-overlay"><span>📷 Cambiar foto</span></div>
 							<div id="imgEditPlaceholder" class="img-placeholder-text">Sin imagen · haz clic para subir<span class="pista-arrastre"> o arrastra una aquí</span></div>
 						</div>
@@ -2061,6 +2062,12 @@
 					<button class="btn-save" id="btnSaveProduct" onclick="saveProduct()">Guardar cambios</button>
 				</div>
 			</div>
+		</div>
+
+		<!-- Ver la foto del plato en grande. Aparte de productModal: si compartiera
+		     su overlay, cerrarla con un clic fuera cerraría también la ficha entera. -->
+		<div class="foto-ampliada-bg" id="fotoAmpliadaModal" onclick="cerrarFotoAmpliada()">
+			<img id="fotoAmpliadaImg" src="" alt="Foto del producto">
 		</div>
 
 <!-- MODAL EDITAR/CREAR CATEGORÍA -->
@@ -3236,6 +3243,7 @@ function openNewProductModal() {
 	document.getElementById('imgEditPreview').style.display='none';
 	document.getElementById('imgEditPlaceholder').style.display='flex';
 	document.getElementById('btnQuitarFoto').style.display='none';
+	document.getElementById('btnAmpliarFoto').style.display='none';
 	document.getElementById('imgUploadStatus').textContent='';
 	document.getElementById('imgFileInput').value='';
 	state.extraImgs = [];
@@ -3494,12 +3502,15 @@ function openEditProductModal(id) {
 	const prev=document.getElementById('imgEditPreview');
 	const ph=document.getElementById('imgEditPlaceholder');
 	const btnQuitar=document.getElementById('btnQuitarFoto');
+	const btnAmpliar=document.getElementById('btnAmpliarFoto');
 	if(p.imagen_url){
 		prev.src=p.imagen_url; prev.style.display='block'; ph.style.display='none';
 		btnQuitar.style.display='block';
+		btnAmpliar.style.display='flex';
 	} else {
 		prev.style.display='none'; ph.style.display='flex';
 		btnQuitar.style.display='none';
+		btnAmpliar.style.display='none';
 	}
 	document.getElementById('imgUploadStatus').textContent='';
 	document.getElementById('imgFileInput').value='';
@@ -4403,6 +4414,7 @@ async function handleProductImgUpload(input) {
     prev.src=url; prev.style.display='block';
     document.getElementById('imgEditPlaceholder').style.display='none';
     document.getElementById('btnQuitarFoto').style.display='block';
+    document.getElementById('btnAmpliarFoto').style.display='flex';
     pintarSinFoto();
     st.textContent='✓ Lista para guardar'; st.style.color='var(--success)';
   } catch(e) { st.textContent=e.message||'Error al subir'; st.style.color='var(--danger)'; }
@@ -4576,6 +4588,7 @@ function quitarFoto() {
 	prev.style.display='none'; prev.src='';
 	document.getElementById('imgEditPlaceholder').style.display='flex';
 	document.getElementById('btnQuitarFoto').style.display='none';
+	document.getElementById('btnAmpliarFoto').style.display='none';
 	pintarSinFoto();
 	const st=document.getElementById('imgUploadStatus');
 	st.textContent='Foto eliminada al guardar'; st.style.color='var(--warn)';
@@ -4601,6 +4614,18 @@ function quitarFoto() {
 			: 'Tranquilo: este plato tiene su propio video, así que la carta lo sigue mostrando. La foto solo haría falta si algún día quitas el video.';
 		nota.style.color = generado ? 'var(--warn)' : 'var(--text-muted)';
 	}
+}
+
+// La miniatura de la ficha (#zonaFotoPlato) es pequeña a propósito: aquí se ve
+// la foto entera, sin el recorte que impone la proporción de la carta.
+function ampliarFotoPlato() {
+	const src = document.getElementById('imgEditPreview').src;
+	if (!src) return;
+	document.getElementById('fotoAmpliadaImg').src = src;
+	document.getElementById('fotoAmpliadaModal').classList.add('open');
+}
+function cerrarFotoAmpliada() {
+	document.getElementById('fotoAmpliadaModal').classList.remove('open');
 }
 
 // ── IMÁGENES ADICIONALES ──────────────────────────────────────
