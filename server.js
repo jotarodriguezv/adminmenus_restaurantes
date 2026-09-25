@@ -2221,10 +2221,17 @@ app.post('/api/video', auth,
     // pertenece producto_id.
     if (producto_id) {
       const { data: prod } = await supabase.from('productos')
-        .select('restaurante_id').eq('id', producto_id).maybeSingle();
+        .select('restaurante_id, imagen_url').eq('id', producto_id).maybeSingle();
       if (!prod || prod.restaurante_id !== restaurante_id) {
         descartar();
         return res.status(403).json({ error: 'Ese plato no es de este restaurante' });
+      }
+      // Decidido con el usuario el 25/09/2026: la foto va primero, igual en
+      // subir que en generar con IA (esa ruta ya lo exigía). El panel ya
+      // esconde el botón sin foto; esto es para quien llegue aquí directo.
+      if (!prod.imagen_url) {
+        descartar();
+        return res.status(400).json({ error: 'Ese plato no tiene foto todavía. Sube una foto antes que el video.' });
       }
 
       // Dos conversiones a la vez sobre el mismo plato compiten por el mismo

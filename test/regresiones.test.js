@@ -507,7 +507,7 @@ describe('04 · dos conversiones del mismo plato', () => {
   // Pero el panel es la puerta bonita. Las otras tres rutas que encolan
   // trabajo ya lo comprobaban; la subida manual, que es la más usada, no.
   const enCurso = (hay) => S.conTabla(st => {
-    if (st.tabla === 'productos') return { data: { restaurante_id: S.IDS.restaurante }, error: null };
+    if (st.tabla === 'productos') return { data: { restaurante_id: S.IDS.restaurante, imagen_url: 'foto.jpg' }, error: null };
     if (st.tabla === 'restaurantes') return { data: { atributos: { plan: 'video' } }, error: null };
     if (st.tabla === 'trabajos_video' && st.op === 'select') return { data: hay ? [{ id: 'otro' }] : [], error: null };
     return { data: { id: 'nuevo', estado: 'pendiente' }, error: null };
