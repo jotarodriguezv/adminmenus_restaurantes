@@ -8913,3 +8913,126 @@ describe('la paleta del logo · los colores del negocio, ajustados para que se l
 		assert.match(src, /state\.restaurante\.logo_url = null;\s*renderPaletas\(\);/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('el aviso de contraste · al elegir colores a mano', () => {
+	// Pedido el 24/09/2026, después de las paletas: cubre a quien retoca un
+	// color suelto. Ver «EL AVISO AL ELEGIR COLORES A MANO» en public/paletas.js.
+	const ctx = cargar('paletas.js', 'const COLORES_FIJOS_CARTA', null);
+	const PREDETERMINADOS = vm.runInContext('PREDETERMINADOS_CARTA', ctx);
+	const LOBSTER_ANTES = { primario: '#000000', secundario: '#000000', superficie: '#807d60', tarjeta: '#6f7057', fondo: '#3c57aa' };
+
+	test('los colores que usa la carta por defecto no avisan de nada', () => {
+		assert.equal(ctx.sugerenciasDeContraste({ ...PREDETERMINADOS }).length, 0);
+	});
+
+	test('con los colores que tenía Lobster Boat avisa del primario, y su sugerencia se lee', () => {
+		const s = ctx.sugerenciasDeContraste(LOBSTER_ANTES);
+		const prim = s.find(x => x.rol === 'primario');
+		assert.ok(prim, 'el primario negro tiene que salir en el aviso');
+		assert.ok(prim.sugerido, 'y con un color propuesto');
+		const arreglado = ctx.fallosDeContraste({ ...LOBSTER_ANTES, primario: prim.sugerido });
+		assert.equal(arreglado.some(f => ctx.rolAjustable(f) === 'primario'), false);
+	});
+
+	test('cada problema se le pide al color que hay que cambiar', () => {
+		// «Primario sobre la tarjeta» es del primario; «descripción sobre la
+		// tarjeta» es de la tarjeta.
+		assert.equal(ctx.rolAjustable({ a: 'primario', b: 'tarjeta' }), 'primario');
+		assert.equal(ctx.rolAjustable({ a: 'gris', b: 'tarjeta' }), 'tarjeta');
+		assert.equal(ctx.rolAjustable({ a: 'blanco', b: 'secundario' }), 'secundario');
+		assert.equal(ctx.rolAjustable({ a: 'texto', b: 'fondo' }), 'fondo');
+	});
+
+	test('la sugerencia conserva el tono del color elegido', () => {
+		const tono = hex => ctx.rgbAHsl(ctx.hexARgb(hex))[0];
+		// Un secundario crema: falla con la letra blanca y se propone un tono más medio.
+		const s = ctx.sugerenciasDeContraste({ ...PREDETERMINADOS, secundario: '#f5e6c8' }).find(x => x.rol === 'secundario');
+		assert.ok(s?.sugerido);
+		assert.ok(Math.abs(tono(s.sugerido) - tono('#f5e6c8')) < 5);
+	});
+
+	const conCampos = (valores, restaurante = {}) => {
+		const CAMPOS = vm.runInContext('CAMPOS_PALETA', ctx);
+		const campos = {}, hijos = [];
+		for (const [rol, [texto, muestra]] of Object.entries(CAMPOS)) {
+			campos[texto] = { value: valores[rol] ?? '' };
+			campos[muestra] = { value: '' };
+		}
+		const nodo = () => ({ style: {}, children: [], append(...h) { this.children.push(...h); }, appendChild(h) { this.children.push(h); } });
+		campos.apAvisoContraste = { hidden: true, hijos, replaceChildren(...h) { hijos.length = 0; hijos.push(...h); } };
+		const c = cargar('paletas.js', 'const COLORES_FIJOS_CARTA', null);
+		c.state = { restaurante };
+		c.document = { getElementById: id => campos[id], querySelectorAll: () => [], createElement: nodo };
+		c.colorDesdeTexto = () => {};
+		return { c, campos, aviso: campos.apAvisoContraste };
+	};
+
+	test('un campo vacío cuenta como el color por defecto de la carta', () => {
+		const { c } = conCampos({ primario: '', secundario: 'no-es-un-color' });
+		const colores = c.coloresEnCampos();
+		assert.equal(colores.primario, PREDETERMINADOS.primario);
+		assert.equal(colores.secundario, PREDETERMINADOS.secundario);
+	});
+
+	test('sin problemas el aviso no se ve; con problemas sí, con un botón por color que se puede arreglar', () => {
+		const bien = conCampos({ ...PREDETERMINADOS });
+		bien.c.revisarContraste();
+		assert.equal(bien.aviso.hidden, true);
+
+		const mal = conCampos(LOBSTER_ANTES);
+		mal.c.revisarContraste();
+		assert.equal(mal.aviso.hidden, false);
+		const items = mal.aviso.hijos.slice(1);
+		assert.ok(items.length >= 2, 'primario y tarjeta, al menos');
+		const boton = items.flatMap(i => i.children).find(h => h.type === 'button');
+		assert.ok(boton, 'hay un botón «Usar …»');
+	});
+
+	test('si ningún tono sirve, no deja a la persona sin salida: dice qué cambiar', () => {
+		// Secundario negro sobre el azul medio de Lobster Boat: ninguna
+		// luminosidad aguanta la letra blanca encima y ese fondo detrás.
+		const { c, aviso } = conCampos(LOBSTER_ANTES);
+		assert.equal(c.sugerenciasDeContraste(c.coloresEnCampos()).find(x => x.rol === 'secundario')?.sugerido, null);
+		c.revisarContraste();
+		const pistas = aviso.hijos.slice(1).flatMap(i => i.children).filter(h => h.className === 'aviso-contraste-pista');
+		assert.ok(pistas.some(p => /fondo más oscuro/.test(p.textContent)));
+	});
+
+	test('si lo que bloquea es otro color, nombra ese y solo ese', () => {
+		// Fondo ya oscuro, pero tarjetas oliva: el secundario negro no tiene
+		// arreglo hasta que se oscurecen las tarjetas. Nombrar también el
+		// primario o el menú, que no estorban, confundiría.
+		const colores = { ...LOBSTER_ANTES, fondo: '#0f182f' };
+		const s = ctx.sugerenciasDeContraste(colores).find(x => x.rol === 'secundario');
+		assert.equal(s.sugerido, null);
+		assert.equal(s.antes.length, 1);
+		assert.equal(s.antes[0], 'tarjeta');
+	});
+
+	test('pulsar «Usar …» pone el color propuesto en su campo', () => {
+		const { c, campos } = conCampos(LOBSTER_ANTES);
+		const prim = c.sugerenciasDeContraste(c.coloresEnCampos()).find(x => x.rol === 'primario');
+		c.usarColorSugerido('primario', prim.sugerido);
+		assert.equal(campos.apColor1.value, prim.sugerido);
+	});
+
+	test('con imagen de fondo, el color de fondo no avisa: no se usa', () => {
+		const colores = { ...PREDETERMINADOS, fondo: '#ffffff' };   // fondo blanco: falla con texto claro
+		const sinImagen = conCampos(colores);
+		assert.ok(sinImagen.c.sugerenciasDeContraste(sinImagen.c.coloresEnCampos(), sinImagen.c.reglasQueAplican()).some(s => s.rol === 'fondo'));
+		const conImagen = conCampos(colores, { fondo_url: '/uploads/fondos/x.jpg' });
+		assert.equal(conImagen.c.sugerenciasDeContraste(conImagen.c.coloresEnCampos(), conImagen.c.reglasQueAplican()).some(s => s.rol === 'fondo'), false);
+	});
+
+	test('el aviso está en «Colores», se revisa al tocar cualquiera de los cinco campos, y no bloquea el guardado', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const i = src.indexOf('<div class="section-title">Colores</div>');
+		assert.ok(src.indexOf('id="apAvisoContraste"', i) > i);
+		const js = fs.readFileSync(path.join(PUBLIC, 'paletas.js'), 'utf8');
+		assert.match(js, /addEventListener\('input', revisarContraste\)/);
+		const guardar = src.match(/async function saveApariencia\([^)]*\) \{[\s\S]*?\n\}/);
+		assert.ok(guardar, 'saveApariencia cambió de nombre: esta prueba ya no mira nada');
+		assert.doesNotMatch(guardar[0], /revisarContraste|fallosDeContraste/, 'solo avisa: guardar no pasa por el contraste');
+	});
+});

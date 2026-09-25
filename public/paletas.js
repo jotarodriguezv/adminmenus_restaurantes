@@ -80,9 +80,9 @@ function contrasteColores(a, b) {
 }
 
 // Las reglas que una combinación no cumple. Vacío si se lee bien entera.
-function fallosDeContraste(colores) {
+function fallosDeContraste(colores, reglas = REGLAS_COLOR) {
   const todos = { ...COLORES_FIJOS_CARTA, ...colores };
-  return REGLAS_COLOR
+  return reglas
     .map(r => ({ ...r, valor: contrasteColores(todos[r.a], todos[r.b]) }))
     .filter(r => r.valor < r.min);
 }
@@ -255,6 +255,7 @@ function aplicarPaleta(id) {
     colorDesdeTexto(texto, muestra);
   }
   marcarPaletaActual();
+  revisarContraste();
 }
 
 // Cuál de las paletas coincide con lo que hay en los campos, para marcarla.
@@ -306,8 +307,12 @@ function renderPaletas() {
   // misma función no la duplica, así que llamar a esto en cada visita a
   // Superadmin no acumula escuchas (lo que pasó en P5).
   for (const ids of Object.values(CAMPOS_PALETA))
-    for (const id of ids) document.getElementById(id)?.addEventListener('input', marcarPaletaActual);
+    for (const id of ids) {
+      document.getElementById(id)?.addEventListener('input', marcarPaletaActual);
+      document.getElementById(id)?.addEventListener('input', revisarContraste);
+    }
   marcarPaletaActual();
+  revisarContraste();
 
   // La del logo se calcula aparte y se pinta cuando llega. Si ya se había
   // leído ese mismo logo, salió arriba con las demás.
@@ -319,4 +324,143 @@ function renderPaletas() {
       if (logoActual() === url && paletaDelLogo.paleta) renderPaletas();
     });
   }
+}
+
+// ── EL AVISO AL ELEGIR COLORES A MANO ─────────────────────────
+// Pedido por el usuario el 24/09/2026, después de las paletas. Las paletas
+// cubren a quien elige una; esto cubre a quien retoca un color suelto, que es
+// justo como Lobster Boat acabó con el título negro sobre fondo oscuro.
+//
+// Solo AVISA: un restaurante puede insistir en su color de marca. Y propone,
+// para cada color que falla, el más parecido que sí se lee (mismo tono, otra
+// luminosidad), a un clic.
+
+// Los que usa la carta cuando el campo está vacío (vmenus-app/core/loader.js).
+// Un campo vacío no es «sin color»: es este, y hay que medirlo.
+const PREDETERMINADOS_CARTA = {
+  primario: '#cdfefe', secundario: '#a374af', superficie: '#12111a', tarjeta: '#1a1825', fondo: '#0a0a0f',
+};
+
+// Con el nombre que tiene cada campo en Superadmin, para que se encuentre.
+const NOMBRE_COLOR = {
+  primario: 'Color primario', secundario: 'Color secundario',
+  superficie: 'Menú / encabezado / carrito', tarjeta: 'Cajas de producto', fondo: 'Color de fondo',
+};
+
+function hexCompleto(v) {
+  let h = String(v || '').trim().replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  return /^[0-9a-f]{6}$/i.test(h) ? '#' + h.toLowerCase() : null;
+}
+
+function coloresEnCampos() {
+  const valor = id => hexCompleto(document.getElementById(id)?.value);
+  return Object.fromEntries(Object.entries(CAMPOS_PALETA)
+    .map(([rol, [texto]]) => [rol, valor(texto) || PREDETERMINADOS_CARTA[rol]]));
+}
+
+// El color de fondo solo se usa si no hay imagen de fondo: con imagen, sus
+// reglas no dicen nada de lo que verá el comensal.
+function reglasQueAplican() {
+  const conImagen = typeof state !== 'undefined' && !!state?.restaurante?.fondo_url;
+  return conImagen ? REGLAS_COLOR.filter(r => r.a !== 'fondo' && r.b !== 'fondo') : REGLAS_COLOR;
+}
+
+// De cada regla que falla, cuál de los colores elegibles hay que cambiar. En
+// «primario sobre tarjeta» se toca el primario: la tarjeta la cuidan sus
+// propias reglas con el texto.
+function rolAjustable(regla) {
+  return regla.a in CAMPOS_PALETA ? regla.a : regla.b;
+}
+
+// Por cada color con problemas: qué falla y el más parecido que lo arregla,
+// dejando los demás como están. sugerido es null si ninguno sirve.
+function sugerenciasDeContraste(colores, reglas = REGLAS_COLOR) {
+  const fallos = fallosDeContraste(colores, reglas);
+  const arreglar = (rol, base) => acercarLuminosidad(rgbAHsl(hexARgb(colores[rol])), hex =>
+    !fallosDeContraste({ ...base, [rol]: hex }, reglas).some(f => rolAjustable(f) === rol));
+
+  const primera = Object.keys(CAMPOS_PALETA)
+    .map(rol => ({ rol, fallos: fallos.filter(f => rolAjustable(f) === rol) }))
+    .filter(s => s.fallos.length)
+    .map(s => ({ ...s, sugerido: arreglar(s.rol, colores) }));
+
+  // Cuando ningún tono sirve, casi siempre es porque OTRO color lo impide:
+  // un secundario negro con unas tarjetas oliva no tiene arreglo hasta que se
+  // oscurecen las tarjetas. Se averigua cuál, para decírselo a la persona en
+  // vez de dejarla sin salida: primero con los demás ya arreglados, y si no,
+  // con el fondo más oscuro posible.
+  const conLosDemas = { ...colores };
+  for (const s of primera) if (s.sugerido) conLosDemas[s.rol] = s.sugerido;
+  return primera.map(s => {
+    if (s.sugerido) return s;
+    const otros = primera.filter(o => o.sugerido && o.rol !== s.rol);
+    // Si basta con arreglar uno, se nombra solo ese: nombrar los tres confunde.
+    const uno = otros.find(o => arreglar(s.rol, { ...colores, [o.rol]: o.sugerido }));
+    if (uno) return { ...s, antes: [uno.rol] };
+    if (otros.length && arreglar(s.rol, conLosDemas)) return { ...s, antes: otros.map(o => o.rol) };
+    const fondoOscuro = s.rol !== 'fondo' && reglas.some(r => r.a === 'fondo' || r.b === 'fondo')
+      && arreglar(s.rol, { ...conLosDemas, fondo: COLORES_FIJOS_CARTA.oscuro });
+    return { ...s, antes: [], fondoOscuro: !!fondoOscuro };
+  });
+}
+
+function usarColorSugerido(rol, hex) {
+  const [texto, muestra] = CAMPOS_PALETA[rol];
+  document.getElementById(texto).value = hex;
+  colorDesdeTexto(texto, muestra);
+  marcarPaletaActual();
+  revisarContraste();
+}
+
+const numeroConComa = n => n.toFixed(1).replace('.', ',');
+
+function revisarContraste() {
+  const cont = document.getElementById('apAvisoContraste');
+  if (!cont) return;
+  const sugerencias = sugerenciasDeContraste(coloresEnCampos(), reglasQueAplican());
+  cont.hidden = !sugerencias.length;
+  if (!sugerencias.length) { cont.replaceChildren(); return; }
+
+  const titulo = document.createElement('div');
+  titulo.className = 'aviso-contraste-titulo';
+  titulo.textContent = '⚠ Con estos colores hay partes de la carta que no se van a leer bien';
+  cont.replaceChildren(titulo, ...sugerencias.map(s => {
+    const item = document.createElement('div');
+    item.className = 'aviso-contraste-item';
+    const nombre = document.createElement('strong');
+    nombre.textContent = NOMBRE_COLOR[s.rol];
+    const lista = document.createElement('ul');
+    for (const f of s.fallos) {
+      const li = document.createElement('li');
+      li.textContent = `${f.que}: contraste ${numeroConComa(f.valor)}, el mínimo es ${numeroConComa(f.min)}`;
+      lista.appendChild(li);
+    }
+    item.append(nombre, lista);
+    if (s.sugerido) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn-sm aviso-contraste-usar';
+      const muestra = document.createElement('span');
+      muestra.className = 'aviso-contraste-muestra';
+      muestra.style.background = s.sugerido;
+      b.append(muestra, `Usar ${s.sugerido}`);
+      b.title = 'El más parecido al que elegiste que sí se lee';
+      b.onclick = () => usarColorSugerido(s.rol, s.sugerido);
+      item.appendChild(b);
+    } else {
+      // Pasa, por ejemplo, con un secundario sobre un fondo de tono medio: no
+      // hay luminosidad que aguante a la vez la letra blanca encima y el fondo
+      // detrás. El que hay que cambiar es otro color, y hay que decirlo.
+      const pista = document.createElement('div');
+      pista.className = 'aviso-contraste-pista';
+      pista.textContent = s.antes?.length
+        ? `Arregla primero ${s.antes.map(r => `«${NOMBRE_COLOR[r]}»`).join(' y ')}: mientras siga así, ningún tono de este color se lee bien.`
+        : s.fondoOscuro
+          ? 'Ningún tono de este color se lee bien con el color de fondo actual. Prueba con un fondo más oscuro o con una de las paletas de arriba.'
+          : 'Ningún tono de este color se lee bien con los demás tal como están. Prueba con una de las paletas de arriba.';
+      item.appendChild(pista);
+    }
+    return item;
+  }));
 }
