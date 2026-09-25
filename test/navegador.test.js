@@ -5492,6 +5492,33 @@ describe('el rango libre de fechas va junto', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('contarCaracteres · cuánto llevan escrito las descripciones', () => {
+	// Solo informa: no hay tope todavía (25/09/2026, pedido en el diagnóstico
+	// de UX). Por eso no hay caso de "se pasó" que probar aquí.
+	const montar = valor => {
+		const campos = { editDesc: { value: valor }, editDescContador: { textContent: '' } };
+		const ctx = cargar('index.html', 'function contarCaracteres', 'function erroresDeFicha', {
+			document: { getElementById: id => campos[id] },
+		});
+		ctx.contarCaracteres('editDesc', 'editDescContador');
+		return campos.editDescContador.textContent;
+	};
+
+	test('vacío se cuenta como cero', () => assert.equal(montar(''), '0 caracteres'));
+	test('un carácter va en singular', () => assert.equal(montar('a'), '1 carácter'));
+	test('varios van en plural', () => assert.equal(montar('Arepa con queso'), '15 caracteres'));
+
+	test('se llama al abrir un plato nuevo y al abrir uno existente, para las dos descripciones', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		for (const f of ['function openNewProductModal', 'function openEditProductModal']) {
+			const cuerpo = src.slice(src.indexOf(f), src.indexOf('\n}', src.indexOf(f)));
+			assert.match(cuerpo, /contarCaracteres\('editDesc','editDescContador'\)/, `${f} no inicia el contador de la descripción`);
+			assert.match(cuerpo, /contarCaracteres\('editDescAvanzada','editDescAvanzadaContador'\)/, `${f} no inicia el contador de la descripción corta`);
+		}
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('los errores de la ficha del plato se dicen todos y en su sitio', () => {
 	// F2 en docs/revision-ux.md. Tres return seguidos, el de la categoría sin
 	// llevar el foco, todo en un aviso lejos del campo y de uno en uno.
