@@ -79,6 +79,12 @@ corregir el documento en la misma tarea.
   librería de PDF. Si el navegador bloquea la pestaña nueva, se abre dentro del
   panel. Todo lo del restaurante pasa por `esc()`: la página comparte origen
   con el panel.
+- `public/paletas.js` — paletas de colores probadas en Superadmin → Colores, y
+  `REGLAS_COLOR`, el contraste mínimo de cada color elegible. Todas las
+  plantillas tienen texto claro fijo sobre base oscura, así que primario,
+  tarjeta y superficie tienen una sola regla cada uno; el **secundario** es el
+  delicado: lleva letra blanca encima en algunos botones, así que ni muy claro
+  ni muy oscuro. Una prueba hace fallar la suite si una paleta no las cumple.
 - `public/encuadre.js` — elegir qué parte de la foto anima la IA cuando no
   tiene la proporción de la carta. El recorte lo hace el servidor; ver
   `docs/video-con-ia.md`, «El encuadre».

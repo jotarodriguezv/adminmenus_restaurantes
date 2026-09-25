@@ -566,6 +566,9 @@
 					     párrafo pequeño en un móvil. -->
 					<div class="section-card">
 						<div class="section-title">Colores</div>
+						<!-- Paletas probadas: ver la cabecera de public/paletas.js. -->
+						<div class="form-label">Paletas probadas <span style="color:var(--text-dim)">(llenan los colores de abajo, los de superficie y el del fondo; después puedes retocar cualquiera)</span></div>
+						<div class="paletas" id="apPaletas" role="group" aria-label="Paletas de colores"></div>
 						<div class="color-row" style="margin-bottom:4px;">
 							<div class="form-group" style="margin-bottom:0">
 								<label for="apPrevColor1" class="form-label">Color primario</label>
@@ -2431,6 +2434,7 @@
 <script src="restaurantes-filtros.js"></script>
 <script src="productos-marcas.js"></script>
 <script src="ver-en-la-carta.js"></script>
+<script src="paletas.js"></script>
 <script>
 // ── COLORES ───────────────────────────────────────────────────
 // Los campos de color son de texto libre y nadie rechazaba un '#12345' o un
@@ -6743,6 +6747,8 @@ function renderApariencia() {
   document.getElementById('apFondoColor').value = at.fondo_color || '#0a0a0f';
   document.getElementById('apPrevFondoColor').value = hex6(at.fondo_color, '#0a0a0f');
   document.getElementById('apFondoIntensidad').value = at.fondo_intensidad || 'solido';
+  // Después de llenar los colores: marca la paleta que coincida con ellos.
+  renderPaletas();
 
   // Portada (modelo explorar)
   document.getElementById('apPortadaActiva').checked = !!at.portada_activa;
