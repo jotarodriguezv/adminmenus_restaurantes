@@ -482,6 +482,58 @@ describe('POST /api/video · la carta en video depende del plan', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('POST /api/video · la foto va primero', () => {
+	// Decidido con el usuario el 25/09/2026: la misma regla que ya tenía
+	// POST /api/ia/generar. El panel esconde el botón de subir sin foto; esto
+	// es para quien llegue por una llamada directa.
+	const conFoto = (imagen_url) => S.conTabla(st => {
+		if (st.tabla === 'productos') return { data: { restaurante_id: IDS.restaurante, imagen_url }, error: null };
+		if (st.tabla === 'restaurantes') return { data: { atributos: { plan: 'video' } }, error: null };
+		return { data: { id: 'trabajo-1', estado: 'pendiente' }, error: null };
+	});
+
+	test('sin foto en el plato, se rechaza y no se encola nada', async () => {
+		conFoto(null);
+		const r = await S.pedirArchivo('/api/video', { restaurante_id: IDS.restaurante, producto_id: IDS.producto }, tokenCliente);
+
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /no tiene foto todavía/);
+		assert.equal(S.llamadas.some(l => l.tabla === 'trabajos_video'), false);
+	});
+
+	test('el archivo no se queda en el disco cuando se rechaza por falta de foto', async () => {
+		const dir = path.join(__dirname, '..', 'uploads', 'originales');
+		const antes = new Set(fs.existsSync(dir) ? fs.readdirSync(dir) : []);
+
+		conFoto(null);
+		await S.pedirArchivo('/api/video', { restaurante_id: IDS.restaurante, producto_id: IDS.producto }, tokenCliente);
+
+		const nuevos = () => (fs.existsSync(dir) ? fs.readdirSync(dir) : []).filter(f => !antes.has(f));
+		const hasta = Date.now() + 4000;
+		while (nuevos().length && Date.now() < hasta) await new Promise(r => setTimeout(r, 50));
+		assert.deepEqual(nuevos(), []);
+	});
+
+	test('con foto, sigue funcionando igual que antes', async () => {
+		conFoto('https://…/foto.jpg');
+		const r = await S.pedirArchivo('/api/video', { restaurante_id: IDS.restaurante, producto_id: IDS.producto }, tokenCliente);
+
+		assert.equal(r.status, 200);
+	});
+
+	test('sin producto_id no hay foto que comprobar: sigue funcionando como antes', async () => {
+		// La ruta admite subir sin colgarlo de un plato todavía (ver el bloque
+		// `if (producto_id)`); ahí no hay foto de la que hablar.
+		S.conTabla(st => st.tabla === 'restaurantes'
+			? { data: { atributos: { plan: 'video' } }, error: null }
+			: { data: { id: 'trabajo-1', estado: 'pendiente' }, error: null });
+		const r = await S.pedirArchivo('/api/video', { restaurante_id: IDS.restaurante }, tokenCliente);
+
+		assert.equal(r.status, 200);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('DELETE /api/upload · no se sale de uploads/', () => {
 	test('rechaza las rutas escapadas que sí llegan al servidor', async () => {
 		// Express decodifica los parámetros de ruta, así que un

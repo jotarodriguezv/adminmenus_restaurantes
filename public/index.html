@@ -1798,6 +1798,16 @@
 							     esconden: la barra, el estado y el bloque de revisión ya
 							     cuentan lo que pasa, y dos botones apagados solo hacen
 							     ruido. Ver pintarCaminosVideo(). -->
+							<!-- Decidido con el usuario el 25/09/2026: ni subir ni generar con IA
+							     sin foto, tampoco si el plato ya tenía un video y se le quitó la
+							     foto después (quitarFoto() lo permite a propósito). El servidor lo
+							     exige igual en las dos rutas; esto evita llegar hasta ahí sin
+							     saberlo. Reemplaza a videoCaminos y no a zonaVideo entero: un video
+							     que YA existe se sigue viendo arriba. Ver pintarCaminosVideo(). -->
+							<div id="videoSinFoto" class="video-nuevo" style="display:none">
+								Sube primero una foto del plato: podrás subir un video o generarlo con
+								IA a partir de ella.
+							</div>
 							<div id="videoCaminos">
 								<div id="videoCaminosTitulo" class="video-caminos-titulo">¿Quieres añadir un video a este plato?</div>
 								<div class="video-caminos">
@@ -3926,6 +3936,11 @@ function pintarVideoPlato(p) {
 	// campo. Gana la que termine después, que no tiene por qué ser la que
 	// pediste, y la otra queda ocupando disco sin que nada la enseñe.
 	const esNuevo = !p?.id;
+	// Sin foto, subir un archivo se rechazaría igual (POST /api/video la exige
+	// desde el 25/09/2026, como ya hacía /api/ia/generar). Un plato con video
+	// YA puesto puede llegar aquí sin foto —quitarFoto() lo permite a
+	// propósito—, y ese caso no bloquea "Subir": lo bloquea pintarCaminosVideo(),
+	// que no esconde el video existente, solo los caminos para uno nuevo.
 	const bloqueado = esNuevo || !!enCurso;
 	btn.disabled = bloqueado;
 	btn.style.opacity = bloqueado ? '.4' : '1';
@@ -3953,7 +3968,16 @@ function pintarCaminosVideo() {
 	// typeof porque las pruebas cargan trozos del archivo donde no están.
 	const proceso = typeof procesoEnMarchaDelPlato === 'function' ? procesoEnMarchaDelPlato() : null;
 	const ocupado = typeof procesoBloquea === 'function' && procesoBloquea(proceso);
-	caja.style.display = ocupado ? 'none' : '';
+	// Decidido con el usuario el 25/09/2026: sin foto no hay de dónde sacar un
+	// video nuevo, ni subido ni generado (el servidor ya lo exige en las dos
+	// rutas). Se mira en state.productos y no en un parámetro porque esta
+	// función se llama desde varios sitios sin el producto a mano — igual que
+	// ya hace quitarFoto() para el mismo dato.
+	const p = id ? (state.productos || []).find(x => x.id === id) : null;
+	const sinFoto = !!id && !p?.imagen_url;
+	caja.style.display = (ocupado || sinFoto) ? 'none' : '';
+	const sinFotoDiv = document.getElementById('videoSinFoto');
+	if (sinFotoDiv) sinFotoDiv.style.display = (!ocupado && sinFoto) ? 'block' : 'none';
 	const titulo = document.getElementById('videoCaminosTitulo');
 	if (titulo) titulo.textContent = tieneVideoPuesto(id)
 		? '¿Quieres cambiar el video de este plato?'

@@ -882,6 +882,67 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('pintarCaminosVideo · sin foto no hay de dónde sacar un video nuevo', () => {
+	// Decidido con el usuario el 25/09/2026: ni subir ni generar con IA sin
+	// foto (POST /api/video ya lo exige igual que /api/ia/generar). No esconde
+	// zonaVideo entero —un video YA puesto se sigue viendo—, solo los caminos
+	// para uno nuevo (videoCaminos), porque quitarFoto() permite a propósito
+	// que un plato se quede con video y sin foto.
+	const pantalla = () => {
+		const ids = ['videoCaminos', 'videoCaminosTitulo', 'videoSinFoto'];
+		const mapa = {};
+		for (const id of ids) mapa[id] = { style: {}, textContent: '' };
+		return mapa;
+	};
+
+	const pintar = (id, productos, mapa, proceso = null) => {
+		const ctx = cargar('index.html', [
+			['// Los trabajos de conversión del restaurante.', '// Elegir el archivo ya no lo sube'],
+		], {
+			state: { productos },
+			document: { getElementById: eid => (eid === 'editProductId' ? { value: id } : mapa[eid]) },
+			procesoEnMarchaDelPlato: () => proceso,
+			procesoBloquea: p => !!p,
+			tieneVideoPuesto: () => false,
+		});
+		ctx.pintarCaminosVideo();
+		return mapa;
+	};
+
+	test('con foto, se ofrecen los caminos y no sale el aviso', () => {
+		const m = pintar('p1', [{ id: 'p1', imagen_url: 'https://ejemplo.test/foto.jpg' }], pantalla());
+		assert.equal(m.videoCaminos.style.display, '');
+		assert.equal(m.videoSinFoto.style.display, 'none');
+	});
+
+	test('sin foto, se esconden los caminos y sale el aviso', () => {
+		const m = pintar('p1', [{ id: 'p1' }], pantalla());
+		assert.equal(m.videoCaminos.style.display, 'none');
+		assert.equal(m.videoSinFoto.style.display, 'block');
+	});
+
+	test('un plato con video pero sin foto —se le quitó después— también se bloquea', () => {
+		// quitarFoto() lo permite a propósito: la carta sigue enseñando el video,
+		// con su propia portada. Lo que no se puede es añadir uno nuevo.
+		const m = pintar('p1', [{ id: 'p1', atributos: { video: { url: 'x.mp4' } } }], pantalla());
+		assert.equal(m.videoCaminos.style.display, 'none');
+		assert.equal(m.videoSinFoto.style.display, 'block');
+	});
+
+	test('mientras hay un proceso en marcha, manda ese aviso y no el de la foto', () => {
+		const m = pintar('p1', [{ id: 'p1' }], pantalla(), 'subiendo');
+		assert.equal(m.videoCaminos.style.display, 'none');
+		assert.equal(m.videoSinFoto.style.display, 'none');
+	});
+
+	test('un plato sin guardar (sin id) no busca foto de ningún lado', () => {
+		const m = pintar('', [], pantalla());
+		assert.equal(m.videoCaminos.style.display, '');
+		assert.equal(m.videoSinFoto.style.display, 'none');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('avisarSiSePasaElVideo · el trozo elegido tiene que caber', () => {
 	// Se guardan 8 segundos desde el punto que marque el restaurante. Si
 	// elige uno donde ya no quedan 8, el video sale más corto — y eso se
