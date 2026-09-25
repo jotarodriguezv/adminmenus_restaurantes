@@ -4723,21 +4723,24 @@ function encajeDeFoto(ancho, alto) {
 		? { ancho: Math.round(alto * objetivo), alto }
 		: { ancho, alto: Math.round(ancho / objetivo) };
 
+	// Simplificado el 25/09/2026, a pedido del usuario: decía además cuánto
+	// ancho se perdía en el recorte, un cálculo que no ayuda a decidir nada —
+	// aquí ya no hay recorte posible, la foto no sirve para este formato.
 	if (vertical && foto >= 1) return { veredicto: 'rechaza', perdido, ideal,
-		mensaje: `⚠ Tu foto es ${tamaño} y esta carta es vertical, donde el video ocupa la ` +
-		         `pantalla entera. Recortarla dejaría solo el ${100 - perdido}% del ancho y al ` +
-		         `plato se le irían los lados. Sube una foto vertical del plato — proporción ` +
-		         `9:16, por ejemplo 1080×1920.` };
+		mensaje: `⚠ Tu foto es ${tamaño}, pero esta carta es vertical y el video ocupa toda ` +
+		         `la pantalla: con esta foto, al plato se le irían los lados. Sube una foto ` +
+		         `vertical, por ejemplo 1080×1920.` };
 
 	// Aviso, NO bloqueo. Lo primero que se lee tiene que ser "se puede generar":
 	// el texto anterior lo decía de refilón y se leyó como un rechazo, y esa
 	// confusión costó una generación pagada.
+	//
+	// Simplificado el 25/09/2026: ya no dice la proporción exacta (9:16, 16:9),
+	// solo "vertical" u "horizontal" — es el mismo dato que ya tiene delante,
+	// en la carta que está editando, y como número no ayuda a decidir nada.
 	if (conservado < 0.8) return { veredicto: 'avisa', perdido, ideal,
-		// Desde el 18/09/2026 el recorte lo elige el restaurante (encuadre.js):
-		// el aviso ya no tiene que pedir que el plato esté centrado.
-		mensaje: `Tu foto es ${tamaño} y esta carta es ` +
-		         `${vertical ? 'vertical (9:16)' : 'horizontal (16:9)'}. Al generar podrás ` +
-		         `elegir qué parte de la foto se anima.` };
+		mensaje: `Tu foto es ${tamaño} y esta carta es ${vertical ? 'vertical' : 'horizontal'}. ` +
+		         `Al generar podrás elegir qué parte se anima.` };
 
 	return { veredicto: 'bien', perdido, ideal, mensaje: '' };
 }
