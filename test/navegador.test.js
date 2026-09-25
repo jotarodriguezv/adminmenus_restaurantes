@@ -5519,6 +5519,42 @@ describe('contarCaracteres · cuánto llevan escrito las descripciones', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('verEnMiCarta · el botón de la ficha abre la carta de verdad', () => {
+	// Decidido el 25/09/2026: reusa destinoVerCarta() (ver-en-la-carta.js), el
+	// mismo helper del botón que ya trae el aviso al guardar — no hace falta un
+	// ?preview= nuevo. Un producto guardado no tiene "borrador" que enseñar
+	// aparte, así que no necesita lo que sí necesita la apariencia sin guardar.
+	const montar = url => {
+		const abiertas = [];
+		const ctx = cargar('index.html', 'function verEnMiCarta', 'function handleProductBg', {
+			state: { restaurante: { slug: 'bonzas' } },
+			destinoVerCarta: () => url,
+			window: { open: (...a) => abiertas.push(a) },
+		});
+		ctx.verEnMiCarta();
+		return abiertas;
+	};
+
+	test('con destino, abre la carta en otra pestaña sin opener', () => {
+		const abiertas = montar('https://menu.vmenus.co/bonzas');
+		assert.deepEqual(abiertas[0], ['https://menu.vmenus.co/bonzas', '_blank', 'noopener']);
+	});
+
+	test('sin destino —restaurante suspendido, sin slug, sin cargar— no abre nada', () => {
+		assert.equal(montar(null).length, 0);
+	});
+
+	test('se esconde al crear un producto y sigue la misma guarda que el aviso al editar uno', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const nuevo = src.match(/function openNewProductModal\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(nuevo, /linkVerEnCarta'\)\.style\.display='none'/, 'un producto sin guardar no tiene a dónde ir');
+		const editar = src.match(/function openEditProductModal\([^)]*\) \{[\s\S]*?\n\}/)[0];
+		assert.match(editar, /linkVerEnCarta'\)\.style\.display=destinoVerCarta\(state\.restaurante\)/,
+			'debe usar la misma función que decide si el aviso al guardar trae botón');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('los errores de la ficha del plato se dicen todos y en su sitio', () => {
 	// F2 en docs/revision-ux.md. Tres return seguidos, el de la categoría sin
 	// llevar el foco, todo en un aviso lejos del campo y de uno en uno.

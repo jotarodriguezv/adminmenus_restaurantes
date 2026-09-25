@@ -1687,7 +1687,14 @@
 		<div class="modal-bg" id="productModal" onclick="handleProductBg(event)">
 			<div class="modal-box">
 				<div class="modal-head">
-					<span class="modal-title" id="productModalTitle">Editar producto</span>
+					<div class="modal-head-titulo">
+						<span class="modal-title" id="productModalTitle">Editar producto</span>
+						<!-- Solo con un producto ya guardado: uno nuevo o con cambios
+						     sin guardar todavía no se ve así en la carta de verdad.
+						     Reusa urlPublica(), el mismo helper de abrirVistaPrevia()
+						     en Superadmin — no hace falta nada nuevo. -->
+						<a href="#" id="linkVerEnCarta" class="modal-ver-carta" style="display:none" target="_blank" rel="noopener" onclick="event.preventDefault();verEnMiCarta();">👁 Ver en mi carta</a>
+					</div>
 					<button class="modal-close" onclick="intentarCerrarProducto()">✕</button>
 				</div>
 				<div class="modal-body">
@@ -3226,6 +3233,8 @@ function openNewProductModal() {
 	document.getElementById('productModalTitle').textContent='Nuevo producto';
 	document.getElementById('btnSaveProduct').textContent='Crear producto';
 	document.getElementById('editProductId').value='';
+	// Todavía no existe en la carta: nada que ir a ver.
+	document.getElementById('linkVerEnCarta').style.display='none';
 	document.getElementById('editNombre').value='';
 	document.getElementById('editPrecioNum').value='';
 	document.getElementById('editPersonas').value='';
@@ -3472,6 +3481,9 @@ function openEditProductModal(id) {
 	document.getElementById('productModalTitle').textContent='Editar producto';
 	document.getElementById('btnSaveProduct').textContent='Guardar cambios';
 	document.getElementById('editProductId').value=p.id;
+	// La misma guarda que ya usa avisarGuardadoConCarta: sin restaurante, sin
+	// slug o suspendido, el botón prometería una carta que no se ve así.
+	document.getElementById('linkVerEnCarta').style.display=destinoVerCarta(state.restaurante) ? 'inline' : 'none';
 	// El estado de la generación es de la ficha anterior: si no se limpia, el
 	// plato nuevo abre diciendo "generando..." de otro.
 	//
@@ -5436,6 +5448,17 @@ function salirSinGuardar() {
 	closeModal('cambiosModal');
 	state.firmaProducto = undefined;
 	closeModal('productModal');
+}
+
+// Abre la carta pública de verdad, no una vista previa: un producto ya
+// guardado no tiene "borrador" que enseñar aparte, así que no hace falta el
+// ?preview= que usa Superadmin para la apariencia sin guardar. destinoVerCarta()
+// es de ver-en-la-carta.js —el mismo botón que ya trae el aviso al guardar—;
+// no hizo falta nada nuevo, ni repetir sus guardas (sin restaurante, sin slug,
+// suspendido).
+function verEnMiCarta() {
+	const url = destinoVerCarta(state.restaurante);
+	if (url) window.open(url, '_blank', 'noopener');
 }
 
 function handleProductBg(e) {
