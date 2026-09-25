@@ -667,7 +667,7 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		// botón vivo mandaría la subida a un 400 sin explicar por qué.
 		const m = pintar(true, null, pantalla());
 		assert.equal(m.btnSubirVideo.disabled, true);
-		assert.match(m.videoEditVacio.textContent, /Guarda el plato primero/);
+		assert.match(m.videoEditVacio.textContent, /Guarda el producto primero/);
 	});
 
 	test('un plato nuevo no enseña los botones apagados: dice qué hacer', () => {
@@ -1335,7 +1335,7 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 		// Deja de ser lo que se ve y pasa a ser lo que se ve mientras no haya
 		// video. Eso hay que decirlo donde se mira, no en un manual.
 		for (const nav of ['video', 'vertical'])
-			assert.match(conModelo(nav).labelImagen.innerHTML, /mientras el plato no tenga video/, `en ${nav}`);
+			assert.match(conModelo(nav).labelImagen.innerHTML, /mientras el producto no tenga video/, `en ${nav}`);
 	});
 
 	test('en los demás la etiqueta se queda limpia', () => {
@@ -1359,7 +1359,7 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 		assert.match(conModelo('vertical').videoSubirDetalle.textContent, /9:16/);
 		for (const nav of ['video', 'topnav', 'carrito', undefined])
 			assert.match(conModelo(nav).videoSubirDetalle.textContent, /16:9/, `en ${nav}`);
-		assert.equal(conModelo('video').labelVideo.innerHTML, 'Video del plato');
+		assert.equal(conModelo('video').labelVideo.innerHTML, 'Video del producto');
 	});
 
 	test('la previsualización tiene el hueco del formato que se guarda', () => {
@@ -3021,7 +3021,7 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		await correr(m);
 
 		assert.equal(m.btnGenerarIA.disabled, true);
-		assert.match(m.iaMotivo.textContent, /Primero guarda el plato/);
+		assert.match(m.iaMotivo.textContent, /Primero guarda el producto/);
 	});
 
 	test('sin foto se apaga y lo explica, en vez de esconder el bloque', async () => {
@@ -3063,7 +3063,7 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		m.imgEditPreview.src = '';
 		await correr(m);
 
-		assert.match(m.iaMotivo.textContent, /Primero guarda el plato/);
+		assert.match(m.iaMotivo.textContent, /Primero guarda el producto/);
 	});
 
 	// ── CON VIDEO PUESTO, LA ACCIÓN NO ES LA MISMA ────────────
