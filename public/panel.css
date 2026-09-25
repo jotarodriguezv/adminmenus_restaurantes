@@ -411,11 +411,39 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .modal-ver-carta{font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:var(--accent);
   text-decoration:none;white-space:nowrap;}
 .modal-ver-carta:hover{text-decoration:underline;}
+/* Pestañas de "Editar producto" (25/09/2026). Clase propia y no .tab-btn: esa
+   la controla switchTab() del panel general con un querySelectorAll('.tab-btn')
+   compartido, que le quitaría el estado activo a estos botones al cambiar
+   de pestaña ahí, sin relación con esto. */
+.ficha-tabs{display:flex;gap:4px;padding:0 22px;border-bottom:1px solid var(--border);background:var(--panel);}
+.ficha-tab{padding:10px 14px;border:none;border-bottom:2px solid transparent;background:transparent;
+  color:var(--text-muted);font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  cursor:pointer;}
+.ficha-tab.active{color:var(--text);border-bottom-color:var(--accent);}
+.ficha-tab:hover:not(.active){color:var(--text);}
+/* !important a propósito: varios de estos grupos (video, personalización,
+   filtros, destacados) ya tienen su propio display puesto por JS a mano
+   según su estado (con foto o sin ella, con video o sin él…), y un inline
+   style siempre gana a cualquier regla externa sin esto — la miniatura de
+   foto ya tropezó con lo mismo. cambiarPestanaProducto() solo añade o quita
+   esta clase; nunca toca el display que cada grupo ya maneja por su cuenta,
+   así que al volver a su pestaña aparece tal y como estaba. */
+.ficha-tab-oculta{display:none!important;}
 .modal-close{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:transparent;
   color:var(--text-muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s;}
 .modal-close:hover{border-color:var(--danger);color:var(--danger);}
 .modal-body{padding:22px;}
 .modal-foot{display:flex;gap:10px;padding:14px 22px 22px;}
+/* Pie fijo de "Editar producto" (25/09/2026): Cancelar/Guardar siguen a la
+   vista aunque la ficha sea larga y se desplace. Mismo patrón que ya usa
+   .modal-head con su propio lado (position:sticky;top:0). Solo esta ficha:
+   las demás ventanas del panel (categoría, toppings…) son cortas y no lo
+   necesitan. */
+#productModal .modal-foot{position:sticky;bottom:0;background:var(--panel);
+  border-top:1px solid var(--border);align-items:center;}
+/* Nunca var(--danger): ese color ya significa "hay un error" en la ficha
+   (los campos marcados en rojo), y tener algo sin guardar no lo es. */
+.ficha-cambios-indicador{flex:1;font-family:var(--mono);font-size:10px;color:var(--warn);}
 
 .form-group{margin-bottom:16px;}
 .form-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;

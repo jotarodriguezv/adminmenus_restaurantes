@@ -4866,7 +4866,7 @@ describe('el primer día de un restaurante', () => {
 		// Disponible va en la cabecera del nombre, no suelto más abajo
 		// (18/09/2026): un plato nuevo nace disponible y el interruptor que lo
 		// saca de la carta no puede quedar escondido.
-		const nombre = html.match(/<div class="form-group producto-nombre">[\s\S]*?id="editNombre"/)[0];
+		const nombre = html.match(/<div class="form-group producto-nombre[^"]*">[\s\S]*?id="editNombre"/)[0];
 		assert.match(nombre, /id="editDisponible"/);
 		// Y gratis, en la misma fila que el precio.
 		const precio = html.match(/<div class="precio-fila">[\s\S]*?id="editPrecioGratis"/);
@@ -4879,9 +4879,9 @@ describe('el primer día de un restaurante', () => {
 
 		// 24/09/2026: pedido por el usuario, va debajo de la descripción del
 		// producto y no junto al precio, donde se puso al principio.
-		const idxDescripcion = html.indexOf('class="form-group producto-descripcion"');
-		const idxPersonas = html.indexOf('class="form-group producto-personas"');
-		const idxDescCorta = html.indexOf('class="form-group producto-descripcion-corta"');
+		const idxDescripcion = html.search(/class="form-group producto-descripcion[^-][^"]*"/);
+		const idxPersonas = html.search(/class="form-group producto-personas[^"]*"/);
+		const idxDescCorta = html.search(/class="form-group producto-descripcion-corta[^"]*"/);
 		assert.ok(idxDescripcion > 0 && idxPersonas > idxDescripcion && idxDescCorta > idxPersonas,
 			'«Para cuántas personas» debe ir después de la descripción del producto y antes de la corta');
 		const personas = html.slice(idxPersonas, idxDescCorta);
@@ -5639,6 +5639,107 @@ describe('verEnMiCarta · el botón de la ficha abre la carta de verdad', () => 
 		const editar = src.match(/function openEditProductModal\([^)]*\) \{[\s\S]*?\n\}/)[0];
 		assert.match(editar, /linkVerEnCarta'\)\.style\.display=destinoVerCarta\(state\.restaurante\)/,
 			'debe usar la misma función que decide si el aviso al guardar trae botón');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('cambiarPestanaProducto · las pestañas de la ficha', () => {
+	// Los doce grupos NO se mueven de sitio (su order: en panel.css no se
+	// toca); esta función solo añade o quita .ficha-tab-oculta. Por eso el
+	// DOM de prueba imita eso: cada grupo "vive" siempre, con su propia
+	// classList, y querySelectorAll('.modal-body > .tab-X') es lo único que
+	// cambia según la pestaña.
+	const claseFalsa = () => {
+		const c = new Set();
+		return { add: x => c.add(x), remove: x => c.delete(x), toggle(x, on) { on ? c.add(x) : c.delete(x); }, contains: x => c.has(x), set: c };
+	};
+	const montar = () => {
+		const productModal = { dataset: {} };
+		const btnGeneral = { classList: claseFalsa() };
+		const btnMultimedia = { classList: claseFalsa() };
+		const grupos = {
+			general: [{ classList: claseFalsa() }],
+			multimedia: [{ classList: claseFalsa() }, { classList: claseFalsa() }],
+			detalles: [{ classList: claseFalsa() }],
+		};
+		const document = {
+			getElementById: id => (id === 'productModal' ? productModal : null),
+			querySelectorAll: sel => {
+				if (sel === '.ficha-tab') return [btnGeneral, btnMultimedia];
+				const m = sel.match(/tab-(\w+)/);
+				return m ? grupos[m[1]] : [];
+			},
+		};
+		const ctx = cargar('index.html', 'function actualizarIndicadorCambios', 'function intentarCerrarProducto', { document });
+		return { ctx, grupos, btnGeneral, btnMultimedia, productModal };
+	};
+
+	test('pide "multimedia": esconde general y detalles, deja multimedia', () => {
+		const { ctx, grupos } = montar();
+		ctx.cambiarPestanaProducto('multimedia', null);
+		for (const g of grupos.general) assert.equal(g.classList.contains('ficha-tab-oculta'), true);
+		for (const g of grupos.detalles) assert.equal(g.classList.contains('ficha-tab-oculta'), true);
+		for (const g of grupos.multimedia) assert.equal(g.classList.contains('ficha-tab-oculta'), false);
+	});
+
+	test('marca el botón pulsado como activo y le quita "active" a los demás', () => {
+		const { ctx, btnGeneral, btnMultimedia } = montar();
+		btnGeneral.classList.add('active');
+		ctx.cambiarPestanaProducto('multimedia', btnMultimedia);
+		assert.equal(btnGeneral.classList.contains('active'), false);
+		assert.equal(btnMultimedia.classList.contains('active'), true);
+	});
+
+	test('deja constancia de la pestaña activa en el propio productModal', () => {
+		const { ctx, productModal } = montar();
+		ctx.cambiarPestanaProducto('detalles', null);
+		assert.equal(productModal.dataset.fichaTab, 'detalles');
+	});
+
+	test('abrir cualquier ficha vuelve siempre a "General", no se acuerda del plato anterior', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		for (const f of ['function openNewProductModal', 'function openEditProductModal']) {
+			const cuerpo = src.slice(src.indexOf(f), src.indexOf('\n}', src.indexOf(f)));
+			assert.match(cuerpo, /cambiarPestanaProducto\('general'/, `${f} no reinicia la pestaña`);
+		}
+	});
+
+	test('un error de validación salta a "General" antes de pintarlo, porque ahí viven los tres campos', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const guardar = src.match(/async function saveProduct\(\) \{[\s\S]*?\n\}/)[0];
+		const posCambiar = guardar.indexOf("cambiarPestanaProducto('general'");
+		const posPintar = guardar.indexOf('pintarErroresFicha(errores)');
+		assert.ok(posCambiar > 0, 'saveProduct no cambia a General al fallar la validación');
+		assert.ok(posCambiar < posPintar, 'debe cambiar de pestaña ANTES de pintar el error, si no queda escondido');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('actualizarIndicadorCambios · sin usar rojo', () => {
+	// El rojo ya dice "hay un error" en la ficha (campos con con-error); un
+	// aviso de "sin guardar" con el mismo color se leería como que algo
+	// salió mal. Por eso el color va en panel.css (var(--warn)) y no aquí,
+	// pero SÍ se prueba que reusa productoTieneCambios() y no otra cosa.
+	const montar = firma => {
+		const indicador = { style: {} };
+		const ctx = cargar('index.html', 'function firmaProducto', 'function vigilarCambiosProducto', {
+			document: { getElementById: id => (id === 'productoCambiosIndicador' ? indicador : { value: '' }) },
+			state: { firmaProducto: firma, pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {}, prodPers: {} },
+			videoElegido: null,
+		});
+		return { ctx, indicador };
+	};
+
+	test('sin firma tomada todavía (ficha recién abierta), no se enseña', () => {
+		const { ctx, indicador } = montar(undefined);
+		ctx.actualizarIndicadorCambios();
+		assert.equal(indicador.style.display, 'none');
+	});
+
+	test('con la firma distinta de la actual, se enseña', () => {
+		const { ctx, indicador } = montar('algo-que-ya-no-es-lo-que-hay');
+		ctx.actualizarIndicadorCambios();
+		assert.notEqual(indicador.style.display, 'none');
 	});
 });
 

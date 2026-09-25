@@ -1684,7 +1684,7 @@
 		</div>
 
 		<!-- MODAL EDITAR/CREAR PRODUCTO -->
-		<div class="modal-bg" id="productModal" onclick="handleProductBg(event)">
+		<div class="modal-bg" id="productModal" data-ficha-tab="general" onclick="handleProductBg(event)">
 			<div class="modal-box">
 				<div class="modal-head">
 					<div class="modal-head-titulo">
@@ -1697,9 +1697,21 @@
 					</div>
 					<button class="modal-close" onclick="intentarCerrarProducto()">✕</button>
 				</div>
+				<!-- Pestañas de la ficha (25/09/2026, diagnóstico de UX). No mueven ni
+				     esconden nada por su cuenta: cada .form-group ya tenía su orden
+				     fijado por CSS (panel.css, #productModal .producto-*{order:N}), así
+				     que aquí solo se le suma una clase tab-general/tab-multimedia/
+				     tab-detalles y panel.css esconde las que no tocan según
+				     data-ficha-tab. Fuera de modal-body para quedar fija, igual que el
+				     pie (ver .modal-foot). -->
+				<div class="ficha-tabs">
+					<button type="button" class="ficha-tab active" onclick="cambiarPestanaProducto('general', this)">General</button>
+					<button type="button" class="ficha-tab" onclick="cambiarPestanaProducto('multimedia', this)">Multimedia</button>
+					<button type="button" class="ficha-tab" onclick="cambiarPestanaProducto('detalles', this)">Detalles</button>
+				</div>
 				<div class="modal-body">
 					<input type="hidden" id="editProductId">
-					<div class="form-group producto-foto">
+					<div class="form-group producto-foto tab-multimedia">
 						<label class="form-label" id="labelImagen">Foto del producto</label>
 						<div class="form-ayuda">Agrégala ahora o después. Una foto hace que tu carta se vea mejor.</div>
 						<div class="img-edit-wrap" id="zonaFotoPlato" onclick="document.getElementById('imgFileInput').click()">
@@ -1736,7 +1748,7 @@
 					<!-- Solo con el plan de video. Esconderlo no basta: el servidor
 					     comprueba el plan igual, porque ocultar un botón no impide
 					     una llamada directa a POST /api/video. -->
-					<div class="form-group producto-video" id="videoGroup" style="display:none">
+					<div class="form-group producto-video tab-multimedia" id="videoGroup" style="display:none">
 						<!-- El texto de la proporción lo reescribe ajustarFichaAlModelo:
 						     depende del modelo, y aquí clavado decía 16:9 también a
 						     los restaurantes verticales. -->
@@ -1967,7 +1979,7 @@
 						</div>
 						<input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" style="display:none" data-zona="zonaVideo" onchange="prepararVideoElegido(this)">
 					</div>
-					<div class="form-group producto-nombre">
+					<div class="form-group producto-nombre tab-general">
 						<!-- Disponible va aquí arriba, a la derecha del nombre (18/09/2026,
 						     pedido por el usuario): un plato nuevo nace disponible, y abajo
 						     del todo quedaba escondido justo el interruptor que lo saca de
@@ -1983,11 +1995,11 @@
 						<!-- Aviso y no bloqueo: ver public/platos-repetidos.js. -->
 						<div id="nombreAviso" role="status" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
 					</div>
-					<div class="form-group producto-categoria">
+					<div class="form-group producto-categoria tab-general">
 						<label for="editCategoria" class="form-label">Categoría</label>
 						<select class="form-select" id="editCategoria" onchange="avisarNombreRepetido()"></select>
 					</div>
-					<div class="form-group producto-precio">
+					<div class="form-group producto-precio tab-general">
 						<label for="editPrecioNum" class="form-label">Precio</label>
 						<div class="form-ayuda">El formato se aplica solo, mientras escribes.</div>
 						<!-- Un número no necesita todo el ancho: a su lado, «gratis», que
@@ -2017,24 +2029,24 @@
 						     puede distinguirlos. Esto solo pregunta. -->
 						<div id="precioAviso" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
 					</div>
-					<div class="form-group producto-descripcion">
+					<div class="form-group producto-descripcion tab-detalles">
 						<label for="editDesc" class="form-label">Descripción del producto <span style="color:var(--text-dim)">(opcional)</span></label>
 						<div class="form-ayuda">Se muestra cuando el cliente abre el producto.</div>
 						<textarea class="form-textarea" id="editDesc" oninput="contarCaracteres('editDesc','editDescContador')"></textarea>
 						<div class="form-contador" id="editDescContador">0 caracteres</div>
 					</div>
-					<div class="form-group producto-personas">
+					<div class="form-group producto-personas tab-detalles">
 						<label for="editPersonas" class="form-label">Porciones <span style="color:var(--text-dim)">(opcional)</span></label>
 						<div class="form-ayuda">Puedes escribir para cuántas personas alcanza este producto, con el fin de que lo sepan con exactitud. Si se enseña en la pantalla de TV se activa en esa pestaña, para toda la carta a la vez.</div>
 						<input type="number" class="form-input" id="editPersonas" min="1" step="1" style="max-width:120px">
 					</div>
-					<div class="form-group producto-descripcion-corta">
+					<div class="form-group producto-descripcion-corta tab-detalles">
 						<label for="editDescAvanzada" class="form-label">Descripción corta <span style="color:var(--text-dim)">(opcional)</span></label>
 						<div class="form-ayuda">Se muestra debajo del nombre; en las cartas de video es el texto principal.</div>
 						<input type="text" class="form-input" id="editDescAvanzada" oninput="contarCaracteres('editDescAvanzada','editDescAvanzadaContador')">
 						<div class="form-contador" id="editDescAvanzadaContador">0 caracteres</div>
 					</div>
-					<details class="form-group producto-imagenes-adicionales" id="extraImgsGroup">
+					<details class="form-group producto-imagenes-adicionales tab-multimedia" id="extraImgsGroup">
 						<summary>Imágenes adicionales <span>(opcional · máx. 4)</span></summary>
 						<div class="form-ayuda">Se ven al abrir el producto en la carta.</div>
 						<div class="img-gallery" id="extraImgsList"></div>
@@ -2045,7 +2057,7 @@
 					     negocio y vive en la pestaña Ajustes; aquí solo se marca cuáles
 					     ofrece cada uno, porque una hamburguesa lleva de todo y una
 					     gaseosa no lleva nada. -->
-					<div class="form-group producto-personalizacion" id="personalizacionGroup" style="display:none">
+					<div class="form-group producto-personalizacion tab-detalles" id="personalizacionGroup" style="display:none">
 						<label class="form-label">Personalización <span style="color:var(--text-dim);font-weight:400">(qué puede añadirle el cliente a este producto)</span></label>
 						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene adicionales. Créalos en la pestaña Ajustes, bajo el carrito, y vuelve aquí.</div>
 						<div id="persPlatinoWrap" style="margin-top:8px;display:none">
@@ -2061,17 +2073,23 @@
 							<div id="persSalsasChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						</div>
 					</div>
-					<div class="form-group producto-filtros" id="editFiltrosGroup" style="display:none">
+					<div class="form-group producto-filtros tab-detalles" id="editFiltrosGroup" style="display:none">
 						<label class="form-label">Características del producto <span style="color:var(--text-dim)">(el cliente los usa para filtrar la carta)</span></label>
 						<div id="editFiltrosChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 						<div id="editFiltrosVacio" style="font-size:11px;color:var(--text-dim);display:none">Tu carta todavía no tiene filtros. Actívalos en la pestaña Ajustes → Filtros y etiquetas.</div>
 					</div>
-					<div class="form-group producto-destacados" id="editBadgesGroup" style="display:none">
+					<div class="form-group producto-destacados tab-detalles" id="editBadgesGroup" style="display:none">
 						<label class="form-label">Destacados <span style="color:var(--text-dim)">(insignias del producto)</span></label>
 						<div id="editBadgesChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 					</div>
 				</div>
 				<div class="modal-foot">
+					<!-- No usa var(--danger): ese color ya dice "algo está mal" en el
+					     resto del panel (F2, campos con error), y "tienes algo sin
+					     guardar" no es un error. Reusa productoTieneCambios(), la misma
+					     comparación de firma que ya usa cambiosModal al cerrar —no se
+					     inventó una segunda forma de saber si hay cambios. -->
+					<span id="productoCambiosIndicador" class="ficha-cambios-indicador" style="display:none">● Cambios sin guardar</span>
 					<button class="btn-cancel" onclick="intentarCerrarProducto()">Cancelar</button>
 					<button class="btn-save" id="btnSaveProduct" onclick="saveProduct()">Guardar cambios</button>
 				</div>
@@ -3243,6 +3261,8 @@ function openNewProductModal() {
 	// guardarla se vuelve a esta ficha con ella ya elegida.
 	if (!state.categorias.length) { abrirPrimeraCategoria(); return; }
 	limpiarErroresFicha();
+	// La ficha no debe recordar la pestaña del plato anterior.
+	cambiarPestanaProducto('general', document.querySelector('.ficha-tabs .ficha-tab'));
 	state.pendingImgUrl=null;
 	document.getElementById('productModalTitle').textContent='Nuevo producto';
 	document.getElementById('btnSaveProduct').textContent='Crear producto';
@@ -3491,6 +3511,8 @@ function chipToggle(emoji, label, activo, onClick) {
 function openEditProductModal(id) {
 	const p=state.productos.find(pr=>pr.id===id); if(!p) return;
 	limpiarErroresFicha();
+	// La ficha no debe recordar la pestaña del plato anterior.
+	cambiarPestanaProducto('general', document.querySelector('.ficha-tabs .ficha-tab'));
 	state.pendingImgUrl=null;
 	document.getElementById('productModalTitle').textContent='Editar producto';
 	document.getElementById('btnSaveProduct').textContent='Guardar cambios';
@@ -5375,10 +5397,50 @@ function firmaProducto() {
 // que haya en pantalla es "lo guardado".
 function fijarFirmaProducto() {
 	state.firmaProducto = firmaProducto();
+	actualizarIndicadorCambios();
 }
 
 function productoTieneCambios() {
 	return state.firmaProducto !== undefined && state.firmaProducto !== firmaProducto();
+}
+
+// ── EL INDICADOR DE "CAMBIOS SIN GUARDAR" ─────────────────────
+// Pedido en el diagnóstico de UX, junto con el pie fijo: con la ficha en
+// pestañas, algo sin guardar en una pestaña que no se está mirando podía
+// pasar inadvertido. Reusa productoTieneCambios() —la misma firma que ya
+// usa cambiosModal al cerrar— en vez de inventar una segunda forma de saber
+// si hay cambios.
+function actualizarIndicadorCambios() {
+	const ind = document.getElementById('productoCambiosIndicador');
+	if (ind) ind.style.display = productoTieneCambios() ? '' : 'none';
+}
+
+// Un solo oyente delegado sobre toda la ficha, calcado de
+// vigilarCambiosApariencia() (Superadmin): en diferido porque algunos
+// cambios los hace el propio control pulsado —marcar un filtro, elegir un
+// destacado— y hay que medir después de él, no antes. Se registra una vez
+// desde ARRANQUE.
+function vigilarCambiosProducto() {
+	const cuerpo = document.getElementById('productModal')?.querySelector('.modal-body');
+	if (!cuerpo) return;
+	for (const ev of ['input', 'change', 'click']) cuerpo.addEventListener(ev, () => setTimeout(actualizarIndicadorCambios, 0));
+}
+
+// Las tres pestañas de la ficha. No mueven ni reordenan nada: cada grupo ya
+// tenía su posición fijada por CSS (#productModal .producto-*{order:N});
+// esto solo añade o quita .ficha-tab-oculta sobre los grupos que no son de
+// la pestaña pedida, sin tocar el display que cada uno ya controla por su
+// cuenta según su propio estado (con foto, con video, con filtros…).
+function cambiarPestanaProducto(tab, btn) {
+	const ficha = document.getElementById('productModal');
+	if (ficha) ficha.dataset.fichaTab = tab;
+	document.querySelectorAll('.ficha-tab').forEach(b => b.classList.remove('active'));
+	if (btn) btn.classList.add('active');
+	for (const t of ['general', 'multimedia', 'detalles']) {
+		document.querySelectorAll('.modal-body > .tab-' + t).forEach(el => {
+			el.classList.toggle('ficha-tab-oculta', t !== tab);
+		});
+	}
 }
 
 // Puerta única de salida: las cuatro formas de cerrar pasan por aquí.
@@ -5712,6 +5774,9 @@ async function saveProduct() {
 		gratis: document.getElementById('editPrecioGratis').checked,
 	});
 	if(errores.length){
+		// Los tres campos que valida erroresDeFicha() son de "General": si el
+		// error se pintara en otra pestaña, quedaría marcado pero escondido.
+		cambiarPestanaProducto('general', document.querySelector('.ficha-tabs .ficha-tab'));
 		pintarErroresFicha(errores);
 		// El aviso de siempre se queda, pero ahora resume: el detalle está en cada campo.
 		showToast(errores.length===1 ? errores[0].mensaje : `Faltan ${errores.length} datos del producto`,'error');
@@ -8379,6 +8444,7 @@ filtrarModeloNuevoResto();
 renderPaletasNuevoResto();
 habilitarArrastre();
 vigilarCambiosApariencia();
+vigilarCambiosProducto();
 vigilarBordesDeTabs();
 vigilarErroresFicha();
 // Lo mismo en las otras dos pantallas donde se escriben datos: al corregir, el
