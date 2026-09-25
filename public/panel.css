@@ -491,11 +491,25 @@ select.form-input{padding-right:42px;}
 #productModal .precio-fila{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
 #productModal .precio-fila .form-input{flex:0 1 50%;min-width:140px;}
 #productModal .precio-gratis{padding:0;gap:8px;font-size:12px;color:var(--text-muted);}
-/* La foto, con la proporción de la carta (16:9 o 9:16) y a un tamaño de mirar.
-   Era una franja de todo el ancho y 160 px de alto, que no se parece a ninguna
-   de las dos: la foto se veía recortada de una forma que la carta no hace. */
-#productModal .producto-foto .img-edit-wrap{width:min(100%,320px);height:auto;aspect-ratio:16/9;margin:0 0 6px;}
-#productModal .producto-foto .img-edit-wrap[data-formato="vertical"]{width:auto;height:280px;aspect-ratio:9/16;}
+/* La foto, con la proporción de la carta (16:9 o 9:16) pero como miniatura: no
+   hace falta verla grande para saber si hay una y cuál es, y una miniatura dejaba
+   más ficha visible sin desplazar. Object-fit pasa a contain porque a este
+   tamaño un recorte oculta justo la esquina que se quiere comprobar; el hueco
+   que deja se ve con "ampliar" (#btnAmpliarFoto), que sí enseña la foto entera. */
+#productModal .producto-foto .img-edit-wrap{width:auto;height:110px;aspect-ratio:16/9;margin:0 0 6px;}
+#productModal .producto-foto .img-edit-wrap[data-formato="vertical"]{width:auto;height:150px;aspect-ratio:9/16;}
+#productModal .producto-foto .img-edit-preview{object-fit:contain;background:var(--bg);}
+/* z-index por encima de .img-edit-overlay: aunque esta llega después en el
+   HTML y por eso queda encima por orden de pintado, cubre todo el recuadro
+   —inset:0— y se comía el clic del botón. */
+.img-edit-ampliar{position:absolute;z-index:2;right:6px;bottom:6px;width:26px;height:26px;border-radius:50%;
+  border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer;
+  font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;}
+.img-edit-ampliar:hover{border-color:var(--accent);}
+.foto-ampliada-bg{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.85);
+  display:none;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;}
+.foto-ampliada-bg.open{display:flex;}
+.foto-ampliada-bg img{max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--radius);}
 /* Video del plato: los dos caminos, uno al lado del otro. En móvil, uno debajo
    del otro (auto-fit), y si la carta no tiene IA el de subir ocupa todo. */
 .video-caminos-titulo{font-size:13px;color:var(--text);margin:12px 0 10px;}
@@ -798,8 +812,8 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
   .content{padding:14px 12px 80px;}
   .form-row{grid-template-columns:1fr;}
   .img-edit-wrap{width:100%;}
-  #productModal .producto-foto .img-edit-wrap{width:min(100%,320px);height:auto;}
-  #productModal .producto-foto .img-edit-wrap[data-formato="vertical"]{width:auto;height:240px;}
+  /* La miniatura del plato (arriba) ya es compacta y a una altura fija: no
+     necesita ensancharse en móvil como el resto de img-edit-wrap. */
   .btn-edit { padding: 8px 14px; font-size: 12px; }
   /* Antes esta línea ENCOGÍA el botón de borrar en móvil (12 px de letra,
      28 × 26 de caja): al revés de lo que pide un dedo, y en el control
