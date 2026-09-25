@@ -1,5 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════
--- CUÁNDO SE DESCARTÓ UNA SOLICITUD — 24/09/2026
+-- CUÁNDO SE DESCARTÓ UNA SOLICITUD — APLICADO EL 24/09/2026
+-- ═══════════════════════════════════════════════════════════════
+-- Aplicado con el visto bueno del usuario. Comprobado después: las 2
+-- descartadas con fecha (la de su última modificación, del mismo 24/09, así
+-- que su plazo acaba el 24/03/2027), ninguna aprobada ni abierta con fecha, el
+-- índice creado, y la tabla sigue cerrada a anon y con RLS.
 -- ═══════════════════════════════════════════════════════════════
 -- Decidido con el usuario el 24/09/2026: las solicitudes descartadas se borran
 -- a los SEIS MESES de descartarse. Lo promete la política de privacidad de
