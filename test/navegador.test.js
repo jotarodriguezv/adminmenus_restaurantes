@@ -8831,3 +8831,85 @@ describe('paletas de colores · combinaciones que se leen en cualquier modelo', 
 		assert.doesNotMatch(js, /innerHTML|outerHTML|insertAdjacentHTML/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('la paleta del logo · los colores del negocio, ajustados para que se lean', () => {
+	// Pedido el 24/09/2026. Ver «LA PALETA DEL LOGO» en public/paletas.js.
+	const ctx = cargar('paletas.js', 'const COLORES_FIJOS_CARTA', null);
+	const tono = hex => ctx.rgbAHsl(ctx.hexARgb(hex))[0];
+	const pixeles = lista => {
+		const px = new Uint8ClampedArray(lista.length * 4);
+		lista.forEach((rgba, i) => px.set(rgba, i * 4));
+		return px;
+	};
+	const repetir = (rgba, n) => Array.from({ length: n }, () => rgba);
+
+	test('saca los colores de marca e ignora lo transparente y lo neutro', () => {
+		const colores = ctx.coloresDeImagen(pixeles([
+			...repetir([255, 255, 255, 255], 40),   // fondo blanco
+			...repetir([0, 0, 0, 255], 10),         // letras negras
+			...repetir([0, 0, 0, 0], 30),           // transparente
+			...repetir([40, 69, 92, 255], 12),      // marino
+			...repetir([217, 79, 95, 255], 8),      // rojo
+		]));
+		assert.equal(colores.length, 2);
+		assert.equal(colores[0].hex, '#28455c', 'el que más pesa, primero');
+		assert.equal(colores[1].hex, '#d94f5f');
+		assert.equal(Math.round(colores[0].peso * 100), 60);
+	});
+
+	test('un logo en blanco y negro no da paleta', () => {
+		const colores = ctx.coloresDeImagen(pixeles([...repetir([0, 0, 0, 255], 50), ...repetir([255, 255, 255, 255], 50)]));
+		assert.equal(colores.length, 0);
+		assert.equal(ctx.paletaDesdeColores(colores), null);
+	});
+
+	test('Lobster Boat: fondos del marino, títulos del rojo', () => {
+		const p = ctx.paletaDesdeColores([{ hex: '#28455c', peso: 0.58 }, { hex: '#d94f5f', peso: 0.37 }]);
+		// El rojo casi se leía: se aclara lo justo, sin dejar de ser ese rojo.
+		assert.ok(Math.abs(tono(p.primario) - tono('#d94f5f')) < 5, 'mismo tono');
+		const l = hex => ctx.rgbAHsl(ctx.hexARgb(hex))[2];
+		assert.ok(Math.abs(l(p.primario) - l('#d94f5f')) < 0.05, 'apenas más claro');
+		for (const k of ['fondo', 'superficie', 'tarjeta'])
+			assert.ok(Math.abs(tono(p[k]) - tono('#28455c')) < 15, `${k} conserva el tono del marino`);
+	});
+
+	test('morado oscuro y dorado: fondos morados y títulos dorados, no al revés', () => {
+		const p = ctx.paletaDesdeColores([{ hex: '#3b1f5c', peso: 0.7 }, { hex: '#c9a227', peso: 0.3 }]);
+		assert.ok(Math.abs(tono(p.primario) - tono('#c9a227')) < 15, 'el dorado a los títulos');
+		assert.ok(Math.abs(tono(p.fondo) - tono('#3b1f5c')) < 15, 'el morado a los fondos');
+	});
+
+	const LOGOS = {
+		'marino y rojo': [{ hex: '#28455c', peso: 0.58 }, { hex: '#d94f5f', peso: 0.37 }],
+		'un verde': [{ hex: '#2e7d32', peso: 1 }],
+		'un amarillo': [{ hex: '#ffcc00', peso: 1 }],
+		'azul claro y naranja': [{ hex: '#4fc3f7', peso: 0.6 }, { hex: '#ff9800', peso: 0.4 }],
+		'morado y dorado': [{ hex: '#3b1f5c', peso: 0.7 }, { hex: '#c9a227', peso: 0.3 }],
+		'rojo, amarillo y verde': [{ hex: '#d62828', peso: 0.5 }, { hex: '#fcbf49', peso: 0.3 }, { hex: '#2a9d8f', peso: 0.2 }],
+		'un negro disfrazado de azul': [{ hex: '#0b0d1a', peso: 1 }],
+	};
+	for (const [nombre, colores] of Object.entries(LOGOS)) {
+		test(`logo ${nombre}: lo que salga cumple todas las reglas`, () => {
+			const p = ctx.paletaDesdeColores(colores);
+			if (!p) return;   // no dar paleta también es una respuesta válida
+			assert.equal(ctx.fallosDeContraste(p).length, 0);
+		});
+	}
+
+	test('solo se ofrece la del logo que tiene ahora el restaurante', () => {
+		const c = cargar('paletas.js', 'const COLORES_FIJOS_CARTA', null);
+		c.state = { restaurante: { logo_url: '/uploads/logos/nuevo.png' } };
+		vm.runInContext(`paletaDelLogo = { url: '/uploads/logos/viejo.png', paleta: { id: 'logo' } };`, c);
+		assert.equal(c.todasLasPaletas()[0].id !== 'logo', true, 'la de un logo anterior no sale');
+		vm.runInContext(`paletaDelLogo.url = '/uploads/logos/nuevo.png';`, c);
+		assert.equal(c.todasLasPaletas()[0].id, 'logo', 'la del logo actual sale la primera');
+	});
+
+	test('al subir o quitar el logo se vuelven a pintar las paletas', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const subir = src.match(/async function handleLogoUpload\(input\) \{[\s\S]*?\n\}/)[0];
+		assert.match(subir, /state\.restaurante\.logo_url = url;[\s\S]*?renderPaletas\(\);/);
+		assert.match(src, /state\.restaurante\.logo_url = null;\s*renderPaletas\(\);/);
+	});
+});
