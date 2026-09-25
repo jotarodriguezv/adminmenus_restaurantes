@@ -162,8 +162,67 @@ async function avisarN8n(s, { url, clave, enlacePanel, fetchFn = fetch, log = co
   }
 }
 
+// ── LAS DESCARTADAS SE BORRAN A LOS SEIS MESES ────────────────
+// Decidido con el usuario el 24/09/2026 y prometido en la política de
+// privacidad de verificame.co (cláusula 05): son datos personales de alguien
+// que no llegó a ser cliente, y guardarlos sin plazo no tiene justificación.
+// Por eso esto no es una limpieza opcional como la de archivos: si deja de
+// correr, se incumple la política.
+//
+// Se cuenta desde 'descartada_en' (sql/29), no desde 'actualizado_en': una
+// nota escrita después correría el plazo. Las aprobadas no se tocan nunca: son
+// ya la relación con un cliente. Las abiertas tampoco: alguien las tiene que
+// gestionar primero.
+const MESES_DESCARTADAS = 6;
+const INTERVALO_PURGA_MS = 24 * 60 * 60 * 1000;
+
+function corteDescartadas(ahora = new Date()) {
+  const corte = new Date(ahora);
+  corte.setMonth(corte.getMonth() - MESES_DESCARTADAS);
+  return corte;
+}
+
+// Devuelve cuántas borró, o null si falló. Nunca lanza: corre en un
+// temporizador, fuera de una petición, y ahí una excepción no la recoge nadie.
+async function purgarDescartadas(supabase, { ahora = new Date(), log = console } = {}) {
+  try {
+    const { data, error } = await supabase.from('solicitudes').delete()
+      .eq('estado', 'descartada')
+      .lte('descartada_en', corteDescartadas(ahora).toISOString())
+      .select('id');
+    if (error) throw new Error(error.message);
+    const n = (data || []).length;
+    if (n) log.log(`🗑️  solicitudes: ${n} descartadas hace más de ${MESES_DESCARTADAS} meses, borradas`);
+    return n;
+  } catch (e) {
+    log.error(`⚠️  purga de solicitudes descartadas: ${e.message}`);
+    return null;
+  }
+}
+
+let temporizadoresPurga = [];
+let purgaEnCurso = null;
+
+// Una vez al día. No al arrancar, por lo mismo que limpieza.js: cada despliegue
+// reinicia el proceso, y no hace falta mientras el servidor se levanta.
+function arrancarPurga(supabase) {
+  const correr = () => {
+    if (purgaEnCurso) return;
+    purgaEnCurso = purgarDescartadas(supabase).finally(() => { purgaEnCurso = null; });
+  };
+  temporizadoresPurga = [setTimeout(correr, 5 * 60 * 1000), setInterval(correr, INTERVALO_PURGA_MS)];
+  temporizadoresPurga.forEach(t => t.unref());
+}
+
+async function detenerPurga() {
+  temporizadoresPurga.forEach(t => { clearTimeout(t); clearInterval(t); });
+  temporizadoresPurga = [];
+  if (purgaEnCurso) await purgaEnCurso;
+}
+
 module.exports = {
-  ORIGENES, ESTADOS, ESTADOS_ABIERTOS, LARGOS, MINIMO_MS_EN_PAGINA,
+  ORIGENES, ESTADOS, ESTADOS_ABIERTOS, LARGOS, MINIMO_MS_EN_PAGINA, MESES_DESCARTADAS,
   normalizarWhatsapp, validarSolicitud, pareceRobot, enlaceWhatsapp,
   textoDelAviso, avisoParaN8n, avisarN8n,
+  corteDescartadas, purgarDescartadas, arrancarPurga, detenerPurga,
 };

@@ -178,7 +178,7 @@ describe('la bandeja · solo el superadmin', () => {
 	test('cambiar el estado: solo a uno que existe', async () => {
 		assert.equal((await pedir('PATCH', `/api/solicitudes/${ID}`, { estado: 'borrada' }, tokenAdmin)).status, 400);
 		assert.equal((await pedir('PATCH', `/api/solicitudes/${ID}`, { estado: 'aprobada', restaurante_id: ID }, tokenAdmin)).status, 200);
-		assert.deepEqual({ ...ultimaEscritura('solicitudes') }, { estado: 'aprobada', restaurante_id: ID });
+		assert.deepEqual({ ...ultimaEscritura('solicitudes') }, { estado: 'aprobada', restaurante_id: ID, descartada_en: null });
 		assert.equal((await pedir('PATCH', `/api/solicitudes/${ID}`, { estado: 'nueva' }, tokenCliente)).status, 403);
 	});
 
@@ -186,7 +186,43 @@ describe('la bandeja · solo el superadmin', () => {
 		const r = await pedir('POST', '/api/solicitudes/descartar', { ids: [ID, 'no-es-un-id'] }, tokenAdmin);
 		assert.equal(r.status, 200);
 		assert.equal(r.body.descartadas, 1);
-		assert.deepEqual({ ...ultimaEscritura('solicitudes') }, { estado: 'descartada' });
+		const escrito = ultimaEscritura('solicitudes');
+		assert.equal(escrito.estado, 'descartada');
+		assert.ok(Math.abs(Date.parse(escrito.descartada_en) - Date.now()) < 5000, 'descartar anota cuándo');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('descartada_en · desde cuándo corren los seis meses', () => {
+	// La política de privacidad promete borrar las descartadas a más tardar
+	// seis meses después de descartarse (sql/29). Lo que no puede pasar es que
+	// una nota o un segundo «descartar» alargue el plazo.
+	const conEstadoPrevio = estado => conTabla(st =>
+		st.tabla === 'solicitudes' && st.op === 'select'
+			? { data: estado ? { estado } : null, error: null }
+			: { data: { id: ID }, error: null });
+
+	test('al pasar a descartada se anota la fecha', async () => {
+		conEstadoPrevio('contactada');
+		assert.equal((await pedir('PATCH', `/api/solicitudes/${ID}`, { estado: 'descartada' }, tokenAdmin)).status, 200);
+		const escrito = ultimaEscritura('solicitudes');
+		assert.ok(Math.abs(Date.parse(escrito.descartada_en) - Date.now()) < 5000);
+	});
+
+	test('descartar una que ya lo estaba no reinicia el plazo', async () => {
+		conEstadoPrevio('descartada');
+		await pedir('PATCH', `/api/solicitudes/${ID}`, { estado: 'descartada' }, tokenAdmin);
+		assert.equal('descartada_en' in ultimaEscritura('solicitudes'), false);
+	});
+
+	test('reabrirla borra la fecha: ya no está en camino de borrarse', async () => {
+		await pedir('PATCH', `/api/solicitudes/${ID}`, { estado: 'contactada' }, tokenAdmin);
+		assert.equal(ultimaEscritura('solicitudes').descartada_en, null);
+	});
+
+	test('escribir una nota no toca la fecha', async () => {
+		await pedir('PATCH', `/api/solicitudes/${ID}`, { notas_internas: 'no contesta' }, tokenAdmin);
+		assert.equal('descartada_en' in ultimaEscritura('solicitudes'), false);
 	});
 });
 

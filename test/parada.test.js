@@ -291,8 +291,22 @@ describe('las tres colas se paran, no solo la de video', () => {
 		assert.equal(consultas(), 0);
 	});
 
-	test('server.js le pasa las tres a la parada', () => {
+	test('la purga de solicitudes descartadas no vuelve a arrancar después de parar', async (t) => {
+		t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+		const solicitudes = require('../solicitudes.js');
+		let consultas = 0;
+		const sb = { from() { consultas++; throw new Error('no debería consultar'); } };
+
+		solicitudes.arrancarPurga(sb);
+		await solicitudes.detenerPurga();
+		t.mock.timers.tick(48 * 60 * 60 * 1000);
+		await new Promise(r => setImmediate(r));
+		assert.equal(consultas, 0);
+	});
+
+	test('server.js le pasa todas a la parada, también la purga de solicitudes', () => {
 		const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-		assert.match(src, /pararOrdenadamente\(\{ servidor, colas: \[video\.detener, colaia\.detener, limpieza\.detener\] \}\)/);
+		assert.match(src, /pararOrdenadamente\(\{ servidor, colas: \[video\.detener, colaia\.detener, limpieza\.detener, solicitudes\.detenerPurga\] \}\)/);
+		assert.match(src, /solicitudes\.arrancarPurga\(supabase\);/);
 	});
 });

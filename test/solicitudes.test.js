@@ -124,3 +124,51 @@ describe('el aviso para n8n y Telegram', () => {
 		assert.equal(await S.avisarN8n(s, { url: '', fetchFn: () => { throw new Error('no'); } }), false);
 	});
 });
+
+describe('las descartadas se borran a los seis meses', () => {
+	// Lo promete la política de privacidad (cláusula 05). Si esto deja de
+	// borrar, se incumple, así que se comprueba qué borra y qué NO.
+	const falso = (respuesta = { data: [{ id: 'a' }, { id: 'b' }], error: null }) => {
+		const hecho = { filtros: [] };
+		const q = {
+			delete() { hecho.borra = true; return q; },
+			eq(c, v) { hecho.filtros.push(['eq', c, v]); return q; },
+			lte(c, v) { hecho.filtros.push(['lte', c, v]); return q; },
+			select() { return Promise.resolve(respuesta); },
+		};
+		return { hecho, supabase: { from(t) { hecho.tabla = t; return q; } } };
+	};
+	const silencio = { log() {}, error() {} };
+
+	test('el corte son seis meses antes de ahora', () => {
+		assert.equal(S.MESES_DESCARTADAS, 6);
+		assert.equal(S.corteDescartadas(new Date('2026-09-24T12:00:00Z')).toISOString(), '2026-03-24T12:00:00.000Z');
+	});
+
+	test('borra solo descartadas, y solo si se descartaron antes del corte', async () => {
+		const { hecho, supabase } = falso();
+		const n = await S.purgarDescartadas(supabase, { ahora: new Date('2026-09-24T12:00:00Z'), log: silencio });
+		assert.equal(n, 2);
+		assert.equal(hecho.tabla, 'solicitudes');
+		assert.equal(hecho.borra, true);
+		assert.deepEqual(hecho.filtros, [
+			['eq', 'estado', 'descartada'],
+			['lte', 'descartada_en', '2026-03-24T12:00:00.000Z'],
+		]);
+	});
+
+	test('cuenta desde descartada_en, no desde actualizado_en', async () => {
+		// Con actualizado_en, cada nota escrita después correría el plazo.
+		const { hecho, supabase } = falso();
+		await S.purgarDescartadas(supabase, { log: silencio });
+		assert.equal(hecho.filtros.some(([, c]) => c === 'actualizado_en' || c === 'creado_en'), false);
+	});
+
+	test('si la base falla, no lanza: corre en un temporizador', async () => {
+		const errores = [];
+		const { supabase } = falso({ data: null, error: { message: 'sin conexión' } });
+		const n = await S.purgarDescartadas(supabase, { log: { log() {}, error: m => errores.push(m) } });
+		assert.equal(n, null);
+		assert.match(errores[0], /sin conexión/);
+	});
+});
