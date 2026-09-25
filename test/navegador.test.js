@@ -609,7 +609,7 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 	// pero sí es lo que evita ofrecerle a un restaurante algo que no ha
 	// contratado y que la API le va a rechazar.
 	const pantalla = () => {
-		const ids = ['videoGroup', 'videoEditPreview', 'videoEditVacio',
+		const ids = ['videoGroup', 'videoEditPreview', 'videoEditVacio', 'videoEditDuracion',
 			'btnSubirVideo', 'btnQuitarVideo', 'videoUploadStatus', 'videoFileInput',
 			'videoDesdeFila', 'btnConfirmarVideo', 'videoDesde', 'videoDesdeAviso',
 				'videoFallido', 'videoFallidoMotivo',
@@ -625,7 +625,8 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		const mapa = {};
 		for (const id of ids) mapa[id] = {
 			style: {}, textContent: '', value: '', disabled: false,
-			removeAttribute(n) { delete this[n === 'poster' ? 'poster' : 'src']; },
+			classList: { add() {}, remove() {} },
+			removeAttribute(n) { delete this[n]; },
 			load() {},
 		};
 		return mapa;
@@ -639,6 +640,9 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		const ctx = cargar('index.html', [
 			['function formatoDeLaCarta', 'function idPlanActual'],
 			['// Los trabajos de conversión del restaurante.', '// Elegir el archivo ya no lo sube'],
+			// pintarMiniaturaVideo(): la miniatura clicable del video ya guardado.
+			// De verdad y no un doble, por lo mismo que formatoDeLaCarta arriba.
+			['function pintarMiniaturaVideo', 'function ampliarVideoPlato'],
 		], {
 				clearInterval() {},
 				planActual: () => ({ videos }),
@@ -878,6 +882,90 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		pintar(true, { id: 'p2' }, m);
 		assert.equal(m.videoEditPreview.src, undefined, 'debe soltar el src del plato anterior');
 		assert.equal(m.videoEditPreview.style.display, 'none');
+	});
+
+	// ── LA MINIATURA: TARJETA COMPACTA EN VEZ DEL REPRODUCTOR ─────
+	// Pedido en el diagnóstico de UX. pintarMiniaturaVideo() (llamada desde
+	// aquí dentro) es la que pone poster y duración; estas pruebas comprueban
+	// lo que pintarVideoPlato le pasa, no reinventan sus propias.
+	const url = 'https://ejemplo.test/uploads/videos/a.mp4';
+
+	test('un video subido dice su duración fija: 8 s', () => {
+		const trabajo = { id: 't1', producto_id: 'p1', estado: 'listo', origen_tipo: 'subido', creado_en: '2026-09-25' };
+		const m = pintar(true, { id: 'p1', atributos: { video: { url } } }, pantalla(), [trabajo]);
+		assert.equal(m.videoEditDuracion.textContent, '8 s');
+		assert.equal(m.videoEditDuracion.style.display, 'block');
+	});
+
+	test('un video generado con IA dice su duración fija: 6 s', () => {
+		const trabajo = { id: 't1', producto_id: 'p1', estado: 'listo', origen_tipo: 'ia', creado_en: '2026-09-25' };
+		const m = pintar(true, { id: 'p1', atributos: { video: { url } } }, pantalla(), [trabajo]);
+		assert.equal(m.videoEditDuracion.textContent, '6 s');
+	});
+
+	test('sin el trabajo que lo respalda, no se enseña una duración inventada', () => {
+		const m = pintar(true, { id: 'p1', atributos: { video: { url } } }, pantalla(), []);
+		assert.equal(m.videoEditDuracion.textContent, '');
+		assert.equal(m.videoEditDuracion.style.display, 'none');
+	});
+
+	test('sin video, la duración tampoco se enseña', () => {
+		const m = pintar(true, { id: 'p1' }, pantalla());
+		assert.equal(m.videoEditDuracion.style.display, 'none');
+	});
+
+	test('el poster es la portada del video, o la foto del plato si no la hay', () => {
+		const conPortada = pintar(true,
+			{ id: 'p1', imagen_url: 'https://ejemplo.test/foto.jpg', atributos: { video: { url, portada: 'https://ejemplo.test/portada.jpg' } } },
+			pantalla());
+		assert.equal(conPortada.videoEditPreview.poster, 'https://ejemplo.test/portada.jpg');
+
+		const sinPortada = pintar(true,
+			{ id: 'p1', imagen_url: 'https://ejemplo.test/foto.jpg', atributos: { video: { url } } },
+			pantalla());
+		assert.equal(sinPortada.videoEditPreview.poster, 'https://ejemplo.test/foto.jpg');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('ampliarVideoPlato · ver el video guardado a tamaño completo', () => {
+	// Calcado de ampliarFotoPlato/cerrarFotoAmpliada (PR #227): la miniatura
+	// de la ficha abre el video grande en su propia ventana, aparte de
+	// productModal para que un clic fuera no cierre también la ficha.
+	const montar = (srcMiniatura = '') => {
+		const campos = {
+			videoEditPreview: { src: srcMiniatura, poster: '' },
+			videoAmpliadoEl: { src: '', poster: '', removeAttribute(n) { delete this[n]; }, pause() {}, load() {} },
+			videoAmpliadoModal: { classList: { add() {}, remove() {} } },
+		};
+		const ctx = cargar('index.html', 'function ampliarVideoPlato', '// ── IMÁGENES ADICIONALES', {
+			document: { getElementById: id => campos[id] },
+		});
+		return { ctx, campos };
+	};
+
+	test('sin video en la miniatura, no abre nada', () => {
+		const { ctx, campos } = montar('');
+		ctx.ampliarVideoPlato();
+		assert.equal(campos.videoAmpliadoEl.src, '');
+	});
+
+	test('con video, copia el src y el poster a la ventana grande', () => {
+		const { ctx, campos } = montar('https://ejemplo.test/a.mp4');
+		campos.videoEditPreview.poster = 'https://ejemplo.test/portada.jpg';
+		ctx.ampliarVideoPlato();
+		assert.equal(campos.videoAmpliadoEl.src, 'https://ejemplo.test/a.mp4');
+		assert.equal(campos.videoAmpliadoEl.poster, 'https://ejemplo.test/portada.jpg');
+	});
+
+	test('cerrar para la reproducción y suelta el archivo', () => {
+		const { ctx, campos } = montar('https://ejemplo.test/a.mp4');
+		ctx.ampliarVideoPlato();
+		let pausado = false;
+		campos.videoAmpliadoEl.pause = () => { pausado = true; };
+		ctx.cerrarVideoAmpliado();
+		assert.equal(pausado, true);
+		assert.equal(campos.videoAmpliadoEl.src, undefined);
 	});
 });
 
