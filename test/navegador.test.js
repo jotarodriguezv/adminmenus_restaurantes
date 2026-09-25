@@ -3455,6 +3455,7 @@ describe('avisarSiElPrecioSeSale · el cero de más', () => {
 			state: { productos },
 			document: { getElementById: i => mapa[i] },
 			formatPrecio: n => `$ ${n}`,
+			precioNumericoDe: v => { const d = String(v ?? '').replace(/\D/g, ''); return d === '' ? NaN : Number(d); },
 		});
 		ctx.avisarSiElPrecioSeSale();
 		return mapa.precioAviso.textContent;
@@ -5494,7 +5495,8 @@ describe('el rango libre de fechas va junto', () => {
 describe('los errores de la ficha del plato se dicen todos y en su sitio', () => {
 	// F2 en docs/revision-ux.md. Tres return seguidos, el de la categoría sin
 	// llevar el foco, todo en un aviso lejos del campo y de uno en uno.
-	const { erroresDeFicha } = cargar('index.html', 'function erroresDeFicha', 'const CAMPOS_FICHA', { String, Number });
+	const precioNumericoDe = v => { const d = String(v ?? '').replace(/\D/g, ''); return d === '' ? NaN : Number(d); };
+	const { erroresDeFicha } = cargar('index.html', 'function erroresDeFicha', 'const CAMPOS_FICHA', { String, Number, precioNumericoDe });
 
 	test('con los tres vacíos salen los tres, en el orden de la ficha', () => {
 		const e = erroresDeFicha({ categoria: '', nombre: '  ', precio: '' });
@@ -5507,10 +5509,17 @@ describe('los errores de la ficha del plato se dicen todos y en su sitio', () =>
 		assert.equal(e[0].campo, 'editCategoria');
 	});
 
-	test('el cero escrito a mano es un precio; vacío o negativo no', () => {
+	test('el cero escrito a mano es un precio; vacío no', () => {
 		assert.equal(erroresDeFicha({ categoria: 'c1', nombre: 'Agua', precio: '0' }).length, 0);
 		assert.equal(erroresDeFicha({ categoria: 'c1', nombre: 'Agua', precio: '' }).length, 1);
-		assert.equal(erroresDeFicha({ categoria: 'c1', nombre: 'Agua', precio: '-5' }).length, 1);
+	});
+
+	test('el campo llega ya formateado ("$ 22.000"): se valida igual que el número pelado', () => {
+		// Desde el 25/09/2026 el campo se ve así mientras se escribe (§11).
+		assert.equal(erroresDeFicha({ categoria: 'c1', nombre: 'Agua', precio: '$ 22.000' }).length, 0);
+		// Un '-' no sobrevive al filtro de dígitos: no hay forma de escribir un
+		// precio negativo con este campo, así que "se cuela" como positivo.
+		assert.equal(precioNumericoDe('-5'), 5);
 	});
 
 	test('un producto marcado como gratis no pide escribir un precio aparte', () => {
@@ -5540,7 +5549,7 @@ describe('los errores de la ficha del plato se dicen todos y en su sitio', () =>
 
 	test('cada campo con error se marca, se describe y el foco va al primero', () => {
 		const { nodos, document } = dom();
-		const ctx = cargar('index.html', 'function erroresDeFicha', 'function vigilarErroresFicha', { String, Number, document });
+		const ctx = cargar('index.html', 'function erroresDeFicha', 'function vigilarErroresFicha', { String, Number, document, precioNumericoDe });
 		ctx.pintarErroresFicha(ctx.erroresDeFicha({ categoria: '', nombre: 'Hamburguesa', precio: '' }));
 		const cat = nodos.editCategoria, precio = nodos.editPrecioNum;
 		assert.ok(cat.clases.has('con-error') && precio.clases.has('con-error'));
@@ -5554,7 +5563,7 @@ describe('los errores de la ficha del plato se dicen todos y en su sitio', () =>
 
 	test('volver a validar no duplica los mensajes, y corregir un campo quita el suyo', () => {
 		const { nodos, document } = dom();
-		const ctx = cargar('index.html', 'function erroresDeFicha', 'function vigilarErroresFicha', { String, Number, document });
+		const ctx = cargar('index.html', 'function erroresDeFicha', 'function vigilarErroresFicha', { String, Number, document, precioNumericoDe });
 		const errores = ctx.erroresDeFicha({ categoria: '', nombre: '', precio: '1' });
 		ctx.pintarErroresFicha(errores);
 		ctx.pintarErroresFicha(errores);
@@ -6729,6 +6738,84 @@ describe('el modal de categoría marca las que se piden sin abrir la ficha', () 
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('precioNumericoDe · el número de verdad detrás de "$ 20.000"', () => {
+	// §11 del diagnóstico de UX (25/09/2026): el campo se ve ya formateado, así
+	// que todo lo que antes leía un número pelado necesita esto para volver a
+	// tener uno.
+	const { precioNumericoDe } = cargar('comun.js', 'function formatPrecio', '// ── SESIÓN Y ESTADO');
+
+	test('separa los dígitos de "$" y los puntos de miles', () => {
+		assert.equal(precioNumericoDe('$ 20.000'), 20000);
+	});
+
+	test('un número sin formato también funciona: no importa de dónde venga', () => {
+		assert.equal(precioNumericoDe('20000'), 20000);
+		assert.equal(precioNumericoDe(20000), 20000);
+	});
+
+	test('vacío, null o solo texto dan NaN, no cero', () => {
+		// Number.isFinite() los distingue de un '0' de verdad; era justo lo que
+		// perdía la versión anterior con `Number(bruto) || 0`.
+		for (const v of ['', null, undefined, '—', 'abc']) assert.ok(Number.isNaN(precioNumericoDe(v)), String(v));
+	});
+
+	test('un "-" no sobrevive: no hay forma de que llegue un precio negativo', () => {
+		assert.equal(precioNumericoDe('-5000'), 5000);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('formatearPrecioAlEscribir · el campo se ve formateado mientras se escribe', () => {
+	// §11 del diagnóstico de UX. El campo es type="text" (ver el porqué junto a
+	// él en el HTML): sin esto se vería el número pelado, "20000".
+	const montar = (valorInicial, cursor) => {
+		const campo = { value: valorInicial, selectionStart: cursor, _cursorFinal: null,
+			setSelectionRange(a) { this._cursorFinal = a; } };
+		const campos = { editPrecioNum: campo, precioPreview: { textContent: '' } };
+		const ctx = cargar('index.html', [
+			['comun.js', 'function formatPrecio(num)', 'function esc(s)'],
+			['function posicionTrasDigitos', 'let precioAntesDeGratis'],
+		], { document: { getElementById: id => campos[id] } });
+		return { ctx, campo, precioPreview: campos.precioPreview };
+	};
+
+	test('formatea con separador de miles y el signo $', () => {
+		const { ctx, campo } = montar('20000', 5);
+		ctx.formatearPrecioAlEscribir(campo);
+		assert.equal(campo.value, '$ 20.000');
+	});
+
+	test('también actualiza la vista previa', () => {
+		const { ctx, campo, precioPreview } = montar('20000', 5);
+		ctx.formatearPrecioAlEscribir(campo);
+		assert.equal(precioPreview.textContent, '$ 20.000');
+	});
+
+	test('borrar todo deja el campo vacío, no "$ 0" ni "—"', () => {
+		const { ctx, campo } = montar('', 0);
+		ctx.formatearPrecioAlEscribir(campo);
+		assert.equal(campo.value, '');
+	});
+
+	test('el cursor se queda tras el mismo dígito, no salta al final', () => {
+		// Escribiendo "20000" con el cursor justo detrás del primer "2": el
+		// resultado es "$ 20.000" y el cursor tiene que seguir detrás del "2",
+		// no al final de la cadena.
+		const { ctx, campo } = montar('20000', 1);
+		ctx.formatearPrecioAlEscribir(campo);
+		assert.equal(campo.value, '$ 20.000');
+		assert.equal(campo.value.slice(0, campo._cursorFinal), '$ 2');
+	});
+
+	test('lo que se recibe ya formateado ("$ 20.000") se vuelve a formatear igual', () => {
+		// Pasa al teclear en medio de un número que el propio campo ya formateó.
+		const { ctx, campo } = montar('$ 20.000', 4);
+		ctx.formatearPrecioAlEscribir(campo);
+		assert.equal(campo.value, '$ 20.000');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('actualizarPrecioGratis · "Es gratis" no se lleva el precio', () => {
 	// Pedido el 25/09/2026: antes, desmarcar "Es gratis" dejaba el precio en
 	// blanco aunque hubiera uno escrito. Se conserva mientras la ficha sigue
@@ -6748,22 +6835,24 @@ describe('actualizarPrecioGratis · "Es gratis" no se lleva el precio', () => {
 	};
 
 	test('marcarla guarda lo escrito, apaga el campo y limpia el aviso', () => {
-		const { ctx, campos } = montar('15000');
+		// El campo ya llega formateado (§11, la tarea siguiente): '$ 15.000',
+		// no '15000'.
+		const { ctx, campos } = montar('$ 15.000');
 		campos.editPrecioGratis.checked = true;
 		ctx.actualizarPrecioGratis();
-		assert.equal(campos.editPrecioNum.value, '0');
+		assert.equal(campos.editPrecioNum.value, '$ 0');
 		assert.equal(campos.editPrecioNum.disabled, true);
 		assert.equal(campos.precioPreview.textContent, 'Gratis');
 		assert.equal(campos.precioAviso.textContent, '');
 	});
 
 	test('desmarcarla devuelve el precio que había, y lo vuelve a habilitar', () => {
-		const { ctx, campos } = montar('15000');
+		const { ctx, campos } = montar('$ 15.000');
 		campos.editPrecioGratis.checked = true;
 		ctx.actualizarPrecioGratis();
 		campos.editPrecioGratis.checked = false;
 		ctx.actualizarPrecioGratis();
-		assert.equal(campos.editPrecioNum.value, '15000');
+		assert.equal(campos.editPrecioNum.value, '$ 15.000');
 		assert.equal(campos.editPrecioNum.disabled, false);
 		assert.equal(campos.precioPreview.textContent, '$ 15.000');
 	});
@@ -8424,6 +8513,7 @@ describe('guardar con el video en marcha · guarda, pero no saca de la ficha', (
 			document: { getElementById: id => mapa[id], querySelectorAll: () => [] },
 			trabajoEnCursoDe: () => enCurso,
 			erroresDeFicha: () => [], limpiarErroresFicha() {}, formatPrecio: n => String(n),
+			precioNumericoDe: v => { const d = String(v ?? '').replace(/\D/g, ''); return d === '' ? NaN : Number(d); },
 			apiFetch: async () => ({}),
 			renderCatFilter() {}, renderProducts() {}, renderInicio() {},
 			openModal() {}, closeModal: id => cerrados.push(id),

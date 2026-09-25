@@ -1976,11 +1976,21 @@
 					</div>
 					<div class="form-group producto-precio">
 						<label for="editPrecioNum" class="form-label">Precio</label>
-						<div class="form-ayuda">Escribe solo números, sin puntos ni símbolo $.</div>
+						<div class="form-ayuda">El formato se aplica solo, mientras escribes.</div>
 						<!-- Un número no necesita todo el ancho: a su lado, «gratis», que
-						     es la otra forma de contestar lo mismo. -->
+						     es la otra forma de contestar lo mismo.
+
+						     text, no number: un <input type="number"> no admite '$' ni '.' de
+						     miles, así que no hay forma de que MUESTRE "$ 20.000" mientras se
+						     escribe "20000" (§11 del diagnóstico de UX, 25/09/2026). Por dentro
+						     sigue siendo solo dígitos — precioNumericoDe() es quien los separa
+						     de cualquier '$' o '.' que traiga, aquí puestos por
+						     formatearPrecioAlEscribir() o al abrir la ficha con un precio ya
+						     guardado. inputmode="numeric" pide el teclado numérico en el móvil
+						     sin el signo menos ni el punto decimal que trae type="number". -->
 						<div class="precio-fila">
-							<input type="number" class="form-input" id="editPrecioNum" min="0" step="100" oninput="document.getElementById('precioPreview').textContent=formatPrecio(this.value); avisarSiElPrecioSeSale()">
+							<input type="text" inputmode="numeric" class="form-input" id="editPrecioNum" placeholder="$ 0"
+							oninput="formatearPrecioAlEscribir(this); avisarSiElPrecioSeSale()">
 							<div class="form-check precio-gratis">
 								<label class="toggle"><input type="checkbox" id="editPrecioGratis" aria-labelledby="editPrecioGratisLabel" onchange="actualizarPrecioGratis()"><span class="toggle-slider"></span></label>
 								<span id="editPrecioGratisLabel">Es gratis</span>
@@ -3460,7 +3470,7 @@ function openEditProductModal(id) {
 	const estIA = document.getElementById('iaEstado');
 	if (estIA) { estIA.textContent = ''; estIA.style.color = 'var(--text-muted)'; }
 	document.getElementById('editNombre').value=p.nombre||'';
-	document.getElementById('editPrecioNum').value=p.precio_numerico ?? '';
+	document.getElementById('editPrecioNum').value=p.precio_numerico != null ? formatPrecio(p.precio_numerico) : '';
 	// 1 no se escribe: es el valor por defecto y dejarlo vacío es lo que hace
 	// que la ficha se lea "para una persona" sin decirlo.
 	document.getElementById('editPersonas').value=(p.personas && p.personas>1) ? p.personas : '';
@@ -4543,7 +4553,7 @@ function avisarSiElPrecioSeSale() {
 	if (!aviso) return;
 	aviso.textContent = '';
 
-	const precio = Number(document.getElementById('editPrecioNum')?.value) || 0;
+	const precio = precioNumericoDe(document.getElementById('editPrecioNum')?.value) || 0;
 	if (precio <= 0) return;
 
 	const mediana = medianaDeLaCarta(document.getElementById('editProductId')?.value);
@@ -5410,13 +5420,13 @@ function erroresDeFicha({ categoria, nombre, precio, gratis = false }) {
   const errores = [];
   if (!String(nombre || '').trim()) errores.push({ campo: 'editNombre', mensaje: 'Escribe el nombre del plato.' });
   if (!categoria) errores.push({ campo: 'editCategoria', mensaje: 'Elige en qué categoría va.' });
-  // El precio no puede caer a 0 por descuido. El campo es type="number", así
-  // que lo que llega o es un número o es la cadena vacía — y la cadena vacía
-  // con `parseFloat(...) || 0` se guardaba como $ 0 sin decir nada. El cero
-  // escrito a mano sí pasa: una cortesía es un precio legítimo.
-  const bruto = String(precio ?? '').trim();
-  const n = Number(bruto);
-  if (!gratis && (bruto === '' || !Number.isFinite(n) || n < 0)) errores.push({ campo: 'editPrecioNum', mensaje: 'Escribe el precio, solo el número.' });
+  // El precio no puede caer a 0 por descuido. Desde el 25/09/2026 el campo se
+  // ve ya formateado ("$ 20.000"), así que lo que llega no es un número
+  // pelado: precioNumericoDe() se queda solo con los dígitos. Sin ninguno da
+  // NaN, que es como se distingue de un cero escrito a mano — y ese sí pasa:
+  // una cortesía es un precio legítimo.
+  const n = precioNumericoDe(precio);
+  if (!gratis && !Number.isFinite(n)) errores.push({ campo: 'editPrecioNum', mensaje: 'Escribe el precio, solo el número.' });
   return errores;
 }
 
@@ -5432,10 +5442,40 @@ function erroresDeCategoria({ nombre }) {
 }
 const CAMPOS_CATEGORIA = ['editCatNombre'];
 
+// ── EL PRECIO SE VE FORMATEADO MIENTRAS SE ESCRIBE ────────────
+// §11 del diagnóstico de UX (25/09/2026): quien escribe "20000" tiene que ver
+// "$ 20.000", no el número pelado. El campo es type="text" (ver el porqué
+// junto a él en el HTML); esto es lo que lo mantiene formateado en cada tecla.
+//
+// Reformatear en cada input mueve el cursor al final si no se hace nada: hay
+// que contar cuántos DÍGITOS había antes del cursor —los puntos y el '$' no
+// cuentan, se recalculan solos— y, tras formatear de nuevo, poner el cursor
+// justo después de esa misma cantidad de dígitos.
+function posicionTrasDigitos(texto, n) {
+	if (n <= 0) return 0;
+	let vistos = 0;
+	for (let i = 0; i < texto.length; i++) {
+		if (/\d/.test(texto[i])) { vistos++; if (vistos === n) return i + 1; }
+	}
+	return texto.length;
+}
+
+function formatearPrecioAlEscribir(el) {
+	const cursor = el.selectionStart ?? el.value.length;
+	const digitosAntesDelCursor = el.value.slice(0, cursor).replace(/\D/g, '').length;
+	const n = precioNumericoDe(el.value);
+	el.value = Number.isFinite(n) ? formatPrecio(n) : '';
+	document.getElementById('precioPreview').textContent = Number.isFinite(n) ? formatPrecio(n) : '—';
+	const pos = posicionTrasDigitos(el.value, digitosAntesDelCursor);
+	el.setSelectionRange(pos, pos);
+}
+
 // Lo que había escrito antes de marcar "Es gratis", para devolverlo si se
-// desmarca antes de guardar (pedido el 25/09/2026). Solo dura mientras la
-// ficha está abierta: openNewProductModal/openEditProductModal la reinician,
-// para que el precio de un plato no se cuele en el de otro.
+// desmarca antes de guardar (pedido el 25/09/2026). Ya viene formateado — es
+// tal cual lo que tenía el campo—, así que no hay que rehacer nada al volver
+// a ponerlo. Solo dura mientras la ficha está abierta: openNewProductModal/
+// openEditProductModal la reinician, para que el precio de un plato no se
+// cuele en el de otro.
 let precioAntesDeGratis = null;
 
 function actualizarPrecioGratis() {
@@ -5443,16 +5483,18 @@ function actualizarPrecioGratis() {
 	const precio = document.getElementById('editPrecioNum');
 	precio.disabled = gratis;
 	if (gratis) {
-		// Un '0' no es un precio que alguien haya escrito —es lo que deja aquí
+		// $ 0 no es un precio que alguien haya escrito —es lo que deja aquí
 		// mismo la vez anterior—, así que no hay nada que conservar de él.
-		if (precio.value && precio.value !== '0') precioAntesDeGratis = precio.value;
-		precio.value = '0';
+		const n = precioNumericoDe(precio.value);
+		if (Number.isFinite(n) && n > 0) precioAntesDeGratis = precio.value;
+		precio.value = formatPrecio(0);
 		document.getElementById('precioPreview').textContent = 'Gratis';
 		document.getElementById('precioAviso').textContent = '';
 	} else {
-		precio.value = precioAntesDeGratis ?? (precio.value === '0' ? '' : precio.value);
+		precio.value = precioAntesDeGratis ?? '';
 		precioAntesDeGratis = null;
-		document.getElementById('precioPreview').textContent = formatPrecio(precio.value);
+		const n = precioNumericoDe(precio.value);
+		document.getElementById('precioPreview').textContent = Number.isFinite(n) ? formatPrecio(n) : '—';
 	}
 }
 
@@ -5526,7 +5568,7 @@ async function saveProduct() {
 	limpiarErroresFicha();
 	// Ya validados arriba (erroresDeFicha): aquí solo se leen.
 	const nombrePlato=document.getElementById('editNombre').value.trim();
-	const precioNum=Number(document.getElementById('editPrecioNum').value.trim());
+	const precioNum=precioNumericoDe(document.getElementById('editPrecioNum').value) || 0;
 	const precioTexto=formatPrecio(precioNum);
 	// Vacío es 1: el campo se deja en blanco a propósito para el caso normal
 	// (ver openEditProductModal/openNewProductModal), así que en blanco no
