@@ -302,7 +302,10 @@ function botonPaleta(p, alPulsar = () => aplicarPaleta(p.id)) {
 function renderPaletas() {
   const cont = document.getElementById('apPaletas');
   if (!cont) return;
-  cont.replaceChildren(...todasLasPaletas().map(botonPaleta));
+  // p => botonPaleta(p) y no botonPaleta a secas: .map también pasa el índice,
+  // que ocuparía el segundo parámetro (alPulsar) en vez de su valor por
+  // defecto, y dejaba el onclick de cada botón apuntando a un número.
+  cont.replaceChildren(...todasLasPaletas().map(p => botonPaleta(p)));
   // Al retocar un color a mano deja de ser esa paleta. addEventListener con la
   // misma función no la duplica, así que llamar a esto en cada visita a
   // Superadmin no acumula escuchas (lo que pasó en P5).
