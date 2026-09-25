@@ -23,6 +23,16 @@ function formatPrecio(num) {
   return '$ ' + Math.round(n).toLocaleString('es-CO');
 }
 
+// El inverso de formatPrecio(): el número de verdad detrás de un precio ya
+// formateado ("$ 20.000" → 20000). Sirve igual para un valor sin formato —se
+// queda con los dígitos y tira el resto—, así que da igual de dónde venga el
+// texto. NaN si no hay ningún dígito, para poder distinguir "cero" de "vacío"
+// con Number.isFinite() en vez de con una comparación aparte.
+function precioNumericoDe(valor) {
+  const digitos = String(valor ?? '').replace(/\D/g, '');
+  return digitos === '' ? NaN : Number(digitos);
+}
+
 // ── ESCAPADO DE HTML ──────────────────────────────────────────
 // El panel muestra datos que escriben los restaurantes: nombres de producto,
 // toppings, filtros. La mayoría del código usa textContent y está a salvo,
