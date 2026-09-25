@@ -315,6 +315,24 @@ recuadro 16:9 que recibe el modelo es de 800×450. Arriba se ve que su salida
 sigue a la entrada (800×1067 → 768×1024), así que hay que mirar a qué
 resolución devuelve el video con una entrada así y si se nota en la carta.
 
+### El aviso del panel, simplificado otra vez (25/09/2026)
+
+Pedido por el usuario, dentro del rediseño de «Editar producto»
+(`editar-producto-ux` en la lista de pendientes). Esto es solo el mensaje que
+se ve en la ficha (`encajeDeFoto()` de `public/index.html`, pintado en
+`#iaEncaje`); el del servidor (`video.encajeDeFoto()`, arriba en este
+documento) no se tocó, porque solo se enseña si alguien llama a la API
+saltándose el panel.
+
+- **`'avisa'`** dejó de decir la proporción exacta —«vertical (9:16)»— y se
+  queda con «vertical» a secas: es la misma carta que el restaurante ya tiene
+  delante, y el número no ayuda a decidir nada.
+- **`'rechaza'`** dejó de decir cuánto ancho se perdería recortando —«dejaría
+  solo el 62% del ancho»—: aquí no hay recorte que valga, la foto no sirve
+  para este formato y el número solo añadía un cálculo que leer.
+
+Las dos siguen diciendo el tamaño de la foto y qué hacer.
+
 ### 24/09/2026 — diagnóstico: el horizontal pierde demasiado con fotos verticales
 
 **Visto por el usuario en producción**, con PAPITO (Skipper, plan Video,
