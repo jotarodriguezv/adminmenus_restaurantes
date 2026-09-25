@@ -50,7 +50,13 @@ solicitud sigue en la bandeja.
 | `TURNSTILE_SECRET` | Clave secreta del mismo sitio | No se comprueba el captcha (sale un aviso en el registro al arrancar) |
 | `SOLICITUDES_CLAVE` | Una cadena larga inventada, la misma en n8n | La entrada de Meta no funciona, y el aviso a n8n va sin clave |
 | `N8N_SOLICITUDES_WEBHOOK` | La URL del webhook de n8n que avisa a Telegram | No se avisa (las solicitudes se guardan igual) |
-| `POLITICA_PRIVACIDAD_URL` | El enlace de la política de privacidad | La casilla sale sin enlace |
+| `POLITICA_PRIVACIDAD_URL` | El enlace de la política de privacidad: `"https://verificame.co/privacidad#solicitudes"`, **con comillas** | La casilla sale sin enlace |
+
+**Con comillas cualquier valor que lleve `#`.** Dokploy toma lo que va detrás de
+un `#` sin comillas como un comentario y lo corta sin avisar. Pasó el
+24/09/2026: la política llegaba sin `#solicitudes` y el enlace abría la página
+arriba, no en su sección. Para comprobarlo, `GET /api/solicitudes/config`
+devuelve el valor tal como lo lee el panel.
 
 ## Los flujos de n8n
 
