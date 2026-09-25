@@ -2544,6 +2544,16 @@ app.patch('/api/solicitudes/:id', auth, async (req, res) => {
   if (req.body?.estado !== undefined) {
     if (!solicitudes.ESTADOS.includes(req.body.estado)) return res.status(400).json({ error: 'Estado no válido' });
     cambios.estado = req.body.estado;
+    // descartada_en marca desde cuándo corren los seis meses de la purga
+    // (sql/29). Solo se pone al PASAR a descartada: volver a mandar
+    // «descartada» a una que ya lo estaba no puede alargarle el plazo.
+    if (cambios.estado === 'descartada') {
+      const { data: antes } = await supabase.from('solicitudes')
+        .select('estado').eq('id', req.params.id).maybeSingle();
+      if (antes?.estado !== 'descartada') cambios.descartada_en = new Date().toISOString();
+    } else {
+      cambios.descartada_en = null;
+    }
   }
   if (req.body?.restaurante_id !== undefined) {
     if (req.body.restaurante_id !== null && !UUID_RE.test(req.body.restaurante_id))
@@ -2566,7 +2576,11 @@ app.post('/api/solicitudes/descartar', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
   const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(id => UUID_RE.test(id)).slice(0, 300) : [];
   if (!ids.length) return res.status(400).json({ error: 'No hay solicitudes que descartar' });
-  const { error } = await supabase.from('solicitudes').update({ estado: 'descartada' }).in('id', ids);
+  // Las que ya estaban descartadas se dejan fuera: si no, se les reiniciaría el
+  // plazo de seis meses de la purga.
+  const { error } = await supabase.from('solicitudes')
+    .update({ estado: 'descartada', descartada_en: new Date().toISOString() })
+    .in('id', ids).neq('estado', 'descartada');
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true, descartadas: ids.length });
 });
@@ -3324,6 +3338,7 @@ const servidor = app.listen(PORT, () => {
   if (process.env.VIDEO_WORKER !== '0' && process.env.REPLICATE_API_TOKEN) colaia.arrancar(supabase);
   else if (!process.env.REPLICATE_API_TOKEN) console.log('✨ cola de IA apagada: falta REPLICATE_API_TOKEN');
   limpieza.arrancar(supabase);
+  solicitudes.arrancarPurga(supabase);
 });
 
 // ── PARADA ORDENADA ───────────────────────────────────────────
@@ -3331,11 +3346,11 @@ const servidor = app.listen(PORT, () => {
 // conversión a medias se quedaba en "convirtiendo" hasta una hora y media. El
 // detalle, en parada.js.
 //
-// Las tres colas, no solo la de video (18/09/2026): para que una subida larga
+// Todas las colas, no solo la de video (18/09/2026): para que una subida larga
 // sobreviva a un despliegue el panel viejo puede quedarse vivo minutos junto al
 // nuevo, y con la cola de IA o el limpiador aún en marcha harían el trabajo dos
 // veces. Pararlas tiene que ir ANTES de alargar el plazo (PARADA_MAX_MS).
-const parar = pararOrdenadamente({ servidor, colas: [video.detener, colaia.detener, limpieza.detener] });
+const parar = pararOrdenadamente({ servidor, colas: [video.detener, colaia.detener, limpieza.detener, solicitudes.detenerPurga] });
 process.on('SIGTERM', () => parar('SIGTERM'));
 process.on('SIGINT',  () => parar('SIGINT'));
 

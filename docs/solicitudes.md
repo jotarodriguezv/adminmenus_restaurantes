@@ -87,9 +87,23 @@ solicitud sigue en la bandeja.
 Sin la tabla, la bandeja dice «No se pudieron cargar las solicitudes» y la lista
 de restaurantes se ve igual.
 
+## Las descartadas se borran a los seis meses
+
+**Decidido con el usuario el 24/09/2026**, y prometido en la política de
+privacidad de verificame.co, cláusula 05 (`#solicitudes`). Si esto deja de
+funcionar, se incumple la política.
+
+- `solicitudes.purgarDescartadas()` corre **una vez al día** desde el panel
+  (`arrancarPurga`, igual que `limpieza.js`) y borra las que llevan descartadas
+  más de seis meses.
+- Se cuenta desde **`descartada_en`** (`sql/29`), no desde `actualizado_en`: una
+  nota escrita después correría el plazo. El servidor la escribe solo al
+  **pasar** a descartada; descartar otra vez una que ya lo estaba no reinicia el
+  plazo, y reabrirla la vacía.
+- Las **aprobadas no se borran nunca**: ya son la relación con un cliente. Las
+  abiertas (nueva, contactada) tampoco; primero alguien tiene que gestionarlas.
+
 ## Pendiente
 
-- Borrar las solicitudes descartadas pasado un tiempo (datos personales que ya
-  no hacen falta). Decidir cuánto con el usuario.
 - Al aprobar, avisar a Meta de la conversión (API de conversiones para CRM) para
   que optimice por calidad de lead. Se puede hacer desde n8n.
