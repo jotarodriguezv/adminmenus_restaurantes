@@ -3,29 +3,29 @@
    tal cual, sin cambiar ninguna regla. */
 
 :root {
-  --bg: #080f0a;
-  --surface: #0d150f;
-  --panel: #111a13;
-  --card: #172019;
-  --border: #1e2e21;
-  --border2: #2a3f2d;
-  --accent: #3dd68c;
-  --accent-dim: rgba(61,214,140,0.10);
-  --accent-glow: rgba(61,214,140,0.22);
+  --bg: #120b05;
+  --surface: #1b1007;
+  --panel: #21150a;
+  --card: #2b1a0d;
+  --border: #3b2513;
+  --border2: #573719;
+  --accent: #e77306;
+  --accent-dim: rgba(231,115,6,0.10);
+  --accent-glow: rgba(231,115,6,0.22);
   /* El acento cuando es TEXTO sobre su propio fondo tenue (--accent-dim).
      En oscuro basta el de siempre; en claro no. Ver la vista clara. */
-  --accent-texto: #3dd68c;
+  --accent-texto: #e77306;
   --danger: #ff4757;
   --danger-dim: rgba(255,71,87,0.12);
   --success: #3dd68c;
   --success-dim: rgba(61,214,140,0.12);
   --warn: #ffa502;
   --warn-dim: rgba(255,165,2,0.12);
-  --text: #ddeee2;
-  --text-muted: #a8bfb0;
-  --text-dim: #7a9182;
-  --on-accent: #080f0a;              /* texto sobre botones de acento */
-  --topbar-bg: rgba(8,15,10,.96);
+  --text: #fff2e8;
+  --text-muted: #dfc2aa;
+  --text-dim: #b58d6e;
+  --on-accent: #ffffff;              /* color secundario: texto sobre el acento */
+  --topbar-bg: rgba(18,11,5,.96);
   --overlay: rgba(0,0,0,0.82);       /* fondo detrás de los modales */
   --img-overlay: rgba(0,0,0,.5);
   --mono: 'Space Mono', monospace;
@@ -36,37 +36,36 @@
 
 /* ── VISTA CLARA ──
    Solo se redefine la paleta: el resto del CSS ya va por variables.
-   Los tonos no son los oscuros invertidos — el verde de acento se
+   Los tonos no son los oscuros invertidos — el naranja de acento se
    oscurece para que se lea sobre blanco, y los textos apagados suben
    de contraste respecto a la vista oscura, que es justamente el
    motivo de ofrecer esta opción. */
 :root[data-theme="light"] {
-  --bg: #f2f6f3;
+  --bg: #ffffff;
   --surface: #ffffff;
   --panel: #ffffff;
-  --card: #eef3ef;
-  --border: #dae3dc;
-  --border2: #b9c9bc;
-  --accent: #0b8850;
-  --accent-dim: rgba(11,136,80,0.10);
-  --accent-glow: rgba(11,136,80,0.18);
-  /* CL4: #0b8850 sobre --accent-dim da 3,55-3,97 según el fondo —por debajo
+  --card: #fff6ed;
+  --border: #f3d9c1;
+  --border2: #dfb990;
+  --accent: #e77306;
+  --accent-dim: rgba(231,115,6,0.10);
+  --accent-glow: rgba(231,115,6,0.18);
+  /* CL4: #e77306 sobre --accent-dim da menos de 4,5 según el fondo —por debajo
      del 4,5 de AA—, y es justo el texto del chip SELECCIONADO, el que dice
-     qué filtro está puesto. Este da 5,5-6,2 en los tres fondos claros. No
-     se cambia --accent: sobre blanco pasa (4,51) y es el color de marca. */
-  --accent-texto: #07663f;
+     qué filtro está puesto. Este pasa AA en los tres fondos claros. */
+  --accent-texto: #873d00;
   --danger: #c62828;
   --danger-dim: rgba(198,40,40,0.10);
-  --success: #0b8850;
-  --success-dim: rgba(11,136,80,0.12);
-  --warn: #96590a;
-  --warn-dim: rgba(150,89,10,0.12);
-  --text: #142017;
-  --text-muted: #4a5c4e;
-  --text-dim: #5d6b60;
+  --success: #177245;
+  --success-dim: rgba(23,114,69,0.12);
+  --warn: #8a4500;
+  --warn-dim: rgba(138,69,0,0.12);
+  --text: #301b0b;
+  --text-muted: #68492d;
+  --text-dim: #805f40;
   --on-accent: #ffffff;
   --topbar-bg: rgba(255,255,255,.94);
-  --overlay: rgba(18,28,20,0.45);
+  --overlay: rgba(48,27,11,0.45);
   --img-overlay: rgba(0,0,0,.45);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -244,7 +243,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .product-row{display:grid;grid-template-columns:84px 1fr 130px 90px 140px;padding:10px 16px;
   border-bottom:1px solid var(--border);align-items:center;transition:background .15s;gap:0;}
 .product-row:last-child{border-bottom:none;}
-.product-row:hover{background:rgba(61,214,140,0.03);}
+.product-row:hover{background:rgba(231,115,6,0.03);}
 .product-row.unavailable{opacity:.4;}
 .prod-precio-movil{display:none;}
 
