@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>Panel Admin · Menús</title>
 		<link rel="preconnect" href="https://fonts.googleapis.com">
-		<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+		<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 		<link rel="stylesheet" href="panel.css">
 		<script>
 			// Antes de pintar nada, para que no parpadee al recargar.
@@ -33,8 +33,9 @@
 			<button class="btn-sm btn-tema" onclick="toggleTema()" style="position:absolute;top:16px;right:16px;min-width:34px;font-size:13px;line-height:1;"></button>
 			<div class="login-box">
 				<div class="login-brand">
+					<img class="brand-logo brand-logo-login" src="/logo-vmenus.png" alt="VMenus">
 					<div class="login-brand-sub">Sistema de Gestión</div>
-					<div class="login-brand-name">MENÚS DIGITALES</div>
+					<div class="login-brand-name">VMENUS</div>
 				</div>
 				<div class="login-card">
 					<!-- L3: «Identificador de acceso» era jerga; quien explicaba de verdad era
@@ -62,7 +63,7 @@
 		<!-- ADMIN SCREEN (superadmin) -->
 		<div id="adminScreen">
 			<div class="admin-topbar">
-				<div class="admin-topbar-title">⚙ PANEL SUPERADMIN</div>
+				<div class="admin-topbar-title"><img class="brand-logo brand-logo-bar" src="/logo-vmenus.png" alt="VMenus"><span>Panel superadmin</span></div>
 				<div style="display:flex;gap:8px;">
 					<button class="btn-sm btn-tema" onclick="toggleTema()" style="min-width:34px;font-size:13px;line-height:1;"></button>
 					<button class="btn-sm danger" onclick="logout()">Salir</button>
@@ -173,6 +174,7 @@
 		<div id="appScreen">
 			<div class="topbar">
 				<div class="topbar-left">
+					<img class="brand-logo brand-logo-app" src="/logo-vmenus.png" alt="VMenus">
 					<div class="topbar-badge" id="topbarBadge">EDITOR</div>
 					<div class="topbar-resto" id="topbarResto">—</div>
 					<div class="topbar-version" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v19</div>
