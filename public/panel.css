@@ -277,10 +277,6 @@ a,button,input,select,textarea{font-family:inherit;}
 .plan-summary{display:block;margin-top:14px;font-family:var(--sans);font-size:12px;font-weight:600;line-height:1.8;color:var(--text-muted);}
 .plan-summary span{font-weight:800;}
 .plan-note{margin-top:14px;padding:10px 12px;border-left:3px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;background:rgba(237,124,0,.08);font-family:var(--sans);font-size:11px;font-weight:600;color:var(--text-muted);line-height:1.6;}
-@media(max-width:680px){
-  .plan-card .section-header{align-items:flex-start;}
-  .plan-card .plan-select{flex-basis:100%;width:100%;}
-}
 
 /* Eliminar logo es una acción destructiva: se separa de los controles de subida
    con rojo sólido, texto de alto contraste y una respuesta inequívoca al puntero. */
@@ -927,6 +923,8 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
   .resto-mas-menu{right:auto;left:0;}
 }
 @media(max-width:680px){
+  .plan-card .section-header{align-items:flex-start;}
+  .plan-card .plan-select{flex-basis:100%;width:100%;}
   .inicio-encabezado{align-items:flex-start;flex-direction:column;}
   .inicio-metrica{padding:12px;}
   .inicio-metrica-numero{font-size:20px;}
