@@ -82,16 +82,18 @@ a,button,input,select,textarea{font-family:inherit;}
   background:radial-gradient(ellipse 60% 40% at 50% 0%,var(--accent-dim) 0%,transparent 70%),var(--bg);}
 .login-box{width:100%;max-width:380px;}
 .login-brand{text-align:center;margin-bottom:30px;}
-.brand-logo{display:block;object-fit:contain;flex-shrink:0;}
-.brand-logo-login{width:84px;height:84px;margin:0 auto 14px;border-radius:24px;box-shadow:0 12px 28px var(--accent-glow);}
-.brand-logo-bar{width:30px;height:30px;border-radius:9px;}
-.brand-logo-app{width:31px;height:31px;border-radius:9px;}
+.brand-pill{display:inline-flex;align-items:center;gap:8px;padding:5px 13px 5px 6px;border:1px solid rgba(231,115,6,.18);border-radius:999px;background:#fff;color:#35200e;font-family:var(--sans);font-size:15px;font-weight:800;letter-spacing:-.35px;line-height:1;box-shadow:0 7px 18px rgba(0,0,0,.14);}
+.brand-logo{display:block;width:29px;height:29px;object-fit:contain;flex-shrink:0;border-radius:50%;}
+.brand-pill-login{margin:0 auto 16px;}
+.brand-pill-bar,.brand-pill-app{font-size:12px;box-shadow:none;}
+.brand-pill-bar .brand-logo,.brand-pill-app .brand-logo{width:25px;height:25px;}
 .login-brand-sub{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:7px;}
 .login-brand-name{font-family:var(--mono);font-size:24px;font-weight:800;color:var(--accent);letter-spacing:.5px;text-shadow:0 0 20px var(--accent-glow);}
 .login-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:28px;}
-.login-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:block;}
+.login-label{font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.15px;text-transform:none;color:var(--text-muted);margin-bottom:8px;display:block;}
 .login-input{width:100%;padding:11px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
-  color:var(--text);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .2s;margin-bottom:14px;}
+  color:var(--text);font-family:var(--sans);font-size:14px;font-weight:500;outline:none;transition:border-color .2s;margin-bottom:14px;}
+.login-input::placeholder{font-family:var(--sans);font-weight:400;color:var(--text-dim);}
 .login-input:focus{border-color:var(--accent);}
 .pin-input{font-family:var(--mono);font-size:20px;letter-spacing:8px;text-align:center;}
 .login-input.error{border-color:var(--danger);animation:shake .3s;}
@@ -121,6 +123,8 @@ a,button,input,select,textarea{font-family:inherit;}
    hacía «BONZAS BURGER GRILL». */
 @media (max-width:480px){
   .topbar{padding:0 12px;gap:8px;}
+  .brand-pill-app{padding:5px;}
+  .brand-pill-app span{display:none;}
   .topbar-version{display:none;}
   .solo-ancho{display:none;}
 }

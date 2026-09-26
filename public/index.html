@@ -33,9 +33,12 @@
 			<button class="btn-sm btn-tema" onclick="toggleTema()" style="position:absolute;top:16px;right:16px;min-width:34px;font-size:13px;line-height:1;"></button>
 			<div class="login-box">
 				<div class="login-brand">
-					<img class="brand-logo brand-logo-login" src="/logo-vmenus.png" alt="VMenus">
+					<div class="brand-pill brand-pill-login">
+						<img class="brand-logo" src="/logo-vmenus.png" alt="Logo VMenús">
+						<span>VMenús</span>
+					</div>
 					<div class="login-brand-sub">Sistema de Gestión</div>
-					<div class="login-brand-name">VMENUS</div>
+					<div class="login-brand-name">Menús digitales</div>
 				</div>
 				<div class="login-card">
 					<!-- L3: «Identificador de acceso» era jerga; quien explicaba de verdad era
@@ -63,7 +66,7 @@
 		<!-- ADMIN SCREEN (superadmin) -->
 		<div id="adminScreen">
 			<div class="admin-topbar">
-				<div class="admin-topbar-title"><img class="brand-logo brand-logo-bar" src="/logo-vmenus.png" alt="VMenus"><span>Panel superadmin</span></div>
+				<div class="admin-topbar-title"><div class="brand-pill brand-pill-bar"><img class="brand-logo" src="/logo-vmenus.png" alt="Logo VMenús"><span>VMenús</span></div><span>Panel superadmin</span></div>
 				<div style="display:flex;gap:8px;">
 					<button class="btn-sm btn-tema" onclick="toggleTema()" style="min-width:34px;font-size:13px;line-height:1;"></button>
 					<button class="btn-sm danger" onclick="logout()">Salir</button>
@@ -174,7 +177,7 @@
 		<div id="appScreen">
 			<div class="topbar">
 				<div class="topbar-left">
-					<img class="brand-logo brand-logo-app" src="/logo-vmenus.png" alt="VMenus">
+					<div class="brand-pill brand-pill-app"><img class="brand-logo" src="/logo-vmenus.png" alt="Logo VMenús"><span>VMenús</span></div>
 					<div class="topbar-badge" id="topbarBadge">EDITOR</div>
 					<div class="topbar-resto" id="topbarResto">—</div>
 					<div class="topbar-version" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v19</div>
