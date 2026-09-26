@@ -143,6 +143,30 @@ a,button,input,select,textarea{font-family:inherit;}
 .btn-sm.accent{border-color:var(--accent);color:var(--accent-texto);background:var(--accent-dim);}
 .btn-sm.accent:hover{opacity:.85;}
 
+/* Acciones de navegación: cada una comunica su destino con un icono, no con
+   una flecha genérica. Mantienen el tamaño compacto de la barra sin parecer
+   controles secundarios perdidos entre sí. */
+.topbar-right .nav-icon-btn,.topbar-right .nav-restaurantes,.topbar-right .nav-salir{
+  min-height:34px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  border-color:color-mix(in srgb,var(--accent) 34%,var(--border));
+  background:color-mix(in srgb,var(--accent) 7%,transparent);
+}
+.topbar-right .nav-icon-btn{width:34px;padding:0;}
+.topbar-right .nav-restaurantes{color:var(--accent-texto);}
+.topbar-right .nav-restaurantes svg,.topbar-right .nav-salir svg{
+  width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;
+}
+.topbar-right .nav-restaurantes:hover{
+  border-color:var(--accent);background:var(--accent-dim);color:var(--accent-texto);
+  box-shadow:0 7px 18px var(--accent-glow);
+}
+.topbar-right .nav-salir{border-color:color-mix(in srgb,var(--danger) 34%,var(--border));}
+.topbar-right .nav-salir:hover{
+  border-color:var(--danger);background:var(--danger-dim);color:var(--danger);
+  box-shadow:0 7px 18px color-mix(in srgb,var(--danger) 18%,transparent);
+}
+
 /* ── TABS ── */
 /* M1: en un móvil las pestañas miden más que la pantalla (519 px en 375 con
    cinco; un Plan Completo tiene ocho) y la barra estaba escondida a mano,
