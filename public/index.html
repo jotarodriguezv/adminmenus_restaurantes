@@ -1775,7 +1775,11 @@
 						<!-- Con foto sobra: ver pintarSinFoto(). -->
 						<div class="form-check" id="filaSinFoto" style="margin-top:10px;margin-bottom:0">
 							<label class="toggle"><input type="checkbox" id="editSinFoto"><span class="toggle-slider"></span></label>
-							<span style="font-size:12px;color:var(--text-muted)">Este producto no lleva foto <span style="color:var(--text-dim)">(no se contará como pendiente)</span></span>
+							<span style="font-size:12px;color:var(--text-muted)">Este producto no necesita foto</span>
+							<span class="info-tip">
+								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre este producto no necesita foto" onclick="alternarInfoTip(event, this)">ⓘ</button>
+								<span class="info-tip-texto">Para bebidas, cubiertos o cualquier producto que de verdad no necesite foto: no aparecerá como pendiente en Inicio.</span>
+							</span>
 						</div>
 					</div>
 					<!-- Solo con el plan de video. Esconderlo no basta: el servidor
@@ -2104,10 +2108,10 @@
 					</div>
 					<div class="form-group producto-descripcion-corta tab-detalles">
 						<div class="form-label-fila">
-							<label for="editDescAvanzada" class="form-label">Descripción corta <span style="color:var(--text-dim)">(opcional)</span></label>
+							<label for="editDescAvanzada" class="form-label">Subtítulo <span style="color:var(--text-dim)">(opcional)</span></label>
 							<span class="info-tip">
-								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Descripción corta" onclick="alternarInfoTip(event, this)">ⓘ</button>
-								<span class="info-tip-texto">Se muestra debajo del nombre; en las cartas de video es el texto principal.</span>
+								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Subtítulo" onclick="alternarInfoTip(event, this)">ⓘ</button>
+								<span class="info-tip-texto">Aparece justo debajo del nombre del producto, antes de abrir su ficha. En las cartas de video es el texto principal, porque ahí no hay ficha que abrir.</span>
 							</span>
 						</div>
 						<input type="text" class="form-input" id="editDescAvanzada" oninput="contarCaracteres('editDescAvanzada','editDescAvanzadaContador')">
@@ -2129,8 +2133,14 @@
 					     ofrece cada uno, porque una hamburguesa lleva de todo y una
 					     gaseosa no lleva nada. -->
 					<div class="form-group producto-personalizacion tab-detalles" id="personalizacionGroup" style="display:none">
-						<label class="form-label">Personalización <span style="color:var(--text-dim);font-weight:400">(qué puede añadirle el cliente a este producto)</span></label>
-						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Este negocio todavía no tiene adicionales. Créalos en la pestaña Ajustes, bajo el carrito, y vuelve aquí.</div>
+						<div class="form-label-fila">
+							<label class="form-label">Personalización</label>
+							<span class="info-tip">
+								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Personalización" onclick="alternarInfoTip(event, this)">ⓘ</button>
+								<span class="info-tip-texto">Aquí puedes ver las cosas que el cliente puede añadirle a este producto.</span>
+							</span>
+						</div>
+						<div id="persVacio" style="font-size:11px;color:var(--text-dim);display:none">Actualmente este negocio no tiene adicionales configurados. Créalos en la pestaña Ajustes, bajo el carrito, y vuelve aquí.</div>
 						<div id="persPlatinoWrap" style="margin-top:8px;display:none">
 							<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px;">Adicionales sin costo</div>
 							<div id="persPlatinoChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
