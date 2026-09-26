@@ -246,7 +246,7 @@ function qrRenderizarCartel(canvas, escala) {
 	ctx.fillStyle = qrCfg.cartel_fg;
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'top';
-	ctx.font = `700 ${58 * escala}px 'DM Sans', sans-serif`;
+	ctx.font = `700 ${58 * escala}px 'Montserrat', sans-serif`;
 	const lineas = qrTextoEnLineas(ctx, qrCfg.cartel_titulo || '', 820 * escala);
 	lineas.slice(0, 3).forEach((l, i) => ctx.fillText(l, W / 2, (130 + i * 72) * escala));
 
@@ -265,10 +265,10 @@ function qrRenderizarCartel(canvas, escala) {
 
 	// Pie: nombre del negocio + enlace legible para quien no pueda escanear
 	ctx.fillStyle = qrCfg.cartel_fg;
-	ctx.font = `700 ${46 * escala}px 'DM Sans', sans-serif`;
+	ctx.font = `700 ${46 * escala}px 'Montserrat', sans-serif`;
 	ctx.fillText(qrCfg.cartel_pie || state.restaurante.nombre, W / 2, 1120 * escala);
 	ctx.globalAlpha = 0.65;
-	ctx.font = `400 ${28 * escala}px 'Space Mono', monospace`;
+	ctx.font = `400 ${28 * escala}px 'Montserrat', sans-serif`;
 	ctx.fillText(qrEnlace().replace(/^https?:\/\//, ''), W / 2, 1205 * escala);
 	ctx.globalAlpha = 1;
 }
