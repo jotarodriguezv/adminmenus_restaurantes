@@ -8163,7 +8163,7 @@ async function cargarListaRestos() {
       toggleBtn.onclick=()=>toggleSuspension(r.id,!activo,r.nombre);
       // Botón editar
       const editBtn=document.createElement('button');
-      editBtn.className='btn-sm accent'; editBtn.textContent='Editar menú';
+      editBtn.className='btn-sm accent resto-action resto-action-edit'; editBtn.textContent='Editar menú';
       editBtn.onclick=()=>entrarARestaurante(r.slug);
       // Botón ver la carta pública. Es la comprobación que más se hace —cambias
       // algo y quieres ver cómo quedó de verdad— y hasta ahora obligaba a
@@ -8177,7 +8177,7 @@ async function cargarListaRestos() {
       // noopener es obligatorio con target=_blank: sin él la página abierta
       // recibe window.opener y puede redirigir la pestaña del panel.
       const verBtn=document.createElement('a');
-      verBtn.className='btn-sm'; verBtn.textContent='Ver carta ↗';
+      verBtn.className='btn-sm resto-action resto-action-view'; verBtn.textContent='Ver carta ↗';
       verBtn.href=urlPublica(r);
       verBtn.target='_blank'; verBtn.rel='noopener noreferrer';
       verBtn.title=urlPublica(r);
@@ -8210,7 +8210,7 @@ async function cargarListaRestos() {
       pinBtn.onclick=()=>cambiarPin(r.id,r.nombre);
       // Botón marcar como pagado (mensualidad)
       const pagoBtn=document.createElement('button');
-      pagoBtn.className='btn-sm'; pagoBtn.style.cssText='border-color:var(--success);color:var(--success);';
+      pagoBtn.className='btn-sm resto-action resto-action-paid';
       pagoBtn.textContent='✓ Pagó';
       pagoBtn.onclick=()=>marcarComoPagado(r.id,r.nombre);
       // Botón eliminar restaurante
@@ -8232,7 +8232,7 @@ async function cargarListaRestos() {
       const mas=document.createElement('details');
       mas.className='resto-mas';
       const masBoton=document.createElement('summary');
-      masBoton.className='btn-sm'; masBoton.textContent='⋯ Más';
+      masBoton.className='btn-sm resto-action resto-action-more'; masBoton.textContent='⋯ Más';
       masBoton.title='Suspender, IA, cambiar PIN y eliminar';
       const menu=document.createElement('div');
       menu.className='resto-mas-menu';
