@@ -1851,6 +1851,14 @@
 								</button>
 								<div id="videoUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
 							</div>
+							<!-- Subiendo: porcentaje real, de los bytes que ya llegaron
+							     (enviarVideo). Convirtiendo: estimada, igual que el paso 2
+							     de la IA (progresoVideo()) — es el mismo ffmpeg. -->
+							<div id="videoProgreso" style="display:none;margin-top:8px">
+								<div role="progressbar" aria-label="Progreso del video" style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+									<div id="videoProgresoBarra" style="height:100%;width:0;background:var(--accent);transition:width 1s linear"></div>
+								</div>
+							</div>
 
 							<!-- ── LOS DOS CAMINOS, UNO AL LADO DEL OTRO ────────────
 							     18/09/2026, pedido por el usuario: estaban uno encima
@@ -4074,6 +4082,10 @@ function pintarVideoPlato(p) {
 	// retoma. Y la barra se pinta ya, sin esperar al primer segundo.
 	if (p?.id && generacionEnCursoDe(p.id) && !vigilanciasIA.has(p.id)) vigilarGeneracion(p.id);
 	pintarProgresoIA();
+	// La transición se deja en 1 s: esto pinta la ficha desde cero (al abrirla
+	// o al cambiar de plato), nunca a mitad de una subida en curso.
+	document.getElementById('videoProgresoBarra').style.transition = 'width 1s linear';
+	pintarProgresoVideo();
 
 	// Un video se cuelga de un plato, y un plato nuevo todavía no tiene id
 	// al que colgarlo. Se deja a la vista pero apagado, para que se entienda
@@ -4340,6 +4352,13 @@ async function confirmarSubidaVideo() {
 	state.subiendoVideo = true;
 	pintarCaminosVideo();
 
+	// La barra arranca aquí con el dato real de la subida (0%, sin transición
+	// de por medio: que salte al primer valor, no que lo anime desde cero).
+	const barra = document.getElementById('videoProgresoBarra');
+	document.getElementById('videoProgreso').style.display = 'block';
+	barra.style.transition = 'none';
+	barra.style.width = '0%';
+
 	try {
 		const fd = new FormData();
 		fd.append('restaurante_id', state.restaurante.id);
@@ -4350,6 +4369,8 @@ async function confirmarSubidaVideo() {
 			// Sin el porcentaje, una subida larga y una subida colgada se ven
 			// exactamente igual, y la gente vuelve a darle al botón.
 			st.textContent = `Subiendo... ${Math.round(pct)}% de ${megas} MB`;
+			barra.style.transition = 'width .2s linear';
+			barra.style.width = `${pct}%`;
 		});
 
 		st.textContent = 'Convirtiendo... (1-2 min)';
@@ -4365,10 +4386,16 @@ async function confirmarSubidaVideo() {
 		// cerrar.
 		anotarTrabajoEnCurso(r.trabajo_id, productoId);
 		vigilarVideo(r.trabajo_id, productoId);
+		// Después de anotarTrabajoEnCurso: progresoVideo() necesita el trabajo
+		// ya apuntado para saber desde cuándo cuenta. A partir de aquí la barra
+		// pasa de "porcentaje real de la subida" a "curva estimada de ffmpeg".
+		barra.style.transition = 'width 1s linear';
+		pintarProgresoVideo();
 		pintarCaminosVideo();
 	} catch (e) {
 		st.textContent = e.message || 'Error al subir';
 		st.style.color = 'var(--danger)';
+		document.getElementById('videoProgreso').style.display = 'none';
 		// El aviso flotante es lo único que se ve con la ficha cerrada, y
 		// cerrarla mientras sube es normal — se lo acabamos de ofrecer. Sin
 		// esto, una subida que falla estando fuera no se entera nadie: el
@@ -4464,6 +4491,9 @@ function vigilarVideo(trabajoId, productoId) {
 			detenerVigilanciaVideo();
 			permitirSubir();
 			decir('La conversión está tardando más de lo normal. Vuelve a abrir el producto más tarde para ver cómo quedó.', 'var(--warn)');
+			// A esta altura la curva estimada ya está pegada al tope: seguir
+			// enseñándola no informa nada, y menos con la vigilancia rendida.
+			document.getElementById('videoProgreso').style.display = 'none';
 			return;
 		}
 		try {
@@ -4483,6 +4513,7 @@ function vigilarVideo(trabajoId, productoId) {
 				if (frescos) state.productos = frescos;
 				await cargarTrabajosVideo();
 				permitirSubir();
+				pintarProgresoVideo();
 
 				// Un video generado termina de convertirse igual, pero el plato
 				// NO lo enseña todavía. Decir '✓ Video listo' aquí sería mentir
@@ -4524,8 +4555,10 @@ function vigilarVideo(trabajoId, productoId) {
 				decir(t.error ? `Error: ${t.error}` : 'La conversión falló', 'var(--danger)');
 				avisarFuera(t.error ? `El video falló: ${t.error}` : 'La conversión del video falló', 'error');
 				permitirSubir();
+				pintarProgresoVideo();
 			} else if (t.estado === 'procesando') {
 				decir('Convirtiendo... (1-2 min)', 'var(--text-muted)');
+				pintarProgresoVideo();
 			} else if (t.estado === 'pendiente') {
 				// Faltaba esta rama, así que un trabajo esperando turno seguía
 				// enseñando el "Convirtiendo... (1-2 min)" que dejó puesto la
@@ -4978,6 +5011,52 @@ function pintarProgresoIA() {
 	document.getElementById('iaProgresoBarra').style.width = `${pr.pct.toFixed(1)}%`;
 	document.getElementById('iaProgresoTexto').textContent = pr.texto;
 	if (!relojProgresoIA) relojProgresoIA = setInterval(pintarProgresoIA, 1000);
+}
+
+// ── LA BARRA DE SUBIR Y CONVERTIR UN VIDEO (SIN IA) ────────────
+// Pedido el 26/09/2026: que las dos esperas de "Subir un video" —mientras
+// sube el archivo y mientras ffmpeg lo convierte— se vean con una barra, no
+// solo con texto.
+//
+// Subiendo SÍ tiene un dato real: enviarVideo() ya mide los bytes que
+// llegaron (ver confirmarSubidaVideo). Convirtiendo no lo tiene —el worker no
+// avisa de un porcentaje— así que se estima con la misma curva y el mismo
+// ritmo que ya usa el paso 2 de progresoIA(): es literalmente el mismo
+// ffmpeg, con el mismo tiempo típico.
+//
+// tope en 98 y no 100 por lo mismo que allí: nunca hay que prometer un final
+// que el reloj no puede garantizar. El 100% de verdad lo pone el "listo" de
+// vigilarVideo(), quitando la barra entera.
+const PROGRESO_VIDEO = { tope: 98, ritmo: 30 };
+
+function progresoVideo(productoId, ahora = Date.now()) {
+	// El origen 'ia' ya tiene su barra en progresoIA() (paso 2 de 2): mostrar
+	// las dos a la vez por el mismo trabajo sería decir lo mismo dos veces.
+	const t = trabajoEnCursoDe(productoId);
+	if (!t || t.origen_tipo === 'ia') return null;
+	const s = Math.max(0, (ahora - Date.parse(t.creado_en)) / 1000) || 0;
+	return { pct: PROGRESO_VIDEO.tope * (1 - Math.exp(-s / PROGRESO_VIDEO.ritmo)) };
+}
+
+let relojProgresoVideo = null;
+
+// Mismo patrón que pintarProgresoIA(): se apaga sola en cuanto no hay nada
+// que contar —video listo, con error, o la ficha ya no es la de este plato—,
+// así que llamarla de más nunca deja una barra huérfana en pantalla.
+function pintarProgresoVideo() {
+	const caja = document.getElementById('videoProgreso');
+	if (!caja) return;
+	const abierta = document.getElementById('productModal')?.classList.contains('open');
+	const id = document.getElementById('editProductId')?.value;
+	const pr = abierta && id ? progresoVideo(id) : null;
+
+	caja.style.display = pr ? 'block' : 'none';
+	if (!pr) {
+		if (relojProgresoVideo) { clearInterval(relojProgresoVideo); relojProgresoVideo = null; }
+		return;
+	}
+	document.getElementById('videoProgresoBarra').style.width = `${pr.pct.toFixed(1)}%`;
+	if (!relojProgresoVideo) relojProgresoVideo = setInterval(pintarProgresoVideo, 1000);
 }
 
 // Cuánto le queda al restaurante. Se pide al abrir la ficha y se vuelve a

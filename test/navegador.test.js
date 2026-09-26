@@ -621,7 +621,9 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 				// La vuelta de un video retirado.
 				'videoRetirado', 'videoRetiradoEstado', 'btnRecuperarVideo',
 				// El aviso del plato nuevo y la zona que sustituye.
-				'videoNuevo', 'zonaVideo'];
+				'videoNuevo', 'zonaVideo',
+				// La barra de "subiendo / convirtiendo" (sin IA).
+				'videoProgreso', 'videoProgresoBarra'];
 		const mapa = {};
 		for (const id of ids) mapa[id] = {
 			style: {}, textContent: '', value: '', disabled: false,
@@ -646,8 +648,9 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		], {
 				clearInterval() {},
 				planActual: () => ({ videos }),
-				// Viven más abajo en el archivo: la barra y la vigilancia de la IA.
+				// Viven más abajo en el archivo: las barras y la vigilancia de la IA.
 				vigilanciasIA: new Map(), pintarProgresoIA() {}, vigilarGeneracion() {},
+				pintarProgresoVideo() {},
 				state: { trabajosVideo: trabajos, videosPorAprobar: porAprobar,
 				         restaurante: { atributos: { nav } } },
 				document: { getElementById: id => mapa[id] },
@@ -9173,6 +9176,42 @@ describe('progresoIA · la barra estimada', () => {
 		const pr = ctx.progresoIA('p1', en(0));
 		assert.equal(pr.pct, 0);
 		assert.match(pr.texto, /0:00/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('progresoVideo · la barra de subir y convertir sin IA', () => {
+	// Pedido el 26/09/2026: mismo espíritu que progresoIA (arriba) para el
+	// camino sin IA — el worker tampoco da porcentaje al convertir, así que
+	// esto también es una estimación con la misma regla: no mentir en lo
+	// importante, o sea, no llegar sola al final.
+	const conDatos = (trabajos = []) => cargar('index.html',
+		'function trabajoEnCursoDe', 'async function refrescarCupoIA',
+		{ state: { trabajosVideo: trabajos } });
+	const T0 = '2026-09-18T20:00:00Z';
+	const en = seg => Date.parse(T0) + seg * 1000;
+
+	test('avanza con el tiempo, y nunca llega al tope por su cuenta', () => {
+		const ctx = conDatos([{ id: 't1', producto_id: 'p1', estado: 'procesando', origen_tipo: 'subido', creado_en: T0 }]);
+		const a = ctx.progresoVideo('p1', en(10)).pct, b = ctx.progresoVideo('p1', en(60)).pct;
+		const z = ctx.progresoVideo('p1', en(3600)).pct;
+		assert.ok(a > 0 && a < b, 'avanza');
+		assert.ok(z < 100, 'el 100 solo lo pone terminar de verdad, nunca el reloj');
+		assert.ok(z >= 97, 'y se queda bien cerca del tope');
+	});
+
+	test('un video generado con IA no pinta esta barra: ya tiene la suya', () => {
+		const ctx = conDatos([{ id: 't1', producto_id: 'p1', estado: 'procesando', origen_tipo: 'ia', creado_en: T0 }]);
+		assert.equal(ctx.progresoVideo('p1', en(10)), null);
+	});
+
+	test('sin nada en marcha, no hay barra', () => {
+		assert.equal(conDatos().progresoVideo('p1', en(10)), null);
+	});
+
+	test('un reloj desfasado no da tiempos negativos', () => {
+		const ctx = conDatos([{ id: 't1', producto_id: 'p1', estado: 'pendiente', origen_tipo: 'subido', creado_en: '2026-09-18T20:00:30Z' }]);
+		assert.equal(ctx.progresoVideo('p1', en(0)).pct, 0);
 	});
 });
 
