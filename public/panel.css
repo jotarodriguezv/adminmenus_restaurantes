@@ -477,6 +477,18 @@ select.form-input{padding-right:42px;}
    descripciones): solo informa, no bloquea, así que no lleva color de aviso. */
 .form-contador{text-align:right;font-size:10px;font-family:var(--mono);color:var(--text-dim);margin-top:5px;}
 
+/* La cuadrícula de emoji de una categoría (25/09/2026). Flotante y no en el
+   flujo: si empujara el resto del formulario, guardar quedaría más lejos justo
+   cuando se acaba de abrir la cuadrícula. Ver abrirSelectorEmoji() en
+   public/index.html. */
+.emoji-picker{position:absolute;top:100%;left:0;z-index:5;margin-top:4px;padding:6px;
+  display:grid;grid-template-columns:repeat(8,1fr);gap:2px;width:260px;max-height:220px;overflow-y:auto;
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.emoji-picker button{border:none;background:transparent;border-radius:6px;font-size:18px;
+  line-height:1;padding:6px 0;cursor:pointer;}
+.emoji-picker button:hover{background:var(--card);}
+
 /* El alta de un destacado no abre el explorador de archivos de inmediato:
    primero deja elegir entre una imagen propia y un plato que ya existe. */
 .destacado-modal-box{max-width:560px;}
@@ -533,7 +545,7 @@ select.form-input{padding-right:42px;}
    más ficha visible sin desplazar. Object-fit pasa a contain porque a este
    tamaño un recorte oculta justo la esquina que se quiere comprobar; el hueco
    que deja se ve con "ampliar" (#btnAmpliarFoto), que sí enseña la foto entera. */
-#productModal .producto-foto .img-edit-wrap{width:auto;height:110px;aspect-ratio:16/9;margin:0 0 6px;}
+#productModal .producto-foto .img-edit-wrap{width:auto;height:110px;aspect-ratio:16/9;margin:0 auto 6px;}
 #productModal .producto-foto .img-edit-wrap[data-formato="vertical"]{width:auto;height:150px;aspect-ratio:9/16;}
 #productModal .producto-foto .img-edit-preview{object-fit:contain;background:var(--bg);}
 /* z-index por encima de .img-edit-overlay: aunque esta llega después en el

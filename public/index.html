@@ -2132,9 +2132,14 @@
           <label for="editCatNombre" class="form-label">Nombre</label>
           <input type="text" class="form-input" id="editCatNombre" placeholder="Hamburguesas" oninput="avisarCategoriaParecida()" aria-describedby="catParecida">
         </div>
-        <div class="form-group">
+        <div class="form-group" style="position:relative">
           <label for="editCatEmoji" class="form-label">Emoji</label>
-          <input type="text" class="form-input" id="editCatEmoji" placeholder="🍔" maxlength="4">
+          <input type="text" class="form-input" id="editCatEmoji" placeholder="🍔" maxlength="4"
+            autocomplete="off" onclick="abrirSelectorEmoji('editCatEmoji')">
+          <!-- Pedido el 25/09/2026: escribir o pegar un emoji a mano es incómodo.
+               La cuadrícula la llena abrirSelectorEmoji(); uno que no esté en la
+               lista se sigue pudiendo escribir aquí a mano, ella no lo impide. -->
+          <div class="emoji-picker" id="emojiPicker" hidden></div>
         </div>
       </div>
       <!-- P3: aviso de categoría casi igual a otra. No impide guardar: un
@@ -6228,7 +6233,75 @@ function renderCatImgField(imgUrl) {
   }
 }
 
+// ── SELECTOR DE EMOJI EN CATEGORÍAS ────────────────────────────
+// Pedido el 25/09/2026: escribir o pegar un emoji a mano es incómodo en un
+// teclado normal, y el selector del sistema (⊞ Win+. / ⌃⌘Espacio en Mac) no
+// todo el mundo sabe que existe. Esta cuadrícula no pretende cubrir los miles
+// de emoji que hay —eso sería el catálogo entero de Google otra vez, con el
+// mismo problema de calidad que se evitó con las tipografías—: es una lista
+// curada de los que de verdad usa una carta, para que la mayoría no necesite
+// salir de aquí. Si falta uno, se sigue escribiendo a mano en el campo; la
+// cuadrícula lo rellena, no lo bloquea.
+const EMOJIS_CATEGORIA = [
+  '🍔','🍕','🌭','🌮','🌯','🥙','🍗','🍖','🥩','🍟','🥗','🍝','🍣','🍤','🍱','🥟',
+  '🍲','🍜','🥘','🫓','🥪','🥞','🧇','🍳','🥓','🧀','🍞','🥐','🍿',
+  '🍰','🧁','🍩','🍪','🍦','🍨','🍫','🍮','🍯','🍎','🍓','🍉','🍍','🥑',
+  '☕','🍵','🧃','🥤','🧋','🍺','🍻','🍷','🍸','🍹','🥂','🥃','🧊',
+  '🥦','🌶️','🧄','🧅','🥕','🌽','🍄',
+  '⭐','🔥','✨','❤️','👍','🎉','🍽️',
+];
+
+let inputSelectorEmoji = null;
+
+function abrirSelectorEmoji(idCampo) {
+  const cont = document.getElementById('emojiPicker');
+  const input = document.getElementById(idCampo);
+  if (!cont || !input) return;
+  // Un segundo clic sobre el mismo campo la cierra, en vez de repintarla igual.
+  if (inputSelectorEmoji === input && !cont.hidden) return cerrarSelectorEmoji();
+  inputSelectorEmoji = input;
+  if (!cont.childElementCount) {
+    cont.append(...EMOJIS_CATEGORIA.map(emoji => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = emoji;
+      b.onclick = () => {
+        // El campo, aparte: cerrarSelectorEmoji() vacía inputSelectorEmoji, y
+        // llamar .focus() sobre esa misma variable después reventaría.
+        const campo = inputSelectorEmoji;
+        campo.value = emoji;
+        cerrarSelectorEmoji();
+        campo.focus();
+      };
+      return b;
+    }));
+  }
+  cont.hidden = false;
+}
+
+function cerrarSelectorEmoji() {
+  const abierta = !document.getElementById('emojiPicker')?.hidden;
+  if (document.getElementById('emojiPicker')) document.getElementById('emojiPicker').hidden = true;
+  inputSelectorEmoji = null;
+  return abierta;
+}
+
+// Un clic fuera del campo o de la cuadrícula la cierra, como cualquier menú
+// desplegable. No hace falta que sepa de categorías: solo mira si el clic
+// cayó dentro de la cuadrícula o del campo que la abrió. Se registra en
+// ARRANQUE, no aquí: entre las declaraciones no se ejecuta nada (ver
+// CLAUDE.md, «en index.html no se ejecuta nada entre declaraciones»).
+function vigilarSelectorEmoji() {
+  document.addEventListener('click', e => {
+    const cont = document.getElementById('emojiPicker');
+    if (!cont || cont.hidden) return;
+    if (e.target.closest('#emojiPicker') || e.target === inputSelectorEmoji) return;
+    cerrarSelectorEmoji();
+  });
+}
+
 function openNewCatModal() {
+  cerrarSelectorEmoji();
   pintarErroresEnCampos([], CAMPOS_CATEGORIA);
   // El camino normal nunca enseña la nota ni encadena el plato: eso lo decide
   // abrirPrimeraCategoria(), y solo para la categoría que se abre desde ahí.
@@ -6250,6 +6323,7 @@ function openNewCatModal() {
 }
 
 function openEditCatModal(id) {
+  cerrarSelectorEmoji();
   pintarErroresEnCampos([], CAMPOS_CATEGORIA);
   const cat=state.categorias.find(c=>c.id===id); if(!cat) return;
   document.getElementById('catModalTitle').textContent='Editar categoría';
@@ -7723,6 +7797,7 @@ document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
   const abierto = id => document.getElementById(id)?.classList.contains('open');
   // La primera: se abre encima de las demás, y Escape es «no», no cerrar todo.
+  if(cerrarSelectorEmoji()) return;
   if(hayPreguntaAbierta()) return responderPregunta(false);
   if(hayEncuadreAbierto()) return responderEncuadre(false);
   if(document.getElementById('capaImpresion')) return cerrarImpresionEnElPanel();
@@ -8550,6 +8625,7 @@ vigilarErrores(CAMPOS_CATEGORIA);
 vigilarErrores(CAMPOS_METODOS_PAGO);
 vigilarMenusMas();
 vigilarSesion();
+vigilarSelectorEmoji();
 
 if(token && state.rol && state.restauranteSlug) {
   if(state.rol==='admin' && !sessionStorage.getItem('menuAdminEditingResto')) {

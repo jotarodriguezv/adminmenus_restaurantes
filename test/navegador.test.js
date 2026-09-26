@@ -4831,6 +4831,93 @@ describe('Apariencia no pierde cambios en silencio', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('el selector de emoji de categorías', () => {
+	// Pedido el 25/09/2026: escribir un emoji a mano es incómodo, y esta
+	// cuadrícula rellena el campo con un clic sin bloquear escribirlo a mano.
+	function elementoFalso(extra) {
+		return Object.assign({
+			hidden: true, value: '', childElementCount: 0, _hijos: [],
+			append(...nodos) { this._hijos.push(...nodos); this.childElementCount = this._hijos.length; },
+			focus() {}, closest() { return null; },
+		}, extra);
+	}
+
+	function entorno() {
+		const elementos = { emojiPicker: elementoFalso(), editCatEmoji: elementoFalso() };
+		const documentoFalso = {
+			getElementById: id => elementos[id] || null,
+			createElement: () => elementoFalso(),
+			addEventListener() {}, // vigilarSelectorEmoji() la registra; aquí no hace falta que haga nada
+		};
+		const ctx = cargar('index.html', 'const EMOJIS_CATEGORIA', 'function openNewCatModal', { document: documentoFalso });
+		return { ctx, elementos };
+	}
+
+	test('al abrir, pinta la cuadrícula entera y la muestra', () => {
+		const { ctx, elementos } = entorno();
+		ctx.abrirSelectorEmoji('editCatEmoji');
+		assert.equal(elementos.emojiPicker.hidden, false);
+		// EMOJIS_CATEGORIA es 'const': no queda como propiedad de ctx, solo
+		// accesible evaluándola dentro del mismo contexto (igual que
+		// PREDETERMINADOS_CARTA más arriba en este archivo).
+		const emojis = vm.runInContext('EMOJIS_CATEGORIA', ctx);
+		assert.equal(elementos.emojiPicker.childElementCount, emojis.length);
+	});
+
+	test('elegir uno lo pone en el campo y cierra la cuadrícula', () => {
+		const { ctx, elementos } = entorno();
+		ctx.abrirSelectorEmoji('editCatEmoji');
+		const boton = elementos.emojiPicker._hijos.find(b => b.textContent === '🍕');
+		assert.ok(boton, 'la pizza tiene que estar en la lista curada');
+		boton.onclick();
+		assert.equal(elementos.editCatEmoji.value, '🍕');
+		assert.equal(elementos.emojiPicker.hidden, true);
+	});
+
+	test('un segundo clic sobre el mismo campo cierra en vez de repintar', () => {
+		const { ctx, elementos } = entorno();
+		ctx.abrirSelectorEmoji('editCatEmoji');
+		const pintadosLaPrimeraVez = elementos.emojiPicker.childElementCount;
+		ctx.abrirSelectorEmoji('editCatEmoji');
+		assert.equal(elementos.emojiPicker.hidden, true, 'el segundo clic debe cerrarla');
+		assert.equal(elementos.emojiPicker.childElementCount, pintadosLaPrimeraVez, 'no se repinta de más');
+	});
+
+	test('cerrarSelectorEmoji() dice si de verdad había algo que cerrar', () => {
+		const { ctx } = entorno();
+		assert.equal(ctx.cerrarSelectorEmoji(), false, 'ya estaba cerrada');
+		ctx.abrirSelectorEmoji('editCatEmoji');
+		assert.equal(ctx.cerrarSelectorEmoji(), true, 'estaba abierta');
+	});
+
+	// El fallo real de esta tarea: un 'document.addEventListener' suelto entre
+	// declaraciones se ejecuta AL CARGAR el script, no al arrancar, y rompía
+	// con 'document is not defined' cualquier prueba que cargara solo un trozo
+	// del panel sin un 'document' de verdad. Ver el CLAUDE.md del repositorio:
+	// «entre las declaraciones no se ejecuta nada».
+	test('el oyente de "clic fuera" vive dentro de una función, no suelto', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const bloque = src.slice(src.indexOf('const EMOJIS_CATEGORIA'), src.indexOf('function openNewCatModal'));
+		assert.match(bloque, /function vigilarSelectorEmoji\s*\(\)\s*\{[\s\S]*addEventListener\('click'/,
+			'el addEventListener del selector de emoji debe quedar dentro de vigilarSelectorEmoji()');
+	});
+
+	test('vigilarSelectorEmoji() se llama en el arranque', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const arranque = src.slice(src.indexOf('// ── ARRANQUE'));
+		assert.match(arranque, /^vigilarSelectorEmoji\(\);/m);
+	});
+
+	test('Escape cierra la cuadrícula antes que cualquier otra ventana', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		const escape = src.match(/document\.addEventListener\('keydown'[\s\S]*?\n\}\);/)[0];
+		const antes = escape.indexOf('cerrarSelectorEmoji()');
+		const despues = escape.indexOf('hayPreguntaAbierta()');
+		assert.ok(antes !== -1 && antes < despues, 'cerrarSelectorEmoji() debe mirarse antes que las demás ventanas');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('el primer día de un restaurante', () => {
 	// F1 y F3 en docs/revision-ux.md. Un restaurante recién creado aterrizaba en
 	// «Sin productos»; «+ Nuevo producto» abría una ficha que no se podía guardar
