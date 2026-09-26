@@ -1716,7 +1716,10 @@
 							<label class="form-label" id="labelImagen">Foto del producto</label>
 							<span class="info-tip">
 								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Foto del producto" onclick="alternarInfoTip(event, this)">ⓘ</button>
-								<span class="info-tip-texto">Agrégala ahora o después. Una foto hace que tu carta se vea mejor.</span>
+								<!-- El texto lo reescribe ajustarFichaAlModelo(): en un restaurante
+								     de video, la foto es solo lo que se ve MIENTRAS no haya video, y
+								     eso hay que decirlo aquí y no solo en la etiqueta. -->
+								<span class="info-tip-texto" id="ayudaImagen">Agrégala ahora o después. Una foto hace que tu carta se vea mejor.</span>
 							</span>
 						</div>
 						<div class="img-edit-wrap" id="zonaFotoPlato" onclick="document.getElementById('imgFileInput').click()">
@@ -1726,8 +1729,11 @@
 							<div id="imgEditPlaceholder" class="img-placeholder-text">Sin imagen · haz clic para subir<span class="pista-arrastre"> o arrastra una aquí</span></div>
 						</div>
 						<input type="file" id="imgFileInput" accept="image/*" style="display:none" data-zona="zonaFotoPlato" onchange="handleProductImgUpload(this)">
-						<div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
-							<div id="imgUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted);flex:1"></div>
+						<!-- Centrada, no en fila con el estado a la izquierda: con la foto ya
+						     centrada y compacta (25/09/2026), un botón anclado al borde derecho
+						     quedaba descolgado de ella. -->
+						<div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:6px;">
+							<div id="imgUploadStatus" style="font-size:10px;font-family:var(--mono);color:var(--text-muted)"></div>
 							<button type="button" id="btnQuitarFoto" onclick="quitarFoto()"
 							style="display:none;padding:5px 10px;border-radius:6px;border:1px solid var(--danger);
 							background:transparent;color:var(--danger);font-family:var(--mono);font-size:9px;
@@ -1757,7 +1763,13 @@
 						<!-- El texto de la proporción lo reescribe ajustarFichaAlModelo:
 						     depende del modelo, y aquí clavado decía 16:9 también a
 						     los restaurantes verticales. -->
-						<label class="form-label" id="labelVideo">Video del producto</label>
+						<div class="form-label-fila">
+							<label class="form-label" id="labelVideo">Video del producto</label>
+							<span class="info-tip">
+								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Video del producto" onclick="alternarInfoTip(event, this)">ⓘ</button>
+								<span class="info-tip-texto">Mientras este producto no tenga video, la carta muestra la foto de arriba.</span>
+							</span>
+						</div>
 						<!-- Un plato sin guardar no tiene id al que colgar un video, así que
 						     los dos botones solo podían estar apagados. En vez de enseñarlos
 						     muertos (18/09/2026, pedido por el usuario), se dice qué hay que
@@ -5339,11 +5351,14 @@ function ajustarFichaAlModelo() {
 
 	// Y la foto cambia de papel. En los demás modelos es lo que se ve; aquí
 	// es lo que se ve MIENTRAS no haya video. Conviene decirlo donde se mira,
-	// no en un manual.
+	// no en un manual — en su propio "ⓘ" (25/09/2026) y no metido en la
+	// etiqueta, para no repetir el patrón .form-ayuda que se acaba de quitar.
 	const etiqueta = document.getElementById('labelImagen');
-	if (etiqueta) etiqueta.innerHTML = esVideo
-		? 'Imagen <span style="color:var(--text-dim);font-weight:400">(se muestra mientras el producto no tenga video)</span>'
-		: 'Imagen';
+	if (etiqueta) etiqueta.textContent = 'Imagen';
+	const ayudaImagen = document.getElementById('ayudaImagen');
+	if (ayudaImagen) ayudaImagen.textContent = esVideo
+		? 'Se muestra mientras el producto no tenga video. Agrégala ahora o después.'
+		: 'Agrégala ahora o después. Una foto hace que tu carta se vea mejor.';
 
 	// La proporción del corte la decide el modelo, y hasta ahora estaban las
 	// dos cosas escritas a mano en el HTML como 16:9. En un restaurante

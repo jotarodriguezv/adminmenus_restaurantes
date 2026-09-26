@@ -1387,7 +1387,8 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 	const conModelo = nav => {
 		const mapa = {
 			extraImgsGroup:   { style: {} },
-			labelImagen:      { innerHTML: '' },
+			labelImagen:      { textContent: '' },
+			ayudaImagen:      { textContent: '' },
 			labelVideo:       { innerHTML: '' },
 			videoSubirDetalle: { textContent: '' },
 			videoEditPreview: { style: {} },
@@ -1421,20 +1422,26 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 
 	test('en los modelos de video, la foto se explica como respaldo', () => {
 		// Deja de ser lo que se ve y pasa a ser lo que se ve mientras no haya
-		// video. Eso hay que decirlo donde se mira, no en un manual.
-		for (const nav of ['video', 'vertical'])
-			assert.match(conModelo(nav).labelImagen.innerHTML, /mientras el producto no tenga video/, `en ${nav}`);
+		// video. Eso se dice en su "ⓘ" (ayudaImagen), no en la etiqueta: el
+		// mismo patrón de los demás textos de ayuda de la ficha.
+		for (const nav of ['video', 'vertical']) {
+			const mapa = conModelo(nav);
+			assert.equal(mapa.labelImagen.textContent, 'Imagen', `en ${nav}`);
+			assert.match(mapa.ayudaImagen.textContent, /mientras el producto no tenga video/, `en ${nav}`);
+		}
 	});
 
 	test('en los demás la etiqueta se queda limpia', () => {
-		assert.equal(conModelo('topnav').labelImagen.innerHTML, 'Imagen');
+		const mapa = conModelo('topnav');
+		assert.equal(mapa.labelImagen.textContent, 'Imagen');
+		assert.doesNotMatch(mapa.ayudaImagen.textContent, /video/);
 	});
 
 	test('un restaurante sin modelo declarado no se rompe', () => {
 		// atributos.nav vacío es 'topnav' por defecto en el menú público.
 		const mapa = conModelo(undefined);
 		assert.equal(mapa.extraImgsGroup.style.display, '');
-		assert.equal(mapa.labelImagen.innerHTML, 'Imagen');
+		assert.equal(mapa.labelImagen.textContent, 'Imagen');
 	});
 
 	test('la proporción prometida es la que el worker va a cortar', () => {
