@@ -82,8 +82,8 @@ a,button,input,select,textarea{font-family:inherit;}
   background:radial-gradient(ellipse 60% 40% at 50% 0%,var(--accent-dim) 0%,transparent 70%),var(--bg);}
 .login-box{width:100%;max-width:380px;}
 .login-brand{text-align:center;margin-bottom:30px;}
-.brand-pill{display:inline-flex;align-items:center;gap:8px;padding:5px 13px 5px 6px;border:1px solid rgba(231,115,6,.18);border-radius:999px;background:#fff;color:#35200e;font-family:var(--sans);font-size:15px;font-weight:800;letter-spacing:-.35px;line-height:1;box-shadow:0 7px 18px rgba(0,0,0,.14);}
-.brand-logo{display:block;width:29px;height:29px;object-fit:contain;flex-shrink:0;border-radius:50%;}
+.brand-pill{display:inline-flex;align-items:center;gap:8px;padding:5px 13px 5px 6px;border:1px solid rgba(231,115,6,.18);border-radius:999px;background:#fff;color:#35200e;font-family:var(--sans);font-size:15px;font-weight:800;letter-spacing:-.35px;line-height:1;box-shadow:0 7px 18px rgba(0,0,0,.14);transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;}
+.brand-logo{display:block;width:29px;height:29px;object-fit:contain;flex-shrink:0;border-radius:50%;transition:transform .24s cubic-bezier(.2,.8,.2,1);}
 .brand-pill-login{margin:0 auto 16px;}
 .brand-pill-bar,.brand-pill-app{font-size:12px;box-shadow:none;}
 .brand-pill-bar .brand-logo,.brand-pill-app .brand-logo{width:25px;height:25px;}
@@ -1059,6 +1059,8 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
    convertir el panel en una animación continua. En móvil solo queda la
    respuesta al toque, y quien pide menos movimiento no recibe transiciones. */
 @media (hover:hover){
+  .brand-pill:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 11px 24px var(--accent-glow);}
+  .brand-pill:hover .brand-logo{transform:rotate(-8deg) scale(1.09);}
   .section-card:hover{transform:translateY(-2px);border-color:var(--border2);box-shadow:0 12px 28px rgba(0,0,0,.14);}
   .tab-btn:hover{background:var(--accent-dim);transform:translateY(-1px);}
   .cat-chip:hover,.btn-edit:hover,.paleta:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(0,0,0,.12);}
