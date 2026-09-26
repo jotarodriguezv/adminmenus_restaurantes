@@ -183,10 +183,16 @@
 					<div class="topbar-version" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;">v19</div>
 				</div>
 				<div class="topbar-right">
-					<button class="btn-sm btn-tema" onclick="toggleTema()" style="min-width:34px;font-size:13px;line-height:1;"></button>
-					<button class="btn-sm" id="btnSwitchResto" onclick="volverAlAdmin()" style="display:none">← Restaurantes</button>
+					<button class="btn-sm btn-tema nav-icon-btn" onclick="toggleTema()" style="min-width:34px;font-size:13px;line-height:1;" aria-label="Cambiar tema"></button>
+					<button class="btn-sm nav-restaurantes" id="btnSwitchResto" onclick="volverAlAdmin()" style="display:none">
+						<svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><rect x="4" y="4" width="6" height="6" rx="1"></rect><rect x="14" y="4" width="6" height="6" rx="1"></rect><rect x="4" y="14" width="6" height="6" rx="1"></rect><rect x="14" y="14" width="6" height="6" rx="1"></rect></svg>
+						<span>Restaurantes</span>
+					</button>
 					<button class="btn-sm" id="btnMiPin" onclick="abrirMiPin()" style="display:none" aria-label="Cambiar mi PIN"><span class="solo-ancho">Cambiar </span>PIN</button>
-					<button class="btn-sm danger" onclick="logout()">Salir</button>
+					<button class="btn-sm danger nav-salir" onclick="logout()">
+						<span>Salir</span>
+						<svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M14 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"></path><path d="m11 16 4-4-4-4M15 12H4"></path></svg>
+					</button>
 				</div>
 			</div>
 			<div class="tabs">
