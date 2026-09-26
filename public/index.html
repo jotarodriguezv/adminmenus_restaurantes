@@ -367,14 +367,14 @@
 						<div id="apDatosRestoStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 					</div>
 
-					<div class="section-card">
+					<div class="section-card plan-card">
 						<div class="section-header">
 							<div class="section-title" style="margin-bottom:0">Plan</div>
-							<select class="form-select" id="apPlan" onchange="renderPlanResumen()" style="width:auto;padding:7px 12px;font-size:12px;"></select>
+							<select class="form-select plan-select" id="apPlan" onchange="renderPlanResumen()"></select>
 						</div>
-						<div id="apPlanResumen" style="font-size:12px;color:var(--text-muted);line-height:1.9;"></div>
+						<div id="apPlanResumen" class="plan-summary"></div>
 						<div id="apPlanAviso" style="display:none;margin-top:10px;padding:9px 11px;border-radius:var(--radius);background:var(--warn-dim);border:1px solid var(--warn);color:var(--warn);font-size:11px;line-height:1.6;"></div>
-						<div style="margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">
+						<div class="plan-note">
 							El plan se guarda con el botón del final de esta pestaña. Solo tú puedes cambiarlo:
 							el restaurante no lo ve ni lo puede tocar por su cuenta.
 						</div>
@@ -503,7 +503,7 @@
 							</div>
 						</label>
 						<div id="apLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-						<button type="button" id="apLogoDelBtn" onclick="eliminarImagen('logo')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar logo</button>
+						<button type="button" id="apLogoDelBtn" class="btn-remove-logo" onclick="eliminarImagen('logo')" style="display:none">🗑 Quitar logo</button>
 					</div>
 
 					<div class="section-card" id="apPortadaCard">
