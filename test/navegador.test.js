@@ -5052,7 +5052,7 @@ describe('el primer día de un restaurante', () => {
 
 		assert.match(html, /Foto del producto[\s\S]*?Agrégala ahora o después/);
 		assert.match(html, /Descripción del producto[\s\S]*?Se muestra cuando el cliente abre el producto/);
-		assert.match(html, /Descripción corta[\s\S]*?en las cartas de video es el texto principal/);
+		assert.match(html, /Subtítulo[\s\S]*?En las cartas de video es el texto principal/);
 
 		// 24/09/2026: pedido por el usuario, va debajo de la descripción del
 		// producto y no junto al precio, donde se puso al principio.

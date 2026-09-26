@@ -605,13 +605,15 @@ select.form-input{padding-right:42px;}
 #productModal .precio-fila{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
 #productModal .precio-fila .form-input{flex:0 1 50%;min-width:140px;}
 #productModal .precio-gratis{padding:0;gap:8px;font-size:12px;color:var(--text-muted);}
-/* La foto, con la proporción de la carta (16:9 o 9:16) pero como miniatura: no
-   hace falta verla grande para saber si hay una y cuál es, y una miniatura dejaba
-   más ficha visible sin desplazar. Object-fit pasa a contain porque a este
-   tamaño un recorte oculta justo la esquina que se quiere comprobar; el hueco
-   que deja se ve con "ampliar" (#btnAmpliarFoto), que sí enseña la foto entera. */
-#productModal .producto-foto .img-edit-wrap{width:auto;height:110px;aspect-ratio:16/9;margin:0 auto 6px;}
-#productModal .producto-foto .img-edit-wrap[data-formato="vertical"]{width:auto;height:150px;aspect-ratio:9/16;}
+/* La foto, con la proporción de la carta (16:9 o 9:16). Pedido el 26/09/2026:
+   esta es la pantalla con la que interactúan todos los clientes, y una foto
+   grande se revisa mejor que una miniatura. El ancho llena la ficha en
+   horizontal; en vertical manda la altura, o un 9:16 a lo ancho mediría vez y
+   media la pantalla. Object-fit sigue en contain: un recorte escondería
+   justo la esquina que se quiere comprobar, y "ampliar" (#btnAmpliarFoto)
+   sigue ahí para verla a pantalla completa. */
+#productModal .producto-foto .img-edit-wrap{width:100%;height:auto;aspect-ratio:16/9;margin:0 auto 10px;}
+#productModal .producto-foto .img-edit-wrap[data-formato="vertical"]{width:auto;height:320px;aspect-ratio:9/16;}
 #productModal .producto-foto .img-edit-preview{object-fit:contain;background:var(--bg);}
 /* z-index por encima de .img-edit-overlay: aunque esta llega después en el
    HTML y por eso queda encima por orden de pintado, cubre todo el recuadro
@@ -937,8 +939,9 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
   .content{padding:14px 12px 80px;}
   .form-row{grid-template-columns:1fr;}
   .img-edit-wrap{width:100%;}
-  /* La miniatura del plato (arriba) ya es compacta y a una altura fija: no
-     necesita ensancharse en móvil como el resto de img-edit-wrap. */
+  /* La foto del plato (arriba) ya llena el ancho en horizontal. En vertical
+     sigue mandando la altura fija (#productModal .producto-foto ... con más
+     especificidad que esta regla), así que no hay nada que ensanchar ahí. */
   .btn-edit { padding: 8px 14px; font-size: 12px; }
   /* Antes esta línea ENCOGÍA el botón de borrar en móvil (12 px de letra,
      28 × 26 de caja): al revés de lo que pide un dedo, y en el control
