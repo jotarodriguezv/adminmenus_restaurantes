@@ -5054,7 +5054,7 @@ describe('el primer día de un restaurante', () => {
 		const personas = html.slice(idxPersonas, idxDescCorta);
 		assert.match(personas, /id="editPersonas"/);
 
-		assert.match(html, /Imágenes adicionales <span>\(opcional · máx\. 4\)<\/span><\/summary>/);
+		assert.match(html, /Imágenes adicionales <span>\(opcional · máx\. 4\)<\/span>[\s\S]*?Se ven al abrir el producto en la carta[\s\S]*?<\/summary>/);
 		assert.doesNotMatch(html, /placeholder="22000"/);
 	});
 

@@ -1712,8 +1712,13 @@
 				<div class="modal-body">
 					<input type="hidden" id="editProductId">
 					<div class="form-group producto-foto tab-multimedia">
-						<label class="form-label" id="labelImagen">Foto del producto</label>
-						<div class="form-ayuda">Agrégala ahora o después. Una foto hace que tu carta se vea mejor.</div>
+						<div class="form-label-fila">
+							<label class="form-label" id="labelImagen">Foto del producto</label>
+							<span class="info-tip">
+								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Foto del producto" onclick="alternarInfoTip(event, this)">ⓘ</button>
+								<span class="info-tip-texto">Agrégala ahora o después. Una foto hace que tu carta se vea mejor.</span>
+							</span>
+						</div>
 						<div class="img-edit-wrap" id="zonaFotoPlato" onclick="document.getElementById('imgFileInput').click()">
 							<img id="imgEditPreview" class="img-edit-preview" src="" style="display:none">
 							<button type="button" id="btnAmpliarFoto" class="img-edit-ampliar" title="Ver foto en grande" style="display:none" onclick="event.stopPropagation(); ampliarFotoPlato()">🔍</button>
@@ -2000,8 +2005,13 @@
 						<select class="form-select" id="editCategoria" onchange="avisarNombreRepetido()"></select>
 					</div>
 					<div class="form-group producto-precio tab-general">
-						<label for="editPrecioNum" class="form-label">Precio</label>
-						<div class="form-ayuda">El formato se aplica solo, mientras escribes.</div>
+						<div class="form-label-fila">
+							<label for="editPrecioNum" class="form-label">Precio</label>
+							<span class="info-tip">
+								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Precio" onclick="alternarInfoTip(event, this)">ⓘ</button>
+								<span class="info-tip-texto">El formato se aplica solo, mientras escribes.</span>
+							</span>
+						</div>
 						<!-- Un número no necesita todo el ancho: a su lado, «gratis», que
 						     es la otra forma de contestar lo mismo.
 
@@ -2030,25 +2040,44 @@
 						<div id="precioAviso" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
 					</div>
 					<div class="form-group producto-descripcion tab-detalles">
-						<label for="editDesc" class="form-label">Descripción del producto <span style="color:var(--text-dim)">(opcional)</span></label>
-						<div class="form-ayuda">Se muestra cuando el cliente abre el producto.</div>
+						<div class="form-label-fila">
+							<label for="editDesc" class="form-label">Descripción del producto <span style="color:var(--text-dim)">(opcional)</span></label>
+							<span class="info-tip">
+								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Descripción del producto" onclick="alternarInfoTip(event, this)">ⓘ</button>
+								<span class="info-tip-texto">Se muestra cuando el cliente abre el producto.</span>
+							</span>
+						</div>
 						<textarea class="form-textarea" id="editDesc" oninput="contarCaracteres('editDesc','editDescContador')"></textarea>
 						<div class="form-contador" id="editDescContador">0 caracteres</div>
 					</div>
 					<div class="form-group producto-personas tab-detalles">
-						<label for="editPersonas" class="form-label">Porciones <span style="color:var(--text-dim)">(opcional)</span></label>
-						<div class="form-ayuda">Puedes escribir para cuántas personas alcanza este producto, con el fin de que lo sepan con exactitud. Si se enseña en la pantalla de TV se activa en esa pestaña, para toda la carta a la vez.</div>
+						<div class="form-label-fila">
+							<label for="editPersonas" class="form-label">Porciones <span style="color:var(--text-dim)">(opcional)</span></label>
+							<span class="info-tip">
+								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Porciones" onclick="alternarInfoTip(event, this)">ⓘ</button>
+								<span class="info-tip-texto">Puedes escribir para cuántas personas alcanza este producto, con el fin de que lo sepan con exactitud. Si se enseña en la pantalla de TV se activa en esa pestaña, para toda la carta a la vez.</span>
+							</span>
+						</div>
 						<input type="number" class="form-input" id="editPersonas" min="1" step="1" style="max-width:120px">
 					</div>
 					<div class="form-group producto-descripcion-corta tab-detalles">
-						<label for="editDescAvanzada" class="form-label">Descripción corta <span style="color:var(--text-dim)">(opcional)</span></label>
-						<div class="form-ayuda">Se muestra debajo del nombre; en las cartas de video es el texto principal.</div>
+						<div class="form-label-fila">
+							<label for="editDescAvanzada" class="form-label">Descripción corta <span style="color:var(--text-dim)">(opcional)</span></label>
+							<span class="info-tip">
+								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Descripción corta" onclick="alternarInfoTip(event, this)">ⓘ</button>
+								<span class="info-tip-texto">Se muestra debajo del nombre; en las cartas de video es el texto principal.</span>
+							</span>
+						</div>
 						<input type="text" class="form-input" id="editDescAvanzada" oninput="contarCaracteres('editDescAvanzada','editDescAvanzadaContador')">
 						<div class="form-contador" id="editDescAvanzadaContador">0 caracteres</div>
 					</div>
 					<details class="form-group producto-imagenes-adicionales tab-multimedia" id="extraImgsGroup">
-						<summary>Imágenes adicionales <span>(opcional · máx. 4)</span></summary>
-						<div class="form-ayuda">Se ven al abrir el producto en la carta.</div>
+						<summary>Imágenes adicionales <span>(opcional · máx. 4)</span>
+							<span class="info-tip">
+								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Imágenes adicionales" onclick="alternarInfoTip(event, this)">ⓘ</button>
+								<span class="info-tip-texto">Se ven al abrir el producto en la carta.</span>
+							</span>
+						</summary>
 						<div class="img-gallery" id="extraImgsList"></div>
 						<div class="pista-arrastre" style="margin-top:6px;font-size:11px;color:var(--text-muted)">También puedes arrastrar las imágenes aquí</div>
 						<input type="file" id="extraImgFileInput" accept="image/*" style="display:none" data-zona="extraImgsGroup" onchange="handleExtraImgUpload(this)">
@@ -6300,6 +6329,42 @@ function vigilarSelectorEmoji() {
   });
 }
 
+// ── TOOLTIPS DE AYUDA ("ⓘ") ────────────────────────────────────
+// Pedido el 25/09/2026: la ficha de producto tenía un texto de ayuda siempre
+// visible bajo varios campos, y para quien ya conoce el panel es ruido
+// permanente. Solo se cambiaron los puramente explicativos —qué hace un
+// campo, dónde se ve—; un aviso que de verdad importa (perder algo, revisar
+// un video antes de publicarlo) sigue fijo y con su color, nunca escondido
+// detrás de un clic.
+//
+// Un único ⓘ abierto a la vez, como los desplegables de siempre del panel:
+// abrir uno cierra cualquier otro. preventDefault() además de stopPropagation()
+// porque uno de los seis vive dentro de un <summary> (Imágenes adicionales) y
+// sin eso el clic también abriría o cerraría ese <details>.
+function alternarInfoTip(e, boton) {
+  e.preventDefault();
+  e.stopPropagation();
+  const cont = boton.parentElement;
+  const abierto = cont.classList.contains('abierto');
+  cerrarInfoTips();
+  if (!abierto) cont.classList.add('abierto');
+}
+
+// Devuelve si de verdad había alguno abierto, para que Escape sepa si ya
+// resolvió algo o tiene que seguir mirando las demás ventanas.
+function cerrarInfoTips() {
+  const abiertos = document.querySelectorAll('.info-tip.abierto');
+  abiertos.forEach(el => el.classList.remove('abierto'));
+  return abiertos.length > 0;
+}
+
+// Un clic en cualquier otro sitio los cierra. Registrado en ARRANQUE, igual
+// que vigilarSelectorEmoji(): un addEventListener suelto entre declaraciones
+// se ejecuta al cargar el script, no al arrancar (ver el comentario de ahí).
+function vigilarInfoTips() {
+  document.addEventListener('click', () => cerrarInfoTips());
+}
+
 function openNewCatModal() {
   cerrarSelectorEmoji();
   pintarErroresEnCampos([], CAMPOS_CATEGORIA);
@@ -7798,6 +7863,7 @@ document.addEventListener('keydown',e=>{
   const abierto = id => document.getElementById(id)?.classList.contains('open');
   // La primera: se abre encima de las demás, y Escape es «no», no cerrar todo.
   if(cerrarSelectorEmoji()) return;
+  if(cerrarInfoTips()) return;
   if(hayPreguntaAbierta()) return responderPregunta(false);
   if(hayEncuadreAbierto()) return responderEncuadre(false);
   if(document.getElementById('capaImpresion')) return cerrarImpresionEnElPanel();
@@ -8626,6 +8692,7 @@ vigilarErrores(CAMPOS_METODOS_PAGO);
 vigilarMenusMas();
 vigilarSesion();
 vigilarSelectorEmoji();
+vigilarInfoTips();
 
 if(token && state.rol && state.restauranteSlug) {
   if(state.rol==='admin' && !sessionStorage.getItem('menuAdminEditingResto')) {

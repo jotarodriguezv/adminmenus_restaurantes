@@ -489,6 +489,26 @@ select.form-input{padding-right:42px;}
   line-height:1;padding:6px 0;cursor:pointer;}
 .emoji-picker button:hover{background:var(--card);}
 
+/* Los "ⓘ" de ayuda de la ficha de producto (25/09/2026), en vez de un texto
+   siempre visible bajo cada campo. Solo se cambiaron los puramente
+   explicativos —qué hace un campo, dónde se ve—; los avisos de verdad, como
+   el de revisar un video generado por IA antes de publicarlo, siguen fijos y
+   con su color: esto no es para eso. Ver alternarInfoTip() en index.html. */
+.form-label-fila{display:flex;align-items:center;gap:6px;margin-bottom:7px;flex-wrap:wrap;}
+.form-label-fila .form-label{margin-bottom:0;}
+.info-tip{position:relative;display:inline-flex;}
+.info-tip-boton{width:14px;height:14px;border-radius:50%;border:1px solid var(--text-dim);
+  background:transparent;color:var(--text-dim);font-size:10px;line-height:1;padding:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  font-family:var(--sans);text-transform:none;letter-spacing:0;}
+.info-tip-boton:hover,.info-tip-boton:focus-visible{border-color:var(--accent);color:var(--accent);}
+.info-tip-texto{display:none;position:absolute;top:100%;left:0;margin-top:6px;z-index:5;
+  width:min(220px,70vw);padding:8px 10px;background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,.4);
+  font-size:11px;line-height:1.5;color:var(--text-muted);font-family:var(--sans);
+  text-transform:none;letter-spacing:0;}
+.info-tip.abierto .info-tip-texto{display:block;}
+
 /* El alta de un destacado no abre el explorador de archivos de inmediato:
    primero deja elegir entre una imagen propia y un plato que ya existe. */
 .destacado-modal-box{max-width:560px;}
@@ -581,7 +601,8 @@ select.form-input{padding-right:42px;}
 .video-camino-detalle{font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--text-muted);}
 .video-nuevo{border:1px dashed var(--border2);border-radius:8px;padding:12px;font-size:12px;line-height:1.6;color:var(--text-muted);}
 .producto-imagenes-adicionales{border-top:1px solid var(--border);padding-top:14px;}
-.producto-imagenes-adicionales summary{cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
+.producto-imagenes-adicionales summary{cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:1px;
+  text-transform:uppercase;color:var(--text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .producto-imagenes-adicionales summary span{color:var(--text-dim);font-family:var(--sans);font-size:11px;letter-spacing:0;text-transform:none;}
 .producto-imagenes-adicionales[open] summary{margin-bottom:10px;color:var(--text);}
 
