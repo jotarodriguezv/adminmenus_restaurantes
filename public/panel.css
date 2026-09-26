@@ -785,6 +785,18 @@ select.form-input{padding-right:42px;}
    cuando no caben, en vez de llevarse la fila entera hacia abajo. */
 .resto-card-actions{display:flex;flex-wrap:wrap;align-items:center;
   justify-content:flex-end;gap:8px;flex:0 1 auto;min-width:0;}
+/* Acciones diarias de cada restaurante: comparten la misma lectura rápida que
+   los controles de Inicio. Verde comunica avance/confirmación; los secundarios
+   conservan contraste sin competir con la edición. */
+.resto-action{min-height:34px;border-radius:999px;font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:.35px;text-transform:uppercase;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease,color .2s ease;}
+.resto-action-edit{border-color:#1ba765!important;background:#159957!important;color:#fff!important;box-shadow:0 4px 12px rgba(21,153,87,.22);}
+.resto-action-view,.resto-action-more{border-color:#73502e!important;background:rgba(255,255,255,.04);color:#fff!important;}
+.resto-action-paid{border-color:#1ba765!important;background:rgba(21,153,87,.14);color:#fff!important;}
+.resto-card-actions .resto-action:hover{transform:translateY(-2px);box-shadow:0 7px 16px rgba(0,0,0,.24);}
+.resto-card-actions .resto-action-edit:hover{background:#1aad66!important;box-shadow:0 8px 18px rgba(21,153,87,.32);}
+.resto-card-actions .resto-action-paid:hover{background:#159957;color:#fff;}
+.resto-mas[open]>.resto-action-more{border-color:var(--accent)!important;background:var(--accent-dim);color:var(--accent-texto)!important;}
+.resto-card-actions .resto-action:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 /* S6: lo que se usa de mes en mes va dentro de «⋯ Más». El menú flota sobre la
    tarjeta de abajo en vez de empujarla: abrirlo no debe mover la lista. */
 .resto-mas{position:relative;}
