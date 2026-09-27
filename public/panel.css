@@ -1101,26 +1101,52 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 .encuadre-marco:focus-visible{border-color:var(--accent);}
 
 /* ── Bandeja de solicitudes de alta (bandeja-solicitudes.js) ── */
-#solicitudesPanel .resto-filtros-fila{margin:2px 0 12px;}
+#solicitudesPanel{border-color:#7252bb;background:linear-gradient(135deg,rgba(113,77,193,.18),transparent 38%),var(--panel);}
+#solicitudesPanel .section-title{border-color:#9d78f1;background:rgba(126,85,212,.2);color:#e3d8ff;}
+#solicitudesPanel .resto-filtros-fila{margin:2px 0 14px;padding:10px;border:1px solid rgba(139,101,222,.35);border-radius:12px;background:rgba(77,50,133,.13);}
+#solicitudesFiltros .solicitud-filter{padding:7px 12px;border-color:rgba(173,146,239,.42);color:var(--text-muted);font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.2px;}
+#solicitudesFiltros .solicitud-filter:hover{border-color:#b89aff;color:#fff;background:rgba(139,101,222,.2);}
+#solicitudesFiltros .solicitud-filter.active{border-color:#9b72f3;background:#7150bb;color:#fff;box-shadow:0 4px 12px rgba(93,60,166,.3);}
 /* [hidden] explícito: el display:flex de abajo le ganaría al atributo. */
 .solicitudes-lote[hidden]{display:none;}
 .solicitudes-lote{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;
-  font-family:var(--mono);font-size:11px;color:var(--text-muted);}
-.solicitud-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);
-  padding:14px 16px;margin-bottom:10px;display:grid;gap:6px;}
+  padding:10px 12px;border:1px solid rgba(239,83,80,.4);border-radius:10px;background:rgba(183,38,43,.1);font-family:var(--sans);font-size:11px;font-weight:700;color:var(--text-muted);}
+.solicitudes-lote .btn-sm{border-radius:8px;font-family:var(--sans);font-weight:800;}
+.solicitud-card{position:relative;overflow:hidden;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:16px;margin-bottom:10px;display:grid;gap:8px;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;}
+.solicitud-card::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:var(--border2);}
+.solicitud-card.solicitud-nueva{border-color:#8760dd;background:linear-gradient(105deg,rgba(124,82,218,.16),transparent 48%),var(--panel);box-shadow:0 8px 20px rgba(65,37,128,.13);}
+.solicitud-card.solicitud-nueva::before{background:#9b72f3;}
+.solicitud-card.solicitud-contactada{border-color:#3b82c4;background:linear-gradient(105deg,rgba(47,122,193,.13),transparent 48%),var(--panel);}
+.solicitud-card.solicitud-contactada::before{background:#4e9ee8;}
+.solicitud-card.solicitud-aprobada{opacity:.82;border-color:rgba(27,167,101,.5);}
+.solicitud-card.solicitud-aprobada::before{background:var(--success);}
+.solicitud-card.solicitud-descartada{opacity:.68;border-color:rgba(239,83,80,.42);}
+.solicitud-card.solicitud-descartada::before{background:var(--danger);}
+.solicitud-card:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(0,0,0,.17);}
 .solicitud-cabeza{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .solicitud-cabeza input[type="checkbox"]{width:18px;height:18px;flex:0 0 auto;}
-.solicitud-negocio{font-size:15px;font-weight:600;color:var(--text);overflow-wrap:anywhere;}
-.solicitud-estado{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
-  padding:3px 8px;border-radius:5px;border:1px solid var(--border);color:var(--text-muted);}
-.solicitud-estado.estado-nueva{border-color:var(--accent);color:var(--accent);}
-.solicitud-estado.estado-aprobada{border-color:var(--success);color:var(--success);}
+.solicitud-negocio{font-family:var(--sans);font-size:15px;font-weight:800;color:var(--text);overflow-wrap:anywhere;}
+.solicitud-estado{padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--text-muted);font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:.55px;text-transform:uppercase;}
+.solicitud-estado.estado-nueva{border-color:#9b72f3;background:#7150bb;color:#fff;box-shadow:0 3px 10px rgba(93,60,166,.28);}
+.solicitud-estado.estado-contactada{border-color:#4e9ee8;background:#236bb0;color:#fff;}
+.solicitud-estado.estado-aprobada{border-color:#1ba765;background:#159957;color:#fff;}
+.solicitud-estado.estado-descartada{border-color:#c65b58;background:#773631;color:#fff;}
 .solicitud-datos{font-size:12px;color:var(--text-muted);overflow-wrap:anywhere;}
 /* Las notas conservan los saltos de línea que escribió la persona. */
 .solicitud-notas{font-size:12px;color:var(--text);white-space:pre-line;overflow-wrap:anywhere;
   background:var(--card);border-radius:6px;padding:8px 10px;}
-.solicitud-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px;}
-.solicitud-creado{font-family:var(--mono);font-size:11px;color:var(--success);}
+.solicitud-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px;padding-top:10px;border-top:1px solid var(--border);}
+.solicitud-action{min-height:34px;border-radius:999px;font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:.25px;text-transform:uppercase;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease;}
+.solicitud-action:hover{transform:translateY(-2px);box-shadow:0 7px 15px rgba(0,0,0,.22);}
+.solicitud-action-whatsapp{border-color:#38b86e!important;background:rgba(37,211,102,.12);color:#fff!important;text-decoration:none;}
+.solicitud-action-contact{border-color:#4e9ee8!important;background:rgba(47,122,193,.16);color:#dceeff!important;}
+.solicitud-action-approve{border-color:#1ba765!important;background:#159957!important;color:#fff!important;box-shadow:0 4px 12px rgba(21,153,87,.24);}
+.solicitud-action-approve:hover{background:#1aad66!important;}
+.solicitud-action-discard{border-color:#ef5350!important;background:#b7262b!important;color:#fff!important;}
+.solicitud-action-discard:hover{background:#d6383d!important;}
+.solicitud-action-recover{border-color:#9b72f3!important;background:rgba(113,80,187,.18);color:#e6dcff!important;}
+.solicitud-creado{font-family:var(--sans);font-size:11px;font-weight:800;color:var(--success);}
 
 /* ── Paletas de colores (Superadmin → Colores). Ver public/paletas.js. ── */
 .paletas{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin:6px 0 16px;}

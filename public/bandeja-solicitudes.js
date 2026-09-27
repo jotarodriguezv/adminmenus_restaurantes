@@ -76,7 +76,7 @@ function pintarSolicitudes() {
 
   const filtros = document.getElementById('solicitudesFiltros');
   filtros.replaceChildren(...FILTROS_SOLICITUDES.map(([id, nombre]) => {
-    const b = nodoSolicitud('button', 'cat-chip' + (filtroSolicitudes === id ? ' active' : ''), nombre);
+    const b = nodoSolicitud('button', 'cat-chip solicitud-filter' + (filtroSolicitudes === id ? ' active' : ''), nombre);
     b.type = 'button';
     b.setAttribute('aria-pressed', String(filtroSolicitudes === id));
     b.onclick = () => { filtroSolicitudes = id; seleccionSolicitudes.clear(); pintarSolicitudes(); };
@@ -98,7 +98,7 @@ function pintarSolicitudes() {
 }
 
 function tarjetaSolicitud(s) {
-  const t = nodoSolicitud('div', 'solicitud-card');
+  const t = nodoSolicitud('div', `solicitud-card solicitud-${s.estado || 'nueva'}`);
   const abierta = s.estado === 'nueva' || s.estado === 'contactada';
 
   const cabeza = nodoSolicitud('div', 'solicitud-cabeza');
@@ -127,28 +127,28 @@ function tarjetaSolicitud(s) {
   // El número se valida al guardar (solo dígitos), así que el enlace no puede
   // llevar otra cosa.
   if (/^[0-9]{8,15}$/.test(s.whatsapp)) {
-    const wa = nodoSolicitud('a', 'btn-sm', `WhatsApp +${s.whatsapp}`);
+    const wa = nodoSolicitud('a', 'btn-sm solicitud-action solicitud-action-whatsapp', `WhatsApp +${s.whatsapp}`);
     wa.href = `https://wa.me/${s.whatsapp}`;
     wa.target = '_blank';
     wa.rel = 'noopener noreferrer';
     acciones.append(wa);
   }
-  if (s.estado === 'nueva') acciones.append(botonSolicitud('Marcar contactada', () => cambiarEstadoSolicitud(s, 'contactada')));
+  if (s.estado === 'nueva') acciones.append(botonSolicitud('Marcar contactada', () => cambiarEstadoSolicitud(s, 'contactada'), 'solicitud-action solicitud-action-contact'));
   if (abierta) {
-    acciones.append(botonSolicitud('Aprobar y crear', () => aprobarSolicitud(s), 'accent'));
-    acciones.append(botonSolicitud('Descartar', () => descartarSolicitud(s), 'danger'));
+    acciones.append(botonSolicitud('Aprobar y crear', () => aprobarSolicitud(s), 'solicitud-action solicitud-action-approve'));
+    acciones.append(botonSolicitud('Descartar', () => descartarSolicitud(s), 'solicitud-action solicitud-action-discard'));
   }
   if (s.estado === 'aprobada' && s.restaurante_id) {
     const r = (state.listaRestos || []).find(x => x.id === s.restaurante_id);
     acciones.append(nodoSolicitud('span', 'solicitud-creado', `✓ Creado${r ? `: ${r.nombre}` : ''}`));
   }
-  if (s.estado === 'descartada') acciones.append(botonSolicitud('Recuperar', () => cambiarEstadoSolicitud(s, 'nueva')));
+  if (s.estado === 'descartada') acciones.append(botonSolicitud('Recuperar', () => cambiarEstadoSolicitud(s, 'nueva'), 'solicitud-action solicitud-action-recover'));
   t.append(acciones);
   return t;
 }
 
-function botonSolicitud(texto, accion, variante) {
-  const b = nodoSolicitud('button', 'btn-sm' + (variante ? ` ${variante}` : ''), texto);
+function botonSolicitud(texto, accion, clase = '') {
+  const b = nodoSolicitud('button', `btn-sm ${clase}`.trim(), texto);
   b.type = 'button';
   b.onclick = accion;
   return b;
