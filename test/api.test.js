@@ -1970,6 +1970,51 @@ describe('redes sociales · las edita el restaurante, con validación', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('el logo · lo sube el restaurante, con validación', () => {
+	// 26/09/2026: primer paso de abrir Apariencia al restaurante "poco a poco"
+	// (CLAUDE.md, «Decisión: abrir partes de Apariencia al restaurante»). No es
+	// una clave de 'atributos' como las redes: es su propia columna, así que
+	// viaja suelta en el cuerpo del PATCH, no dentro de 'atributos'.
+	const guardar = (body, token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { nav: 'topnav' } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, body, token);
+	};
+
+	test('el restaurante puede guardar su logo', async () => {
+		const r = await guardar({ logo_url: 'https://admin.example.com/uploads/logos/nuevo.png' });
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').logo_url, 'https://admin.example.com/uploads/logos/nuevo.png');
+	});
+
+	test('quitar el logo (null) también vale', async () => {
+		const r = await guardar({ logo_url: null });
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').logo_url, null);
+	});
+
+	test('un valor que no es una URL completa se rechaza', async () => {
+		const r = await guardar({ logo_url: 'javascript:alert(1)' });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /logo/i);
+		assert.equal(S.ultimaEscritura('restaurantes'), null, 'no se escribe nada');
+	});
+
+	test('la validación también frena al superadmin', async () => {
+		const r = await guardar({ logo_url: 'sin-protocolo.png' }, tokenAdmin);
+		assert.equal(r.status, 400);
+	});
+
+	test('subir el logo no abre nada más: el resto sigue fuera del cliente', async () => {
+		await guardar({ logo_url: 'https://x/y.png', nombre: 'Hackeado', color_primario: '#fff', atributos: { css_custom: 'body{}' } });
+		assert.equal(S.ultimaEscritura('restaurantes').logo_url, 'https://x/y.png');
+		assert.equal(S.ultimaEscritura('restaurantes').nombre, undefined, 'el nombre no lo cambia el restaurante');
+		assert.equal(S.ultimaEscritura('restaurantes').color_primario, undefined);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos?.css_custom, undefined);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('filtros y etiquetas · los elige el restaurante, con validación', () => {
 	// 15/09/2026, con las redes: pasan de Apariencia a Ajustes. Lo que llega se
 	// deja en la forma que la carta sabe usar, lo mande quien lo mande.

@@ -494,22 +494,9 @@
 						</div>
 					</div>
 
-					<div class="section-card">
-						<div class="section-title">Logo</div>
-						<div style="margin-bottom:12px;">
-							<img id="apLogoPreview" class="promo-img-preview" src="" style="display:none">
-							<span id="apLogoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin logo configurado</span>
-						</div>
-						<label class="upload-zone">
-							<input type="file" accept="image/*" onchange="handleLogoUpload(this)">
-							<div class="upload-zone-text">
-								<span>Haz clic para subir</span> el logo<span class="pista-arrastre"> o arrástralo aquí</span><br>
-								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · idealmente cuadrado y con fondo transparente</span>
-							</div>
-						</label>
-						<div id="apLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-						<button type="button" id="apLogoDelBtn" class="btn-remove-logo" onclick="eliminarImagen('logo')" style="display:none">🗑 Quitar logo</button>
-					</div>
+					<!-- El logo se mudó a Ajustes el 26/09/2026: primer paso de abrir
+					     Apariencia al cliente "poco a poco" (CLAUDE.md). Ver
+					     public/ajustes.js, pintarLogoAjustes()/handleLogoUpload(). -->
 
 					<div class="section-card" id="apPortadaCard">
 						<div class="section-header">
@@ -1476,6 +1463,28 @@
 							<input type="tel" class="form-input" id="ajSocialWhatsapp" placeholder="573001234567" autocomplete="off">
 						</div>
 					</div>
+
+					<!-- El logo, desde el 26/09/2026: primer paso de abrir Apariencia al
+					     restaurante "poco a poco" (CLAUDE.md, «Decisión: abrir partes de
+					     Apariencia al restaurante»). Antes vivía en Apariencia, solo para
+					     el superadmin. Al final, como el aspecto en Apariencia. -->
+					<div class="section-card">
+						<div class="section-title">Logo</div>
+						<div style="margin-bottom:12px;">
+							<img id="ajLogoPreview" class="promo-img-preview" src="" style="display:none">
+							<span id="ajLogoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin logo configurado</span>
+						</div>
+						<label class="upload-zone">
+							<input type="file" accept="image/*" onchange="handleLogoUpload(this)">
+							<div class="upload-zone-text">
+								<span>Haz clic para subir</span> el logo<span class="pista-arrastre"> o arrástralo aquí</span><br>
+								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · idealmente cuadrado y con fondo transparente</span>
+							</div>
+						</label>
+						<div id="ajLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						<button type="button" id="ajLogoDelBtn" class="btn-remove-logo" onclick="eliminarImagen('logo')" style="display:none">🗑 Quitar logo</button>
+					</div>
+
 					<div style="text-align:right;">
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveAjustes()">Guardar ajustes</button>
 					</div>
@@ -7187,7 +7196,7 @@ function pintarImagenesApariencia() {
     else { p.style.display = 'none'; n.style.display = 'block'; }
     document.getElementById(borrar).style.display = url ? 'inline-block' : 'none';
   };
-  pinta(r.logo_url, 'apLogoPreview', 'apLogoNone', 'apLogoDelBtn');
+  // El logo ya no se pinta aquí: se mudó a Ajustes (pintarLogoAjustes()).
   pinta(r.fondo_url, 'apFondoPreview', 'apFondoNone', 'apFondoDelBtn');
   pinta(at.portada_url, 'apPortadaPreview', 'apPortadaNone', 'apPortadaDelBtn');
 }
@@ -7351,28 +7360,9 @@ function renderApariencia() {
   marcarPendientes();
 }
 
-async function handleLogoUpload(input) {
-  const file = input.files[0]; if (!file) return;
-  const st = document.getElementById('apLogoUploadStatus');
-  st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
-  try {
-    // El único que conserva PNG: un logo con fondo transparente es lo normal.
-    // quitarFondo intenta reconocer un fondo de color sólido y volverlo
-    // transparente cuando el archivo no trae transparencia real (ver el
-    // comentario de quitarFondoDelLogo).
-    const blob = await compressImage(file, 500, .9, { conservarTransparencia: true, quitarFondo: true });
-    const url = await uploadImg(blob, 'logos');
-    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: url });
-    state.restaurante.logo_url = url; pintarImagenesApariencia();
-    // Aparece «De tu logo» en Colores, con los colores del logo nuevo.
-    renderPaletas();
-    st.textContent = blob.fondoAutoQuitado
-      ? '✓ Logo actualizado · le quitamos el fondo automáticamente. Revísalo: si el resultado no queda bien, sube uno con fondo transparente'
-      : '✓ Logo actualizado · en «Colores» tienes una paleta con sus colores';
-    st.style.color = 'var(--success)';
-    avisarGuardadoConCarta('Logo guardado');
-  } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
-}
+// handleLogoUpload se mudó a public/ajustes.js el 26/09/2026, junto con su
+// tarjeta. renderPaletas() (Colores, en esta pestaña) se sigue avisando sola:
+// lee state.restaurante.logo_url cuando se abre Apariencia, venga de donde venga.
 
 async function handleFondoUpload(input) {
   const file = input.files[0]; if (!file) return;
@@ -7431,7 +7421,9 @@ async function eliminarImagen(tipo) {
         { atributos: { portada_url: null, portada_activa: false } });
       if (data) state.restaurante = data;
     }
-    pintarImagenesApariencia();
+    // El logo se pinta en Ajustes desde el 26/09/2026; fondo y portada, aquí.
+    if (tipo === 'logo') pintarLogoAjustes();
+    else pintarImagenesApariencia();
     if (tipo === 'portada') sincronizarPortadaActiva();
     avisarGuardadoConCarta('Imagen eliminada');
   } catch (e) { showToast('Error al eliminar: ' + e.message, 'error'); }

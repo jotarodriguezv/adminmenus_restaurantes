@@ -754,7 +754,13 @@ app.patch('/api/mi-pin', auth, async (req, res) => {
 // necesita chequeo de plan — sin la clave 'atributos.tv', que sí lo tiene,
 // tv.html ni siquiera construye pantallas, así que solas no encienden nada.
 const CAMPOS_RESTAURANTE_ADMIN   = ['promo_activa', 'promo_imagen_url', 'promo_nombre', 'promo_precio', 'promo_en_tv', 'promo_cada', 'color_primario', 'color_secundario', 'nombre', 'slug', 'logo_url', 'fondo_url', 'activo', 'atributos'];
-const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_nombre', 'promo_precio', 'promo_en_tv', 'promo_cada', 'atributos'];
+// 'logo_url' entró el 26/09/2026: primer paso de abrir Apariencia al cliente
+// "poco a poco" (CLAUDE.md, «Decisión: abrir partes de Apariencia al
+// restaurante»). Antes solo lo tocaba el superadmin, en Apariencia; ahora vive
+// en Ajustes (public/ajustes.js) y ya no se pinta en Apariencia. Sigue
+// viajando fuera de 'atributos' porque es una columna propia de la tabla, no
+// una clave del JSON — por eso está aquí y no en ATRIBUTOS_CLIENTE_PERMITIDOS.
+const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_nombre', 'promo_precio', 'promo_en_tv', 'promo_cada', 'atributos', 'logo_url'];
 // Dentro de "atributos" (JSON libre), el cliente solo puede tocar estas claves
 // (toppings, WhatsApp de pedidos, métodos de pago y diseño del QR). nav,
 // fuentes, redes, css_custom, etc. quedan fuera.
@@ -806,6 +812,19 @@ function validarFiltros(atributos) {
     limpios.push({ id, label, emoji });
   }
   atributos.filtros_disponibles = limpios;
+  return null;
+}
+
+// ── IMÁGENES (logo, fondo…) ───────────────────────────────────
+// Comparte criterio con validarRedes: tiene que ser una URL completa. No es
+// una defensa contra XSS —vmenus-app ya escapa con core/html.js al pintarla—,
+// es evitar guardar un valor que no sirve para nada como imagen.
+function validarUrlImagen(valor, nombre) {
+  if (valor == null || valor === '') return null;
+  let url;
+  try { url = new URL(String(valor)); } catch { url = null; }
+  if (!url || !['http:', 'https:'].includes(url.protocol))
+    return `${nombre} tiene que ser una dirección completa, empezando por https://`;
   return null;
 }
 
@@ -988,6 +1007,11 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     if (malSlug) return res.status(400).json({ error: malSlug });
     const { data: choque } = await supabase.from('restaurantes').select('id').eq('slug', body.slug).neq('id', req.params.id).maybeSingle();
     if (choque) return res.status(409).json({ error: 'Ese slug ya está en uso por otro restaurante' });
+  }
+
+  if ('logo_url' in body) {
+    const errorLogo = validarUrlImagen(body.logo_url, 'El logo');
+    if (errorLogo) return res.status(400).json({ error: errorLogo });
   }
 
   // ── 'atributos' SE FUNDE, NO SE REEMPLAZA ───────────────────
