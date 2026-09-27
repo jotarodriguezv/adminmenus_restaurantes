@@ -36,6 +36,7 @@ const REDES_CAMPOS = {
 
 function renderAjustes() {
   const at = state.restaurante?.atributos || {};
+  pintarLogoAjustes();
   document.getElementById('ajSocialBar').checked = !!at.social_bar;
   for (const [clave, id] of Object.entries(REDES_CAMPOS))
     document.getElementById(id).value = at[clave] || '';
@@ -173,6 +174,53 @@ async function saveAjustes() {
     st.textContent = e.message; st.style.color = 'var(--danger)';
     showToast(e.message, 'error');
   }
+}
+
+// ── LOGO ──────────────────────────────────────────────────────
+// Se mudó de Apariencia a Ajustes el 26/09/2026: primer paso de abrir
+// Apariencia al restaurante "poco a poco" (CLAUDE.md, «Decisión: abrir partes
+// de Apariencia al restaurante»). El servidor ya lo permite desde este mismo
+// día (CAMPOS_RESTAURANTE_CLIENTE, en server.js).
+//
+// compressImage, uploadImg, apiFetch, eliminarImagen y avisarGuardadoConCarta
+// viven en el script principal (index.html): esta pestaña se carga antes,
+// pero las llama solo dentro de manejadores que se disparan después de que
+// todo terminó de cargar, así que el orden no es un problema — la misma razón
+// por la que ajustes.js puede llamar funciones de comun.js sin importar cuál
+// se carga primero.
+function pintarLogoAjustes() {
+  const url = state.restaurante?.logo_url;
+  const prev = document.getElementById('ajLogoPreview');
+  const none = document.getElementById('ajLogoNone');
+  const borrar = document.getElementById('ajLogoDelBtn');
+  if (!prev || !none || !borrar) return;   // pestaña Ajustes no está en el DOM (pruebas parciales)
+  if (url) { prev.src = url; prev.style.display = 'block'; none.style.display = 'none'; }
+  else { prev.style.display = 'none'; none.style.display = 'block'; }
+  borrar.style.display = url ? 'inline-block' : 'none';
+}
+
+async function handleLogoUpload(input) {
+  const file = input.files[0]; if (!file) return;
+  const st = document.getElementById('ajLogoUploadStatus');
+  st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
+  try {
+    // El único que conserva PNG: un logo con fondo transparente es lo normal.
+    // quitarFondo intenta reconocer un fondo de color sólido y volverlo
+    // transparente cuando el archivo no trae transparencia real (ver el
+    // comentario de quitarFondoDelLogo, en index.html).
+    const blob = await compressImage(file, 500, .9, { conservarTransparencia: true, quitarFondo: true });
+    const url = await uploadImg(blob, 'logos');
+    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: url });
+    state.restaurante.logo_url = url; pintarLogoAjustes();
+    // Aparece «De tu logo» en Colores (Apariencia), con los colores del logo
+    // nuevo. Sigue siendo del superadmin por ahora — solo el logo se abrió.
+    renderPaletas();
+    st.textContent = blob.fondoAutoQuitado
+      ? '✓ Logo actualizado · le quitamos el fondo automáticamente. Revísalo: si el resultado no queda bien, sube uno con fondo transparente'
+      : '✓ Logo actualizado';
+    st.style.color = 'var(--success)';
+    avisarGuardadoConCarta('Logo guardado');
+  } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
 
 // ── BUSCADOR DE PLATOS ────────────────────────────────────────

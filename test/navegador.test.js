@@ -4807,15 +4807,17 @@ describe('Apariencia no pierde cambios en silencio', () => {
 	});
 
 	test('pintar las imágenes no toca ningún campo del formulario', () => {
-		// Antes subir el logo llamaba a renderApariencia, que rellenaba todos los
+		// Antes subir el fondo llamaba a renderApariencia, que rellenaba todos los
 		// campos desde lo guardado y se llevaba por delante lo que no se guardó.
+		// El logo se probó aquí hasta el 26/09/2026: se mudó a Ajustes con su
+		// propia pintarLogoAjustes(), ver «el logo se configura en Ajustes» más abajo.
 		const { ctx, $, estado } = montar();
 		$('apColor1').value = '#00ff00';   // cambio sin guardar
-		estado.restaurante = { logo_url: '/uploads/logos/x.webp', atributos: {} };
+		estado.restaurante = { fondo_url: '/uploads/fondos/x.webp', atributos: {} };
 		ctx.pintarImagenesApariencia();
 		assert.equal($('apColor1').value, '#00ff00', 'se perdió el color sin guardar');
-		assert.equal($('apLogoPreview').src, '/uploads/logos/x.webp');
-		assert.equal($('apLogoDelBtn').style.display, 'inline-block');
+		assert.equal($('apFondoPreview').src, '/uploads/fondos/x.webp');
+		assert.equal($('apFondoDelBtn').style.display, 'inline-block');
 	});
 
 	test('subir la portada la enciende sin inventar un cambio pendiente', () => {
@@ -4829,14 +4831,66 @@ describe('Apariencia no pierde cambios en silencio', () => {
 		assert.equal(ctx.hayCambiosApariencia(), false);
 	});
 
-	test('los cuatro manejadores de imagen ya no reinician el formulario', () => {
+	test('los tres manejadores de imagen de Apariencia ya no reinician el formulario', () => {
+		// handleLogoUpload se mudó a Ajustes el 26/09/2026 — ver «el logo se
+		// configura en Ajustes» más abajo, que comprueba lo mismo allí.
 		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
-		for (const f of ['handleLogoUpload', 'handleFondoUpload', 'handlePortadaUpload', 'eliminarImagen']) {
+		for (const f of ['handleFondoUpload', 'handlePortadaUpload', 'eliminarImagen']) {
 			const cuerpo = src.match(new RegExp(`async function ${f}\\([\\s\\S]*?\\n\\}`));
 			assert.ok(cuerpo, `no se encontró ${f}`);
 			assert.doesNotMatch(cuerpo[0], /renderApariencia\(\)/, `${f} vuelve a llamar a renderApariencia`);
-			assert.match(cuerpo[0], /pintarImagenesApariencia\(\)/, `${f} no refresca las vistas previas`);
+			assert.match(cuerpo[0], /pintarImagenesApariencia\(\)|pintarLogoAjustes\(\)/, `${f} no refresca las vistas previas`);
 		}
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('el logo se configura en Ajustes', () => {
+	// Primer paso de abrir Apariencia al restaurante "poco a poco" (CLAUDE.md,
+	// «Decisión: abrir partes de Apariencia al restaurante»), hecho el
+	// 26/09/2026. Antes vivía entero en Apariencia, solo para el superadmin.
+
+	test('el servidor ya deja al cliente tocar logo_url', () => {
+		const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+		const lista = src.match(/const CAMPOS_RESTAURANTE_CLIENTE = \[[^\]]*\]/)[0];
+		assert.match(lista, /'logo_url'/);
+	});
+
+	test('Apariencia ya no tiene el campo del logo', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.doesNotMatch(src, /id="apLogoPreview"/);
+		assert.doesNotMatch(src, /async function handleLogoUpload/);
+	});
+
+	test('pintar el logo no toca nada más, y se ve al abrir Ajustes', () => {
+		const campos = {};
+		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', src: '', style: {} });
+		const ctx = cargar('ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS', {
+			document: { getElementById: $ },
+			renderFiltrosCatalogo: () => {}, pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
+			renderPedidos: () => {}, renderMetodosPago: () => {}, cartaTieneCarrito: () => false,
+			renderToppings: () => {}, hayQueEnsenarToppings: () => false,
+			pintarErroresEnCampos() {}, CAMPOS_METODOS_PAGO: [], erroresDeMetodosPago: () => [],
+			carritoEnPantalla: () => false, planActual: () => ({}),
+			state: { restaurante: { id: 'r1', logo_url: '/uploads/logos/x.webp', atributos: {} } },
+			Object,
+		});
+		ctx.renderAjustes();
+		assert.equal($('ajLogoPreview').src, '/uploads/logos/x.webp');
+		assert.equal($('ajLogoDelBtn').style.display, 'inline-block');
+	});
+
+	test('subir o quitar el logo no reinicia el formulario, y avisa a las paletas', () => {
+		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
+		const subir = ajustes.match(/async function handleLogoUpload\(input\) \{[\s\S]*?\n\}/)[0];
+		assert.doesNotMatch(subir, /renderApariencia\(\)/);
+		assert.match(subir, /pintarLogoAjustes\(\)/);
+		assert.match(subir, /state\.restaurante\.logo_url = url;[\s\S]*?renderPaletas\(\);/);
+		// Quitarlo sigue en index.html (eliminarImagen es compartido entre los
+		// tres tipos de imagen); solo cambia a qué pinta después.
+		const panel = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.match(panel, /state\.restaurante\.logo_url = null;\s*renderPaletas\(\);/);
+		assert.match(panel, /if \(tipo === 'logo'\) pintarLogoAjustes\(\);/);
 	});
 });
 
@@ -7692,6 +7746,10 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 	// 16/09/2026, decidido con el usuario: lo que cambia la carta va primero y
 	// las redes al final, y «Pedidos desde la carta» pasa a «Carrito de compras»
 	// porque es lo que la gente reconoce sin que nadie se lo explique.
+	//
+	// 26/09/2026: el logo entra DETRÁS de las redes, como principio de un
+	// grupo de «aspecto» que va a seguir creciendo (colores, tipografía,
+	// modelo) — el mismo lugar donde vivía ese grupo en Apariencia.
 	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 
 	test('Inicio va primero y Ajustes queda tras Productos y Categorías', () => {
@@ -7722,9 +7780,9 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 		assert.equal(JSON.stringify(orden.slice(0, 3)),
 			'["Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
 			'el carrito y lo suyo, primero');
-		assert.equal(JSON.stringify(orden.slice(-2)), '["Filtros y etiquetas","Redes sociales"]',
-			'los filtros después, y las redes al final');
-		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('Redes sociales'), 'el botón de guardar, después de todas');
+		assert.equal(JSON.stringify(orden.slice(-3)), '["Filtros y etiquetas","Redes sociales","Logo"]',
+			'los filtros, después las redes, y el logo cierra el grupo de aspecto');
+		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('id="ajLogoDelBtn"'), 'el botón de guardar, después de todas');
 	});
 
 	test('el interruptor del carrito se llama igual para un lector de pantalla', () => {
@@ -8253,8 +8311,9 @@ describe('la pestaña Superadmin: qué se lee primero', () => {
 	});
 
 	test('no se perdió ninguna tarjeta por el camino', () => {
-		assert.equal(orden.length, 14);
-		assert.equal(new Set(orden).size, 14, 'ninguna repetida');
+		// 13 desde el 26/09/2026: el logo se mudó a Ajustes (una menos).
+		assert.equal(orden.length, 13);
+		assert.equal(new Set(orden).size, 13, 'ninguna repetida');
 	});
 
 	test('el botón de guardar ya no se llama «apariencia»', () => {
@@ -9629,9 +9688,12 @@ describe('la paleta del logo · los colores del negocio, ajustados para que se l
 	});
 
 	test('al subir o quitar el logo se vuelven a pintar las paletas', () => {
-		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
-		const subir = src.match(/async function handleLogoUpload\(input\) \{[\s\S]*?\n\}/)[0];
+		// handleLogoUpload se mudó a ajustes.js el 26/09/2026 — ver el describe
+		// «el logo se configura en Ajustes», que ya comprueba esto mismo.
+		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
+		const subir = ajustes.match(/async function handleLogoUpload\(input\) \{[\s\S]*?\n\}/)[0];
 		assert.match(subir, /state\.restaurante\.logo_url = url;[\s\S]*?renderPaletas\(\);/);
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 		assert.match(src, /state\.restaurante\.logo_url = null;\s*renderPaletas\(\);/);
 	});
 });
