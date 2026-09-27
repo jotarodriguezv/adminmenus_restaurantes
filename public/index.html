@@ -545,27 +545,8 @@
 						</div>
 					</div>
 
-					<!-- PORTADA. Solo la pinta el modelo explorar, así que solo se enseña con
-					     él: lo decide ajustarEstiloAlModelo() (A4). -->
-					<div class="section-card">
-						<div class="section-title">Color de fondo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(se usa solo si no hay imagen de fondo arriba)</span></div>
-						<div class="form-group" style="margin-bottom:14px">
-							<label for="apPrevFondoColor" class="form-label">Color</label>
-							<div class="color-input-wrap">
-								<input type="color" class="color-preview" id="apPrevFondoColor" value="#0a0a0f" title="Elegir color" oninput="colorDesdeSelector('apPrevFondoColor','apFondoColor')">
-								<input type="text" class="form-input" id="apFondoColor" maxlength="7" placeholder="#0a0a0f"
-								oninput="colorDesdeTexto('apFondoColor','apPrevFondoColor')">
-							</div>
-						</div>
-						<div class="form-group" style="margin-bottom:0">
-							<label for="apFondoIntensidad" class="form-label">Intensidad</label>
-							<select class="form-select" id="apFondoIntensidad">
-								<option value="solido">Sólido (color plano)</option>
-								<option value="sutil">Degradado sutil</option>
-								<option value="marcado">Degradado marcado</option>
-							</select>
-						</div>
-					</div>
+					<!-- El color de fondo y su intensidad se mudaron a Ajustes el
+					     27/09/2026, junto con Colores: ver más abajo. -->
 
 					<!-- ── AÑADIR UNA FUENTE NUEVA ──────────────────────────
 					     Se añade un <option> a la lista que toque y ya está: el
@@ -582,55 +563,8 @@
 					     para lo suyo. Las de títulos son de cartel, para leerse
 					     grandes y de golpe; las de cuerpo tienen que aguantar un
 					     párrafo pequeño en un móvil. -->
-					<div class="section-card">
-						<div class="section-title">Colores</div>
-						<!-- Paletas probadas: ver la cabecera de public/paletas.js. -->
-						<div class="form-label">Paletas probadas <span style="color:var(--text-dim)">(llenan los colores de abajo, los de superficie y el del fondo; después puedes retocar cualquiera)</span></div>
-						<div class="paletas" id="apPaletas" role="group" aria-label="Paletas de colores"></div>
-						<div class="color-row" style="margin-bottom:4px;">
-							<div class="form-group" style="margin-bottom:0">
-								<label for="apPrevColor1" class="form-label">Color primario</label>
-								<div class="color-input-wrap">
-									<input type="color" class="color-preview" id="apPrevColor1" value="#3dd68c" title="Elegir color" oninput="colorDesdeSelector('apPrevColor1','apColor1')">
-									<input type="text" class="form-input" id="apColor1" maxlength="7"
-									oninput="colorDesdeTexto('apColor1','apPrevColor1')">
-								</div>
-							</div>
-							<div class="form-group" style="margin-bottom:0">
-								<label for="apPrevColor2" class="form-label">Color secundario</label>
-								<div class="color-input-wrap">
-									<input type="color" class="color-preview" id="apPrevColor2" value="#a374af" title="Elegir color" oninput="colorDesdeSelector('apPrevColor2','apColor2')">
-									<input type="text" class="form-input" id="apColor2" maxlength="7"
-									oninput="colorDesdeTexto('apColor2','apPrevColor2')">
-								</div>
-							</div>
-						</div>
-						<!-- Aviso de contraste de los cinco colores (también los de superficie
-						     y el de fondo): revisarContraste() en public/paletas.js. -->
-						<div class="aviso-contraste" id="apAvisoContraste" hidden role="status" aria-live="polite"></div>
-					</div>
-
-					<div class="section-card">
-						<div class="section-title">Colores de superficie <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(para que combinen con el fondo)</span></div>
-						<div class="color-row" style="margin-bottom:4px;">
-							<div class="form-group" style="margin-bottom:0">
-								<label for="apPrevColorSurface" class="form-label">Menú / encabezado / carrito</label>
-								<div class="color-input-wrap">
-									<input type="color" class="color-preview" id="apPrevColorSurface" value="#12111a" title="Elegir color" oninput="colorDesdeSelector('apPrevColorSurface','apColorSurface')">
-									<input type="text" class="form-input" id="apColorSurface" maxlength="7" placeholder="#12111a"
-									oninput="colorDesdeTexto('apColorSurface','apPrevColorSurface')">
-								</div>
-							</div>
-							<div class="form-group" style="margin-bottom:0">
-								<label for="apPrevColorCard" class="form-label">Cajas de producto</label>
-								<div class="color-input-wrap">
-									<input type="color" class="color-preview" id="apPrevColorCard" value="#1a1825" title="Elegir color" oninput="colorDesdeSelector('apPrevColorCard','apColorCard')">
-									<input type="text" class="form-input" id="apColorCard" maxlength="7" placeholder="#1a1825"
-									oninput="colorDesdeTexto('apColorCard','apPrevColorCard')">
-								</div>
-							</div>
-						</div>
-					</div>
+					<!-- Colores, paletas probadas y colores de superficie se mudaron a
+					     Ajustes el 27/09/2026: ver public/ajustes.js. -->
 
 					<div class="section-card">
 						<div class="section-title">Tipografía</div>
@@ -1483,6 +1417,81 @@
 						</label>
 						<div id="ajLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 						<button type="button" id="ajLogoDelBtn" class="btn-remove-logo" onclick="eliminarImagen('logo')" style="display:none">🗑 Quitar logo</button>
+					</div>
+
+					<!-- Colores, paletas y color de fondo, desde el 27/09/2026: mismo
+					     grupo de "aspecto" que el logo, mismo motivo (CLAUDE.md). Antes
+					     vivían en Apariencia, solo para el superadmin. Los ids no cambian
+					     (apColor1, apPaletas…): public/paletas.js no sabe de pestañas, solo
+					     de elementos por id, así que se movió tal cual. -->
+					<div class="section-card">
+						<div class="section-title">Colores</div>
+						<!-- Paletas probadas: ver la cabecera de public/paletas.js. -->
+						<div class="form-label">Paletas probadas <span style="color:var(--text-dim)">(llenan los colores de abajo, los de superficie y el del fondo; después puedes retocar cualquiera)</span></div>
+						<div class="paletas" id="apPaletas" role="group" aria-label="Paletas de colores"></div>
+						<div class="color-row" style="margin-bottom:4px;">
+							<div class="form-group" style="margin-bottom:0">
+								<label for="apPrevColor1" class="form-label">Color primario</label>
+								<div class="color-input-wrap">
+									<input type="color" class="color-preview" id="apPrevColor1" value="#3dd68c" title="Elegir color" oninput="colorDesdeSelector('apPrevColor1','apColor1')">
+									<input type="text" class="form-input" id="apColor1" maxlength="7"
+									oninput="colorDesdeTexto('apColor1','apPrevColor1')">
+								</div>
+							</div>
+							<div class="form-group" style="margin-bottom:0">
+								<label for="apPrevColor2" class="form-label">Color secundario</label>
+								<div class="color-input-wrap">
+									<input type="color" class="color-preview" id="apPrevColor2" value="#a374af" title="Elegir color" oninput="colorDesdeSelector('apPrevColor2','apColor2')">
+									<input type="text" class="form-input" id="apColor2" maxlength="7"
+									oninput="colorDesdeTexto('apColor2','apPrevColor2')">
+								</div>
+							</div>
+						</div>
+						<!-- Aviso de contraste de los cinco colores (también los de superficie
+						     y el de fondo): revisarContraste() en public/paletas.js. -->
+						<div class="aviso-contraste" id="apAvisoContraste" hidden role="status" aria-live="polite"></div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Colores de superficie <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(para que combinen con el fondo)</span></div>
+						<div class="color-row" style="margin-bottom:4px;">
+							<div class="form-group" style="margin-bottom:0">
+								<label for="apPrevColorSurface" class="form-label">Menú / encabezado / carrito</label>
+								<div class="color-input-wrap">
+									<input type="color" class="color-preview" id="apPrevColorSurface" value="#12111a" title="Elegir color" oninput="colorDesdeSelector('apPrevColorSurface','apColorSurface')">
+									<input type="text" class="form-input" id="apColorSurface" maxlength="7" placeholder="#12111a"
+									oninput="colorDesdeTexto('apColorSurface','apPrevColorSurface')">
+								</div>
+							</div>
+							<div class="form-group" style="margin-bottom:0">
+								<label for="apPrevColorCard" class="form-label">Cajas de producto</label>
+								<div class="color-input-wrap">
+									<input type="color" class="color-preview" id="apPrevColorCard" value="#1a1825" title="Elegir color" oninput="colorDesdeSelector('apPrevColorCard','apColorCard')">
+									<input type="text" class="form-input" id="apColorCard" maxlength="7" placeholder="#1a1825"
+									oninput="colorDesdeTexto('apColorCard','apPrevColorCard')">
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Color de fondo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(se usa solo si no hay imagen de fondo, en Superadmin)</span></div>
+						<div class="form-group" style="margin-bottom:14px">
+							<label for="apPrevFondoColor" class="form-label">Color</label>
+							<div class="color-input-wrap">
+								<input type="color" class="color-preview" id="apPrevFondoColor" value="#0a0a0f" title="Elegir color" oninput="colorDesdeSelector('apPrevFondoColor','apFondoColor')">
+								<input type="text" class="form-input" id="apFondoColor" maxlength="7" placeholder="#0a0a0f"
+								oninput="colorDesdeTexto('apFondoColor','apPrevFondoColor')">
+							</div>
+						</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label for="apFondoIntensidad" class="form-label">Intensidad</label>
+							<select class="form-select" id="apFondoIntensidad">
+								<option value="solido">Sólido (color plano)</option>
+								<option value="sutil">Degradado sutil</option>
+								<option value="marcado">Degradado marcado</option>
+							</select>
+						</div>
 					</div>
 
 					<div style="text-align:right;">
@@ -7310,24 +7319,13 @@ function renderApariencia() {
   const r = state.restaurante;
   const at = r.atributos || {};
 
-  document.getElementById('apColor1').value = r.color_primario || '';
-  document.getElementById('apPrevColor1').value = hex6(r.color_primario, '#3dd68c');
-  document.getElementById('apColor2').value = r.color_secundario || '';
-  document.getElementById('apPrevColor2').value = hex6(r.color_secundario, '#a374af');
-
-  document.getElementById('apColorSurface').value = at.color_surface || '';
-  document.getElementById('apPrevColorSurface').value = hex6(at.color_surface, '#12111a');
-  document.getElementById('apColorCard').value = at.color_card || '';
-  document.getElementById('apPrevColorCard').value = hex6(at.color_card, '#1a1825');
+  // Los colores, la paleta y el color de fondo se mudaron a Ajustes el
+  // 27/09/2026: junto con el logo, forman el mismo grupo de "aspecto" que se
+  // abre al restaurante poco a poco (CLAUDE.md). Ver ajustes.js, renderAjustes().
 
   pintarImagenesApariencia();
 
   document.getElementById('apFondoTipo').value = at.fondo_tipo || 'cover-fixed';
-  document.getElementById('apFondoColor').value = at.fondo_color || '#0a0a0f';
-  document.getElementById('apPrevFondoColor').value = hex6(at.fondo_color, '#0a0a0f');
-  document.getElementById('apFondoIntensidad').value = at.fondo_intensidad || 'solido';
-  // Después de llenar los colores: marca la paleta que coincida con ellos.
-  renderPaletas();
 
   // Portada (modelo explorar)
   document.getElementById('apPortadaActiva').checked = !!at.portada_activa;
@@ -7433,19 +7431,19 @@ async function eliminarImagen(tipo) {
 // lo usan tanto saveApariencia() como la vista previa.
 function recolectarApariencia() {
   return {
-    color_primario: document.getElementById('apColor1').value.trim(),
-    color_secundario: document.getElementById('apColor2').value.trim(),
     // SIN volcar aquí el atributos que cargó el panel. Este formulario manda
     // todas sus claves en cada guardado, así que no necesita el resto — y
     // arrastrarlo significaba reescribir el JSON entero con una copia vieja,
     // devolviendo a su valor anterior lo que otro hubiera cambiado mientras.
     // Las funde el servidor. Ver el comentario de recolectarAjustes.
     atributos: {
-      color_surface: document.getElementById('apColorSurface').value.trim(),
-      color_card: document.getElementById('apColorCard').value.trim(),
       fondo_tipo: document.getElementById('apFondoTipo').value,
-      fondo_color: document.getElementById('apFondoColor').value.trim() || '#0a0a0f',
-      fondo_intensidad: document.getElementById('apFondoIntensidad').value,
+      // Sin color_primario, color_secundario, color_surface, color_card,
+      // fondo_color ni fondo_intensidad, a propósito: se mudaron a Ajustes el
+      // 27/09/2026, junto con la paleta. Si volvieran aquí, guardar Apariencia
+      // pisaría con la copia cargada al entrar lo que el restaurante acabara
+      // de cambiar — el mismo motivo por el que el carrito y las redes ya no
+      // están (ver el comentario de más abajo).
       fuente_titulo: document.getElementById('apFuenteTitulo').value.trim(),
       fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
       nav: navElegido(),
@@ -7468,10 +7466,10 @@ function recolectarApariencia() {
 }
 
 async function saveApariencia() {
-  const { color_primario, color_secundario, atributos } = recolectarApariencia();
+  const { atributos } = recolectarApariencia();
   const st = document.getElementById('apArienciaStatus');
   try {
-    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { color_primario, color_secundario, atributos });
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { atributos });
     state.restaurante = data;
     fotoApariencia = aparienciaActual();
     const datosPendientes = hayCambiosDatosResto();

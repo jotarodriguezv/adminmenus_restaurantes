@@ -35,8 +35,10 @@ const REDES_CAMPOS = {
 };
 
 function renderAjustes() {
-  const at = state.restaurante?.atributos || {};
+  const r = state.restaurante;
+  const at = r?.atributos || {};
   pintarLogoAjustes();
+  pintarColoresAjustes(r, at);
   document.getElementById('ajSocialBar').checked = !!at.social_bar;
   for (const [clave, id] of Object.entries(REDES_CAMPOS))
     document.getElementById(id).value = at[clave] || '';
@@ -105,6 +107,15 @@ function recolectarAjustes() {
     // Solo dígitos: wa.me no acepta otra cosa, y un «+57 300 123 4567» —que es
     // como lo teclea cualquiera— arma un enlace que no abre ningún chat.
     social_whatsapp: valor('ajSocialWhatsapp').replace(/[^0-9]/g, ''),
+    // Colores y paleta, desde el 27/09/2026 (ver pintarColoresAjustes() más
+    // abajo). color_primario y color_secundario son columnas propias, no
+    // claves de atributos: saveAjustes() las saca de aquí antes de mandarlas.
+    color_primario: valor('apColor1'),
+    color_secundario: valor('apColor2'),
+    color_surface: valor('apColorSurface'),
+    color_card: valor('apColorCard'),
+    fondo_color: valor('apFondoColor') || '#0a0a0f',
+    fondo_intensidad: document.getElementById('apFondoIntensidad').value,
   };
 }
 
@@ -152,9 +163,13 @@ async function saveAjustes() {
   }
   st.textContent = 'Guardando…'; st.style.color = 'var(--text-muted)';
   try {
+    // color_primario y color_secundario son columnas propias de la tabla, no
+    // claves de atributos (como logo_url): se sacan del mismo recolector para
+    // no repetir la lógica de qué campo lee cada uno.
+    const { color_primario, color_secundario, ...atributos } = recolectarAjustes();
     // Solo sus claves: el servidor funde con lo que ya hay y no toca el resto.
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`,
-      { atributos: recolectarAjustes() });
+      { color_primario, color_secundario, atributos });
     if (!data) return;   // sesión caducada: apiFetch ya llevó al login
     state.restaurante = data;
     renderAjustes();
@@ -212,8 +227,7 @@ async function handleLogoUpload(input) {
     const url = await uploadImg(blob, 'logos');
     await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: url });
     state.restaurante.logo_url = url; pintarLogoAjustes();
-    // Aparece «De tu logo» en Colores (Apariencia), con los colores del logo
-    // nuevo. Sigue siendo del superadmin por ahora — solo el logo se abrió.
+    // Aparece «De tu logo» en Colores, aquí mismo, con los colores del logo nuevo.
     renderPaletas();
     st.textContent = blob.fondoAutoQuitado
       ? '✓ Logo actualizado · le quitamos el fondo automáticamente. Revísalo: si el resultado no queda bien, sube uno con fondo transparente'
@@ -221,6 +235,37 @@ async function handleLogoUpload(input) {
     st.style.color = 'var(--success)';
     avisarGuardadoConCarta('Logo guardado');
   } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
+}
+
+// ── COLORES Y PALETA ──────────────────────────────────────────
+// Se mudaron de Apariencia a Ajustes el 27/09/2026, mismo día que el color de
+// fondo: mismo motivo que el logo (CLAUDE.md, «Decisión: abrir partes de
+// Apariencia al restaurante»). Los ids no cambian (apColor1, apPaletas…):
+// public/paletas.js solo conoce elementos por id, nunca de qué pestaña son,
+// así que la tarjeta entera se movió tal cual, sin tocar su lógica.
+//
+// El color de fondo (fondo_color/fondo_intensidad) viaja con las paletas
+// porque aplicarPaleta() los pone los cinco a la vez (paletas.js,
+// CAMPOS_PALETA): dejar el color de fondo en Apariencia habría hecho que
+// elegir una paleta aquí cambiara un campo que el restaurante no ve ni puede
+// guardar. La IMAGEN de fondo y su estilo (cubrir/repetir) siguen en
+// Apariencia — es un incremento aparte.
+function pintarColoresAjustes(r, at) {
+  const c1 = document.getElementById('apColor1');
+  if (!c1) return;   // pestaña Ajustes no está en el DOM (pruebas parciales)
+  c1.value = r?.color_primario || '';
+  document.getElementById('apPrevColor1').value = hex6(r?.color_primario, '#3dd68c');
+  document.getElementById('apColor2').value = r?.color_secundario || '';
+  document.getElementById('apPrevColor2').value = hex6(r?.color_secundario, '#a374af');
+  document.getElementById('apColorSurface').value = at.color_surface || '';
+  document.getElementById('apPrevColorSurface').value = hex6(at.color_surface, '#12111a');
+  document.getElementById('apColorCard').value = at.color_card || '';
+  document.getElementById('apPrevColorCard').value = hex6(at.color_card, '#1a1825');
+  document.getElementById('apFondoColor').value = at.fondo_color || '#0a0a0f';
+  document.getElementById('apPrevFondoColor').value = hex6(at.fondo_color, '#0a0a0f');
+  document.getElementById('apFondoIntensidad').value = at.fondo_intensidad || 'solido';
+  // Después de llenar los colores: marca la paleta que coincida con ellos.
+  renderPaletas();
 }
 
 // ── BUSCADOR DE PLATOS ────────────────────────────────────────
