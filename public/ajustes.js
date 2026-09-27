@@ -39,6 +39,7 @@ function renderAjustes() {
   const at = r?.atributos || {};
   pintarLogoAjustes();
   pintarColoresAjustes(r, at);
+  pintarModeloYTipografiaAjustes(at);
   document.getElementById('ajSocialBar').checked = !!at.social_bar;
   for (const [clave, id] of Object.entries(REDES_CAMPOS))
     document.getElementById(id).value = at[clave] || '';
@@ -116,6 +117,16 @@ function recolectarAjustes() {
     color_card: valor('apColorCard'),
     fondo_color: valor('apFondoColor') || '#0a0a0f',
     fondo_intensidad: document.getElementById('apFondoIntensidad').value,
+    // Modelo de página y tipografía, desde el 27/09/2026 (ver
+    // pintarModeloYTipografiaAjustes() más abajo). navElegido() y
+    // estiloElegido() viven en index.html: son las mismas que usaba
+    // Apariencia, y no dependen de qué pestaña las llama.
+    fuente_titulo: valor('apFuenteTitulo'),
+    fuente_cuerpo: valor('apFuenteCuerpo'),
+    nav: navElegido(),
+    estilo: estiloElegido(),
+    subtitulo: valor('apSubtitulo'),
+    mostrar_hero: document.getElementById('apMostrarHero').checked,
   };
 }
 
@@ -177,6 +188,9 @@ async function saveAjustes() {
     // Encender el carrito hace aparecer las pestañas Pedidos y Toppings, y sin
     // repintarlas habría que recargar para llegar a poner el número.
     ajustarPestanasAlModelo();
+    // Si el modelo cambió, refresca qué opciones quedan deshabilitadas y su
+    // etiqueta — la misma llamada que hace saveApariencia() al guardar.
+    aplicarPlanAlPanel();
     const faltaNumero = cartaTieneCarrito(data.atributos, planActual()) && !recibePedidos(data.atributos);
     st.textContent = faltaNumero ? '✓ Guardado · falta el número de WhatsApp para recibir los pedidos' : '✓ Guardado';
     st.style.color = faltaNumero ? 'var(--warn)' : 'var(--success)';
@@ -266,6 +280,43 @@ function pintarColoresAjustes(r, at) {
   document.getElementById('apFondoIntensidad').value = at.fondo_intensidad || 'solido';
   // Después de llenar los colores: marca la paleta que coincida con ellos.
   renderPaletas();
+}
+
+// ── MODELO DE PÁGINA Y TIPOGRAFÍA ──────────────────────────────
+// Se mudaron de Apariencia a Ajustes el 27/09/2026, mismo grupo de "aspecto"
+// que el logo y los colores (CLAUDE.md). navElegido(), estiloElegido(),
+// ajustarEstiloAlModelo(), previsualizarFuente() y aplicarPlanAlPanel()
+// siguen en index.html: son compartidas y no dependen de qué pestaña las usa.
+function pintarModeloYTipografiaAjustes(at) {
+  const nav = document.getElementById('apNavModelo');
+  if (!nav) return;   // pestaña Ajustes no está en el DOM (pruebas parciales)
+  nav.value = at.nav || 'topnav';
+  document.getElementById('apEstilo').value = at.estilo || 'clasico';
+  ajustarEstiloAlModelo();
+  document.getElementById('apSubtitulo').value = at.subtitulo || '';
+  document.getElementById('apMostrarHero').checked = !!at.mostrar_hero;
+
+  document.getElementById('apFuenteTitulo').value = at.fuente_titulo || '';
+  document.getElementById('apFuenteCuerpo').value = at.fuente_cuerpo || '';
+  // Al abrir, no solo al cambiar: lo primero que se quiere saber al entrar en
+  // Ajustes es cómo se ve lo que ya está puesto.
+  previsualizarFuente('titulo');
+  previsualizarFuente('cuerpo');
+
+  pintarNotaModeloAjustes();
+}
+
+// Por qué el modelo está bloqueado: solo aplica a un restaurante de video,
+// y solo si quien mira no es el superadmin. aplicarPlanAlPanel() (en
+// index.html) ya deshabilita las opciones que tocan; esto nombra el motivo,
+// porque un <select> con casi todo gris y sin explicación parece roto.
+function pintarNotaModeloAjustes() {
+  const nota = document.getElementById('apNavModeloNota');
+  if (!nota) return;
+  const bloqueado = state.rol !== 'admin' && planActual().videos;
+  nota.style.display = bloqueado ? 'block' : 'none';
+  if (bloqueado) nota.textContent = 'El modelo de tu carta en video lo cambia tu asesor: '
+    + 'cruzar entre horizontal y vertical necesita volver a procesar los videos que ya subiste.';
 }
 
 // ── BUSCADOR DE PLATOS ────────────────────────────────────────
