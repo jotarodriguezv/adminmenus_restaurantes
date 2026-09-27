@@ -385,45 +385,11 @@
 						</div>
 					</div>
 
-					<div class="section-card">
-						<div class="section-title">Modelo de página</div>
-						<div class="form-group" style="margin-bottom:0">
-							<label class="form-label">Navegación</label>
-							<!-- Al vuelo, no solo al cargar: elegir 'vertical' y no ver
-							     aparecer el estilo deja pensando que no existe. -->
-							<select class="form-select" id="apNavModelo" onchange="ajustarEstiloAlModelo()">
-								<option value="topnav">Topnav — header centrado + menú horizontal</option>
-								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
-								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
-								<option value="video">Video horizontal — una columna, un plato por fila</option>
-								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
-							</select>
-						</div>
-						<!-- Solo con el modelo vertical: los demás no tienen estilos.
-						     Lo enseña y lo esconde ajustarEstiloAlModelo(). -->
-						<div class="form-group" id="apEstiloFila" style="margin-top:14px;margin-bottom:0;display:none">
-							<!-- "Estilo" a secas no vale: en Apariencia hay otro control
-							     llamado "Estilo del fondo", y con dos etiquetas iguales
-							     hay que abrir las dos para saber cuál es cuál. El nombre
-							     dice a qué se aplica. -->
-							<label for="apEstilo" class="form-label">Estilo de la carta vertical <span style="color:var(--text-dim);font-weight:400">(solo cambia el aspecto, no el funcionamiento)</span></label>
-							<select class="form-select" id="apEstilo">
-								<option value="clasico">Clásico — el que ya conoces</option>
-								<option value="intenso">Intenso — a sangre, texto grande y mucho contraste</option>
-								<option value="avance">Avance — barra de progreso arriba, esquinas redondeadas y más aire</option>
-							</select>
-						</div>
-						<div class="form-group" style="margin-top:14px;margin-bottom:0">
-							<label for="apSubtitulo" class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(frase debajo del nombre)</span></label>
-							<input type="text" class="form-input" id="apSubtitulo" placeholder="Carta Digital · 2026">
-						</div>
-						<!-- El interruptor del carrito se mudó a Ajustes el 15/09/2026. -->
-						<!-- Solo sidebar y carrito lo leen (A4); en topnav sale siempre. -->
-						<div class="form-group" id="apHeroFila" style="margin-top:14px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-							<label for="apMostrarHero" class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo, nombre y subtítulo bajo la cabecera)</span></label>
-							<label class="toggle"><input type="checkbox" id="apMostrarHero"><span class="toggle-slider"></span></label>
-						</div>
-					</div>
+					<!-- "Modelo de página" (navegación, estilo, subtítulo, mensaje de
+					     bienvenida) se mudó entera a Ajustes el 27/09/2026, junto con la
+					     tipografía: mismo motivo que el logo y los colores (CLAUDE.md).
+					     La navegación se abre con una condición que no vive en el panel:
+					     ver MODELOS_CLIENTE_POR_PLAN en server.js. -->
 
 					<!-- «Filtros y etiquetas» y las redes sociales se mudaron a la pestaña
 					     Ajustes el 15/09/2026: los configura el propio restaurante. -->
@@ -548,74 +514,9 @@
 					<!-- El color de fondo y su intensidad se mudaron a Ajustes el
 					     27/09/2026, junto con Colores: ver más abajo. -->
 
-					<!-- ── AÑADIR UNA FUENTE NUEVA ──────────────────────────
-					     Se añade un <option> a la lista que toque y ya está: el
-					     valor tiene que ser el nombre EXACTO de la familia en
-					     Google Fonts, porque de ahí se construye la URL.
-
-					     No hay que tocar nada más. La carta (core/loader.js) y la
-					     cartelera (tv.html) arman el enlace a partir del nombre
-					     guardado, así que una fuente nueva funciona en los tres
-					     sitios en cuanto aparece aquí.
-
-					     Dos condiciones: que exista en Google Fonts —si el nombre
-					     no coincide, no carga y se ve la de reserva— y que sirva
-					     para lo suyo. Las de títulos son de cartel, para leerse
-					     grandes y de golpe; las de cuerpo tienen que aguantar un
-					     párrafo pequeño en un móvil. -->
-					<!-- Colores, paletas probadas y colores de superficie se mudaron a
-					     Ajustes el 27/09/2026: ver public/ajustes.js. -->
-
-					<div class="section-card">
-						<div class="section-title">Tipografía</div>
-						<div class="form-row">
-							<div class="form-group">
-								<label for="apFuenteTitulo" class="form-label">Fuente títulos</label>
-								<select class="form-select" id="apFuenteTitulo" onchange="previsualizarFuente('titulo')">
-									<option value="">Predeterminada (del sistema)</option>
-									<option value="Bebas Neue">Bebas Neue · condensada</option>
-									<option value="Oswald">Oswald · condensada sobria</option>
-									<option value="Anton">Anton · muy gruesa</option>
-									<option value="Fjalla One">Fjalla One · estrecha</option>
-									<option value="Staatliches">Staatliches · de cartel</option>
-									<option value="Archivo Black">Archivo Black · contundente</option>
-									<option value="Alfa Slab One">Alfa Slab One · recia, de parrilla</option>
-									<option value="Righteous">Righteous · retro</option>
-									<option value="Montserrat">Montserrat · limpia</option>
-									<option value="Poppins">Poppins · redonda</option>
-									<option value="Playfair Display">Playfair Display · serif clásica</option>
-									<option value="Abril Fatface">Abril Fatface · serif llamativa</option>
-									<option value="Cormorant Garamond">Cormorant Garamond · serif fina</option>
-									<option value="Pacifico">Pacifico · manuscrita</option>
-								</select>
-								<!-- La muestra existe porque el nombre no dice nada: nadie sabe
-								     cómo es "Archivo Black" hasta que la ve. Se carga solo la
-								     que se está mirando, no las dieciséis. -->
-								<div id="apMuestraTitulo" style="margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:22px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">HAMBURGUESA CLÁSICA</div>
-							</div>
-							<div class="form-group">
-								<label for="apFuenteCuerpo" class="form-label">Fuente cuerpo</label>
-								<select class="form-select" id="apFuenteCuerpo" onchange="previsualizarFuente('cuerpo')">
-									<option value="">Predeterminada (del sistema)</option>
-									<option value="Inter">Inter · para pantalla</option>
-									<option value="Source Sans 3">Source Sans 3 · muy legible</option>
-									<option value="Roboto">Roboto · neutra</option>
-									<option value="Open Sans">Open Sans · clásica</option>
-									<option value="Lato">Lato · cálida</option>
-									<option value="Work Sans">Work Sans · buena en pequeño</option>
-									<option value="DM Sans">DM Sans · compacta</option>
-									<option value="Barlow">Barlow · estrecha, cunde</option>
-									<option value="Karla">Karla · con carácter</option>
-									<option value="Montserrat">Montserrat · limpia</option>
-									<option value="Poppins">Poppins · redonda</option>
-									<option value="Nunito">Nunito · amable</option>
-									<option value="Rubik">Rubik · informal</option>
-									<option value="Lora">Lora · serif de lectura</option>
-								</select>
-								<div id="apMuestraCuerpo" style="margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;line-height:1.5">Doble carne, queso cheddar y tocineta · $ 22.000</div>
-							</div>
-						</div>
-					</div>
+					<!-- Tipografía se mudó entera a Ajustes el 27/09/2026, junto con el
+					     "Modelo de página": mismo motivo (CLAUDE.md). El comentario de
+					     cómo añadir una fuente nueva se movió con la tarjeta. -->
 
 					<div class="section-card">
 						<div class="section-title">CSS personalizado <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(avanzado, casos especiales)</span></div>
@@ -1491,6 +1392,115 @@
 								<option value="sutil">Degradado sutil</option>
 								<option value="marcado">Degradado marcado</option>
 							</select>
+						</div>
+					</div>
+
+					<!-- Modelo de página y tipografía, desde el 27/09/2026: mismo grupo
+					     de "aspecto" que el logo y los colores (CLAUDE.md). La navegación
+					     se bloquea sola para un restaurante de video (MODELOS_CLIENTE_POR_PLAN
+					     en server.js, y pintarNotaModeloAjustes() aquí abajo). -->
+					<div class="section-card">
+						<div class="section-title">Modelo de página</div>
+						<div class="form-group" id="apNavModeloFila" style="margin-bottom:0">
+							<label class="form-label">Navegación</label>
+							<!-- Al vuelo, no solo al cargar: elegir 'vertical' y no ver
+							     aparecer el estilo deja pensando que no existe. -->
+							<select class="form-select" id="apNavModelo" onchange="ajustarEstiloAlModelo()">
+								<option value="topnav">Topnav — header centrado + menú horizontal</option>
+								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
+								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
+								<option value="video">Video horizontal — una columna, un plato por fila</option>
+								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
+							</select>
+							<p id="apNavModeloNota" style="display:none;font-size:12px;color:var(--text-muted);margin:8px 0 0;line-height:1.5"></p>
+						</div>
+						<!-- Solo con el modelo vertical: los demás no tienen estilos.
+						     Lo enseña y lo esconde ajustarEstiloAlModelo(). -->
+						<div class="form-group" id="apEstiloFila" style="margin-top:14px;margin-bottom:0;display:none">
+							<!-- "Estilo" a secas no vale: hay otro control llamado "Estilo
+							     del fondo" en Apariencia, y con dos etiquetas iguales hay
+							     que abrir las dos para saber cuál es cuál. -->
+							<label for="apEstilo" class="form-label">Estilo de la carta vertical <span style="color:var(--text-dim);font-weight:400">(solo cambia el aspecto, no el funcionamiento)</span></label>
+							<select class="form-select" id="apEstilo">
+								<option value="clasico">Clásico — el que ya conoces</option>
+								<option value="intenso">Intenso — a sangre, texto grande y mucho contraste</option>
+								<option value="avance">Avance — barra de progreso arriba, esquinas redondeadas y más aire</option>
+							</select>
+						</div>
+						<div class="form-group" style="margin-top:14px;margin-bottom:0">
+							<label for="apSubtitulo" class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(frase debajo del nombre)</span></label>
+							<input type="text" class="form-input" id="apSubtitulo" placeholder="Carta Digital · 2026">
+						</div>
+						<!-- Solo sidebar y carrito lo leen (A4); en topnav sale siempre. -->
+						<div class="form-group" id="apHeroFila" style="margin-top:14px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+							<label for="apMostrarHero" class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo, nombre y subtítulo bajo la cabecera)</span></label>
+							<label class="toggle"><input type="checkbox" id="apMostrarHero"><span class="toggle-slider"></span></label>
+						</div>
+					</div>
+
+					<!-- ── AÑADIR UNA FUENTE NUEVA ──────────────────────────
+					     Se añade un <option> a la lista que toque y ya está: el
+					     valor tiene que ser el nombre EXACTO de la familia en
+					     Google Fonts, porque de ahí se construye la URL.
+
+					     No hay que tocar nada más. La carta (core/loader.js) y la
+					     cartelera (tv.html) arman el enlace a partir del nombre
+					     guardado, así que una fuente nueva funciona en los tres
+					     sitios en cuanto aparece aquí.
+
+					     Dos condiciones: que exista en Google Fonts —si el nombre
+					     no coincide, no carga y se ve la de reserva— y que sirva
+					     para lo suyo. Las de títulos son de cartel, para leerse
+					     grandes y de golpe; las de cuerpo tienen que aguantar un
+					     párrafo pequeño en un móvil. -->
+					<div class="section-card">
+						<div class="section-title">Tipografía</div>
+						<div class="form-row">
+							<div class="form-group">
+								<label for="apFuenteTitulo" class="form-label">Fuente títulos</label>
+								<select class="form-select" id="apFuenteTitulo" onchange="previsualizarFuente('titulo')">
+									<option value="">Predeterminada (del sistema)</option>
+									<option value="Bebas Neue">Bebas Neue · condensada</option>
+									<option value="Oswald">Oswald · condensada sobria</option>
+									<option value="Anton">Anton · muy gruesa</option>
+									<option value="Fjalla One">Fjalla One · estrecha</option>
+									<option value="Staatliches">Staatliches · de cartel</option>
+									<option value="Archivo Black">Archivo Black · contundente</option>
+									<option value="Alfa Slab One">Alfa Slab One · recia, de parrilla</option>
+									<option value="Righteous">Righteous · retro</option>
+									<option value="Montserrat">Montserrat · limpia</option>
+									<option value="Poppins">Poppins · redonda</option>
+									<option value="Playfair Display">Playfair Display · serif clásica</option>
+									<option value="Abril Fatface">Abril Fatface · serif llamativa</option>
+									<option value="Cormorant Garamond">Cormorant Garamond · serif fina</option>
+									<option value="Pacifico">Pacifico · manuscrita</option>
+								</select>
+								<!-- La muestra existe porque el nombre no dice nada: nadie sabe
+								     cómo es "Archivo Black" hasta que la ve. Se carga solo la
+								     que se está mirando, no las dieciséis. -->
+								<div id="apMuestraTitulo" style="margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:22px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">HAMBURGUESA CLÁSICA</div>
+							</div>
+							<div class="form-group">
+								<label for="apFuenteCuerpo" class="form-label">Fuente cuerpo</label>
+								<select class="form-select" id="apFuenteCuerpo" onchange="previsualizarFuente('cuerpo')">
+									<option value="">Predeterminada (del sistema)</option>
+									<option value="Inter">Inter · para pantalla</option>
+									<option value="Source Sans 3">Source Sans 3 · muy legible</option>
+									<option value="Roboto">Roboto · neutra</option>
+									<option value="Open Sans">Open Sans · clásica</option>
+									<option value="Lato">Lato · cálida</option>
+									<option value="Work Sans">Work Sans · buena en pequeño</option>
+									<option value="DM Sans">DM Sans · compacta</option>
+									<option value="Barlow">Barlow · estrecha, cunde</option>
+									<option value="Karla">Karla · con carácter</option>
+									<option value="Montserrat">Montserrat · limpia</option>
+									<option value="Poppins">Poppins · redonda</option>
+									<option value="Nunito">Nunito · amable</option>
+									<option value="Rubik">Rubik · informal</option>
+									<option value="Lora">Lora · serif de lectura</option>
+								</select>
+								<div id="apMuestraCuerpo" style="margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;line-height:1.5">Doble carne, queso cheddar y tocineta · $ 22.000</div>
+							</div>
 						</div>
 					</div>
 
@@ -2790,8 +2800,10 @@ async function loadData() {
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
     await cargarTrabajosVideo();
     renderCatFilter(); renderOrdenProductos(); renderProducts(); renderCatList(); await renderPromociones(); renderInicio();
-    // Apariencia es solo para superadmin: el cliente no debe poder tocar
-    // logo, colores, fuentes, modelo de página ni CSS personalizado.
+    // Apariencia es solo para superadmin: lo que le queda es el plan, el
+    // dominio, la zona horaria, importar carta y el CSS personalizado. El
+    // logo, los colores, la tipografía y el modelo de página ya se
+    // configuran en Ajustes, donde los ve también el restaurante.
     document.getElementById('tabBtnApariencia').style.display = state.rol === 'admin' ? 'block' : 'none';
     pintarAyudaSegunQuienMira(state.rol === 'admin');
     // Importar la carta es una herramienta del ALTA, y ese es su alcance: el
@@ -7335,18 +7347,18 @@ function renderApariencia() {
   document.getElementById('apZonaHoraria').value = at.zona_horaria || 'America/Bogota';
   renderUrlPublicaPreview();
 
-  document.getElementById('apFuenteTitulo').value = at.fuente_titulo || '';
-  document.getElementById('apFuenteCuerpo').value = at.fuente_cuerpo || '';
-  // Al abrir, no solo al cambiar: lo primero que se quiere saber al entrar en
-  // Apariencia es cómo se ve lo que ya está puesto.
-  previsualizarFuente('titulo');
-  previsualizarFuente('cuerpo');
-
+  // Tipografía, navegación, estilo, subtítulo y el mensaje de bienvenida se
+  // mudaron a Ajustes el 27/09/2026, junto con el logo y los colores (mismo
+  // grupo de "aspecto", CLAUDE.md). Ver ajustes.js, renderAjustes().
+  //
+  // 'apNavModelo' SÍ se sincroniza aquí, sin pintar nada: renderPlanResumen()
+  // (dentro de renderPlan(), abajo) lo lee para avisar si el modelo guardado
+  // ya no viene en el plan elegido, y esta pestaña puede abrirse antes de que
+  // Ajustes haya tenido ocasión de rellenarlo. Por lo mismo, ajustarEstiloAlModelo()
+  // se llama aquí también: decide si la tarjeta Portada (que sigue en esta
+  // pestaña) se enseña, y esa cuenta no puede esperar a que se abra Ajustes.
   document.getElementById('apNavModelo').value = at.nav || 'topnav';
-  document.getElementById('apEstilo').value = at.estilo || 'clasico';
   ajustarEstiloAlModelo();
-  document.getElementById('apSubtitulo').value = at.subtitulo || '';
-  document.getElementById('apMostrarHero').checked = !!at.mostrar_hero;
 
   document.getElementById('apCssCustom').value = at.css_custom || '';
 
@@ -7444,18 +7456,16 @@ function recolectarApariencia() {
       // pisaría con la copia cargada al entrar lo que el restaurante acabara
       // de cambiar — el mismo motivo por el que el carrito y las redes ya no
       // están (ver el comentario de más abajo).
-      fuente_titulo: document.getElementById('apFuenteTitulo').value.trim(),
-      fuente_cuerpo: document.getElementById('apFuenteCuerpo').value.trim(),
-      nav: navElegido(),
-      estilo: estiloElegido(),
+      // Sin fuente_titulo, fuente_cuerpo, nav, estilo, subtitulo ni
+      // mostrar_hero, a propósito: se mudaron a Ajustes el 27/09/2026, junto
+      // con "Modelo de página" y "Tipografía" enteras. Mismo motivo que las
+      // redes y el carrito (ver el comentario de más abajo).
       plan: document.getElementById('apPlan').value,
       // Va aquí y no en su propio botón porque es una capacidad del
       // restaurante, como el plan, y se concede en el mismo sitio.
       importar_carta: document.getElementById('apImportar').checked,
       url_modo: document.getElementById('apUrlModo').value,
       zona_horaria: document.getElementById('apZonaHoraria').value,
-      subtitulo: document.getElementById('apSubtitulo').value.trim(),
-      mostrar_hero: document.getElementById('apMostrarHero').checked,
       portada_activa: document.getElementById('apPortadaActiva').checked,
       // Sin filtros, redes sociales ni carrito, a propósito: viven en Ajustes (ajustes.js)
       // desde el 15/09/2026. Si volvieran aquí, guardar Apariencia pisaría con la
@@ -7636,18 +7646,29 @@ function estiloElegido() {
       || 'clasico';
 }
 
-// Aplica las restricciones del plan a la interfaz. Es una barrera para ti,
-// no contra el restaurante: nav y plan ya eran de superadmin, y el
-// servidor descarta por su cuenta lo que el cliente no puede escribir.
+// Aplica las restricciones del plan a la interfaz. Es una barrera para
+// quien mira, no la única: el servidor descarta por su cuenta lo que el
+// cliente no puede escribir (MODELOS_CLIENTE_POR_PLAN, en server.js).
 function aplicarPlanAlPanel() {
   const p = planActual();
+  const navGuardado = state.restaurante?.atributos?.nav;
 
   document.querySelectorAll('#apNavModelo option').forEach(o => {
+    const esElGuardado = o.value === navGuardado;
     const incluido = p.modelos.includes(o.value);
-    o.disabled = !incluido && o.value !== state.restaurante?.atributos?.nav;
-    o.textContent = o.textContent.replace(/ — no incluido en este plan$/, '')
-      + (incluido ? '' : ' — no incluido en este plan');
+    // El restaurante (no el superadmin) en plan de video no puede cruzar
+    // horizontal↔vertical aunque el plan incluya los dos modelos: el que
+    // tiene puesto decide cómo se recortaron los videos ya subidos
+    // (docs/cartas-en-video.md), y cambiarlo no re-recorta nada.
+    const cruceBloqueado = state.rol !== 'admin' && p.videos && !esElGuardado;
+    o.disabled = (!incluido || cruceBloqueado) && !esElGuardado;
+    o.textContent = o.textContent.replace(/ — no incluido en este plan$| — lo cambia tu asesor$/, '')
+      + (!incluido ? ' — no incluido en este plan' : cruceBloqueado ? ' — lo cambia tu asesor' : '');
   });
+  // Ajustes pinta su propia nota si el restaurante no puede tocar el modelo;
+  // esta llamada solo asegura que, si Ajustes ya está en el DOM, la vea
+  // también sin tener que volver a abrir esa pestaña.
+  pintarNotaModeloAjustes?.();
 
   const btnEst = document.querySelector('.tab-btn[onclick*="estadisticas"]');
   if (btnEst) btnEst.style.display = p.estadisticas ? '' : 'none';

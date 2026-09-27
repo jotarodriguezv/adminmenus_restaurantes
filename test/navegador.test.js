@@ -4873,6 +4873,8 @@ describe('el logo se configura en Ajustes', () => {
 			pintarErroresEnCampos() {}, CAMPOS_METODOS_PAGO: [], erroresDeMetodosPago: () => [],
 			carritoEnPantalla: () => false, planActual: () => ({}),
 			hex6: () => '#000000', renderPaletas: () => {},
+			ajustarEstiloAlModelo: () => {}, previsualizarFuente: () => {},
+			navElegido: () => 'topnav', estiloElegido: () => 'clasico',
 			state: { restaurante: { id: 'r1', logo_url: '/uploads/logos/x.webp', atributos: {} } },
 			Object,
 		});
@@ -6695,6 +6697,9 @@ describe('los toppings se guardan con el botón de Ajustes', () => {
 			preguntar: async o => { preguntas.push([o.texto, ...(o.lista || []), o.nota].join('\n')); return responde; },
 			planActual: () => plan, recibePedidos: () => true, puedeElegirCarrito: () => true,
 			renderFiltrosCatalogo() {}, pintarNotaCarrito() {}, ajustarPestanasAlModelo() {}, fijarFotoDePestana() {},
+			aplicarPlanAlPanel() {}, hex6: () => '#000000', renderPaletas() {},
+			ajustarEstiloAlModelo() {}, previsualizarFuente() {},
+			navElegido: () => 'topnav', estiloElegido: () => 'clasico',
 			// El marcado de campos vive en index.html; la regla de qué falta sí es
 			// la de verdad, porque se carga pedidos.js entero.
 			pintarErroresEnCampos() {},
@@ -6806,6 +6811,8 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 			renderToppings() {}, toppingsQueSeQuitan: () => [],
 			toppingState: { platino: [], premium: [], salsas: [] },
 			hex6: () => '#000000', renderPaletas: () => {},
+			ajustarEstiloAlModelo: () => {}, previsualizarFuente: () => {},
+			navElegido: () => 'topnav', estiloElegido: () => 'clasico', aplicarPlanAlPanel: () => {},
 			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push({ metodo, ruta, cuerpo }); return { id: 'r1', atributos: { nav, ...cuerpo.atributos } }; },
 			showToast: (m, t) => avisos.push({ m, t }), Object,
 		});
@@ -7460,7 +7467,18 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 
 	test('se ajusta al cambiar el modelo y al cargar', () => {
 		assert.match(src, /id="apNavModelo" onchange="ajustarEstiloAlModelo\(\)"/);
-		assert.match(src, /getElementById\('apNavModelo'\)\.value = at\.nav \|\| 'topnav';[^\n]*\n[^\n]*\n\s*ajustarEstiloAlModelo\(\);/);
+		// El selector vive en Ajustes desde el 27/09/2026 (public/ajustes.js,
+		// pintarModeloYTipografiaAjustes()), pero Apariencia sigue sincronizando
+		// su propio valor —sin pintar nada— porque la tarjeta Portada, que
+		// también depende del modelo, se quedó aquí. Sin llamar a
+		// ajustarEstiloAlModelo() cerca, Portada quedaría desactualizada hasta
+		// que se abriera Ajustes.
+		const i = src.indexOf(`getElementById('apNavModelo').value = at.nav || 'topnav';`);
+		assert.ok(i > -1, 'Apariencia sincroniza el modelo, para renderPlanResumen() y para Portada');
+		assert.match(src.slice(i, i + 200), /ajustarEstiloAlModelo\(\);/);
+
+		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
+		assert.match(ajustes, /nav\.value = at\.nav \|\| 'topnav';[\s\S]{0,200}?ajustarEstiloAlModelo\(\);/);
 	});
 
 	test('los filtros no se esconden ni dicen que son de explorar: los pintan todos los modelos', () => {
@@ -7653,6 +7671,8 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 			carritoEnPantalla: () => false,
 			planActual: () => ({}), recibePedidos: () => false,
 			hex6: () => '#000000', renderPaletas: () => {},
+			ajustarEstiloAlModelo: () => {}, previsualizarFuente: () => {},
+			navElegido: () => 'topnav', estiloElegido: () => 'clasico', aplicarPlanAlPanel: () => {},
 			state: { restaurante: { id: 'r1', atributos } },
 			showToast: (m, t) => avisos.push([t, m]), avisarGuardadoConCarta: (m) => avisos.push(['success', m]),
 			apiFetch, Object,
@@ -7673,8 +7693,8 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.equal(r.social_tiktok, 'https://tiktok.com/@x');
 		assert.equal(r.social_whatsapp, '573001234567');
 		assert.deepEqual(Object.keys(r).sort(), ['buscador', 'color_card', 'color_primario', 'color_secundario', 'color_surface',
-			'filtros_activos', 'filtros_disponibles', 'fondo_color', 'fondo_intensidad',
-			'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
+			'estilo', 'filtros_activos', 'filtros_disponibles', 'fondo_color', 'fondo_intensidad', 'fuente_cuerpo', 'fuente_titulo',
+			'mostrar_hero', 'nav', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp', 'subtitulo']);
 	});
 
 	test('guardar manda solo lo de Ajustes y deja el estado al día', async () => {
@@ -7695,7 +7715,8 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		// claves de atributos, son columnas propias (ver saveAjustes()).
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['color_primario', 'color_secundario', 'atributos'], 'nada fuera de lo esperado');
 		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k =>
-			k.startsWith('social_') || k.startsWith('filtros_') || k === 'buscador' || k.startsWith('color_') || k.startsWith('fondo_')),
+			k.startsWith('social_') || k.startsWith('filtros_') || k === 'buscador' || k.startsWith('color_') || k.startsWith('fondo_') ||
+			['fuente_titulo', 'fuente_cuerpo', 'nav', 'estilo', 'subtitulo', 'mostrar_hero'].includes(k)),
 			'solo las claves de Ajustes');
 		assert.equal(ctx.state.restaurante.atributos.social_instagram, 'https://instagram.com/bonzas');
 		assert.equal(campos('ajustesStatus').textContent, '✓ Guardado');
@@ -7791,10 +7812,10 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 		assert.equal(JSON.stringify(orden.slice(0, 3)),
 			'["Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
 			'el carrito y lo suyo, primero');
-		assert.equal(JSON.stringify(orden.slice(-5)),
-			'["Redes sociales","Logo","Colores","Colores de superficie","Color de fondo"]',
-			'las redes, y el grupo de aspecto detrás (logo, colores, superficie, fondo)');
-		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('id="apFondoIntensidad"'), 'el botón de guardar, después de todas');
+		assert.equal(JSON.stringify(orden.slice(-7)),
+			'["Redes sociales","Logo","Colores","Colores de superficie","Color de fondo","Modelo de página","Tipografía"]',
+			'las redes, y el grupo de aspecto detrás (logo, colores, superficie, fondo, modelo, tipografía)');
+		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('id="apMuestraCuerpo"'), 'el botón de guardar, después de todas');
 	});
 
 	test('el interruptor del carrito se llama igual para un lector de pantalla', () => {
@@ -7908,6 +7929,8 @@ describe('el interruptor de filtros y la nota que explica lo que se ve', () => {
 			pintarErroresEnCampos() {}, CAMPOS_METODOS_PAGO: [], erroresDeMetodosPago: () => [],
 			carritoEnPantalla: () => false, planActual: () => ({}),
 			hex6: () => '#000000', renderPaletas: () => {},
+			ajustarEstiloAlModelo: () => {}, previsualizarFuente: () => {},
+			navElegido: () => 'topnav', estiloElegido: () => 'clasico',
 			state: { restaurante: { id: 'r1', atributos } },
 			Object,
 		});
@@ -8029,6 +8052,7 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 				// Esta prueba mira el carrito, no los pagos ni los toppings.
 				recolectarMetodosPago: () => ({}), hayQueEnsenarToppings: () => false,
 				toppingState: { platino: [], premium: [], salsas: [] },
+				navElegido: () => atributos.nav || 'topnav', estiloElegido: () => atributos.estilo || 'clasico',
 			});
 			$('ajCarrito').checked = marcado;
 			return ctx.recolectarAjustes();
@@ -8297,7 +8321,7 @@ describe('el interruptor del buscador de platos', () => {
 		assert.match(lista, /'buscador'/);
 		// Un "false" de texto es verdadero para cualquier if, y dejaría la caja
 		// de búsqueda puesta después de apagarla.
-		assert.match(servidor, /for \(const k of \['carrito', 'filtros_activos', 'buscador'\]\)/);
+		assert.match(servidor, /for \(const k of \['carrito', 'filtros_activos', 'buscador', 'mostrar_hero'\]\)/);
 	});
 });
 
@@ -8310,8 +8334,10 @@ describe('la pestaña Superadmin: qué se lee primero', () => {
 	const tab = src.slice(src.indexOf('<div id="tabApariencia"'), src.indexOf('<div id="tabPromo"'));
 	const orden = [...tab.matchAll(/<div class="section-title"[^>]*>([^<]+)/g)].map(m => m[1].trim());
 
-	test('primero los datos, el plan y el modelo, en ese orden', () => {
-		assert.deepEqual(orden.slice(0, 3), ['Datos del restaurante', 'Plan', 'Modelo de página']);
+	test('primero los datos y el plan, en ese orden', () => {
+		// «Modelo de página» ya no está: se mudó a Ajustes el 27/09/2026, con la
+		// tipografía. Lo que sigue al plan es la dirección del menú.
+		assert.deepEqual(orden.slice(0, 3), ['Datos del restaurante', 'Plan', 'Dirección del menú']);
 	});
 
 	test('el CSS personalizado se queda el último', () => {
@@ -8319,15 +8345,16 @@ describe('la pestaña Superadmin: qué se lee primero', () => {
 	});
 
 	test('no se perdió ninguna tarjeta por el camino', () => {
-		// 10 desde el 27/09/2026: el logo, los colores, los de superficie y el
-		// color de fondo se mudaron a Ajustes (cuatro menos que las 14 de antes).
-		assert.equal(orden.length, 10);
-		assert.equal(new Set(orden).size, 10, 'ninguna repetida');
+		// 8 desde el 27/09/2026: el logo, los colores, los de superficie, el
+		// color de fondo, el modelo de página y la tipografía se mudaron a
+		// Ajustes (seis menos que las 14 de antes).
+		assert.equal(orden.length, 8);
+		assert.equal(new Set(orden).size, 8, 'ninguna repetida');
 	});
 
 	test('el botón de guardar ya no se llama «apariencia»', () => {
-		// Guarda el plan, el modelo, el dominio y la zona horaria; llamarlo
-		// apariencia hacía pensar que solo guardaba los colores.
+		// Guarda el plan, el dominio y la zona horaria; llamarlo apariencia
+		// hacía pensar que solo guardaba los colores.
 		assert.match(tab, /onclick="saveApariencia\(\)">Guardar configuración</);
 	});
 });

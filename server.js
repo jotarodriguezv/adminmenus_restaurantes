@@ -777,10 +777,39 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // cinco colores a la vez, así que el de fondo viaja junto con los demás
 // aunque la IMAGEN de fondo siga siendo del superadmin). Van validados en
 // validarColores().
+// 'fuente_titulo', 'fuente_cuerpo', 'estilo', 'subtitulo' y 'mostrar_hero'
+// entraron el 27/09/2026: la tarjeta "Tipografía" y la de "Modelo de página"
+// se movieron enteras a Ajustes, no solo la fuente. 'nav' entró el mismo día
+// pero con una condición extra que este array no puede expresar por sí solo:
+// ver MODELOS_CLIENTE_POR_PLAN más abajo, donde se bloquea para el plan de
+// video. 'plan' NUNCA entra aquí: sin eso nadie podría ascenderse solo.
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
   'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador',
-  'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad'];
+  'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad',
+  'fuente_titulo', 'fuente_cuerpo', 'estilo', 'subtitulo', 'mostrar_hero', 'nav'];
+
+// ── EL MODELO SEGÚN EL PLAN, PARA UN CLIENTE ──────────────────
+// Duplica MODELOS de vmenus-app/core/planes.js (y el PLANES de este mismo
+// archivo y del panel) a propósito: son aplicaciones desplegadas por
+// separado. En fotos, los tres modelos son intercambiables: cambiar de
+// Topnav a Sidebar no le hace nada a lo que el restaurante ya subió.
+//
+// 'video' NO tiene entrada aquí, a propósito: el modelo decide cómo se
+// recortaron los videos ya subidos (docs/cartas-en-video.md, «El horizontal
+// pierde demasiado con fotos verticales»), y cambiarlo no re-recorta nada.
+// Cruzar de 'video' a 'vertical' (o al revés) sin pasar de nuevo por el
+// recorte deja los videos mal encuadrados — así que un restaurante de video
+// no puede tocar su modelo por su cuenta, aunque los dos estén en su plan.
+// Cuando exista más de un modelo por orientación, esa lista sí se abre.
+const MODELOS_CLIENTE_POR_PLAN = { fotos: ['topnav', 'sidebar', 'explorar'] };
+
+// Como planDe(), pero devuelve el NOMBRE del plan en vez del objeto: hace
+// falta para indexar MODELOS_CLIENTE_POR_PLAN. Misma lógica de respaldo.
+function nombrePlanDe(atributos) {
+  if (PLANES[atributos?.plan]) return atributos.plan;
+  return ['video', 'vertical'].includes(atributos?.nav) ? 'video' : PLAN_POR_DEFECTO;
+}
 
 // ── FILTROS Y ETIQUETAS ───────────────────────────────────────
 // Lo que el restaurante ofrece como filtro en su carta. Entró en la lista del
@@ -858,6 +887,32 @@ const FONDO_INTENSIDADES = ['solido', 'sutil', 'marcado'];
 // Solo mira las claves que llegaron: no revienta un guardado que no toca
 // colores, y el resto de 'atributos' no se ve afectado (igual que
 // validarFiltros con 'filtros_disponibles').
+// ── TIPOGRAFÍA, ESTILO Y SUBTÍTULO ────────────────────────────
+// Las fuentes no se comprueban contra la lista curada del panel (14 y 13
+// nombres, en public/index.html): esta plataforma ya deja que el
+// superadmin escriba cualquier nombre desde siempre —si no existe en Google
+// Fonts, simplemente no carga y se ve la de reserva (vmenus-app/core/loader.js)—
+// y mantener una tercera copia de esa lista solo para el cliente es la misma
+// carga de sincronía que ya se decidió no pagar (CLAUDE.md, «Si las
+// peticiones de fuente se vuelven frecuentes»). Solo se acota el largo.
+const FUENTE_MAX = 60;
+const ESTILOS_VERTICAL = ['clasico', 'intenso', 'avance'];
+const SUBTITULO_MAX = 60;
+
+function validarTipografiaYEstilo(atributos) {
+  for (const [clave, nombre] of [['fuente_titulo', 'La fuente de títulos'], ['fuente_cuerpo', 'La fuente de cuerpo']]) {
+    if (!(clave in atributos)) continue;
+    const v = String(atributos[clave] ?? '').trim();
+    if (v.length > FUENTE_MAX) return `${nombre} es demasiado larga`;
+    atributos[clave] = v;
+  }
+  if ('estilo' in atributos && atributos.estilo && !ESTILOS_VERTICAL.includes(atributos.estilo))
+    return 'El estilo de la carta vertical no es uno de los que se ofrecen';
+  if ('subtitulo' in atributos)
+    atributos.subtitulo = String(atributos.subtitulo ?? '').trim().slice(0, SUBTITULO_MAX);
+  return null;
+}
+
 function validarColores(atributos) {
   return validarColorHex(atributos.color_surface, 'El color de superficie')
     || validarColorHex(atributos.color_card, 'El color de las cajas de producto')
@@ -1087,6 +1142,14 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
         ATRIBUTOS_CLIENTE_PERMITIDOS.includes(k) &&
         (!ATRIBUTOS_SEGUN_PLAN[k] || plan[ATRIBUTOS_SEGUN_PLAN[k]])
       ));
+
+      // 'nav' pasó el filtro genérico de arriba, pero le falta la condición
+      // que ese filtro no sabe expresar: no CUALQUIER modelo del plan, solo
+      // los de MODELOS_CLIENTE_POR_PLAN. Se descarta en silencio, como el
+      // resto de lo que el cliente no puede tocar — no es un error de
+      // formato, es un permiso que no tiene.
+      if ('nav' in entrantes && !(MODELOS_CLIENTE_POR_PLAN[nombrePlanDe(actual?.atributos)] || []).includes(entrantes.nav))
+        delete entrantes.nav;
     }
 
     // Un interruptor es un booleano: un "false" de texto es verdadero para
@@ -1097,10 +1160,11 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     // "false" de texto los dejaría encendidos después de apagarlos.
     // 'buscador' va con ellos y por lo mismo: la carta solo lo apaga con un
     // false de verdad (core/buscador.js), así que un "false" de texto dejaría
-    // la caja de búsqueda puesta después de apagarla.
-    for (const k of ['carrito', 'filtros_activos', 'buscador'])
+    // la caja de búsqueda puesta después de apagarla. 'mostrar_hero' entró el
+    // 27/09/2026, misma regla.
+    for (const k of ['carrito', 'filtros_activos', 'buscador', 'mostrar_hero'])
       if (k in entrantes) entrantes[k] = entrantes[k] === true;
-    const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes) || validarColores(entrantes);
+    const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes) || validarColores(entrantes) || validarTipografiaYEstilo(entrantes);
     if (errorAjustes) return res.status(400).json({ error: errorAjustes });
 
     body.atributos = { ...(actual?.atributos || {}), ...entrantes };

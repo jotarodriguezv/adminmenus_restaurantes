@@ -2081,6 +2081,107 @@ describe('los colores y la paleta · los edita el restaurante, con validación',
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('modelo de página y tipografía · los edita el restaurante, con validación', () => {
+	// 27/09/2026: tercer y cuarto incremento de "libertad al cliente en
+	// Ajustes" (CLAUDE.md, «Decisión: abrir partes de Apariencia al
+	// restaurante»). El modelo (nav) es el delicado: se abre en plan fotos,
+	// donde los tres modelos son intercambiables, y se bloquea entero en plan
+	// video, donde cruzar horizontal↔vertical no re-recorta los videos ya
+	// subidos (docs/cartas-en-video.md).
+	const guardar = (atributos, plan = 'fotos', token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { plan, nav: plan === 'fotos' ? 'topnav' : 'video' } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos }, token);
+	};
+
+	test('en plan fotos, el restaurante puede moverse entre los tres modelos', async () => {
+		for (const nav of ['topnav', 'sidebar', 'explorar']) {
+			const r = await guardar({ nav });
+			assert.equal(r.status, 200);
+			assert.equal(S.ultimaEscritura('restaurantes').atributos.nav, nav);
+		}
+	});
+
+	test('en plan fotos, no puede saltar a un modelo de video', async () => {
+		const r = await guardar({ nav: 'video' });
+		assert.equal(r.status, 200, 'no es un error: se descarta en silencio, como el carrito fuera de plan');
+		// nav no viajó, así que la fusión conserva el que ya tenía (topnav, el
+		// que pone guardar() como punto de partida) en vez de escribir 'video'.
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.nav, 'topnav');
+	});
+
+	test('en plan video, el restaurante no puede cruzar a vertical ni a ningún modelo de fotos', async () => {
+		for (const nav of ['vertical', 'topnav', 'sidebar', 'explorar']) {
+			const r = await guardar({ nav }, 'video');
+			assert.equal(r.status, 200);
+			// Se queda en 'video' (el que pone guardar() como punto de partida
+			// para este plan): el intento se descarta, no se escribe.
+			assert.equal(S.ultimaEscritura('restaurantes').atributos.nav, 'video', nav);
+		}
+	});
+
+	test('el superadmin sí puede cruzar de horizontal a vertical', async () => {
+		const r = await guardar({ nav: 'vertical' }, 'video', tokenAdmin);
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.nav, 'vertical');
+	});
+
+	test('el restaurante puede guardar tipografía, estilo y subtítulo', async () => {
+		const r = await guardar({
+			fuente_titulo: 'Bebas Neue', fuente_cuerpo: 'Inter', estilo: 'intenso',
+			subtitulo: 'Carta Digital · 2026', mostrar_hero: true,
+		});
+		assert.equal(r.status, 200);
+		const g = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(g.fuente_titulo, 'Bebas Neue');
+		assert.equal(g.fuente_cuerpo, 'Inter');
+		assert.equal(g.estilo, 'intenso');
+		assert.equal(g.subtitulo, 'Carta Digital · 2026');
+		assert.equal(g.mostrar_hero, true);
+	});
+
+	test('un "false" de texto en mostrar_hero no lo enciende', async () => {
+		const r = await guardar({ mostrar_hero: 'false' });
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.mostrar_hero, false);
+	});
+
+	test('un estilo que no es uno de los tres se rechaza', async () => {
+		const r = await guardar({ estilo: 'dorado' });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /estilo/i);
+		assert.equal(S.ultimaEscritura('restaurantes'), null);
+	});
+
+	test('un subtítulo larguísimo se recorta, no se rechaza', async () => {
+		const r = await guardar({ subtitulo: 'x'.repeat(200) });
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.subtitulo.length, 60);
+	});
+
+	test('una fuente demasiado larga sí se rechaza', async () => {
+		const r = await guardar({ fuente_titulo: 'x'.repeat(200) });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /fuente/i);
+	});
+
+	test('la validación de estilo también frena al superadmin', async () => {
+		const r = await guardar({ estilo: 'no-existe' }, 'fotos', tokenAdmin);
+		assert.equal(r.status, 400);
+	});
+
+	test('guardar tipografía no abre el plan ni el CSS personalizado', async () => {
+		await guardar({ fuente_titulo: 'Inter', plan: 'video', css_custom: 'body{}' });
+		const g = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(g.fuente_titulo, 'Inter');
+		// El intento de plan no viaja: se queda en 'fotos', el que ya tenía
+		// (guardar() lo pone como punto de partida), no en 'video'.
+		assert.equal(g.plan, 'fotos');
+		assert.equal(g.css_custom, undefined);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('filtros y etiquetas · los elige el restaurante, con validación', () => {
 	// 15/09/2026, con las redes: pasan de Apariencia a Ajustes. Lo que llega se
 	// deja en la forma que la carta sabe usar, lo mande quien lo mande.
