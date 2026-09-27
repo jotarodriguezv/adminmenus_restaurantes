@@ -161,7 +161,7 @@ a,button,input,select,textarea{font-family:inherit;}
 .topbar-right .nav-icon-btn{width:34px;padding:0;}
 .topbar-right .nav-restaurantes{color:var(--accent-texto);}
 .topbar-right .nav-restaurantes svg,.topbar-right .nav-salir svg{
-  width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;
+  width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.8;
   stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;
 }
 .topbar-right .nav-restaurantes:hover{
@@ -182,8 +182,8 @@ a,button,input,select,textarea{font-family:inherit;}
 }
 .topbar-right .nav-icon-btn{border-color:#d28a2b;background:#57330f;color:#ffe1ae;box-shadow:inset 0 1px rgba(255,255,255,.1);}
 .topbar-right .nav-icon-btn:hover{border-color:#f2aa42;background:#754516;color:#fff2d5;box-shadow:0 7px 16px rgba(210,138,43,.24);}
-.topbar-right .nav-restaurantes{border-color:#1ba765;background:#159957;color:#fff;box-shadow:0 4px 12px rgba(21,153,87,.24);}
-.topbar-right .nav-restaurantes:hover{border-color:#25c878;background:#1aad66;color:#fff;box-shadow:0 8px 18px rgba(21,153,87,.34);}
+.topbar-right .nav-restaurantes{border-color:#9b72f3;background:#7150bb;color:#fff;box-shadow:0 4px 12px rgba(93,60,166,.28);}
+.topbar-right .nav-restaurantes:hover{border-color:#b89aff;background:#8563d2;color:#fff;box-shadow:0 8px 18px rgba(93,60,166,.38);}
 .topbar-right .nav-salir{border-color:#ef5350;background:#b7262b;color:#fff;box-shadow:0 4px 12px rgba(183,38,43,.22);}
 .topbar-right .nav-salir:hover{border-color:#ff7774;background:#d6383d;color:#fff;box-shadow:0 8px 18px rgba(183,38,43,.34);}
 .topbar-right .nav-icon-btn:hover,.topbar-right .nav-restaurantes:hover,.topbar-right .nav-salir:hover{transform:translateY(-2px);}
