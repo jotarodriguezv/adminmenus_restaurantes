@@ -4872,6 +4872,7 @@ describe('el logo se configura en Ajustes', () => {
 			renderToppings: () => {}, hayQueEnsenarToppings: () => false,
 			pintarErroresEnCampos() {}, CAMPOS_METODOS_PAGO: [], erroresDeMetodosPago: () => [],
 			carritoEnPantalla: () => false, planActual: () => ({}),
+			hex6: () => '#000000', renderPaletas: () => {},
 			state: { restaurante: { id: 'r1', logo_url: '/uploads/logos/x.webp', atributos: {} } },
 			Object,
 		});
@@ -6804,6 +6805,7 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 			// si el restaurante no tiene ninguno, que es lo que dice el catálogo vacío.
 			renderToppings() {}, toppingsQueSeQuitan: () => [],
 			toppingState: { platino: [], premium: [], salsas: [] },
+			hex6: () => '#000000', renderPaletas: () => {},
 			apiFetch: async (metodo, ruta, cuerpo) => { peticiones.push({ metodo, ruta, cuerpo }); return { id: 'r1', atributos: { nav, ...cuerpo.atributos } }; },
 			showToast: (m, t) => avisos.push({ m, t }), Object,
 		});
@@ -7650,6 +7652,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 			pintarErroresEnCampos() {}, CAMPOS_METODOS_PAGO: [], erroresDeMetodosPago: () => [],
 			carritoEnPantalla: () => false,
 			planActual: () => ({}), recibePedidos: () => false,
+			hex6: () => '#000000', renderPaletas: () => {},
 			state: { restaurante: { id: 'r1', atributos } },
 			showToast: (m, t) => avisos.push([t, m]), avisarGuardadoConCarta: (m) => avisos.push(['success', m]),
 			apiFetch, Object,
@@ -7669,7 +7672,9 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		const r = ctx.recolectarAjustes();
 		assert.equal(r.social_tiktok, 'https://tiktok.com/@x');
 		assert.equal(r.social_whatsapp, '573001234567');
-		assert.deepEqual(Object.keys(r).sort(), ['buscador', 'filtros_activos', 'filtros_disponibles', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
+		assert.deepEqual(Object.keys(r).sort(), ['buscador', 'color_card', 'color_primario', 'color_secundario', 'color_surface',
+			'filtros_activos', 'filtros_disponibles', 'fondo_color', 'fondo_intensidad',
+			'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
 	});
 
 	test('guardar manda solo lo de Ajustes y deja el estado al día', async () => {
@@ -7686,8 +7691,11 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.equal(peticiones.length, 1);
 		assert.equal(peticiones[0].metodo, 'PATCH');
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
-		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['atributos'], 'nada fuera de atributos');
-		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k => k.startsWith('social_') || k.startsWith('filtros_') || k === 'buscador'),
+		// color_primario y color_secundario viajan sueltos, como logo_url: no son
+		// claves de atributos, son columnas propias (ver saveAjustes()).
+		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['color_primario', 'color_secundario', 'atributos'], 'nada fuera de lo esperado');
+		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k =>
+			k.startsWith('social_') || k.startsWith('filtros_') || k === 'buscador' || k.startsWith('color_') || k.startsWith('fondo_')),
 			'solo las claves de Ajustes');
 		assert.equal(ctx.state.restaurante.atributos.social_instagram, 'https://instagram.com/bonzas');
 		assert.equal(campos('ajustesStatus').textContent, '✓ Guardado');
@@ -7750,6 +7758,9 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 	// 26/09/2026: el logo entra DETRÁS de las redes, como principio de un
 	// grupo de «aspecto» que va a seguir creciendo (colores, tipografía,
 	// modelo) — el mismo lugar donde vivía ese grupo en Apariencia.
+	//
+	// 27/09/2026: colores, paleta y color de fondo entran detrás del logo,
+	// mismo grupo.
 	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 
 	test('Inicio va primero y Ajustes queda tras Productos y Categorías', () => {
@@ -7780,9 +7791,10 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 		assert.equal(JSON.stringify(orden.slice(0, 3)),
 			'["Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
 			'el carrito y lo suyo, primero');
-		assert.equal(JSON.stringify(orden.slice(-3)), '["Filtros y etiquetas","Redes sociales","Logo"]',
-			'los filtros, después las redes, y el logo cierra el grupo de aspecto');
-		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('id="ajLogoDelBtn"'), 'el botón de guardar, después de todas');
+		assert.equal(JSON.stringify(orden.slice(-5)),
+			'["Redes sociales","Logo","Colores","Colores de superficie","Color de fondo"]',
+			'las redes, y el grupo de aspecto detrás (logo, colores, superficie, fondo)');
+		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('id="apFondoIntensidad"'), 'el botón de guardar, después de todas');
 	});
 
 	test('el interruptor del carrito se llama igual para un lector de pantalla', () => {
@@ -7895,6 +7907,7 @@ describe('el interruptor de filtros y la nota que explica lo que se ve', () => {
 			// Marcar los campos que faltan vive en index.html; aquí no hay pantalla.
 			pintarErroresEnCampos() {}, CAMPOS_METODOS_PAGO: [], erroresDeMetodosPago: () => [],
 			carritoEnPantalla: () => false, planActual: () => ({}),
+			hex6: () => '#000000', renderPaletas: () => {},
 			state: { restaurante: { id: 'r1', atributos } },
 			Object,
 		});
@@ -8301,19 +8314,15 @@ describe('la pestaña Superadmin: qué se lee primero', () => {
 		assert.deepEqual(orden.slice(0, 3), ['Datos del restaurante', 'Plan', 'Modelo de página']);
 	});
 
-	test('el color de fondo va pegado a la imagen de fondo', () => {
-		// Solo se usa si no hay imagen, así que lejos de ella no se entiende.
-		assert.equal(orden[orden.indexOf('Imagen de fondo') + 1], 'Color de fondo');
-	});
-
 	test('el CSS personalizado se queda el último', () => {
 		assert.equal(orden.at(-1), 'CSS personalizado');
 	});
 
 	test('no se perdió ninguna tarjeta por el camino', () => {
-		// 13 desde el 26/09/2026: el logo se mudó a Ajustes (una menos).
-		assert.equal(orden.length, 13);
-		assert.equal(new Set(orden).size, 13, 'ninguna repetida');
+		// 10 desde el 27/09/2026: el logo, los colores, los de superficie y el
+		// color de fondo se mudaron a Ajustes (cuatro menos que las 14 de antes).
+		assert.equal(orden.length, 10);
+		assert.equal(new Set(orden).size, 10, 'ninguna repetida');
 	});
 
 	test('el botón de guardar ya no se llama «apariencia»', () => {
@@ -9600,11 +9609,15 @@ describe('paletas de colores · combinaciones que se leen en cualquier modelo', 
 		assert.equal(c.paletaActual(), null);
 	});
 
-	test('está en la tarjeta «Colores», se carga, y Superadmin la pinta al abrirse', () => {
+	test('está en la tarjeta «Colores», dentro de Ajustes, y se pinta al abrirla', () => {
+		// Desde el 27/09/2026 la pintan las dos (cliente y superadmin, es la
+		// misma pestaña): ver ajustes.js, pintarColoresAjustes().
 		const i = src.indexOf('<div class="section-title">Colores</div>');
 		assert.ok(i > -1 && src.indexOf('id="apPaletas"', i) - i < 600, 'el selector va dentro de «Colores»');
+		assert.ok(src.indexOf('<div id="tabAjustes"') < i, 'la tarjeta vive en Ajustes');
 		assert.ok(src.includes('<script src="paletas.js"></script>'));
-		assert.match(src, /apFondoIntensidad'\)\.value = at\.fondo_intensidad \|\| 'solido';[\s\S]{0,120}?renderPaletas\(\);/);
+		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
+		assert.match(ajustes, /apFondoIntensidad'\)\.value = at\.fondo_intensidad \|\| 'solido';[\s\S]{0,120}?renderPaletas\(\);/);
 	});
 
 	test('pinta con textContent, nunca como HTML', () => {
