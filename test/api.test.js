@@ -1959,10 +1959,10 @@ describe('redes sociales · las edita el restaurante, con validación', () => {
 	});
 
 	test('abrir las redes no abre nada más: el resto de Apariencia sigue fuera', async () => {
-		await guardar({ social_bar: true, color_card: '#111111', nav: 'carrito', css_custom: 'body{}', plan: 'video' });
+		// color_card ya no es del resto: se abrió el 27/09/2026 con la paleta.
+		await guardar({ social_bar: true, nav: 'carrito', css_custom: 'body{}', plan: 'video' });
 		const g = S.ultimaEscritura('restaurantes').atributos;
 		assert.equal(g.social_bar, true);
-		assert.equal(g.color_card, undefined);
 		assert.equal(g.css_custom, undefined);
 		assert.equal(g.plan, undefined);
 		assert.equal(g.nav, 'topnav', 'el modelo no lo cambia el restaurante');
@@ -2006,11 +2006,77 @@ describe('el logo · lo sube el restaurante, con validación', () => {
 	});
 
 	test('subir el logo no abre nada más: el resto sigue fuera del cliente', async () => {
-		await guardar({ logo_url: 'https://x/y.png', nombre: 'Hackeado', color_primario: '#fff', atributos: { css_custom: 'body{}' } });
+		// color_primario ya no es del resto: se abrió el 27/09/2026 con la paleta.
+		await guardar({ logo_url: 'https://x/y.png', nombre: 'Hackeado', atributos: { css_custom: 'body{}' } });
 		assert.equal(S.ultimaEscritura('restaurantes').logo_url, 'https://x/y.png');
 		assert.equal(S.ultimaEscritura('restaurantes').nombre, undefined, 'el nombre no lo cambia el restaurante');
-		assert.equal(S.ultimaEscritura('restaurantes').color_primario, undefined);
 		assert.equal(S.ultimaEscritura('restaurantes').atributos?.css_custom, undefined);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('los colores y la paleta · los edita el restaurante, con validación', () => {
+	// 27/09/2026: junto con el logo, forman el grupo de "aspecto" que se abre
+	// al restaurante poco a poco (CLAUDE.md, «Decisión: abrir partes de
+	// Apariencia al restaurante»). color_primario y color_secundario son
+	// columnas propias (como logo_url); color_surface, color_card, fondo_color
+	// y fondo_intensidad son claves de atributos (como las redes).
+	const guardar = (body, token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { nav: 'topnav' } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, body, token);
+	};
+
+	test('el restaurante puede guardar los cinco colores', async () => {
+		const r = await guardar({
+			color_primario: '#3dd68c', color_secundario: '#a374af',
+			atributos: { color_surface: '#12111a', color_card: '#1a1825', fondo_color: '#0a0a0f', fondo_intensidad: 'sutil' },
+		});
+		assert.equal(r.status, 200);
+		const g = S.ultimaEscritura('restaurantes');
+		assert.equal(g.color_primario, '#3dd68c');
+		assert.equal(g.color_secundario, '#a374af');
+		assert.equal(g.atributos.color_surface, '#12111a');
+		assert.equal(g.atributos.color_card, '#1a1825');
+		assert.equal(g.atributos.fondo_color, '#0a0a0f');
+		assert.equal(g.atributos.fondo_intensidad, 'sutil');
+	});
+
+	test('la forma corta del hexadecimal también vale', async () => {
+		const r = await guardar({ color_primario: '#3d6' });
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').color_primario, '#3d6');
+	});
+
+	test('un color que no es un hexadecimal se rechaza', async () => {
+		const r = await guardar({ color_primario: 'rojo' });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /color primario/i);
+		assert.equal(S.ultimaEscritura('restaurantes'), null, 'no se escribe nada');
+	});
+
+	test('un color de superficie inválido tampoco deja pasar el resto del guardado', async () => {
+		const r = await guardar({ atributos: { color_card: '#1a1825', color_surface: 'javascript:alert(1)' } });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /superficie/i);
+		assert.equal(S.ultimaEscritura('restaurantes'), null);
+	});
+
+	test('una intensidad que no es de las tres se rechaza', async () => {
+		const r = await guardar({ atributos: { fondo_intensidad: 'extrema' } });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /intensidad/i);
+	});
+
+	test('la validación también frena al superadmin', async () => {
+		const r = await guardar({ color_secundario: 'no-es-un-color' }, tokenAdmin);
+		assert.equal(r.status, 400);
+	});
+
+	test('vacío vale: la carta usa su color por defecto', async () => {
+		const r = await guardar({ color_primario: '', atributos: { fondo_color: '' } });
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').color_primario, '');
 	});
 });
 

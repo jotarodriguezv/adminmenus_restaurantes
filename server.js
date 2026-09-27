@@ -760,7 +760,9 @@ const CAMPOS_RESTAURANTE_ADMIN   = ['promo_activa', 'promo_imagen_url', 'promo_n
 // en Ajustes (public/ajustes.js) y ya no se pinta en Apariencia. Sigue
 // viajando fuera de 'atributos' porque es una columna propia de la tabla, no
 // una clave del JSON — por eso está aquí y no en ATRIBUTOS_CLIENTE_PERMITIDOS.
-const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_nombre', 'promo_precio', 'promo_en_tv', 'promo_cada', 'atributos', 'logo_url'];
+// 'color_primario' y 'color_secundario' entraron el 27/09/2026, con los
+// colores y la paleta: mismo motivo y mismo sitio que el logo (Ajustes).
+const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_nombre', 'promo_precio', 'promo_en_tv', 'promo_cada', 'atributos', 'logo_url', 'color_primario', 'color_secundario'];
 // Dentro de "atributos" (JSON libre), el cliente solo puede tocar estas claves
 // (toppings, WhatsApp de pedidos, métodos de pago y diseño del QR). nav,
 // fuentes, redes, css_custom, etc. quedan fuera.
@@ -770,9 +772,15 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // Las redes sociales entraron el 15/09/2026, al pasar de Apariencia a la
 // pestaña Ajustes del restaurante. Van validadas en validarRedes(): hasta
 // entonces solo las escribía el superadmin.
+// 'color_surface', 'color_card', 'fondo_color' y 'fondo_intensidad' entraron
+// el 27/09/2026, con la paleta (CAMPOS_PALETA en public/paletas.js aplica los
+// cinco colores a la vez, así que el de fondo viaja junto con los demás
+// aunque la IMAGEN de fondo siga siendo del superadmin). Van validados en
+// validarColores().
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
-  'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador'];
+  'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador',
+  'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad'];
 
 // ── FILTROS Y ETIQUETAS ───────────────────────────────────────
 // Lo que el restaurante ofrece como filtro en su carta. Entró en la lista del
@@ -826,6 +834,36 @@ function validarUrlImagen(valor, nombre) {
   if (!url || !['http:', 'https:'].includes(url.protocol))
     return `${nombre} tiene que ser una dirección completa, empezando por https://`;
   return null;
+}
+
+// ── COLORES Y PALETA ───────────────────────────────────────────
+// Se abren al cliente el 27/09/2026, junto con la paleta. La paleta se arma
+// entera en el navegador (public/paletas.js, con sus reglas de contraste);
+// aquí solo se comprueba que lo que llegue sea un hexadecimal de verdad, o
+// esté vacío — vacío es "usa el de la carta" (vmenus-app/core/loader.js ya
+// tiene sus propios valores por defecto).
+// Acepta la forma corta (#fff) además de la larga: los campos de texto del
+// panel (maxlength="7") dejan escribir cualquiera de las dos, igual que
+// hex6() en index.html ya tolera la corta al construir el cuadrito de muestra.
+const HEX_COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+function validarColorHex(valor, nombre) {
+  if (valor == null || valor === '') return null;
+  if (!HEX_COLOR.test(String(valor)))
+    return `${nombre} tiene que ser un color válido, como #3dd68c`;
+  return null;
+}
+
+const FONDO_INTENSIDADES = ['solido', 'sutil', 'marcado'];
+
+// Solo mira las claves que llegaron: no revienta un guardado que no toca
+// colores, y el resto de 'atributos' no se ve afectado (igual que
+// validarFiltros con 'filtros_disponibles').
+function validarColores(atributos) {
+  return validarColorHex(atributos.color_surface, 'El color de superficie')
+    || validarColorHex(atributos.color_card, 'El color de las cajas de producto')
+    || validarColorHex(atributos.fondo_color, 'El color de fondo')
+    || ('fondo_intensidad' in atributos && !FONDO_INTENSIDADES.includes(atributos.fondo_intensidad)
+        ? 'La intensidad del fondo no es una de las que se ofrecen' : null);
 }
 
 // ── REDES SOCIALES ────────────────────────────────────────────
@@ -1014,6 +1052,11 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     if (errorLogo) return res.status(400).json({ error: errorLogo });
   }
 
+  const errorColorPrimario = 'color_primario' in body ? validarColorHex(body.color_primario, 'El color primario') : null;
+  const errorColorSecundario = 'color_secundario' in body ? validarColorHex(body.color_secundario, 'El color secundario') : null;
+  if (errorColorPrimario || errorColorSecundario)
+    return res.status(400).json({ error: errorColorPrimario || errorColorSecundario });
+
   // ── 'atributos' SE FUNDE, NO SE REEMPLAZA ───────────────────
   // Es un solo JSON compartido por pantallas que no se conocen entre sí:
   // Apariencia, Toppings, Pedidos, Métodos de pago, el orden del menú y la
@@ -1057,7 +1100,7 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     // la caja de búsqueda puesta después de apagarla.
     for (const k of ['carrito', 'filtros_activos', 'buscador'])
       if (k in entrantes) entrantes[k] = entrantes[k] === true;
-    const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes);
+    const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes) || validarColores(entrantes);
     if (errorAjustes) return res.status(400).json({ error: errorAjustes });
 
     body.atributos = { ...(actual?.atributos || {}), ...entrantes };
