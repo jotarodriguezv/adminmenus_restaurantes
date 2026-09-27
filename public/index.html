@@ -227,6 +227,10 @@
 				<button class="tab-btn" id="tabBtnProductos" onclick="switchTab('productos',this)">Productos</button>
 				<button class="tab-btn" id="tabBtnCategorias" onclick="switchTab('categorias',this)">Categorías</button>
 				<button class="tab-btn" id="tabBtnAjustes" onclick="switchTab('ajustes',this)">Ajustes</button>
+				<!-- Por dentro es 'aspecto', no 'apariencia': ese nombre ya lo usa la
+				     pestaña de solo superadmin (ver el comentario de arriba). La ve
+				     el restaurante también, a diferencia de esa. -->
+				<button class="tab-btn" id="tabBtnAspecto" onclick="switchTab('aspecto',this)">Apariencia</button>
 				<button class="tab-btn" id="tabBtnPromo" onclick="switchTab('promo',this)">Destacados</button>
 				<button class="tab-btn" id="tabBtnTv" onclick="switchTab('tv',this)" style="display:none">Pantalla TV</button>
 				<button class="tab-btn" id="tabBtnImportar" onclick="switchTab('importar',this)" style="display:none">Importar carta</button>
@@ -460,9 +464,10 @@
 						</div>
 					</div>
 
-					<!-- El logo se mudó a Ajustes el 26/09/2026: primer paso de abrir
-					     Apariencia al cliente "poco a poco" (CLAUDE.md). Ver
-					     public/ajustes.js, pintarLogoAjustes()/handleLogoUpload(). -->
+					<!-- El logo se mudó a la pestaña Apariencia (del restaurante) el
+					     26/09/2026, y a su propio archivo el 27/09/2026, cuando esa
+					     pestaña se separó de Ajustes. Ver public/aspecto.js,
+					     pintarLogo()/handleLogoUpload(). -->
 
 					<div class="section-card" id="apPortadaCard">
 						<div class="section-header">
@@ -511,12 +516,9 @@
 						</div>
 					</div>
 
-					<!-- El color de fondo y su intensidad se mudaron a Ajustes el
-					     27/09/2026, junto con Colores: ver más abajo. -->
-
-					<!-- Tipografía se mudó entera a Ajustes el 27/09/2026, junto con el
-					     "Modelo de página": mismo motivo (CLAUDE.md). El comentario de
-					     cómo añadir una fuente nueva se movió con la tarjeta. -->
+					<!-- El color de fondo, su intensidad, Colores, "Modelo de página" y
+					     Tipografía se mudaron a la pestaña Apariencia (del restaurante):
+					     ver public/aspecto.js. -->
 
 					<div class="section-card">
 						<div class="section-title">CSS personalizado <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(avanzado, casos especiales)</span></div>
@@ -1299,15 +1301,26 @@
 						</div>
 					</div>
 
-					<!-- El logo, desde el 26/09/2026: primer paso de abrir Apariencia al
-					     restaurante "poco a poco" (CLAUDE.md, «Decisión: abrir partes de
-					     Apariencia al restaurante»). Antes vivía en Apariencia, solo para
-					     el superadmin. Al final, como el aspecto en Apariencia. -->
+					<div style="text-align:right;">
+						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveAjustes()">Guardar ajustes</button>
+					</div>
+					<div id="ajustesStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+				</div>
+
+				<!-- TAB APARIENCIA (del restaurante, no confundir con la pestaña de
+				     solo superadmin, cuyo id por dentro sigue siendo 'apariencia' —
+				     ver el comentario de tabBtnApariencia más arriba). Nació el
+				     27/09/2026, separada de Ajustes: logo, colores, paleta, color de
+				     fondo, modelo de página y tipografía habían ido entrando ahí en
+				     cuatro incrementos (CLAUDE.md, «Decisión: abrir partes de
+				     Apariencia al restaurante»), y junto al carrito y las redes
+				     dejaba de tener sentido — son preguntas distintas. Ver public/aspecto.js. -->
+				<div id="tabAspecto" class="hidden">
 					<div class="section-card">
 						<div class="section-title">Logo</div>
 						<div style="margin-bottom:12px;">
-							<img id="ajLogoPreview" class="promo-img-preview" src="" style="display:none">
-							<span id="ajLogoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin logo configurado</span>
+							<img id="apLogoPreview" class="promo-img-preview" src="" style="display:none">
+							<span id="apLogoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin logo configurado</span>
 						</div>
 						<label class="upload-zone">
 							<input type="file" accept="image/*" onchange="handleLogoUpload(this)">
@@ -1316,15 +1329,10 @@
 								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG · idealmente cuadrado y con fondo transparente</span>
 							</div>
 						</label>
-						<div id="ajLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-						<button type="button" id="ajLogoDelBtn" class="btn-remove-logo" onclick="eliminarImagen('logo')" style="display:none">🗑 Quitar logo</button>
+						<div id="apLogoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						<button type="button" id="apLogoDelBtn" class="btn-remove-logo" onclick="eliminarImagen('logo')" style="display:none">🗑 Quitar logo</button>
 					</div>
 
-					<!-- Colores, paletas y color de fondo, desde el 27/09/2026: mismo
-					     grupo de "aspecto" que el logo, mismo motivo (CLAUDE.md). Antes
-					     vivían en Apariencia, solo para el superadmin. Los ids no cambian
-					     (apColor1, apPaletas…): public/paletas.js no sabe de pestañas, solo
-					     de elementos por id, así que se movió tal cual. -->
 					<div class="section-card">
 						<div class="section-title">Colores</div>
 						<!-- Paletas probadas: ver la cabecera de public/paletas.js. -->
@@ -1395,10 +1403,9 @@
 						</div>
 					</div>
 
-					<!-- Modelo de página y tipografía, desde el 27/09/2026: mismo grupo
-					     de "aspecto" que el logo y los colores (CLAUDE.md). La navegación
-					     se bloquea sola para un restaurante de video (MODELOS_CLIENTE_POR_PLAN
-					     en server.js, y pintarNotaModeloAjustes() aquí abajo). -->
+					<!-- La navegación se bloquea sola para un restaurante de video
+					     (MODELOS_CLIENTE_POR_PLAN en server.js, y pintarNotaModelo()
+					     en public/aspecto.js). -->
 					<div class="section-card">
 						<div class="section-title">Modelo de página</div>
 						<div class="form-group" id="apNavModeloFila" style="margin-bottom:0">
@@ -1505,9 +1512,9 @@
 					</div>
 
 					<div style="text-align:right;">
-						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveAjustes()">Guardar ajustes</button>
+						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveAspecto()">Guardar apariencia</button>
 					</div>
-					<div id="ajustesStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+					<div id="aspectoStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
 				</div>
 
 				<div id="tabQr" class="hidden">
@@ -2623,6 +2630,7 @@
 <script src="pedidos.js"></script>
 <script src="sesion.js"></script>
 <script src="ajustes.js"></script>
+<script src="aspecto.js"></script>
 <script src="restaurantes-filtros.js"></script>
 <script src="productos-marcas.js"></script>
 <script src="ver-en-la-carta.js"></script>
@@ -2931,7 +2939,7 @@ const WHATSAPP_SOPORTE = '573151182283';   // el mismo del login y de la landing
 
 const AYUDA_SEGUN_QUIEN_MIRA = {
   qrSinLogo: {
-    admin: 'Este restaurante no tiene logo. Súbelo en la pestaña Superadmin.',
+    admin: 'Este restaurante no tiene logo. Súbelo en la pestaña Apariencia.',
     cliente: 'Todavía no tienes logo en tu carta. Envíanoslo y lo subimos por ti:',
     pedido: 'Hola, quiero poner el logo de mi restaurante en la carta',
   },
@@ -2993,7 +3001,7 @@ function switchTab(tab, btn) {
   // En un móvil la pestaña pulsada puede estar medio fuera; se trae a la vista
   // para que se vea cuál está activa. 'nearest' no mueve la página en vertical.
   btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  ['tabInicio','tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabAjustes'].forEach(id=>{
+  ['tabInicio','tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabAjustes','tabAspecto'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
@@ -3002,6 +3010,7 @@ function switchTab(tab, btn) {
   if (tab === 'qr') renderQR().then(() => fijarFotoDePestana('qr'));
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
   if (tab === 'ajustes') renderAjustes();
+  if (tab === 'aspecto') renderAspecto();
   if (tab === 'inicio') renderInicio();
   fijarFotoDePestana(tab);
 }
@@ -3022,6 +3031,7 @@ function switchTab(tab, btn) {
 // cada tarjeta de Destacados lleva la suya porque se guarda por separado.
 const LECTURAS_DE_PESTANA = {
   ajustes: () => recolectarAjustes(),
+  aspecto: () => recolectarAspecto(),
   tv: () => tvDelFormulario(),
   qr: () => { qrLeerControles(); return qrCfg; },
 };
@@ -7217,7 +7227,7 @@ function pintarImagenesApariencia() {
     else { p.style.display = 'none'; n.style.display = 'block'; }
     document.getElementById(borrar).style.display = url ? 'inline-block' : 'none';
   };
-  // El logo ya no se pinta aquí: se mudó a Ajustes (pintarLogoAjustes()).
+  // El logo ya no se pinta aquí: se mudó a Apariencia (pintarLogo()).
   pinta(r.fondo_url, 'apFondoPreview', 'apFondoNone', 'apFondoDelBtn');
   pinta(at.portada_url, 'apPortadaPreview', 'apPortadaNone', 'apPortadaDelBtn');
 }
@@ -7331,9 +7341,8 @@ function renderApariencia() {
   const r = state.restaurante;
   const at = r.atributos || {};
 
-  // Los colores, la paleta y el color de fondo se mudaron a Ajustes el
-  // 27/09/2026: junto con el logo, forman el mismo grupo de "aspecto" que se
-  // abre al restaurante poco a poco (CLAUDE.md). Ver ajustes.js, renderAjustes().
+  // Los colores, la paleta y el color de fondo viven en su propia pestaña,
+  // Apariencia (del restaurante), desde el 27/09/2026. Ver public/aspecto.js.
 
   pintarImagenesApariencia();
 
@@ -7347,9 +7356,8 @@ function renderApariencia() {
   document.getElementById('apZonaHoraria').value = at.zona_horaria || 'America/Bogota';
   renderUrlPublicaPreview();
 
-  // Tipografía, navegación, estilo, subtítulo y el mensaje de bienvenida se
-  // mudaron a Ajustes el 27/09/2026, junto con el logo y los colores (mismo
-  // grupo de "aspecto", CLAUDE.md). Ver ajustes.js, renderAjustes().
+  // Tipografía, navegación, estilo, subtítulo y el mensaje de bienvenida
+  // viven en la pestaña Apariencia (del restaurante). Ver public/aspecto.js.
   //
   // 'apNavModelo' SÍ se sincroniza aquí, sin pintar nada: renderPlanResumen()
   // (dentro de renderPlan(), abajo) lo lee para avisar si el modelo guardado
@@ -7431,8 +7439,8 @@ async function eliminarImagen(tipo) {
         { atributos: { portada_url: null, portada_activa: false } });
       if (data) state.restaurante = data;
     }
-    // El logo se pinta en Ajustes desde el 26/09/2026; fondo y portada, aquí.
-    if (tipo === 'logo') pintarLogoAjustes();
+    // El logo se pinta en Apariencia desde el 26/09/2026; fondo y portada, aquí.
+    if (tipo === 'logo') pintarLogo();
     else pintarImagenesApariencia();
     if (tipo === 'portada') sincronizarPortadaActiva();
     avisarGuardadoConCarta('Imagen eliminada');
@@ -7451,15 +7459,13 @@ function recolectarApariencia() {
     atributos: {
       fondo_tipo: document.getElementById('apFondoTipo').value,
       // Sin color_primario, color_secundario, color_surface, color_card,
-      // fondo_color ni fondo_intensidad, a propósito: se mudaron a Ajustes el
-      // 27/09/2026, junto con la paleta. Si volvieran aquí, guardar Apariencia
-      // pisaría con la copia cargada al entrar lo que el restaurante acabara
-      // de cambiar — el mismo motivo por el que el carrito y las redes ya no
+      // fondo_color, fondo_intensidad, fuente_titulo, fuente_cuerpo, nav,
+      // estilo, subtitulo ni mostrar_hero, a propósito: viven en su propia
+      // pestaña, Apariencia (del restaurante), desde el 27/09/2026 — ver
+      // public/aspecto.js. Si volvieran aquí, guardar esta pestaña pisaría
+      // con la copia cargada al entrar lo que el restaurante acabara de
+      // cambiar, el mismo motivo por el que el carrito y las redes ya no
       // están (ver el comentario de más abajo).
-      // Sin fuente_titulo, fuente_cuerpo, nav, estilo, subtitulo ni
-      // mostrar_hero, a propósito: se mudaron a Ajustes el 27/09/2026, junto
-      // con "Modelo de página" y "Tipografía" enteras. Mismo motivo que las
-      // redes y el carrito (ver el comentario de más abajo).
       plan: document.getElementById('apPlan').value,
       // Va aquí y no en su propio botón porque es una capacidad del
       // restaurante, como el plan, y se concede en el mismo sitio.
