@@ -173,6 +173,21 @@ a,button,input,select,textarea{font-family:inherit;}
   border-color:var(--danger);background:var(--danger-dim);color:var(--danger);
   box-shadow:0 7px 18px color-mix(in srgb,var(--danger) 18%,transparent);
 }
+/* Controles principales de la barra: se leen como tres píldoras distintas,
+   incluso de reojo. Montserrat y contraste alto evitan el aspecto de enlaces
+   secundarios que tenían con la tipografía monoespaciada. */
+.topbar-right .nav-icon-btn,.topbar-right .nav-restaurantes,.topbar-right .nav-salir{
+  border-radius:999px;font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:.35px;
+  text-transform:uppercase;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease,color .2s ease;
+}
+.topbar-right .nav-icon-btn{border-color:#d28a2b;background:#57330f;color:#ffe1ae;box-shadow:inset 0 1px rgba(255,255,255,.1);}
+.topbar-right .nav-icon-btn:hover{border-color:#f2aa42;background:#754516;color:#fff2d5;box-shadow:0 7px 16px rgba(210,138,43,.24);}
+.topbar-right .nav-restaurantes{border-color:#1ba765;background:#159957;color:#fff;box-shadow:0 4px 12px rgba(21,153,87,.24);}
+.topbar-right .nav-restaurantes:hover{border-color:#25c878;background:#1aad66;color:#fff;box-shadow:0 8px 18px rgba(21,153,87,.34);}
+.topbar-right .nav-salir{border-color:#ef5350;background:#b7262b;color:#fff;box-shadow:0 4px 12px rgba(183,38,43,.22);}
+.topbar-right .nav-salir:hover{border-color:#ff7774;background:#d6383d;color:#fff;box-shadow:0 8px 18px rgba(183,38,43,.34);}
+.topbar-right .nav-icon-btn:hover,.topbar-right .nav-restaurantes:hover,.topbar-right .nav-salir:hover{transform:translateY(-2px);}
+.topbar-right .nav-icon-btn:focus-visible,.topbar-right .nav-restaurantes:focus-visible,.topbar-right .nav-salir:focus-visible{outline:2px solid #fff;outline-offset:2px;}
 
 /* ── TABS ── */
 /* M1: en un móvil las pestañas miden más que la pantalla (519 px en 375 con
