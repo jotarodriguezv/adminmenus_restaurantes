@@ -98,8 +98,8 @@ a,button,input,select,textarea{font-family:inherit;}
 .pin-input{font-family:var(--mono);font-size:20px;letter-spacing:8px;text-align:center;}
 .login-input.error{border-color:var(--danger);animation:shake .3s;}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
-.btn-primary{width:100%;padding:13px;background:var(--accent);color:var(--on-accent);border:none;border-radius:var(--radius);
-  font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;}
+.btn-primary{width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);
+  font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.45px;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 12px var(--accent-glow);transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;}
 .btn-primary:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 8px 18px var(--accent-glow);}
 .btn-primary:active{transform:translateY(0);box-shadow:none;}
 .login-error{text-align:center;font-size:11px;color:var(--danger);margin-top:10px;font-family:var(--mono);min-height:16px;}
@@ -147,8 +147,8 @@ a,button,input,select,textarea{font-family:inherit;}
 .btn-sm.eliminar{border-color:var(--danger);color:var(--danger);}
 .btn-sm.eliminar:hover{background:var(--danger);color:#fff;}
 .btn-sm.suspender:hover{border-color:var(--warn);color:var(--warn);}
-.btn-sm.accent{border-color:var(--accent);color:var(--accent-texto);background:var(--accent-dim);}
-.btn-sm.accent:hover{opacity:.85;}
+.btn-sm.accent{border-color:#ff981e;background:var(--accent);color:#fff;font-family:var(--sans);font-weight:800;letter-spacing:.3px;box-shadow:0 4px 12px var(--accent-glow);}
+.btn-sm.accent:hover{border-color:#ffad48;background:#f4810c;color:#fff;box-shadow:0 8px 18px var(--accent-glow);}
 
 /* Acciones de navegación: cada una comunica su destino con un icono, no con
    una flecha genérica. Mantienen el tamaño compacto de la barra sin parecer
@@ -278,9 +278,9 @@ a,button,input,select,textarea{font-family:inherit;}
    pero conservando una jerarquía clara entre acciones normales y la acción de crear. */
 .inicio-acciones .btn-sm{border-radius:999px;font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.25px;text-transform:uppercase;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease;}
 .inicio-acciones .btn-sm:not(.accent){border-color:#73502e;background:rgba(255,255,255,.04);color:#fff;}
-.inicio-acciones .btn-sm.accent{border-color:#1ba765;background:#159957;color:#fff;box-shadow:0 4px 12px rgba(21,153,87,.22);}
+.inicio-acciones .btn-sm.accent{border-color:#ff981e;background:var(--accent);color:#fff;box-shadow:0 4px 12px var(--accent-glow);}
 .inicio-acciones .btn-sm:hover{transform:translateY(-2px);box-shadow:0 7px 16px rgba(0,0,0,.22);}
-.inicio-acciones .btn-sm.accent:hover{background:#1aad66;box-shadow:0 8px 18px rgba(21,153,87,.32);}
+.inicio-acciones .btn-sm.accent:hover{background:#f4810c;box-shadow:0 8px 18px var(--accent-glow);}
 
 /* Plan: una superficie propia evita que el selector parezca un control suelto. */
 .plan-card{border-color:#755126;background:linear-gradient(135deg,rgba(237,124,0,.11),transparent 42%),var(--panel);}
@@ -709,9 +709,9 @@ select.form-input{padding-right:42px;}
   /* Con la pista dentro el texto ya no cabe en una línea. */
   text-align:center;line-height:1.6;padding:0 14px;}
 
-.btn-save{flex:1;padding:11px;background:var(--accent);color:var(--on-accent);border:none;border-radius:var(--radius);
-  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity .2s;}
-.btn-save:hover{opacity:.88;}
+.btn-save{flex:1;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);
+  font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:.45px;text-transform:uppercase;box-shadow:0 4px 12px var(--accent-glow);cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,background .2s ease;}
+.btn-save:hover{background:#f4810c;transform:translateY(-1px);box-shadow:0 7px 16px var(--accent-glow);}
 .btn-save:disabled{opacity:.4;cursor:not-allowed;}
 .btn-save.peligro{background:var(--danger);color:#fff;}
 .btn-cancel{padding:11px 18px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);
@@ -806,11 +806,11 @@ select.form-input{padding-right:42px;}
    los controles de Inicio. Verde comunica avance/confirmación; los secundarios
    conservan contraste sin competir con la edición. */
 .resto-action{min-height:34px;border-radius:999px;font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:.35px;text-transform:uppercase;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease,color .2s ease;}
-.resto-action-edit{border-color:#1ba765!important;background:#159957!important;color:#fff!important;box-shadow:0 4px 12px rgba(21,153,87,.22);}
+.resto-action-edit{border-color:#ff981e!important;background:var(--accent)!important;color:#fff!important;box-shadow:0 4px 12px var(--accent-glow);}
 .resto-action-view,.resto-action-more{border-color:#73502e!important;background:rgba(255,255,255,.04);color:#fff!important;}
 .resto-action-paid{border-color:#1ba765!important;background:rgba(21,153,87,.14);color:#fff!important;}
 .resto-card-actions .resto-action:hover{transform:translateY(-2px);box-shadow:0 7px 16px rgba(0,0,0,.24);}
-.resto-card-actions .resto-action-edit:hover{background:#1aad66!important;box-shadow:0 8px 18px rgba(21,153,87,.32);}
+.resto-card-actions .resto-action-edit:hover{background:#f4810c!important;box-shadow:0 8px 18px var(--accent-glow);}
 .resto-card-actions .resto-action-paid:hover{background:#159957;color:#fff;}
 .resto-mas[open]>.resto-action-more{border-color:var(--accent)!important;background:var(--accent-dim);color:var(--accent-texto)!important;}
 .resto-card-actions .resto-action:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}

@@ -5729,10 +5729,16 @@ describe('en vista clara, el acento sobre su fondo tenue se lee', () => {
 		assert.ok(c < 4.5, `el acento de marca daba ${c.toFixed(2)}`);
 	});
 
-	test('el chip seleccionado, el botón de acento y el aviso usan el texto de acento', () => {
-		for (const regla of [/\.cat-chip\.active\{[^}]*\}/, /\.btn-sm\.accent\{[^}]*\}/, /\.toast\.info\{[^}]*\}/, /\.btn-edit:hover\{[^}]*\}/]) {
+	test('el chip seleccionado y los avisos usan el texto de acento', () => {
+		for (const regla of [/\.cat-chip\.active\{[^}]*\}/, /\.toast\.info\{[^}]*\}/, /\.btn-edit:hover\{[^}]*\}/]) {
 			assert.match(src.match(regla)[0], /color:var\(--accent-texto\)/, `${regla} sigue con el acento de marca como texto`);
 		}
+	});
+
+	test('el botón de acento sólido conserva texto blanco', () => {
+		const boton = src.match(/\.btn-sm\.accent\{[^}]*\}/)[0];
+		assert.match(boton, /background:var\(--accent\)/);
+		assert.match(boton, /color:#fff/);
 	});
 
 	test('en la vista oscura no cambia nada', () => {
