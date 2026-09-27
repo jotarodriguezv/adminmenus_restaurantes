@@ -4807,17 +4807,18 @@ describe('Apariencia no pierde cambios en silencio', () => {
 	});
 
 	test('pintar las imágenes no toca ningún campo del formulario', () => {
-		// Antes subir el fondo llamaba a renderApariencia, que rellenaba todos los
-		// campos desde lo guardado y se llevaba por delante lo que no se guardó.
-		// El logo se probó aquí hasta el 26/09/2026: se mudó a Ajustes con su
-		// propia pintarLogoAjustes(), ver «el logo se configura en Ajustes» más abajo.
+		// Antes subir la portada llamaba a renderApariencia, que rellenaba todos
+		// los campos desde lo guardado y se llevaba por delante lo que no se
+		// guardó. El logo y el fondo se probaron aquí hasta que se mudaron a la
+		// pestaña Apariencia (26 y 27/09/2026), con pintarLogo()/pintarFondo() —
+		// ver «el logo se configura en Apariencia» más abajo.
 		const { ctx, $, estado } = montar();
 		$('apColor1').value = '#00ff00';   // cambio sin guardar
-		estado.restaurante = { fondo_url: '/uploads/fondos/x.webp', atributos: {} };
+		estado.restaurante = { atributos: { portada_url: '/p.webp' } };
 		ctx.pintarImagenesApariencia();
 		assert.equal($('apColor1').value, '#00ff00', 'se perdió el color sin guardar');
-		assert.equal($('apFondoPreview').src, '/uploads/fondos/x.webp');
-		assert.equal($('apFondoDelBtn').style.display, 'inline-block');
+		assert.equal($('apPortadaPreview').src, '/p.webp');
+		assert.equal($('apPortadaDelBtn').style.display, 'inline-block');
 	});
 
 	test('subir la portada la enciende sin inventar un cambio pendiente', () => {
@@ -4831,15 +4832,17 @@ describe('Apariencia no pierde cambios en silencio', () => {
 		assert.equal(ctx.hayCambiosApariencia(), false);
 	});
 
-	test('los tres manejadores de imagen de Apariencia ya no reinician el formulario', () => {
-		// handleLogoUpload se mudó a Ajustes el 26/09/2026 — ver «el logo se
-		// configura en Ajustes» más abajo, que comprueba lo mismo allí.
+	test('el manejador de imagen que queda en Apariencia ya no reinicia el formulario', () => {
+		// handleLogoUpload y handleFondoUpload se mudaron a la pestaña Apariencia
+		// (26 y 27/09/2026) — ver «el logo se configura en Apariencia» más abajo,
+		// que comprueba lo mismo allí. Solo handlePortadaUpload y eliminarImagen
+		// (compartido entre los tres tipos) siguen aquí.
 		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
-		for (const f of ['handleFondoUpload', 'handlePortadaUpload', 'eliminarImagen']) {
+		for (const f of ['handlePortadaUpload', 'eliminarImagen']) {
 			const cuerpo = src.match(new RegExp(`async function ${f}\\([\\s\\S]*?\\n\\}`));
 			assert.ok(cuerpo, `no se encontró ${f}`);
 			assert.doesNotMatch(cuerpo[0], /renderApariencia\(\)/, `${f} vuelve a llamar a renderApariencia`);
-			assert.match(cuerpo[0], /pintarImagenesApariencia\(\)|pintarLogoAjustes\(\)/, `${f} no refresca las vistas previas`);
+			assert.match(cuerpo[0], /pintarImagenesApariencia\(\)|pintarLogo\(\)|pintarFondo\(\)/, `${f} no refresca las vistas previas`);
 		}
 	});
 });
@@ -7494,6 +7497,67 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('aplicarPlanAlPanel bloquea el modelo en video para el cliente, nunca para el superadmin', () => {
+	// Bug visto el 27/09/2026: el cliente de un restaurante de video podía
+	// cruzar entre horizontal y vertical, y guardar Apariencia daba
+	// "pintarNotaModeloAjustes is not defined" — una llamada que quedó con el
+	// nombre viejo tras el 27/09/2026 (se renombró a pintarNotaModelo() al
+	// separar la pestaña Apariencia), y ni el '?.' salva una referencia a un
+	// nombre que nunca se declaró: revienta antes de poder comprobar null.
+	function montar({ rol = 'cliente', plan = { modelos: ['video', 'vertical'], videos: true, estadisticas: true, qr_disenador: true, horarios: true }, navGuardado = 'video' } = {}) {
+		const opciones = ['topnav', 'sidebar', 'explorar', 'video', 'vertical'].map(value => ({ value, disabled: false, textContent: value }));
+		const selectNav = { disabled: false };
+		const elementos = { apNavModelo: selectNav, qrPersonalizacion: { style: {} }, qrSinDisenador: { style: {} }, editCatHorarioBloque: { style: {} } };
+		const ctx = cargar('index.html', [['function aplicarPlanAlPanel', 'function renderUrlPublicaPreview']], {
+			planActual: () => plan,
+			pintarNotaModelo: () => {},
+			state: { rol, restaurante: { atributos: { nav: navGuardado } } },
+			document: {
+				getElementById: id => elementos[id],
+				querySelectorAll: sel => sel === '#apNavModelo option' ? opciones : [],
+				querySelector: () => null,
+			},
+		});
+		return { ctx, opciones, selectNav };
+	}
+
+	test('cliente en plan video: el <select> entero queda deshabilitado', () => {
+		const { ctx, selectNav } = montar({ rol: 'cliente' });
+		ctx.aplicarPlanAlPanel();
+		assert.equal(selectNav.disabled, true);
+	});
+
+	test('superadmin en plan video: el <select> sigue habilitado, sabiendo lo que implica', () => {
+		const { ctx, selectNav } = montar({ rol: 'admin' });
+		ctx.aplicarPlanAlPanel();
+		assert.equal(selectNav.disabled, false);
+	});
+
+	test('cliente en plan fotos: el <select> no se bloquea', () => {
+		const { ctx, selectNav } = montar({
+			rol: 'cliente', navGuardado: 'topnav',
+			plan: { modelos: ['topnav', 'sidebar', 'explorar'], videos: false, estadisticas: true, qr_disenador: true, horarios: true },
+		});
+		ctx.aplicarPlanAlPanel();
+		assert.equal(selectNav.disabled, false);
+	});
+
+	test('las opciones fuera del plan quedan deshabilitadas, salvo la que ya está guardada', () => {
+		const { ctx, opciones } = montar({ rol: 'admin', navGuardado: 'video' });
+		ctx.aplicarPlanAlPanel();
+		const porValor = Object.fromEntries(opciones.map(o => [o.value, o]));
+		assert.equal(porValor.video.disabled, false, 'la guardada nunca se deshabilita');
+		assert.equal(porValor.vertical.disabled, false, 'está en el plan de video');
+		assert.equal(porValor.topnav.disabled, true, 'no está en el plan de video');
+	});
+
+	test('no queda ninguna llamada a la función vieja, pintarNotaModeloAjustes', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.doesNotMatch(src, /pintarNotaModeloAjustes/, 'se renombró a pintarNotaModelo() en aspecto.js; una llamada vieja aquí revienta el guardado');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('el formulario de crear restaurante va plegado', () => {
 	// S4 en docs/revision-ux.md: seis gestos en móvil hasta el primer restaurante.
 	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
@@ -7900,7 +7964,7 @@ describe('la pestaña Apariencia (del restaurante), separada de Ajustes', () => 
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo).sort(), ['atributos', 'color_primario', 'color_secundario']);
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo.atributos).sort(),
-			['color_card', 'color_surface', 'direccion', 'estilo', 'fondo_color', 'fondo_intensidad',
+			['color_card', 'color_surface', 'direccion', 'estilo', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
 			 'fuente_cuerpo', 'fuente_titulo', 'intro_activo', 'intro_eslogan', 'mostrar_hero', 'nav', 'subtitulo']);
 	});
 
@@ -8431,11 +8495,11 @@ describe('la pestaña Superadmin: qué se lee primero', () => {
 	});
 
 	test('no se perdió ninguna tarjeta por el camino', () => {
-		// 8 desde el 27/09/2026: el logo, los colores, los de superficie, el
-		// color de fondo, el modelo de página y la tipografía se mudaron a
-		// Ajustes (seis menos que las 14 de antes).
-		assert.equal(orden.length, 8);
-		assert.equal(new Set(orden).size, 8, 'ninguna repetida');
+		// 7 desde el 27/09/2026: el logo, la imagen de fondo, los colores, los
+		// de superficie, el color de fondo, el modelo de página y la tipografía
+		// se mudaron a la pestaña Apariencia (siete menos que las 14 de antes).
+		assert.equal(orden.length, 7);
+		assert.equal(new Set(orden).size, 7, 'ninguna repetida');
 	});
 
 	test('el botón de guardar ya no se llama «apariencia»', () => {

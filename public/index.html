@@ -492,33 +492,10 @@
 						<button type="button" id="apPortadaDelBtn" onclick="eliminarImagen('portada')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar portada</button>
 					</div>
 
-					<div class="section-card">
-						<div class="section-title">Imagen de fondo</div>
-						<div style="margin-bottom:12px;">
-							<img id="apFondoPreview" class="promo-img-preview" src="" style="display:none">
-							<span id="apFondoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin fondo configurado</span>
-						</div>
-						<label class="upload-zone">
-							<input type="file" accept="image/*" onchange="handleFondoUpload(this)">
-							<div class="upload-zone-text">
-								<span>Haz clic para subir</span> imagen de fondo<span class="pista-arrastre"> o arrástrala aquí</span><br>
-								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG</span>
-							</div>
-						</label>
-						<div id="apFondoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
-							<button type="button" id="apFondoDelBtn" onclick="eliminarImagen('fondo')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar imagen de fondo</button>
-						<div class="form-group" style="margin-top:14px;margin-bottom:0">
-							<label for="apFondoTipo" class="form-label">Estilo del fondo</label>
-							<select class="form-select" id="apFondoTipo">
-								<option value="cover-fixed">Cubrir pantalla, fijo</option>
-								<option value="repeat-scroll">Repetir, con scroll</option>
-							</select>
-						</div>
-					</div>
-
-					<!-- El color de fondo, su intensidad, Colores, "Modelo de página" y
-					     Tipografía se mudaron a la pestaña Apariencia (del restaurante):
-					     ver public/aspecto.js. -->
+					<!-- La imagen de fondo (y su estilo, cubrir/repetir) se mudó a la
+					     pestaña Apariencia (del restaurante) el 27/09/2026, junto con el
+					     color de fondo, su intensidad, Colores, "Modelo de página" y
+					     Tipografía (mudadas antes, el mismo día): ver public/aspecto.js. -->
 
 					<div class="section-card">
 						<div class="section-title">CSS personalizado <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(avanzado, casos especiales)</span></div>
@@ -1383,8 +1360,36 @@
 						</div>
 					</div>
 
+					<!-- Se mudó de Superadmin el 27/09/2026, junto con el resto del
+					     grupo de "aspecto". Va justo antes de "Color de fondo": el color
+					     solo se usa si no hay imagen, y las dos van pegadas por eso desde
+					     que vivían en Superadmin. -->
 					<div class="section-card">
-						<div class="section-title">Color de fondo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(se usa solo si no hay imagen de fondo, en Superadmin)</span></div>
+						<div class="section-title">Imagen de fondo</div>
+						<div style="margin-bottom:12px;">
+							<img id="apFondoPreview" class="promo-img-preview" src="" style="display:none">
+							<span id="apFondoNone" style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">Sin fondo configurado</span>
+						</div>
+						<label class="upload-zone">
+							<input type="file" accept="image/*" onchange="handleFondoUpload(this)">
+							<div class="upload-zone-text">
+								<span>Haz clic para subir</span> imagen de fondo<span class="pista-arrastre"> o arrástrala aquí</span><br>
+								<span style="font-size:10px;color:var(--text-dim)">JPG · PNG</span>
+							</div>
+						</label>
+						<div id="apFondoUploadStatus" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						<button type="button" id="apFondoDelBtn" onclick="eliminarImagen('fondo')" style="display:none;margin-top:10px;padding:6px 12px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;">🗑 Quitar imagen de fondo</button>
+						<div class="form-group" style="margin-top:14px;margin-bottom:0">
+							<label for="apFondoTipo" class="form-label">Estilo del fondo</label>
+							<select class="form-select" id="apFondoTipo">
+								<option value="cover-fixed">Cubrir pantalla, fijo</option>
+								<option value="repeat-scroll">Repetir, con scroll</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="section-card">
+						<div class="section-title">Color de fondo <span style="color:var(--text-dim);font-weight:400;font-family:var(--sans);text-transform:none;letter-spacing:0">(se usa solo si no hay imagen de fondo, arriba)</span></div>
 						<div class="form-group" style="margin-bottom:14px">
 							<label for="apPrevFondoColor" class="form-label">Color</label>
 							<div class="color-input-wrap">
@@ -7255,8 +7260,8 @@ function pintarImagenesApariencia() {
     else { p.style.display = 'none'; n.style.display = 'block'; }
     document.getElementById(borrar).style.display = url ? 'inline-block' : 'none';
   };
-  // El logo ya no se pinta aquí: se mudó a Apariencia (pintarLogo()).
-  pinta(r.fondo_url, 'apFondoPreview', 'apFondoNone', 'apFondoDelBtn');
+  // El logo y el fondo ya no se pintan aquí: se mudaron a Apariencia
+  // (pintarLogo() y pintarFondo(), en public/aspecto.js).
   pinta(at.portada_url, 'apPortadaPreview', 'apPortadaNone', 'apPortadaDelBtn');
 }
 
@@ -7374,8 +7379,6 @@ function renderApariencia() {
 
   pintarImagenesApariencia();
 
-  document.getElementById('apFondoTipo').value = at.fondo_tipo || 'cover-fixed';
-
   // Portada (modelo explorar)
   document.getElementById('apPortadaActiva').checked = !!at.portada_activa;
 
@@ -7406,23 +7409,10 @@ function renderApariencia() {
   marcarPendientes();
 }
 
-// handleLogoUpload se mudó a public/ajustes.js el 26/09/2026, junto con su
-// tarjeta. renderPaletas() (Colores, en esta pestaña) se sigue avisando sola:
-// lee state.restaurante.logo_url cuando se abre Apariencia, venga de donde venga.
-
-async function handleFondoUpload(input) {
-  const file = input.files[0]; if (!file) return;
-  const st = document.getElementById('apFondoUploadStatus');
-  st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
-  try {
-    const blob = await compressImage(file, 1600, .85);
-    const url = await uploadImg(blob, 'fondos');
-    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { fondo_url: url });
-    state.restaurante.fondo_url = url; pintarImagenesApariencia();
-    st.textContent = '✓ Fondo actualizado'; st.style.color = 'var(--success)';
-    avisarGuardadoConCarta('Fondo guardado');
-  } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
-}
+// handleLogoUpload y handleFondoUpload se mudaron a public/aspecto.js, con
+// sus tarjetas (26 y 27/09/2026). renderPaletas() (Colores, en esa pestaña)
+// se sigue avisando sola: lee state.restaurante.logo_url cuando se abre
+// Apariencia, venga de donde venga.
 
 // La portada del modelo explorar vive en atributos.portada_url (no es una
 // columna propia como fondo_url), así que la guardamos fusionando atributos.
@@ -7467,8 +7457,9 @@ async function eliminarImagen(tipo) {
         { atributos: { portada_url: null, portada_activa: false } });
       if (data) state.restaurante = data;
     }
-    // El logo se pinta en Apariencia desde el 26/09/2026; fondo y portada, aquí.
+    // El logo y el fondo se pintan en Apariencia; la portada, aquí.
     if (tipo === 'logo') pintarLogo();
+    else if (tipo === 'fondo') pintarFondo();
     else pintarImagenesApariencia();
     if (tipo === 'portada') sincronizarPortadaActiva();
     avisarGuardadoConCarta('Imagen eliminada');
@@ -7485,15 +7476,14 @@ function recolectarApariencia() {
     // devolviendo a su valor anterior lo que otro hubiera cambiado mientras.
     // Las funde el servidor. Ver el comentario de recolectarAjustes.
     atributos: {
-      fondo_tipo: document.getElementById('apFondoTipo').value,
       // Sin color_primario, color_secundario, color_surface, color_card,
-      // fondo_color, fondo_intensidad, fuente_titulo, fuente_cuerpo, nav,
-      // estilo, subtitulo ni mostrar_hero, a propósito: viven en su propia
-      // pestaña, Apariencia (del restaurante), desde el 27/09/2026 — ver
-      // public/aspecto.js. Si volvieran aquí, guardar esta pestaña pisaría
-      // con la copia cargada al entrar lo que el restaurante acabara de
-      // cambiar, el mismo motivo por el que el carrito y las redes ya no
-      // están (ver el comentario de más abajo).
+      // fondo_url, fondo_tipo, fondo_color, fondo_intensidad, fuente_titulo,
+      // fuente_cuerpo, nav, estilo, subtitulo ni mostrar_hero, a propósito:
+      // viven en su propia pestaña, Apariencia (del restaurante), desde el
+      // 27/09/2026 — ver public/aspecto.js. Si volvieran aquí, guardar esta
+      // pestaña pisaría con la copia cargada al entrar lo que el restaurante
+      // acabara de cambiar, el mismo motivo por el que el carrito y las
+      // redes ya no están (ver el comentario de más abajo).
       plan: document.getElementById('apPlan').value,
       // Va aquí y no en su propio botón porque es una capacidad del
       // restaurante, como el plan, y se concede en el mismo sitio.
@@ -7687,22 +7677,25 @@ function aplicarPlanAlPanel() {
   const p = planActual();
   const navGuardado = state.restaurante?.atributos?.nav;
 
+  // Un restaurante (no el superadmin) en plan de video no puede tocar el
+  // modelo EN ABSOLUTO: cruzar horizontal↔vertical no re-recorta los videos
+  // ya subidos (docs/cartas-en-video.md). Se bloquea el <select> entero — no
+  // solo sus opciones — para no dejar ningún hueco (por teclado, por ejemplo).
+  const modeloBloqueadoPorVideo = state.rol !== 'admin' && p.videos;
+  const selectorNav = document.getElementById('apNavModelo');
+  if (selectorNav) selectorNav.disabled = modeloBloqueadoPorVideo;
+
   document.querySelectorAll('#apNavModelo option').forEach(o => {
     const esElGuardado = o.value === navGuardado;
     const incluido = p.modelos.includes(o.value);
-    // El restaurante (no el superadmin) en plan de video no puede cruzar
-    // horizontal↔vertical aunque el plan incluya los dos modelos: el que
-    // tiene puesto decide cómo se recortaron los videos ya subidos
-    // (docs/cartas-en-video.md), y cambiarlo no re-recorta nada.
-    const cruceBloqueado = state.rol !== 'admin' && p.videos && !esElGuardado;
-    o.disabled = (!incluido || cruceBloqueado) && !esElGuardado;
+    o.disabled = !incluido && !esElGuardado;
     o.textContent = o.textContent.replace(/ — no incluido en este plan$| — lo cambia tu asesor$/, '')
-      + (!incluido ? ' — no incluido en este plan' : cruceBloqueado ? ' — lo cambia tu asesor' : '');
+      + (!incluido ? ' — no incluido en este plan' : modeloBloqueadoPorVideo ? ' — lo cambia tu asesor' : '');
   });
   // Ajustes pinta su propia nota si el restaurante no puede tocar el modelo;
   // esta llamada solo asegura que, si Ajustes ya está en el DOM, la vea
   // también sin tener que volver a abrir esa pestaña.
-  pintarNotaModeloAjustes?.();
+  pintarNotaModelo?.();
 
   const btnEst = document.querySelector('.tab-btn[onclick*="estadisticas"]');
   if (btnEst) btnEst.style.display = p.estadisticas ? '' : 'none';
