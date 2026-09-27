@@ -783,11 +783,18 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // pero con una condición extra que este array no puede expresar por sí solo:
 // ver MODELOS_CLIENTE_POR_PLAN más abajo, donde se bloquea para el plan de
 // video. 'plan' NUNCA entra aquí: sin eso nadie podría ascenderse solo.
+// 'intro_activo', 'intro_eslogan' y 'direccion' entraron el 27/09/2026: la
+// pantalla de bienvenida antes de la carta (opcional, apagada por defecto),
+// visto en una carta de otra empresa. NO es 'portada' —ese nombre ya es la
+// imagen de encabezado del modelo Explorar (portada_url/portada_activa)—, ni
+// 'mostrar_hero' —ese es el mensaje de bienvenida dentro de sidebar/topnav—.
+// Se llama 'intro' a propósito para no chocar con ninguno de los dos.
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
   'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador',
   'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad',
-  'fuente_titulo', 'fuente_cuerpo', 'estilo', 'subtitulo', 'mostrar_hero', 'nav'];
+  'fuente_titulo', 'fuente_cuerpo', 'estilo', 'subtitulo', 'mostrar_hero', 'nav',
+  'intro_activo', 'intro_eslogan', 'direccion'];
 
 // ── EL MODELO SEGÚN EL PLAN, PARA UN CLIENTE ──────────────────
 // Duplica MODELOS de vmenus-app/core/planes.js (y el PLANES de este mismo
@@ -910,6 +917,24 @@ function validarTipografiaYEstilo(atributos) {
     return 'El estilo de la carta vertical no es uno de los que se ofrecen';
   if ('subtitulo' in atributos)
     atributos.subtitulo = String(atributos.subtitulo ?? '').trim().slice(0, SUBTITULO_MAX);
+  return null;
+}
+
+// ── PANTALLA DE BIENVENIDA (INTRO) ────────────────────────────
+// Opcional y apagada por defecto: una pantalla antes de la carta con el
+// logo, el eslogan, un botón "Ver carta" y los datos de contacto que el
+// restaurante ya tenga configurados (WhatsApp en social_whatsapp, redes en
+// social_bar, y ahora la dirección). Nunca cambia el tema de nav ni su
+// diseño: solo se antepone. Ver vmenus-app/core/intro.js.
+const ESLOGAN_MAX = 80;
+const DIRECCION_MAX = 120;
+
+function validarIntro(atributos) {
+  if ('intro_activo' in atributos) atributos.intro_activo = atributos.intro_activo === true;
+  if ('intro_eslogan' in atributos)
+    atributos.intro_eslogan = String(atributos.intro_eslogan ?? '').trim().slice(0, ESLOGAN_MAX);
+  if ('direccion' in atributos)
+    atributos.direccion = String(atributos.direccion ?? '').trim().slice(0, DIRECCION_MAX);
   return null;
 }
 
@@ -1164,7 +1189,7 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     // 27/09/2026, misma regla.
     for (const k of ['carrito', 'filtros_activos', 'buscador', 'mostrar_hero'])
       if (k in entrantes) entrantes[k] = entrantes[k] === true;
-    const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes) || validarColores(entrantes) || validarTipografiaYEstilo(entrantes);
+    const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes) || validarColores(entrantes) || validarTipografiaYEstilo(entrantes) || validarIntro(entrantes);
     if (errorAjustes) return res.status(400).json({ error: errorAjustes });
 
     body.atributos = { ...(actual?.atributos || {}), ...entrantes };

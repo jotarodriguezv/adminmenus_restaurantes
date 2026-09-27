@@ -2182,6 +2182,49 @@ describe('modelo de página y tipografía · los edita el restaurante, con valid
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('la pantalla de bienvenida (intro) · la enciende el restaurante', () => {
+	// 27/09/2026: opcional y apagada por defecto, visto en una carta de otra
+	// empresa. No es 'portada' (imagen de cabecera de Explorar) ni
+	// 'mostrar_hero' (mensaje dentro de sidebar/topnav) — ver el comentario de
+	// ATRIBUTOS_CLIENTE_PERMITIDOS en server.js.
+	const guardar = (atributos, token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { nav: 'topnav' } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos }, token);
+	};
+
+	test('el restaurante puede encenderla, con eslogan y dirección', async () => {
+		const r = await guardar({ intro_activo: true, intro_eslogan: 'Hecho con cariño', direccion: 'Cra 7 # 12-34, Bogotá' });
+		assert.equal(r.status, 200);
+		const g = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(g.intro_activo, true);
+		assert.equal(g.intro_eslogan, 'Hecho con cariño');
+		assert.equal(g.direccion, 'Cra 7 # 12-34, Bogotá');
+	});
+
+	test('un "false" de texto no la enciende', async () => {
+		const r = await guardar({ intro_activo: 'false' });
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_activo, false);
+	});
+
+	test('el eslogan y la dirección se recortan, no se rechazan', async () => {
+		const r = await guardar({ intro_eslogan: 'x'.repeat(200), direccion: 'y'.repeat(200) });
+		assert.equal(r.status, 200);
+		const g = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(g.intro_eslogan.length, 80);
+		assert.equal(g.direccion.length, 120);
+	});
+
+	test('apagarla no borra el eslogan ni la dirección', async () => {
+		const r = await guardar({ intro_activo: false });
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_activo, false);
+		assert.equal('intro_eslogan' in S.ultimaEscritura('restaurantes').atributos, false, 'lo que no se manda no se toca');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('filtros y etiquetas · los elige el restaurante, con validación', () => {
 	// 15/09/2026, con las redes: pasan de Apariencia a Ajustes. Lo que llega se
 	// deja en la forma que la carta sabe usar, lo mande quien lo mande.

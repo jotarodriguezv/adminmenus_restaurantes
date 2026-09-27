@@ -1511,6 +1511,34 @@
 						</div>
 					</div>
 
+					<!-- Pantalla de bienvenida (intro), desde el 27/09/2026: opcional y
+					     apagada por defecto, visto en una carta de otra empresa. Se
+					     antepone a la carta, sin cambiar el tema de nav ni su diseño.
+					     No es "Portada" (la imagen de cabecera de Explorar, arriba en
+					     Superadmin) ni "Mostrar mensaje de bienvenida" (el de Modelo de
+					     página): son tres cosas distintas, con nombres a propósito
+					     distintos. El teléfono y las redes que enseña son los mismos de
+					     "Redes sociales", en Ajustes — no hay un teléfono aparte. -->
+					<div class="section-card">
+						<div class="section-header">
+							<div class="section-title">Pantalla de bienvenida</div>
+							<label class="toggle" title="Mostrarla antes de la carta">
+								<input type="checkbox" id="apIntroActivo"><span class="toggle-slider"></span>
+							</label>
+						</div>
+						<p style="font-size:12px;color:var(--text-muted);margin:-4px 0 12px;line-height:1.5">
+							Con el interruptor encendido, tus clientes ven esta pantalla antes de entrar a la carta: tu logo, un eslogan, un botón «Ver carta» y tu WhatsApp, dirección y redes (los mismos de Ajustes). Apagada, entran directo a la carta, como hasta ahora.
+						</p>
+						<div class="form-group">
+							<label for="apIntroEslogan" class="form-label">Eslogan <span style="color:var(--text-dim)">(frase corta, opcional)</span></label>
+							<input type="text" class="form-input" id="apIntroEslogan" maxlength="80" placeholder="Hecho con cariño">
+						</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label for="apDireccion" class="form-label">Dirección <span style="color:var(--text-dim)">(opcional)</span></label>
+							<input type="text" class="form-input" id="apDireccion" maxlength="120" placeholder="Cra 7 # 12-34, Bogotá">
+						</div>
+					</div>
+
 					<div style="text-align:right;">
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveAspecto()">Guardar apariencia</button>
 					</div>
