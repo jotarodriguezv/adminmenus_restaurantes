@@ -277,7 +277,7 @@ a,button,input,select,textarea{font-family:inherit;}
 /* Acciones principales de Inicio: botones con la misma voz visual que los estados,
    pero conservando una jerarquía clara entre acciones normales y la acción de crear. */
 .inicio-acciones .btn-sm{border-radius:999px;font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.25px;text-transform:uppercase;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease;}
-.inicio-acciones .btn-sm:not(.accent){border-color:#73502e;background:rgba(255,255,255,.04);color:#fff;}
+.inicio-acciones .btn-sm:not(.accent){border-color:#73502e;background:rgba(255,255,255,.04);color:var(--text);}
 .inicio-acciones .btn-sm.accent{border-color:#ff981e;background:var(--accent);color:#fff;box-shadow:0 4px 12px var(--accent-glow);}
 .inicio-acciones .btn-sm:hover{transform:translateY(-2px);box-shadow:0 7px 16px rgba(0,0,0,.22);}
 .inicio-acciones .btn-sm.accent:hover{background:#f4810c;box-shadow:0 8px 18px var(--accent-glow);}
@@ -358,8 +358,8 @@ a,button,input,select,textarea{font-family:inherit;}
 .toggle input:checked + .toggle-slider{background:var(--success-dim);border-color:var(--success);}
 .toggle input:checked + .toggle-slider:before{transform:translateX(18px);background:var(--success);}
 
-.btn-edit{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;
-  color:var(--text-muted);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.btn-edit{padding:5px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border));background:var(--accent-dim);
+  color:var(--accent-texto);font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:.25px;cursor:pointer;transition:all .18s;white-space:nowrap;}
 .btn-edit:hover{border-color:var(--accent);color:var(--accent-texto);background:var(--accent-dim);}
 .btn-del {
   padding: 6px 9px;
@@ -387,15 +387,15 @@ a,button,input,select,textarea{font-family:inherit;}
    juntos a una segunda fila. En escritorio se ve exactamente igual que
    cuando eran hijos sueltos: el mismo hueco de 12 px entre ellos. */
 .cat-acciones{display:flex;align-items:center;gap:7px;}
-.cat-orden{display:flex;align-items:center;gap:5px;padding-right:7px;border-right:1px solid var(--border);}
-.cat-acciones .cat-asa,.cat-acciones .cat-move-btn,.cat-acciones .cat-edit-btn,.cat-acciones .cat-delete-btn{min-height:34px;border-radius:999px;font-family:var(--sans);font-weight:800;letter-spacing:.25px;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease,color .2s ease;}
+.cat-acciones>div:first-child{display:flex;align-items:center;gap:5px;padding-right:7px;border-right:1px solid var(--border);}
+.cat-acciones .cat-asa,.cat-acciones .btn-edit[data-dir],.cat-acciones>.btn-edit,.cat-acciones>.btn-del{min-height:34px;border-radius:999px;font-family:var(--sans);font-weight:800;letter-spacing:.25px;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease,color .2s ease;}
 .cat-acciones .cat-asa{display:inline-flex;align-items:center;justify-content:center;min-width:34px;padding:0;color:#d8b58f;border:1px solid var(--border);background:var(--surface);font-size:17px;}
-.cat-acciones .cat-move-btn{min-width:34px;padding:0;border-color:#65421e;background:#35200e;color:#ffd19a;font-size:15px;line-height:1;}
-.cat-acciones .cat-edit-btn{padding:0 14px;border-color:#ff981e;background:var(--accent);color:#fff;font-size:10px;text-transform:uppercase;box-shadow:0 4px 12px var(--accent-glow);}
-.cat-acciones .cat-delete-btn{min-width:34px;padding:0;border-color:#ef5350;background:rgba(183,38,43,.17);color:#ff7375;font-size:13px;line-height:1;margin-left:0;}
-.cat-acciones .cat-asa:hover,.cat-acciones .cat-move-btn:hover{transform:translateY(-2px);border-color:var(--accent);background:var(--accent-dim);color:var(--accent-texto);box-shadow:0 6px 14px var(--accent-glow);}
-.cat-acciones .cat-edit-btn:hover{transform:translateY(-2px);border-color:#ffc068;background:#f4810c;color:#fff;box-shadow:0 8px 18px var(--accent-glow);}
-.cat-acciones .cat-delete-btn:hover{transform:translateY(-2px);border-color:#ff7774;background:#b7262b;color:#fff;box-shadow:0 8px 18px rgba(183,38,43,.3);}
+.cat-acciones .btn-edit[data-dir]{min-width:34px;padding:0;border-color:#65421e;background:#35200e;color:#ffd19a;font-size:15px;line-height:1;}
+.cat-acciones>.btn-edit{padding:0 14px;border-color:#ff981e;background:var(--accent);color:#fff;font-size:10px;text-transform:uppercase;box-shadow:0 4px 12px var(--accent-glow);}
+.cat-acciones>.btn-del{min-width:34px;padding:0;border-color:#ef5350;background:rgba(183,38,43,.17);color:#ff7375;font-size:13px;line-height:1;margin-left:0;}
+.cat-acciones .cat-asa:hover,.cat-acciones .btn-edit[data-dir]:hover{transform:translateY(-2px);border-color:var(--accent);background:var(--accent-dim);color:var(--accent-texto);box-shadow:0 6px 14px var(--accent-glow);}
+.cat-acciones>.btn-edit:hover{transform:translateY(-2px);border-color:#ffc068;background:#f4810c;color:#fff;box-shadow:0 8px 18px var(--accent-glow);}
+.cat-acciones>.btn-del:hover{transform:translateY(-2px);border-color:#ff7774;background:#b7262b;color:#fff;box-shadow:0 8px 18px rgba(183,38,43,.3);}
 /* C1: el asa para arrastrar. touch-action:none SOLO en el asa: en el resto
    de la fila el dedo tiene que seguir desplazando la lista. */
 .cat-asa{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
@@ -821,8 +821,8 @@ select.form-input{padding-right:42px;}
    conservan contraste sin competir con la edición. */
 .resto-action{min-height:34px;border-radius:999px;font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:.35px;text-transform:uppercase;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease,color .2s ease;}
 .resto-action-edit{border-color:#ff981e!important;background:var(--accent)!important;color:#fff!important;box-shadow:0 4px 12px var(--accent-glow);}
-.resto-action-view,.resto-action-more{border-color:#73502e!important;background:rgba(255,255,255,.04);color:#fff!important;}
-.resto-action-paid{border-color:#1ba765!important;background:rgba(21,153,87,.14);color:#fff!important;}
+.resto-action-view,.resto-action-more{border-color:#73502e!important;background:rgba(255,255,255,.04);color:var(--text)!important;}
+.resto-action-paid{border-color:#1ba765!important;background:rgba(21,153,87,.14);color:var(--success)!important;}
 .resto-card-actions .resto-action:hover{transform:translateY(-2px);box-shadow:0 7px 16px rgba(0,0,0,.24);}
 .resto-card-actions .resto-action-edit:hover{background:#f4810c!important;box-shadow:0 8px 18px var(--accent-glow);}
 .resto-card-actions .resto-action-paid:hover{background:#159957;color:#fff;}
@@ -1201,6 +1201,17 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 .solicitud-action-discard:hover{background:#d6383d!important;}
 .solicitud-action-recover{border-color:#9b72f3!important;background:rgba(113,80,187,.18);color:#e6dcff!important;}
 .solicitud-creado{font-family:var(--sans);font-size:11px;font-weight:800;color:var(--success);}
+
+/* En claro, los botones secundarios no pueden conservar letra blanca sobre
+   fondos tenues: desaparecen. Estos tonos mantienen la misma jerarquía y la
+   misma tipografía, pero con contraste real sobre superficies blancas. */
+:root[data-theme="light"] .inicio-acciones .btn-sm:not(.accent){background:var(--card);}
+:root[data-theme="light"] .resto-action-view,:root[data-theme="light"] .resto-action-more{background:var(--card);}
+:root[data-theme="light"] #solicitudesPanel .section-title{color:#5d3695;}
+:root[data-theme="light"] #solicitudesFiltros .solicitud-filter:hover{color:#5d3695;background:rgba(113,80,187,.12);}
+:root[data-theme="light"] .solicitud-action-whatsapp{color:var(--success)!important;}
+:root[data-theme="light"] .solicitud-action-contact{color:#236bb0!important;}
+:root[data-theme="light"] .solicitud-action-recover{color:#5d3695!important;}
 
 /* ── Paletas de colores (Superadmin → Colores). Ver public/paletas.js. ── */
 .paletas{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin:6px 0 16px;}

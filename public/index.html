@@ -6531,7 +6531,7 @@ function renderCatList() {
     infoDiv.appendChild(nm); infoDiv.appendChild(mt);
 
     // Botones ↑↓
-    const orderDiv=document.createElement('div'); orderDiv.className='cat-orden';
+    const orderDiv=document.createElement('div'); orderDiv.style.cssText='display:flex;gap:4px;align-items:center;';
     // Asa de arrastre (C1). No es enfocable a propósito: con teclado se usan las
     // flechas de al lado, que hacen lo mismo de uno en uno.
     const asa=document.createElement('span');
@@ -6540,11 +6540,11 @@ function renderCatList() {
     asa.addEventListener('pointerdown',ev=>empezarArrastreCat(ev,row));
     orderDiv.appendChild(asa);
     const upBtn=document.createElement('button');
-    upBtn.className='btn-edit cat-move-btn'; upBtn.type='button'; upBtn.textContent='↑'; upBtn.dataset.dir='-1';
+    upBtn.className='btn-edit'; upBtn.type='button'; upBtn.textContent='↑'; upBtn.dataset.dir='-1';
     upBtn.setAttribute('aria-label',`Subir «${cat.nombre}»`);
     upBtn.style.cssText=isFirst?'opacity:.3;pointer-events:none;':'';
     const dnBtn=document.createElement('button');
-    dnBtn.className='btn-edit cat-move-btn'; dnBtn.type='button'; dnBtn.textContent='↓'; dnBtn.dataset.dir='1';
+    dnBtn.className='btn-edit'; dnBtn.type='button'; dnBtn.textContent='↓'; dnBtn.dataset.dir='1';
     dnBtn.setAttribute('aria-label',`Bajar «${cat.nombre}»`);
     dnBtn.style.cssText=isLast?'opacity:.3;pointer-events:none;':'';
     if(!isFirst) upBtn.addEventListener('click',()=>moveCat(cat.id,-1));
@@ -6553,12 +6553,12 @@ function renderCatList() {
 
     // Editar
     const editBtn=document.createElement('button');
-    editBtn.className='btn-edit cat-edit-btn'; editBtn.type='button'; editBtn.textContent='Editar';
+    editBtn.className='btn-edit'; editBtn.type='button'; editBtn.textContent='Editar';
     editBtn.addEventListener('click',()=>openEditCatModal(cat.id));
 
     // Eliminar
     const delBtn=document.createElement('button');
-    delBtn.className='btn-del cat-delete-btn'; delBtn.type='button'; delBtn.textContent='🗑';
+    delBtn.className='btn-del'; delBtn.type='button'; delBtn.textContent='🗑';
     delBtn.title=`Eliminar la categoría «${cat.nombre}»`; delBtn.setAttribute('aria-label',`Eliminar la categoría «${cat.nombre}»`);
     delBtn.addEventListener('click',()=>confirmDelete('categoria',cat.id,cat.nombre));
 
