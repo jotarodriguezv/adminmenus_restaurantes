@@ -756,7 +756,7 @@ select.form-input{padding-right:42px;}
 .admin-topbar{background:var(--topbar-bg);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;}
 .admin-topbar-title{display:flex;align-items:center;min-width:0;}
-.admin-brand-lockup{display:inline-flex;align-items:stretch;position:relative;height:37px;border:1px solid rgba(231,115,6,.55);border-radius:999px;background:#fff;box-shadow:0 5px 14px rgba(0,0,0,.12);overflow:hidden;isolation:isolate;}
+.admin-brand-lockup{display:inline-flex;align-items:stretch;position:relative;height:39px;border:2px solid var(--accent);border-radius:999px;background:#fff;box-shadow:0 5px 14px rgba(0,0,0,.12);overflow:hidden;isolation:isolate;}
 .admin-brand-lockup .brand-pill{position:relative;z-index:1;min-height:35px;padding:5px 14px 5px 6px;border:0;border-radius:999px;background:#fff;box-shadow:none;}
 .admin-brand-lockup .brand-pill::after{content:'';position:absolute;pointer-events:none;z-index:2;top:0;right:-10px;width:15px;height:35px;border:2px solid var(--accent);border-left:0;border-radius:0 999px 999px 0;}
 .admin-panel-pill{display:inline-flex;align-items:center;gap:7px;min-height:35px;margin-left:-10px;padding:5px 15px 5px 21px;border:0;border-radius:999px;background:#fff;color:#59320c;font-family:var(--sans);font-size:12px;font-weight:800;letter-spacing:.05px;line-height:1;text-transform:none;white-space:nowrap;transition:transform .22s ease,background .22s ease,color .22s ease;}
