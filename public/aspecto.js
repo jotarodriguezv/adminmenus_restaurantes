@@ -33,6 +33,9 @@ function renderAspecto() {
   pintarLogo();
   pintarColores(r, at);
   pintarModeloYTipografia(at);
+  document.getElementById('apIntroActivo').checked = !!at.intro_activo;
+  document.getElementById('apIntroEslogan').value = at.intro_eslogan || '';
+  document.getElementById('apDireccion').value = at.direccion || '';
   const st = document.getElementById('aspectoStatus');
   st.textContent = ''; st.style.color = 'var(--text-muted)';
 }
@@ -52,6 +55,9 @@ function recolectarAspecto() {
     estilo: estiloElegido(),
     subtitulo: valor('apSubtitulo'),
     mostrar_hero: document.getElementById('apMostrarHero').checked,
+    intro_activo: document.getElementById('apIntroActivo').checked,
+    intro_eslogan: valor('apIntroEslogan'),
+    direccion: valor('apDireccion'),
   };
 }
 

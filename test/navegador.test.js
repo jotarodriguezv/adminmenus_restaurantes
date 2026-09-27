@@ -7877,6 +7877,18 @@ describe('la pestaña Apariencia (del restaurante), separada de Ajustes', () => 
 		return { ctx, campos: $ };
 	}
 
+	test('la pantalla de bienvenida se pinta desde lo guardado, apagada por defecto', () => {
+		const { ctx, campos } = montar({ direccion: 'Cra 7 # 12-34, Bogotá' });
+		ctx.renderAspecto();
+		assert.equal(campos('apIntroActivo').checked, false, 'ausente es apagada, no como el buscador');
+		assert.equal(campos('apDireccion').value, 'Cra 7 # 12-34, Bogotá');
+
+		const { ctx: ctx2, campos: campos2 } = montar({ intro_activo: true, intro_eslogan: 'Hecho con cariño' });
+		ctx2.renderAspecto();
+		assert.equal(campos2('apIntroActivo').checked, true);
+		assert.equal(campos2('apIntroEslogan').value, 'Hecho con cariño');
+	});
+
 	test('guardar manda los colores sueltos, y el resto en atributos', async () => {
 		const peticiones = [];
 		const { ctx } = montar({}, async (metodo, ruta, cuerpo) => {
@@ -7888,8 +7900,8 @@ describe('la pestaña Apariencia (del restaurante), separada de Ajustes', () => 
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo).sort(), ['atributos', 'color_primario', 'color_secundario']);
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo.atributos).sort(),
-			['color_card', 'color_surface', 'estilo', 'fondo_color', 'fondo_intensidad',
-			 'fuente_cuerpo', 'fuente_titulo', 'mostrar_hero', 'nav', 'subtitulo']);
+			['color_card', 'color_surface', 'direccion', 'estilo', 'fondo_color', 'fondo_intensidad',
+			 'fuente_cuerpo', 'fuente_titulo', 'intro_activo', 'intro_eslogan', 'mostrar_hero', 'nav', 'subtitulo']);
 	});
 
 	test('si el servidor lo rechaza, se dice el motivo junto al botón', async () => {
