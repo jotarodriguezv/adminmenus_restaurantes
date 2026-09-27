@@ -4845,10 +4845,12 @@ describe('Apariencia no pierde cambios en silencio', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-describe('el logo se configura en Ajustes', () => {
+describe('el logo se configura en Apariencia', () => {
 	// Primer paso de abrir Apariencia al restaurante "poco a poco" (CLAUDE.md,
 	// «Decisión: abrir partes de Apariencia al restaurante»), hecho el
-	// 26/09/2026. Antes vivía entero en Apariencia, solo para el superadmin.
+	// 26/09/2026 en Ajustes. El 27/09/2026 se le sumaron colores, modelo y
+	// tipografía, y todo ese grupo se mudó a su propia pestaña, Apariencia
+	// (del restaurante, distinta de la de solo superadmin) — ver aspecto.js.
 
 	test('el servidor ya deja al cliente tocar logo_url', () => {
 		const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
@@ -4856,44 +4858,42 @@ describe('el logo se configura en Ajustes', () => {
 		assert.match(lista, /'logo_url'/);
 	});
 
-	test('Apariencia ya no tiene el campo del logo', () => {
-		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
-		assert.doesNotMatch(src, /id="apLogoPreview"/);
-		assert.doesNotMatch(src, /async function handleLogoUpload/);
+	test('el logo vive en su propio archivo, no en index.html ni en ajustes.js', () => {
+		const panel = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.doesNotMatch(panel, /async function handleLogoUpload/);
+		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
+		assert.doesNotMatch(ajustes, /async function handleLogoUpload|apLogoPreview/);
+		const aspecto = fs.readFileSync(path.join(PUBLIC, 'aspecto.js'), 'utf8');
+		assert.match(aspecto, /async function handleLogoUpload/);
 	});
 
-	test('pintar el logo no toca nada más, y se ve al abrir Ajustes', () => {
+	test('pintar el logo no toca nada más, y se ve al abrir Apariencia', () => {
 		const campos = {};
 		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', src: '', style: {} });
-		const ctx = cargar('ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS', {
+		const ctx = cargar('aspecto.js', '// La pestaña Apariencia', null, {
 			document: { getElementById: $ },
-			renderFiltrosCatalogo: () => {}, pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
-			renderPedidos: () => {}, renderMetodosPago: () => {}, cartaTieneCarrito: () => false,
-			renderToppings: () => {}, hayQueEnsenarToppings: () => false,
-			pintarErroresEnCampos() {}, CAMPOS_METODOS_PAGO: [], erroresDeMetodosPago: () => [],
-			carritoEnPantalla: () => false, planActual: () => ({}),
 			hex6: () => '#000000', renderPaletas: () => {},
 			ajustarEstiloAlModelo: () => {}, previsualizarFuente: () => {},
-			navElegido: () => 'topnav', estiloElegido: () => 'clasico',
+			navElegido: () => 'topnav', estiloElegido: () => 'clasico', planActual: () => ({}),
 			state: { restaurante: { id: 'r1', logo_url: '/uploads/logos/x.webp', atributos: {} } },
 			Object,
 		});
-		ctx.renderAjustes();
-		assert.equal($('ajLogoPreview').src, '/uploads/logos/x.webp');
-		assert.equal($('ajLogoDelBtn').style.display, 'inline-block');
+		ctx.renderAspecto();
+		assert.equal($('apLogoPreview').src, '/uploads/logos/x.webp');
+		assert.equal($('apLogoDelBtn').style.display, 'inline-block');
 	});
 
 	test('subir o quitar el logo no reinicia el formulario, y avisa a las paletas', () => {
-		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
-		const subir = ajustes.match(/async function handleLogoUpload\(input\) \{[\s\S]*?\n\}/)[0];
+		const aspecto = fs.readFileSync(path.join(PUBLIC, 'aspecto.js'), 'utf8');
+		const subir = aspecto.match(/async function handleLogoUpload\(input\) \{[\s\S]*?\n\}/)[0];
 		assert.doesNotMatch(subir, /renderApariencia\(\)/);
-		assert.match(subir, /pintarLogoAjustes\(\)/);
+		assert.match(subir, /pintarLogo\(\)/);
 		assert.match(subir, /state\.restaurante\.logo_url = url;[\s\S]*?renderPaletas\(\);/);
 		// Quitarlo sigue en index.html (eliminarImagen es compartido entre los
 		// tres tipos de imagen); solo cambia a qué pinta después.
 		const panel = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 		assert.match(panel, /state\.restaurante\.logo_url = null;\s*renderPaletas\(\);/);
-		assert.match(panel, /if \(tipo === 'logo'\) pintarLogoAjustes\(\);/);
+		assert.match(panel, /if \(tipo === 'logo'\) pintarLogo\(\);/);
 	});
 });
 
@@ -5373,7 +5373,9 @@ describe('los avisos no mandan al cliente a pestañas que no ve', () => {
 		const { ctx, nodos } = montar();
 		ctx.pintarAyudaSegunQuienMira(false);   // aunque antes se pintara para un cliente
 		ctx.pintarAyudaSegunQuienMira(true);
-		assert.match(nodos.qrSinLogo.textContent, /pestaña Superadmin/);
+		// Cambió el 27/09/2026: el logo se mudó de Superadmin a Apariencia (del
+		// restaurante) hace varios incrementos; el aviso decía la pestaña vieja.
+		assert.match(nodos.qrSinLogo.textContent, /pestaña Apariencia/);
 		assert.equal(nodos.qrSinLogo.hijos.length, 0);
 	});
 
@@ -6715,7 +6717,7 @@ describe('los toppings se guardan con el botón de Ajustes', () => {
 
 	test('ya no hay pestaña Toppings: su marcado está dentro de Ajustes', () => {
 		assert.doesNotMatch(src, /id="tabToppings"|id="tabBtnToppings"|saveToppings/);
-		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabQr"'));
+		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabAspecto"'));
 		for (const id of ['ajToppingsCuerpo', 'listToppingsPlatino', 'listToppingsPremium', 'listToppingsSalsas', 'toppingsGuia'])
 			assert.ok(tab.includes(`id="${id}"`), `falta ${id} en Ajustes`);
 		// Y un solo botón de guardar en toda la pestaña.
@@ -7467,18 +7469,18 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 
 	test('se ajusta al cambiar el modelo y al cargar', () => {
 		assert.match(src, /id="apNavModelo" onchange="ajustarEstiloAlModelo\(\)"/);
-		// El selector vive en Ajustes desde el 27/09/2026 (public/ajustes.js,
-		// pintarModeloYTipografiaAjustes()), pero Apariencia sigue sincronizando
-		// su propio valor —sin pintar nada— porque la tarjeta Portada, que
-		// también depende del modelo, se quedó aquí. Sin llamar a
-		// ajustarEstiloAlModelo() cerca, Portada quedaría desactualizada hasta
-		// que se abriera Ajustes.
+		// El selector vive en la pestaña Apariencia desde el 27/09/2026
+		// (public/aspecto.js, pintarModeloYTipografia()), pero la de solo
+		// superadmin sigue sincronizando su propio valor —sin pintar nada—
+		// porque la tarjeta Portada, que también depende del modelo, se quedó
+		// ahí. Sin llamar a ajustarEstiloAlModelo() cerca, Portada quedaría
+		// desactualizada hasta que se abriera la pestaña Apariencia.
 		const i = src.indexOf(`getElementById('apNavModelo').value = at.nav || 'topnav';`);
-		assert.ok(i > -1, 'Apariencia sincroniza el modelo, para renderPlanResumen() y para Portada');
+		assert.ok(i > -1, 'la pestaña de solo superadmin sincroniza el modelo, para renderPlanResumen() y para Portada');
 		assert.match(src.slice(i, i + 200), /ajustarEstiloAlModelo\(\);/);
 
-		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
-		assert.match(ajustes, /nav\.value = at\.nav \|\| 'topnav';[\s\S]{0,200}?ajustarEstiloAlModelo\(\);/);
+		const aspecto = fs.readFileSync(path.join(PUBLIC, 'aspecto.js'), 'utf8');
+		assert.match(aspecto, /nav\.value = at\.nav \|\| 'topnav';[\s\S]{0,200}?ajustarEstiloAlModelo\(\);/);
 	});
 
 	test('los filtros no se esconden ni dicen que son de explorar: los pintan todos los modelos', () => {
@@ -7692,9 +7694,10 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		const r = ctx.recolectarAjustes();
 		assert.equal(r.social_tiktok, 'https://tiktok.com/@x');
 		assert.equal(r.social_whatsapp, '573001234567');
-		assert.deepEqual(Object.keys(r).sort(), ['buscador', 'color_card', 'color_primario', 'color_secundario', 'color_surface',
-			'estilo', 'filtros_activos', 'filtros_disponibles', 'fondo_color', 'fondo_intensidad', 'fuente_cuerpo', 'fuente_titulo',
-			'mostrar_hero', 'nav', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp', 'subtitulo']);
+		// Sin colores, modelo ni tipografía: se mudaron a Apariencia el
+		// 27/09/2026 (public/aspecto.js, recolectarAspecto()).
+		assert.deepEqual(Object.keys(r).sort(),
+			['buscador', 'filtros_activos', 'filtros_disponibles', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
 	});
 
 	test('guardar manda solo lo de Ajustes y deja el estado al día', async () => {
@@ -7711,12 +7714,9 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.equal(peticiones.length, 1);
 		assert.equal(peticiones[0].metodo, 'PATCH');
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
-		// color_primario y color_secundario viajan sueltos, como logo_url: no son
-		// claves de atributos, son columnas propias (ver saveAjustes()).
-		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['color_primario', 'color_secundario', 'atributos'], 'nada fuera de lo esperado');
+		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['atributos'], 'nada fuera de atributos');
 		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k =>
-			k.startsWith('social_') || k.startsWith('filtros_') || k === 'buscador' || k.startsWith('color_') || k.startsWith('fondo_') ||
-			['fuente_titulo', 'fuente_cuerpo', 'nav', 'estilo', 'subtitulo', 'mostrar_hero'].includes(k)),
+			k.startsWith('social_') || k.startsWith('filtros_') || k === 'buscador'),
 			'solo las claves de Ajustes');
 		assert.equal(ctx.state.restaurante.atributos.social_instagram, 'https://instagram.com/bonzas');
 		assert.equal(campos('ajustesStatus').textContent, '✓ Guardado');
@@ -7807,21 +7807,95 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 	});
 
 	test('dentro de Ajustes: carrito, filtros y las redes al final', () => {
-		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabQr"'));
+		// El logo, los colores, el modelo y la tipografía vivieron aquí un tiempo
+		// (26-27/09/2026) y se mudaron a su propia pestaña, Apariencia, el mismo
+		// 27/09/2026: al verlos junto al carrito y las redes, la propia clienta
+		// que los probó propuso separarlos.
+		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabAspecto"'));
 		const orden = [...tab.matchAll(/<div class="(?:section-title|aj-subtitulo)">([^<]+)</g)].map(m => m[1].trim());
 		assert.equal(JSON.stringify(orden.slice(0, 3)),
 			'["Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
 			'el carrito y lo suyo, primero');
-		assert.equal(JSON.stringify(orden.slice(-7)),
-			'["Redes sociales","Logo","Colores","Colores de superficie","Color de fondo","Modelo de página","Tipografía"]',
-			'las redes, y el grupo de aspecto detrás (logo, colores, superficie, fondo, modelo, tipografía)');
-		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('id="apMuestraCuerpo"'), 'el botón de guardar, después de todas');
+		assert.equal(orden.at(-1), 'Redes sociales', 'las redes, al final');
+		assert.equal((tab.match(/class="btn-save"/g) || []).length, 1, 'un solo botón de guardar');
+		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('Redes sociales'), 'el botón de guardar, después de todas');
 	});
 
 	test('el interruptor del carrito se llama igual para un lector de pantalla', () => {
 		const tarjeta = src.slice(src.indexOf('id="ajCarritoCard"'), src.indexOf('id="ajCarritoNota"'));
 		assert.match(tarjeta, /aria-label="Carrito de compras"/);
 		assert.doesNotMatch(tarjeta, /Pedidos desde la carta/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('la pestaña Apariencia (del restaurante), separada de Ajustes', () => {
+	// 27/09/2026. Nace con lo visual que se había ido sumando a Ajustes en
+	// cuatro incrementos anteriores (logo, colores, modelo, tipografía): al
+	// verlo junto al carrito y las redes, la propia clienta que probó los
+	// cuatro propuso separarlos, y llevaba razón — "¿qué hace mi carta?" y
+	// "¿cómo se ve?" son preguntas distintas.
+	const src = codigoDelPanel();
+
+	test('el botón existe, lo ven los dos roles, y no se confunde con Superadmin', () => {
+		const carril = src.match(/<div class="tabs">[\s\S]*?<\/div>/)[0];
+		const boton = carril.match(/<button[^>]*id="tabBtnAspecto"[^>]*>([^<]*)</);
+		assert.ok(boton, 'falta el botón de la pestaña');
+		assert.equal(boton[1], 'Apariencia');
+		assert.doesNotMatch(boton[0], /display:\s*none/, 'el restaurante también la ve');
+		assert.match(boton[0], /onclick="switchTab\('aspecto',this\)"/);
+		// Por dentro son dos cosas distintas: 'aspecto' (esta) y 'apariencia'
+		// (la de solo superadmin, con Plan/dominio/zona horaria/CSS).
+		assert.doesNotMatch(boton[0], /switchTab\('apariencia'/);
+	});
+
+	test('switchTab la pinta al entrar, y la esconde igual que a las demás', () => {
+		assert.match(src, /if \(tab === 'aspecto'\) renderAspecto\(\);/);
+		const lista = src.match(/\[('tab[A-Za-z]+',?\s*)+\]\.forEach\(id=>\{/)[0];
+		assert.match(lista, /'tabAspecto'/);
+	});
+
+	test('tiene su propia lectura para el aviso de cambios sin guardar', () => {
+		// LECTURAS_DE_PESTANA es lo que hayCambiosEnPestana() usa para saber si
+		// hay algo sin guardar al cambiar de pestaña (ver esa constante).
+		assert.match(src, /aspecto: \(\) => recolectarAspecto\(\)/);
+	});
+
+	function montar(atributos = {}, apiFetch) {
+		const campos = {};
+		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
+		const ctx = cargar('aspecto.js', '// La pestaña Apariencia', null, {
+			document: { getElementById: $ },
+			hex6: () => '#000000', renderPaletas: () => {},
+			ajustarEstiloAlModelo: () => {}, previsualizarFuente: () => {},
+			navElegido: () => atributos.nav || 'topnav', estiloElegido: () => atributos.estilo || 'clasico',
+			planActual: () => ({}), aplicarPlanAlPanel: () => {},
+			state: { restaurante: { id: 'r1', atributos } },
+			apiFetch, showToast: () => {}, avisarGuardadoConCarta: () => {},
+			Object,
+		});
+		return { ctx, campos: $ };
+	}
+
+	test('guardar manda los colores sueltos, y el resto en atributos', async () => {
+		const peticiones = [];
+		const { ctx } = montar({}, async (metodo, ruta, cuerpo) => {
+			peticiones.push({ metodo, ruta, cuerpo });
+			return { id: 'r1', atributos: cuerpo.atributos };
+		});
+		await ctx.saveAspecto();
+		assert.equal(peticiones.length, 1);
+		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
+		assert.deepEqual(Object.keys(peticiones[0].cuerpo).sort(), ['atributos', 'color_primario', 'color_secundario']);
+		assert.deepEqual(Object.keys(peticiones[0].cuerpo.atributos).sort(),
+			['color_card', 'color_surface', 'estilo', 'fondo_color', 'fondo_intensidad',
+			 'fuente_cuerpo', 'fuente_titulo', 'mostrar_hero', 'nav', 'subtitulo']);
+	});
+
+	test('si el servidor lo rechaza, se dice el motivo junto al botón', async () => {
+		const { ctx, campos } = montar({}, async () => { throw new Error('El color primario tiene que ser un color válido, como #3dd68c'); });
+		await ctx.saveAspecto();
+		assert.match(campos('aspectoStatus').textContent, /color primario/);
 	});
 });
 
@@ -9636,15 +9710,16 @@ describe('paletas de colores · combinaciones que se leen en cualquier modelo', 
 		assert.equal(c.paletaActual(), null);
 	});
 
-	test('está en la tarjeta «Colores», dentro de Ajustes, y se pinta al abrirla', () => {
-		// Desde el 27/09/2026 la pintan las dos (cliente y superadmin, es la
-		// misma pestaña): ver ajustes.js, pintarColoresAjustes().
+	test('está en la tarjeta «Colores», dentro de Apariencia, y se pinta al abrirla', () => {
+		// Desde el 27/09/2026 vive en su propia pestaña, Apariencia (del
+		// restaurante, distinta de la de solo superadmin): ver aspecto.js,
+		// pintarColores().
 		const i = src.indexOf('<div class="section-title">Colores</div>');
 		assert.ok(i > -1 && src.indexOf('id="apPaletas"', i) - i < 600, 'el selector va dentro de «Colores»');
-		assert.ok(src.indexOf('<div id="tabAjustes"') < i, 'la tarjeta vive en Ajustes');
+		assert.ok(src.indexOf('<div id="tabAspecto"') < i, 'la tarjeta vive en Apariencia');
 		assert.ok(src.includes('<script src="paletas.js"></script>'));
-		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
-		assert.match(ajustes, /apFondoIntensidad'\)\.value = at\.fondo_intensidad \|\| 'solido';[\s\S]{0,120}?renderPaletas\(\);/);
+		const aspecto = fs.readFileSync(path.join(PUBLIC, 'aspecto.js'), 'utf8');
+		assert.match(aspecto, /apFondoIntensidad'\)\.value = at\.fondo_intensidad \|\| 'solido';[\s\S]{0,120}?renderPaletas\(\);/);
 	});
 
 	test('pinta con textContent, nunca como HTML', () => {
@@ -9728,10 +9803,10 @@ describe('la paleta del logo · los colores del negocio, ajustados para que se l
 	});
 
 	test('al subir o quitar el logo se vuelven a pintar las paletas', () => {
-		// handleLogoUpload se mudó a ajustes.js el 26/09/2026 — ver el describe
-		// «el logo se configura en Ajustes», que ya comprueba esto mismo.
-		const ajustes = fs.readFileSync(path.join(PUBLIC, 'ajustes.js'), 'utf8');
-		const subir = ajustes.match(/async function handleLogoUpload\(input\) \{[\s\S]*?\n\}/)[0];
+		// handleLogoUpload vive en aspecto.js desde el 27/09/2026 — ver el
+		// describe «el logo se configura en Apariencia», que ya comprueba esto.
+		const aspecto = fs.readFileSync(path.join(PUBLIC, 'aspecto.js'), 'utf8');
+		const subir = aspecto.match(/async function handleLogoUpload\(input\) \{[\s\S]*?\n\}/)[0];
 		assert.match(subir, /state\.restaurante\.logo_url = url;[\s\S]*?renderPaletas\(\);/);
 		const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 		assert.match(src, /state\.restaurante\.logo_url = null;\s*renderPaletas\(\);/);

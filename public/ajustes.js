@@ -1,4 +1,10 @@
-// La pestaña Ajustes: lo que el propio restaurante configura de su carta.
+// La pestaña Ajustes: lo funcional que el propio restaurante configura de su
+// carta (carrito, pedidos, toppings, buscador, filtros, redes). Lo visual
+// —logo, colores, tipografía, modelo de página— vive aparte, en la pestaña
+// Apariencia (public/aspecto.js), desde el 27/09/2026: al ver las dos cosas
+// juntas aquí, la propia clienta que probó los cuatro incrementos anteriores
+// propuso separarlas, y tenía razón — son preguntas de naturaleza distinta
+// ("¿qué hace mi carta?" contra "¿cómo se ve?").
 //
 // El 16/09/2026 se le sumó lo que era la pestaña «Pedidos» —el número de
 // WhatsApp y los métodos de pago—, decidido con el usuario: encender el carrito
@@ -12,9 +18,10 @@
 // (CLAUDE.md, «Decisión: abrir partes de Apariencia al restaurante»).
 //
 // El superadmin la ve igual que el restaurante: un solo sitio para cada dato.
-// Tenerlo también en Apariencia volvería a abrir el problema que el servidor ya
-// resolvió al fundir atributos: dos pantallas guardando la misma clave, y la
-// que se guarda la última pisa lo que la otra acababa de cambiar.
+// Tenerlo también en la pestaña de solo-superadmin volvería a abrir el problema
+// que el servidor ya resolvió al fundir atributos: dos pantallas guardando la
+// misma clave, y la que se guarda la última pisa lo que la otra acababa de
+// cambiar.
 //
 // Qué vale y qué no lo decide el servidor (validarRedes y validarFiltros, en
 // server.js): el
@@ -35,11 +42,7 @@ const REDES_CAMPOS = {
 };
 
 function renderAjustes() {
-  const r = state.restaurante;
-  const at = r?.atributos || {};
-  pintarLogoAjustes();
-  pintarColoresAjustes(r, at);
-  pintarModeloYTipografiaAjustes(at);
+  const at = state.restaurante?.atributos || {};
   document.getElementById('ajSocialBar').checked = !!at.social_bar;
   for (const [clave, id] of Object.entries(REDES_CAMPOS))
     document.getElementById(id).value = at[clave] || '';
@@ -108,25 +111,6 @@ function recolectarAjustes() {
     // Solo dígitos: wa.me no acepta otra cosa, y un «+57 300 123 4567» —que es
     // como lo teclea cualquiera— arma un enlace que no abre ningún chat.
     social_whatsapp: valor('ajSocialWhatsapp').replace(/[^0-9]/g, ''),
-    // Colores y paleta, desde el 27/09/2026 (ver pintarColoresAjustes() más
-    // abajo). color_primario y color_secundario son columnas propias, no
-    // claves de atributos: saveAjustes() las saca de aquí antes de mandarlas.
-    color_primario: valor('apColor1'),
-    color_secundario: valor('apColor2'),
-    color_surface: valor('apColorSurface'),
-    color_card: valor('apColorCard'),
-    fondo_color: valor('apFondoColor') || '#0a0a0f',
-    fondo_intensidad: document.getElementById('apFondoIntensidad').value,
-    // Modelo de página y tipografía, desde el 27/09/2026 (ver
-    // pintarModeloYTipografiaAjustes() más abajo). navElegido() y
-    // estiloElegido() viven en index.html: son las mismas que usaba
-    // Apariencia, y no dependen de qué pestaña las llama.
-    fuente_titulo: valor('apFuenteTitulo'),
-    fuente_cuerpo: valor('apFuenteCuerpo'),
-    nav: navElegido(),
-    estilo: estiloElegido(),
-    subtitulo: valor('apSubtitulo'),
-    mostrar_hero: document.getElementById('apMostrarHero').checked,
   };
 }
 
@@ -174,13 +158,9 @@ async function saveAjustes() {
   }
   st.textContent = 'Guardando…'; st.style.color = 'var(--text-muted)';
   try {
-    // color_primario y color_secundario son columnas propias de la tabla, no
-    // claves de atributos (como logo_url): se sacan del mismo recolector para
-    // no repetir la lógica de qué campo lee cada uno.
-    const { color_primario, color_secundario, ...atributos } = recolectarAjustes();
     // Solo sus claves: el servidor funde con lo que ya hay y no toca el resto.
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`,
-      { color_primario, color_secundario, atributos });
+      { atributos: recolectarAjustes() });
     if (!data) return;   // sesión caducada: apiFetch ya llevó al login
     state.restaurante = data;
     renderAjustes();
@@ -188,9 +168,6 @@ async function saveAjustes() {
     // Encender el carrito hace aparecer las pestañas Pedidos y Toppings, y sin
     // repintarlas habría que recargar para llegar a poner el número.
     ajustarPestanasAlModelo();
-    // Si el modelo cambió, refresca qué opciones quedan deshabilitadas y su
-    // etiqueta — la misma llamada que hace saveApariencia() al guardar.
-    aplicarPlanAlPanel();
     const faltaNumero = cartaTieneCarrito(data.atributos, planActual()) && !recibePedidos(data.atributos);
     st.textContent = faltaNumero ? '✓ Guardado · falta el número de WhatsApp para recibir los pedidos' : '✓ Guardado';
     st.style.color = faltaNumero ? 'var(--warn)' : 'var(--success)';
@@ -203,120 +180,6 @@ async function saveAjustes() {
     st.textContent = e.message; st.style.color = 'var(--danger)';
     showToast(e.message, 'error');
   }
-}
-
-// ── LOGO ──────────────────────────────────────────────────────
-// Se mudó de Apariencia a Ajustes el 26/09/2026: primer paso de abrir
-// Apariencia al restaurante "poco a poco" (CLAUDE.md, «Decisión: abrir partes
-// de Apariencia al restaurante»). El servidor ya lo permite desde este mismo
-// día (CAMPOS_RESTAURANTE_CLIENTE, en server.js).
-//
-// compressImage, uploadImg, apiFetch, eliminarImagen y avisarGuardadoConCarta
-// viven en el script principal (index.html): esta pestaña se carga antes,
-// pero las llama solo dentro de manejadores que se disparan después de que
-// todo terminó de cargar, así que el orden no es un problema — la misma razón
-// por la que ajustes.js puede llamar funciones de comun.js sin importar cuál
-// se carga primero.
-function pintarLogoAjustes() {
-  const url = state.restaurante?.logo_url;
-  const prev = document.getElementById('ajLogoPreview');
-  const none = document.getElementById('ajLogoNone');
-  const borrar = document.getElementById('ajLogoDelBtn');
-  if (!prev || !none || !borrar) return;   // pestaña Ajustes no está en el DOM (pruebas parciales)
-  if (url) { prev.src = url; prev.style.display = 'block'; none.style.display = 'none'; }
-  else { prev.style.display = 'none'; none.style.display = 'block'; }
-  borrar.style.display = url ? 'inline-block' : 'none';
-}
-
-async function handleLogoUpload(input) {
-  const file = input.files[0]; if (!file) return;
-  const st = document.getElementById('ajLogoUploadStatus');
-  st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
-  try {
-    // El único que conserva PNG: un logo con fondo transparente es lo normal.
-    // quitarFondo intenta reconocer un fondo de color sólido y volverlo
-    // transparente cuando el archivo no trae transparencia real (ver el
-    // comentario de quitarFondoDelLogo, en index.html).
-    const blob = await compressImage(file, 500, .9, { conservarTransparencia: true, quitarFondo: true });
-    const url = await uploadImg(blob, 'logos');
-    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { logo_url: url });
-    state.restaurante.logo_url = url; pintarLogoAjustes();
-    // Aparece «De tu logo» en Colores, aquí mismo, con los colores del logo nuevo.
-    renderPaletas();
-    st.textContent = blob.fondoAutoQuitado
-      ? '✓ Logo actualizado · le quitamos el fondo automáticamente. Revísalo: si el resultado no queda bien, sube uno con fondo transparente'
-      : '✓ Logo actualizado';
-    st.style.color = 'var(--success)';
-    avisarGuardadoConCarta('Logo guardado');
-  } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
-}
-
-// ── COLORES Y PALETA ──────────────────────────────────────────
-// Se mudaron de Apariencia a Ajustes el 27/09/2026, mismo día que el color de
-// fondo: mismo motivo que el logo (CLAUDE.md, «Decisión: abrir partes de
-// Apariencia al restaurante»). Los ids no cambian (apColor1, apPaletas…):
-// public/paletas.js solo conoce elementos por id, nunca de qué pestaña son,
-// así que la tarjeta entera se movió tal cual, sin tocar su lógica.
-//
-// El color de fondo (fondo_color/fondo_intensidad) viaja con las paletas
-// porque aplicarPaleta() los pone los cinco a la vez (paletas.js,
-// CAMPOS_PALETA): dejar el color de fondo en Apariencia habría hecho que
-// elegir una paleta aquí cambiara un campo que el restaurante no ve ni puede
-// guardar. La IMAGEN de fondo y su estilo (cubrir/repetir) siguen en
-// Apariencia — es un incremento aparte.
-function pintarColoresAjustes(r, at) {
-  const c1 = document.getElementById('apColor1');
-  if (!c1) return;   // pestaña Ajustes no está en el DOM (pruebas parciales)
-  c1.value = r?.color_primario || '';
-  document.getElementById('apPrevColor1').value = hex6(r?.color_primario, '#3dd68c');
-  document.getElementById('apColor2').value = r?.color_secundario || '';
-  document.getElementById('apPrevColor2').value = hex6(r?.color_secundario, '#a374af');
-  document.getElementById('apColorSurface').value = at.color_surface || '';
-  document.getElementById('apPrevColorSurface').value = hex6(at.color_surface, '#12111a');
-  document.getElementById('apColorCard').value = at.color_card || '';
-  document.getElementById('apPrevColorCard').value = hex6(at.color_card, '#1a1825');
-  document.getElementById('apFondoColor').value = at.fondo_color || '#0a0a0f';
-  document.getElementById('apPrevFondoColor').value = hex6(at.fondo_color, '#0a0a0f');
-  document.getElementById('apFondoIntensidad').value = at.fondo_intensidad || 'solido';
-  // Después de llenar los colores: marca la paleta que coincida con ellos.
-  renderPaletas();
-}
-
-// ── MODELO DE PÁGINA Y TIPOGRAFÍA ──────────────────────────────
-// Se mudaron de Apariencia a Ajustes el 27/09/2026, mismo grupo de "aspecto"
-// que el logo y los colores (CLAUDE.md). navElegido(), estiloElegido(),
-// ajustarEstiloAlModelo(), previsualizarFuente() y aplicarPlanAlPanel()
-// siguen en index.html: son compartidas y no dependen de qué pestaña las usa.
-function pintarModeloYTipografiaAjustes(at) {
-  const nav = document.getElementById('apNavModelo');
-  if (!nav) return;   // pestaña Ajustes no está en el DOM (pruebas parciales)
-  nav.value = at.nav || 'topnav';
-  document.getElementById('apEstilo').value = at.estilo || 'clasico';
-  ajustarEstiloAlModelo();
-  document.getElementById('apSubtitulo').value = at.subtitulo || '';
-  document.getElementById('apMostrarHero').checked = !!at.mostrar_hero;
-
-  document.getElementById('apFuenteTitulo').value = at.fuente_titulo || '';
-  document.getElementById('apFuenteCuerpo').value = at.fuente_cuerpo || '';
-  // Al abrir, no solo al cambiar: lo primero que se quiere saber al entrar en
-  // Ajustes es cómo se ve lo que ya está puesto.
-  previsualizarFuente('titulo');
-  previsualizarFuente('cuerpo');
-
-  pintarNotaModeloAjustes();
-}
-
-// Por qué el modelo está bloqueado: solo aplica a un restaurante de video,
-// y solo si quien mira no es el superadmin. aplicarPlanAlPanel() (en
-// index.html) ya deshabilita las opciones que tocan; esto nombra el motivo,
-// porque un <select> con casi todo gris y sin explicación parece roto.
-function pintarNotaModeloAjustes() {
-  const nota = document.getElementById('apNavModeloNota');
-  if (!nota) return;
-  const bloqueado = state.rol !== 'admin' && planActual().videos;
-  nota.style.display = bloqueado ? 'block' : 'none';
-  if (bloqueado) nota.textContent = 'El modelo de tu carta en video lo cambia tu asesor: '
-    + 'cruzar entre horizontal y vertical necesita volver a procesar los videos que ya subiste.';
 }
 
 // ── BUSCADOR DE PLATOS ────────────────────────────────────────
