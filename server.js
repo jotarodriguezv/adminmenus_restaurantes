@@ -762,7 +762,10 @@ const CAMPOS_RESTAURANTE_ADMIN   = ['promo_activa', 'promo_imagen_url', 'promo_n
 // una clave del JSON — por eso está aquí y no en ATRIBUTOS_CLIENTE_PERMITIDOS.
 // 'color_primario' y 'color_secundario' entraron el 27/09/2026, con los
 // colores y la paleta: mismo motivo y mismo sitio que el logo (Ajustes).
-const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_nombre', 'promo_precio', 'promo_en_tv', 'promo_cada', 'atributos', 'logo_url', 'color_primario', 'color_secundario'];
+// 'fondo_url' entró el mismo día, más tarde: la imagen de fondo se mudó de
+// Superadmin a la pestaña Apariencia, junto a su color y su estilo
+// (fondo_tipo, en ATRIBUTOS_CLIENTE_PERMITIDOS).
+const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_nombre', 'promo_precio', 'promo_en_tv', 'promo_cada', 'atributos', 'logo_url', 'color_primario', 'color_secundario', 'fondo_url'];
 // Dentro de "atributos" (JSON libre), el cliente solo puede tocar estas claves
 // (toppings, WhatsApp de pedidos, métodos de pago y diseño del QR). nav,
 // fuentes, redes, css_custom, etc. quedan fuera.
@@ -792,7 +795,7 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
   'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador',
-  'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad',
+  'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
   'fuente_titulo', 'fuente_cuerpo', 'estilo', 'subtitulo', 'mostrar_hero', 'nav',
   'intro_activo', 'intro_eslogan', 'direccion'];
 
@@ -890,6 +893,7 @@ function validarColorHex(valor, nombre) {
 }
 
 const FONDO_INTENSIDADES = ['solido', 'sutil', 'marcado'];
+const FONDO_TIPOS = ['cover-fixed', 'repeat-scroll'];
 
 // Solo mira las claves que llegaron: no revienta un guardado que no toca
 // colores, y el resto de 'atributos' no se ve afectado (igual que
@@ -943,7 +947,9 @@ function validarColores(atributos) {
     || validarColorHex(atributos.color_card, 'El color de las cajas de producto')
     || validarColorHex(atributos.fondo_color, 'El color de fondo')
     || ('fondo_intensidad' in atributos && !FONDO_INTENSIDADES.includes(atributos.fondo_intensidad)
-        ? 'La intensidad del fondo no es una de las que se ofrecen' : null);
+        ? 'La intensidad del fondo no es una de las que se ofrecen' : null)
+    || ('fondo_tipo' in atributos && !FONDO_TIPOS.includes(atributos.fondo_tipo)
+        ? 'El estilo del fondo no es uno de los que se ofrecen' : null);
 }
 
 // ── REDES SOCIALES ────────────────────────────────────────────
@@ -1130,6 +1136,10 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
   if ('logo_url' in body) {
     const errorLogo = validarUrlImagen(body.logo_url, 'El logo');
     if (errorLogo) return res.status(400).json({ error: errorLogo });
+  }
+  if ('fondo_url' in body) {
+    const errorFondo = validarUrlImagen(body.fondo_url, 'La imagen de fondo');
+    if (errorFondo) return res.status(400).json({ error: errorFondo });
   }
 
   const errorColorPrimario = 'color_primario' in body ? validarColorHex(body.color_primario, 'El color primario') : null;

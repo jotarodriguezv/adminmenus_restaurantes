@@ -1,6 +1,6 @@
 // La pestaña Apariencia: lo puramente visual de la carta (logo, colores,
-// paleta, color de fondo, modelo de página y tipografía), que el propio
-// restaurante configura aparte de Ajustes.
+// paleta, imagen de fondo y su color, modelo de página y tipografía), que el
+// propio restaurante configura aparte de Ajustes.
 //
 // Nació el 27/09/2026, separada de Ajustes: los cuatro incrementos de "abrir
 // partes de Apariencia al restaurante" (CLAUDE.md) se habían ido sumando ahí
@@ -31,6 +31,7 @@ function renderAspecto() {
   const r = state.restaurante;
   const at = r?.atributos || {};
   pintarLogo();
+  pintarFondo();
   pintarColores(r, at);
   pintarModeloYTipografia(at);
   document.getElementById('apIntroActivo').checked = !!at.intro_activo;
@@ -47,6 +48,7 @@ function recolectarAspecto() {
     color_secundario: valor('apColor2'),
     color_surface: valor('apColorSurface'),
     color_card: valor('apColorCard'),
+    fondo_tipo: document.getElementById('apFondoTipo').value,
     fondo_color: valor('apFondoColor') || '#0a0a0f',
     fondo_intensidad: document.getElementById('apFondoIntensidad').value,
     fuente_titulo: valor('apFuenteTitulo'),
@@ -123,11 +125,41 @@ async function handleLogoUpload(input) {
   } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
 }
 
+// ── IMAGEN DE FONDO ───────────────────────────────────────────
+// Se mudó de la pestaña de solo superadmin el 27/09/2026, junto con su color
+// e intensidad, que ya vivían aquí (ver «COLORES Y PALETA» más abajo): quedar
+// partida entre dos pestañas no tenía sentido, era la misma decisión —cómo se
+// ve el fondo de la carta— repartida en dos sitios.
+function pintarFondo() {
+  const url = state.restaurante?.fondo_url;
+  const prev = document.getElementById('apFondoPreview');
+  const none = document.getElementById('apFondoNone');
+  const borrar = document.getElementById('apFondoDelBtn');
+  if (!prev || !none || !borrar) return;   // pestaña Apariencia no está en el DOM (pruebas parciales)
+  if (url) { prev.src = url; prev.style.display = 'block'; none.style.display = 'none'; }
+  else { prev.style.display = 'none'; none.style.display = 'block'; }
+  borrar.style.display = url ? 'inline-block' : 'none';
+}
+
+async function handleFondoUpload(input) {
+  const file = input.files[0]; if (!file) return;
+  const st = document.getElementById('apFondoUploadStatus');
+  st.textContent = 'Subiendo...'; st.style.color = 'var(--text-muted)';
+  try {
+    const blob = await compressImage(file, 1600, .85);
+    const url = await uploadImg(blob, 'fondos');
+    await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { fondo_url: url });
+    state.restaurante.fondo_url = url; pintarFondo();
+    st.textContent = '✓ Fondo actualizado'; st.style.color = 'var(--success)';
+    avisarGuardadoConCarta('Fondo guardado');
+  } catch (e) { st.textContent = e.message || 'Error al subir'; st.style.color = 'var(--danger)'; }
+}
+
 // ── COLORES Y PALETA ──────────────────────────────────────────
 // El color de fondo (fondo_color/fondo_intensidad) viaja con las paletas
 // porque aplicarPaleta() los pone los cinco a la vez (paletas.js,
-// CAMPOS_PALETA). La IMAGEN de fondo y su estilo (cubrir/repetir) siguen en
-// la pestaña de solo superadmin.
+// CAMPOS_PALETA). La imagen de fondo y su estilo (cubrir/repetir) están
+// justo arriba, en su propia tarjeta.
 function pintarColores(r, at) {
   const c1 = document.getElementById('apColor1');
   if (!c1) return;   // pestaña Apariencia no está en el DOM (pruebas parciales)

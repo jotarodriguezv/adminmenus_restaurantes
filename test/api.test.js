@@ -2081,6 +2081,49 @@ describe('los colores y la paleta · los edita el restaurante, con validación',
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('la imagen de fondo (y su estilo) · las edita el restaurante', () => {
+	// 27/09/2026: se mudó de la pestaña de solo superadmin a Apariencia,
+	// junto al color de fondo y su intensidad, que ya vivían ahí.
+	const guardar = (body, token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { nav: 'topnav' } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, body, token);
+	};
+
+	test('el restaurante puede subir su fondo y elegir el estilo', async () => {
+		const r = await guardar({ fondo_url: 'https://admin.example.com/uploads/fondos/x.jpg', atributos: { fondo_tipo: 'repeat-scroll' } });
+		assert.equal(r.status, 200);
+		const g = S.ultimaEscritura('restaurantes');
+		assert.equal(g.fondo_url, 'https://admin.example.com/uploads/fondos/x.jpg');
+		assert.equal(g.atributos.fondo_tipo, 'repeat-scroll');
+	});
+
+	test('quitar el fondo (null) también vale', async () => {
+		const r = await guardar({ fondo_url: null });
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').fondo_url, null);
+	});
+
+	test('un valor que no es una URL completa se rechaza', async () => {
+		const r = await guardar({ fondo_url: 'javascript:alert(1)' });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /fondo/i);
+		assert.equal(S.ultimaEscritura('restaurantes'), null);
+	});
+
+	test('un estilo que no es uno de los dos se rechaza', async () => {
+		const r = await guardar({ atributos: { fondo_tipo: 'diagonal' } });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /estilo del fondo/i);
+	});
+
+	test('la validación también frena al superadmin', async () => {
+		const r = await guardar({ fondo_url: 'sin-protocolo.jpg' }, tokenAdmin);
+		assert.equal(r.status, 400);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('modelo de página y tipografía · los edita el restaurante, con validación', () => {
 	// 27/09/2026: tercer y cuarto incremento de "libertad al cliente en
 	// Ajustes" (CLAUDE.md, «Decisión: abrir partes de Apariencia al
