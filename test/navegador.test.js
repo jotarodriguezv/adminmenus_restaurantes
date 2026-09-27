@@ -1928,6 +1928,8 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvMostrarPersonas: { checked: opciones.mostrarPersonas !== false },
 			tvMostrarPersonasUno: { checked: !!opciones.mostrarPersonasUno, disabled: false },
 			tvMostrarPersonasUnoFila: { style: {} },
+			tvPersonasSoloIcono: { checked: !!opciones.personasSoloIcono, disabled: false },
+			tvPersonasSoloIconoFila: { style: {} },
 			tvCinta1: { value: '' }, tvCintaPos1: { value: 'arriba' },
 			tvCinta2: { value: '' }, tvCintaPos2: { value: 'arriba' },
 			tvCinta3: { value: '' }, tvCintaPos3: { value: 'arriba' },
@@ -2108,6 +2110,35 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const { ctx, campos } = montar({ guardado: { mostrar_personas: false } });
 		ctx.renderTV();
 		assert.equal(campos.tvMostrarPersonasUno.disabled, true);
+	});
+
+	// 27/09/2026: junto a la frase, el icono se notaba tan poco que no cumplía
+	// su propósito (visto en la pantalla de un cliente). Este interruptor quita
+	// la frase y deja solo el icono, más grande — lo agranda tv.html, no el panel.
+	test('guarda si se enseña solo el icono, sin la frase', () => {
+		const { ctx, campos } = montar();
+		campos.tvPersonasSoloIcono.checked = true;
+		assert.equal(ctx.tvDelFormulario().personas_solo_icono, true);
+	});
+
+	test('lo guardado de "solo icono" se relee al abrir la pestaña', () => {
+		const { ctx, campos } = montar({ guardado: { personas_solo_icono: true } });
+		ctx.renderTV();
+		assert.equal(campos.tvPersonasSoloIcono.checked, true);
+	});
+
+	test('sin nada guardado, "solo icono" empieza apagado', () => {
+		// Antes de este interruptor la cartelera siempre enseñaba la frase: sin
+		// esto, un restaurante que no vuelva a guardar no puede notar un cambio.
+		const { ctx, campos } = montar();
+		ctx.renderTV();
+		assert.equal(campos.tvPersonasSoloIcono.checked, false);
+	});
+
+	test('con el interruptor general apagado, "solo icono" también se deshabilita', () => {
+		const { ctx, campos } = montar({ guardado: { mostrar_personas: false } });
+		ctx.renderTV();
+		assert.equal(campos.tvPersonasSoloIcono.disabled, true);
 	});
 
 	test('no deja encender una cartelera que no enseñaría nada', async () => {
