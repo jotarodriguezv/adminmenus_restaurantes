@@ -33,7 +33,12 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          // 'mostrar_personas' en true porque ya se enseñaba antes de
                          // existir esta clave; 'mostrar_personas_uno' en false: 1 es
                          // el caso normal de casi toda la carta.
-                         mostrar_personas: true, mostrar_personas_uno: false };
+                         mostrar_personas: true, mostrar_personas_uno: false,
+                         // 27/09/2026: junto a la frase, el icono se notaba tan poco
+                         // que no cumplía su propósito (visto en la pantalla de un
+                         // cliente). En false: no le cambia la pantalla a nadie que
+                         // no lo pida.
+                         personas_solo_icono: false };
 
 let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
 let tvFiltro = 'all';   // categoría que se está mirando en el selector
@@ -64,6 +69,7 @@ function renderTV() {
   document.getElementById('tvListaSinFoto').checked = !!cfg.mostrar_sin_foto_lista;
   document.getElementById('tvMostrarPersonas').checked = cfg.mostrar_personas !== false;
   document.getElementById('tvMostrarPersonasUno').checked = !!cfg.mostrar_personas_uno;
+  document.getElementById('tvPersonasSoloIcono').checked = !!cfg.personas_solo_icono;
   tvAlternarMostrarPersonas();
   const cintas = Array.isArray(cfg.cintas) ? cfg.cintas : [];
   for (let i = 1; i <= 5; i++) {
@@ -157,14 +163,19 @@ function tvAlternarDescripcion() {
   fila.style.opacity = una ? '1' : '.5';
 }
 
-// El segundo interruptor solo tiene sentido con el primero encendido: con la
-// nota apagada del todo, decidir si se ve "también con una" no significa nada.
+// Los otros dos interruptores solo tienen sentido con este encendido: con la
+// nota apagada del todo, ni "también con una" ni "solo el icono" significan
+// nada.
 function tvAlternarMostrarPersonas() {
   const on = document.getElementById('tvMostrarPersonas').checked;
   const fila = document.getElementById('tvMostrarPersonasUnoFila');
   const control = document.getElementById('tvMostrarPersonasUno');
   control.disabled = !on;
   fila.style.opacity = on ? '1' : '.5';
+  const filaIcono = document.getElementById('tvPersonasSoloIconoFila');
+  const controlIcono = document.getElementById('tvPersonasSoloIcono');
+  controlIcono.disabled = !on;
+  filaIcono.style.opacity = on ? '1' : '.5';
 }
 
 function tvAlternarActiva() {
@@ -1120,6 +1131,7 @@ function tvDelFormulario() {
 			mostrar_sin_foto_lista: document.getElementById('tvListaSinFoto').checked,
 			mostrar_personas: document.getElementById('tvMostrarPersonas').checked,
 			mostrar_personas_uno: document.getElementById('tvMostrarPersonasUno').checked,
+			personas_solo_icono: document.getElementById('tvPersonasSoloIcono').checked,
     cintas: tvCintasDelFormulario(),
     velocidad_cintas: document.getElementById('tvVelocidadCintas').value,
     reloj: document.getElementById('tvReloj').checked,
