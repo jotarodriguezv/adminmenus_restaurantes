@@ -1900,19 +1900,37 @@
 							     el único momento en que se puede escoger el trozo, porque
 							     el original se borra en cuanto termina la conversión. -->
 							<div id="videoDesdeFila" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-								<div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-bottom:8px;line-height:1.5">
-									Se guardan 8 segundos. Muévete por el video hasta donde empiece lo bueno y márcalo.
+								<div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">
+									Se guardan 8 segundos. Arrastra la barra hasta donde empiece lo bueno — la zona
+									resaltada es justo lo que se va a recortar.
 								</div>
-								<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-									<span style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">Empezar en el segundo</span>
-									<input type="number" id="videoDesde" min="0" step="0.5" value="0" oninput="avisarSiSePasaElVideo()"
-										style="width:88px;padding:5px 8px;border-radius:6px;border:1px solid var(--border);
-										background:transparent;color:var(--text);font-family:var(--mono);font-size:11px;">
-									<button type="button" onclick="usarPuntoActualDelVideo()"
-										style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;
-										color:var(--text);font-family:var(--mono);font-size:9px;letter-spacing:1px;cursor:pointer;white-space:nowrap;">
-										⤓ usar el punto actual
-									</button>
+								<!-- Pedido el 27/09/2026: antes solo había una casilla para escribir
+								     el segundo a mano. Es una barra de verdad, no un adorno sobre el
+								     número: 'videoDesde' sigue siendo el valor que de verdad se sube,
+								     y la barra y la casilla se sincronizan entre sí en los dos sentidos
+								     (videoDesdeSliderCambio/videoDesdeNumeroCambio). El track de abajo y
+								     la zona sombreada son SOLO decoración — el control real es el
+								     <input type=range>, transparente, encima de los dos. -->
+								<div class="video-barra-wrap">
+									<div class="video-barra-track"></div>
+									<div id="videoBarraZona" class="video-barra-zona"></div>
+									<input type="range" id="videoDesdeSlider" class="video-range"
+										min="0" max="0" step="0.5" value="0" disabled
+										oninput="videoDesdeSliderCambio()">
+								</div>
+								<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:2px;">
+									<span id="videoBarraTiempos" style="font-family:var(--mono);font-size:10px;color:var(--text-dim)"></span>
+									<div style="display:flex;align-items:center;gap:8px;">
+										<span style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">Segundo</span>
+										<input type="number" id="videoDesde" min="0" step="0.5" value="0" oninput="videoDesdeNumeroCambio()"
+											style="width:70px;padding:5px 8px;border-radius:6px;border:1px solid var(--border);
+											background:transparent;color:var(--text);font-family:var(--mono);font-size:11px;">
+										<button type="button" onclick="usarPuntoActualDelVideo()"
+											style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;
+											color:var(--text);font-family:var(--mono);font-size:9px;letter-spacing:1px;cursor:pointer;white-space:nowrap;">
+											⤓ usar el punto actual
+										</button>
+									</div>
 								</div>
 								<div id="videoDesdeAviso" style="font-family:var(--mono);font-size:10px;color:var(--danger);margin-top:6px;"></div>
 							</div>
@@ -4263,7 +4281,7 @@ function prepararVideoElegido(input) {
 	if (duracion) duracion.style.display = 'none';
 	prev.src = urlPrevia;
 	prev.style.display = 'block';
-	prev.onloadedmetadata = avisarSiSePasaElVideo;   // la duración no se sabe antes
+	prev.onloadedmetadata = videoMetadatosListos;   // la duración no se sabe antes
 
 	// Hay videos que el navegador NO sabe reproducir aunque ffmpeg los
 	// convierta sin problema. El caso normal, no uno raro: un .mov grabado por
@@ -4289,6 +4307,14 @@ function prepararVideoElegido(input) {
 	document.getElementById('videoDesde').value = 0;
 	document.getElementById('videoDesdeAviso').textContent = '';
 	document.getElementById('videoDesdeAviso').style.color = '';
+	// La barra empieza apagada: la duración no se conoce hasta
+	// 'videoMetadatosListos', y un slider con max=0 movido antes de eso
+	// no significaría nada.
+	const slider = document.getElementById('videoDesdeSlider');
+	slider.disabled = true;
+	slider.max = '0';
+	slider.value = '0';
+	pintarBarraVideo(0, NaN);
 
 	// ── ELEGIR NO ES SUBIR, Y TIENE QUE NOTARSE ───────────────
 	// Los tres botones se veían igual —borde fino sobre fondo transparente— y
@@ -4319,11 +4345,96 @@ function prepararVideoElegido(input) {
 	refrescarCupoIA();
 }
 
+// ── LA BARRA PARA ELEGIR EL SEGUNDO DE INICIO (27/09/2026) ────────
+// Antes solo había una casilla de número: había que saber a ojo cuántos
+// segundos llevaba lo bueno del video y escribirlo. Pedido por el usuario
+// tras verlo en el panel: una barra de verdad, que se pueda arrastrar y que
+// muestre encima cuál es el tramo de 8 segundos que se va a recortar.
+//
+// 'videoDesde' (la casilla) sigue siendo el valor que de verdad viaja al
+// subir: la barra es otra entrada para el MISMO número, no un dato aparte.
+// Las dos se sincronizan entre sí por 'videoDesdeSincronizar', así que
+// arrastrar la barra mueve la casilla y escribir en la casilla mueve la
+// barra — y las dos mueven la previsualización, para que se vea el
+// fotograma exacto por el que va a empezar el recorte.
+//
+// avisarSiSePasaElVideo() NO se toca aquí: sigue siendo la misma función de
+// siempre, probada aparte con un DOM de mentira que solo conoce unos pocos
+// elementos. Si tocara elementos nuevos de la barra, esas pruebas se
+// romperían por un elemento que no esperan. Por eso la barra es una capa
+// que llama a esa función, no una que se mete dentro de ella.
+function videoDesdeSincronizar(valor, opciones) {
+	opciones = opciones || {};
+	const prev = document.getElementById('videoEditPreview');
+	const dur = prev.duration;
+	let v = Number(valor);
+	if (!isFinite(v) || v < 0) v = 0;
+	if (isFinite(dur) && dur > 0 && v > dur) v = dur;
+	v = Math.round(v * 2) / 2;   // a medio segundo: más precisión no la da el dedo
+
+	document.getElementById('videoDesde').value = v;
+	const slider = document.getElementById('videoDesdeSlider');
+	if (isFinite(dur) && dur > 0) {
+		slider.max = String(dur);
+		slider.disabled = false;
+	}
+	slider.value = String(v);
+
+	if (opciones.moverVideo && isFinite(dur) && dur > 0) prev.currentTime = v;
+
+	avisarSiSePasaElVideo();
+	pintarBarraVideo(v, dur);
+}
+
+// Solo dibuja: la zona sombreada (los 8 s que se van a recortar) y el texto
+// de tiempos. Aparte de 'videoDesdeSincronizar' para poder llamarla también
+// desde 'prepararVideoElegido' (con la barra todavía apagada, sin duración)
+// sin duplicar la cuenta.
+function pintarBarraVideo(desde, dur) {
+	const zona = document.getElementById('videoBarraZona');
+	const tiempos = document.getElementById('videoBarraTiempos');
+	if (!isFinite(dur) || dur <= 0) {
+		zona.style.width = '0';
+		if (tiempos) tiempos.textContent = '';
+		return;
+	}
+	const inicio = Math.max(0, Math.min(desde, dur));
+	const fin = Math.min(dur, inicio + 8);
+	zona.style.left = (inicio / dur * 100) + '%';
+	zona.style.width = (Math.max(0, fin - inicio) / dur * 100) + '%';
+	if (tiempos) {
+		tiempos.textContent = formatoTiempoVideo(inicio) + ' – ' + formatoTiempoVideo(fin) +
+			' de ' + formatoTiempoVideo(dur);
+	}
+}
+
+function formatoTiempoVideo(segundos) {
+	const s = Math.max(0, Math.round(segundos));
+	const m = Math.floor(s / 60);
+	const r = s % 60;
+	return m + ':' + (r < 10 ? '0' : '') + r;
+}
+
+// La duración no se conoce hasta que el navegador termina de leer los
+// metadatos del archivo elegido. Hasta entonces la barra está apagada
+// (prepararVideoElegido la deja con max=0).
+function videoMetadatosListos() {
+	videoDesdeSincronizar(document.getElementById('videoDesde').value, { moverVideo: false });
+}
+
+function videoDesdeSliderCambio() {
+	videoDesdeSincronizar(document.getElementById('videoDesdeSlider').value, { moverVideo: true });
+}
+
+function videoDesdeNumeroCambio() {
+	videoDesdeSincronizar(document.getElementById('videoDesde').value, { moverVideo: true });
+}
+
 function usarPuntoActualDelVideo() {
 	const prev = document.getElementById('videoEditPreview');
-	// A medio segundo: más precisión no la da el dedo en una barra de scroll.
-	document.getElementById('videoDesde').value = Math.max(0, Math.round(prev.currentTime * 2) / 2);
-	avisarSiSePasaElVideo();
+	// El video YA está en ese punto —currentTime lo dice—, así que no hace
+	// falta moverlo otra vez.
+	videoDesdeSincronizar(prev.currentTime, { moverVideo: false });
 }
 
 // El mismo número que DURACION_MIN en video.js. Por debajo de eso el bucle

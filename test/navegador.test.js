@@ -1128,6 +1128,107 @@ describe('avisarSiSePasaElVideo · lo demasiado corto no se sube', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('la barra para elegir el segundo de inicio (27/09/2026)', () => {
+	// videoDesdeSincronizar es el punto de encuentro entre la barra, la
+	// casilla de número y la previsualización: las tres pasan por aquí, así
+	// que probarla a ella cubre las tres entradas de una vez.
+	const montar = (duracion) => {
+		const mapa = {
+			videoEditPreview: { duration: duracion, currentTime: 0 },
+			videoDesde: { value: '0' },
+			videoDesdeSlider: { value: '0', max: '0', disabled: true },
+			videoDesdeAviso: { textContent: '', style: {} },
+			btnConfirmarVideo: { disabled: false, style: {} },
+			videoBarraZona: { style: {} },
+			videoBarraTiempos: { textContent: '' },
+		};
+		const ctx = cargar('index.html', 'function videoDesdeSincronizar', 'async function confirmarSubidaVideo',
+			{ document: { getElementById: id => mapa[id] }, Number, Math, isFinite, String });
+		return { ctx, mapa };
+	};
+
+	test('sin metadatos todavía, la barra sigue apagada', () => {
+		const { ctx, mapa } = montar(NaN);
+		ctx.videoDesdeSincronizar(5);
+		assert.equal(mapa.videoDesdeSlider.disabled, true, 'sin duración no hay nada que arrastrar');
+		assert.equal(mapa.videoDesde.value, 5, 'la casilla sí guarda lo escrito');
+	});
+
+	test('con metadatos, se enciende y toma el máximo del video', () => {
+		const { ctx, mapa } = montar(30);
+		ctx.videoDesdeSincronizar(5);
+		assert.equal(mapa.videoDesdeSlider.disabled, false);
+		assert.equal(mapa.videoDesdeSlider.max, '30');
+		assert.equal(mapa.videoDesdeSlider.value, '5');
+	});
+
+	test('se redondea a medio segundo: más precisión no la da el dedo', () => {
+		const { ctx, mapa } = montar(30);
+		ctx.videoDesdeSincronizar(5.3);
+		assert.equal(mapa.videoDesde.value, 5.5);
+	});
+
+	test('no deja bajar de cero ni pasar del final del video', () => {
+		const { ctx, mapa } = montar(30);
+		ctx.videoDesdeSincronizar(-3);
+		assert.equal(mapa.videoDesde.value, 0);
+		ctx.videoDesdeSincronizar(999);
+		assert.equal(mapa.videoDesde.value, 30);
+	});
+
+	test('mueve la previsualización solo cuando se pide', () => {
+		const { ctx, mapa } = montar(30);
+		ctx.videoDesdeSincronizar(12, { moverVideo: true });
+		assert.equal(mapa.videoEditPreview.currentTime, 12, 'arrastrar la barra sí mueve el video');
+
+		mapa.videoEditPreview.currentTime = 0;
+		ctx.videoDesdeSincronizar(12, { moverVideo: false });
+		// "usar el punto actual" lee currentTime del video: si esto también lo
+		// moviera, sería una vuelta que no hace nada, y si el navegador tarda
+		// en aplicar el cambio, restar el punto que se acaba de leer.
+		assert.equal(mapa.videoEditPreview.currentTime, 0, 'sin pedirlo, el video no se mueve solo');
+	});
+
+	test('pinta la zona sombreada como un porcentaje del video entero', () => {
+		const { ctx, mapa } = montar(40);
+		ctx.pintarBarraVideo(10, 40);
+		assert.equal(mapa.videoBarraZona.style.left, '25%');
+		assert.equal(mapa.videoBarraZona.style.width, '20%', '8 s de 40 es el 20%');
+		assert.equal(mapa.videoBarraTiempos.textContent, '0:10 – 0:18 de 0:40');
+	});
+
+	test('la zona se recorta si el video no llega a los 8 segundos completos', () => {
+		const { ctx, mapa } = montar(20);
+		ctx.pintarBarraVideo(15, 20);
+		// Desde el segundo 15 de un video de 20 solo quedan 5 s, no 8.
+		assert.equal(mapa.videoBarraZona.style.width, '25%', '5 s de 20 es el 25%');
+		assert.equal(mapa.videoBarraTiempos.textContent, '0:15 – 0:20 de 0:20');
+	});
+
+	test('sin duración todavía, no pinta una zona ni un tiempo', () => {
+		const { ctx, mapa } = montar(NaN);
+		ctx.pintarBarraVideo(5, NaN);
+		assert.equal(mapa.videoBarraZona.style.width, '0');
+		assert.equal(mapa.videoBarraTiempos.textContent, '');
+	});
+
+	test('formatoTiempoVideo, en minutos y segundos', () => {
+		const { ctx } = montar(30);
+		assert.equal(ctx.formatoTiempoVideo(5), '0:05');
+		assert.equal(ctx.formatoTiempoVideo(65), '1:05');
+		assert.equal(ctx.formatoTiempoVideo(125), '2:05');
+	});
+
+	test('"usar el punto actual" lee el video, no lo mueve', () => {
+		const { ctx, mapa } = montar(30);
+		mapa.videoEditPreview.currentTime = 12.3;
+		ctx.usarPuntoActualDelVideo();
+		assert.equal(mapa.videoDesde.value, 12.5, 'redondeado a medio segundo, como antes');
+		assert.equal(mapa.videoEditPreview.currentTime, 12.3, 'no se toca: ya estaba ahí');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('cambios sin guardar · la ficha no se cierra en silencio', () => {
 	// Un clic fuera del modal lo cerraba y se llevaba lo escrito. Se compara
 	// una firma del formulario en vez de levantar una bandera al primer
