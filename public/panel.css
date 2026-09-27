@@ -726,6 +726,8 @@ select.form-input{padding-right:42px;}
 .btn-cancel{padding:11px 18px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);
   color:var(--text-muted);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all .18s;}
 .btn-cancel:hover{border-color:var(--border2);color:var(--text);}
+.btn-vista-previa{border-color:color-mix(in srgb,var(--accent) 55%,var(--border));background:var(--accent-dim);color:var(--accent-texto);font-family:var(--sans);font-weight:800;letter-spacing:.3px;box-shadow:0 3px 10px var(--accent-glow);}
+.btn-vista-previa:hover{border-color:var(--accent);background:rgba(231,115,6,.16);color:var(--accent-texto);transform:translateY(-1px);box-shadow:0 7px 15px var(--accent-glow);}
 
 /* ── TOAST ── */
 .toast{position:fixed;bottom:22px;right:22px;padding:11px 18px;border-radius:var(--radius);
