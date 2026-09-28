@@ -293,6 +293,15 @@
 							<a class="btn-sm" id="inicioEstadoPublicoAccion" target="_blank" rel="noopener noreferrer">Abrir mi carta ↗</a>
 						</section>
 					</div>
+					<section class="inicio-renovacion" id="inicioRenovacion" hidden aria-live="polite">
+						<div class="inicio-renovacion-cabecera">
+							<div><div class="inicio-renovacion-sobrelinea">RENOVACIÓN DEL PLAN</div><div class="inicio-renovacion-titulo" id="inicioRenovacionTitulo"></div></div>
+							<div class="inicio-renovacion-dias" id="inicioRenovacionDias"></div>
+						</div>
+						<p id="inicioRenovacionDetalle"></p>
+						<div class="inicio-renovacion-barra" aria-hidden="true"><span id="inicioRenovacionProgreso"></span></div>
+						<a class="btn-sm accent" id="inicioRenovacionAccion" target="_blank" rel="noopener noreferrer" hidden>Gestionar mi pago por WhatsApp</a>
+					</section>
 					<div class="inicio-grid">
 						<section class="section-card inicio-tarjeta">
 							<div class="section-title">Para revisar <span class="inicio-cuenta" id="inicioPendientesCuenta"></span></div>
@@ -2918,10 +2927,16 @@ async function loadData() {
     document.getElementById('topbarResto').textContent = state.restaurante.nombre.toUpperCase();
     state.categorias = await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
-		// Solo hace falta cuando la cuenta está suspendida. Si no se configuró el
-		// WhatsApp todavía, el aviso sigue explicando qué hacer sin inventar uno.
-		if (state.rol === 'cliente' && state.restaurante.activo === false) {
-			state.soporteCobranza = await apiFetch('GET', '/api/soporte-cobranza').catch(() => null);
+		// El restaurante solo recibe su propio día de renovación, nunca la lista
+		// ni el historial de cobros. El contacto sirve tanto para reportar un
+		// pago pendiente como para anticipar la renovación de los próximos días.
+		if (state.rol === 'cliente') {
+			const [renovacion, soporte] = await Promise.all([
+				apiFetch('GET', '/api/mi-renovacion').catch(() => null),
+				apiFetch('GET', '/api/soporte-cobranza').catch(() => null),
+			]);
+			state.renovacion = renovacion;
+			state.soporteCobranza = soporte;
 		}
     await cargarTrabajosVideo();
     renderCatFilter(); renderOrdenProductos(); renderProducts(); renderCatList(); await renderPromociones(); renderInicio();

@@ -531,6 +531,18 @@ app.patch('/api/soporte-cobranza', auth, async (req, res) => {
   res.json({ nombre, whatsapp });
 });
 
+// El restaurante necesita anticipar su propia renovación, pero no tiene por
+// qué conocer el historial de pagos ni ningún dato de otros negocios. Esta es
+// deliberadamente una puerta distinta de /api/facturacion: entrega solo el día
+// de cobro de QUIEN inició sesión y nunca deja editarlo.
+app.get('/api/mi-renovacion', auth, async (req, res) => {
+  if (req.user.rol !== 'cliente') return res.status(403).json({ error: 'Solo restaurantes' });
+  const { data, error } = await supabase.from('restaurantes_facturacion')
+    .select('dia_pago').eq('restaurante_id', req.user.restauranteId).maybeSingle();
+  if (error) return res.status(500).json({ error: 'No se pudo cargar la fecha de renovación' });
+  res.json({ dia_pago: data?.dia_pago || null });
+});
+
 function canAccessRestaurante(user, restauranteId) {
   return user.rol === 'admin' || user.restauranteId === restauranteId;
 }
@@ -1701,9 +1713,9 @@ app.post('/api/ia/por-aprobar/:id/descartar', auth, async (req, res) => {
 // Ahora vive en restaurantes_facturacion, con RLS y sin políticas — solo
 // la llave de servicio la alcanza, y esta API es la única puerta.
 //
-// SOLO ADMIN, las dos rutas. Un restaurante no tiene por qué ver ni
-// escribir su propio estado de cobranza: es un dato de la plataforma
-// sobre él, no suyo. Por eso no se usa canAccessRestaurante() aquí.
+// SOLO ADMIN, las dos rutas. El restaurante no puede leer el historial ni
+// escribir su cobranza: para el recordatorio ve exclusivamente su día mensual
+// a través de /api/mi-renovacion, que no comparte esta información comercial.
 
 app.get('/api/facturacion', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });

@@ -260,6 +260,15 @@ a,button,input,select,textarea{font-family:inherit;}
 .inicio-estado-badge.alerta{color:#fff;background:#a64231;border:1px solid #d96750;}
 .inicio-estado-detalle{margin:8px 0 12px;font-size:12px;line-height:1.45;color:var(--text-muted);}
 .inicio-estado .btn-sm{display:inline-flex;text-decoration:none;}
+.inicio-renovacion{margin:-8px 0 20px;padding:17px 18px;border:1px solid var(--warn);border-radius:var(--r-lg);background:linear-gradient(100deg,var(--warn-dim),var(--panel));}
+.inicio-renovacion-cabecera{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+.inicio-renovacion-sobrelinea{font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:.7px;color:var(--warn);}
+.inicio-renovacion-titulo{margin-top:4px;font-size:16px;font-weight:800;color:var(--text);}
+.inicio-renovacion-dias{flex-shrink:0;padding:6px 10px;border-radius:999px;background:var(--warn);color:#fff;font-size:11px;font-weight:800;}
+.inicio-renovacion p{margin:8px 0 12px;max-width:640px;font-size:12px;line-height:1.45;color:var(--text-muted);}
+.inicio-renovacion-barra{height:7px;margin-bottom:14px;overflow:hidden;border-radius:999px;background:color-mix(in srgb,var(--warn) 18%,var(--panel));}
+.inicio-renovacion-barra span{display:block;height:100%;width:0;border-radius:inherit;background:var(--warn);transition:width .25s ease;}
+.inicio-renovacion .btn-sm{display:inline-flex;text-decoration:none;}
 .inicio-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;align-items:start;}
 .inicio-tarjeta{margin-bottom:0;}
 .inicio-tarjeta-ancha{grid-column:1 / -1;}

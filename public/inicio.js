@@ -61,6 +61,45 @@ function pintarSuspension() {
   if (url) boton.href = url;
 }
 
+// La fecha exacta es privada para cada restaurante, pero su próximo vencimiento
+// sí le sirve para anticipar la renovación. Se calcula en el navegador solo
+// para pintar el recordatorio: no decide accesos ni sustituye la suspensión que
+// aplica el servidor cuando el equipo de VMenus la marca.
+function proximaRenovacion(diaPago, ahora = new Date()) {
+  const dia = Number(diaPago);
+  if (!Number.isInteger(dia) || dia < 1 || dia > 31) return null;
+  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+  const fechaDelMes = (anio, mes) => new Date(anio, mes, Math.min(dia, new Date(anio, mes + 1, 0).getDate()));
+  let vence = fechaDelMes(hoy.getFullYear(), hoy.getMonth());
+  if (vence < hoy) vence = fechaDelMes(hoy.getFullYear(), hoy.getMonth() + 1);
+  const dias = Math.round((vence - hoy) / 86400000);
+  return { vence, dias };
+}
+
+function pintarAvisoRenovacion() {
+  const caja = document.getElementById('inicioRenovacion');
+  if (!caja) return;
+  const proxima = state.rol === 'cliente' && state.restaurante?.activo !== false
+    ? proximaRenovacion(state.renovacion?.dia_pago) : null;
+  if (!proxima || proxima.dias > 5) { caja.hidden = true; return; }
+
+  caja.hidden = false;
+  const fecha = proxima.vence.toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
+  const hoy = proxima.dias === 0;
+  const textoDias = hoy ? 'Vence hoy' : `Faltan ${proxima.dias} día${proxima.dias === 1 ? '' : 's'}`;
+  document.getElementById('inicioRenovacionTitulo').textContent = hoy
+    ? 'Tu plan vence hoy' : `Tu plan vence el ${fecha}`;
+  document.getElementById('inicioRenovacionDias').textContent = textoDias;
+  document.getElementById('inicioRenovacionDetalle').textContent = hoy
+    ? 'Realiza y reporta tu pago hoy para evitar que el servicio se interrumpa.'
+    : `Quedan ${proxima.dias} día${proxima.dias === 1 ? '' : 's'} para renovar tu plan. Anticipa el pago para mantener la carta disponible.`;
+  document.getElementById('inicioRenovacionProgreso').style.width = `${Math.round(((5 - proxima.dias + 1) / 6) * 100)}%`;
+  const accion = document.getElementById('inicioRenovacionAccion');
+  const contacto = enlaceWhatsAppCobranza();
+  accion.hidden = !contacto;
+  if (contacto) accion.href = contacto;
+}
+
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
 // Qué ve el comensal cuando falta. Tiene que decir la verdad según el modelo:
@@ -358,6 +397,7 @@ function renderInicio() {
 
   pintarMetricas(datos.productos, datos.categorias);
   pintarEstadoOperacion(state.restaurante);
+  pintarAvisoRenovacion();
   pintarPendientes(revisionDeInicio(datos));
   pintarFunciones(funcionesDeInicio(datos));
   pintarConfiguracion(configuracionDeInicio({ ...datos, restaurante: state.restaurante }));
