@@ -1512,6 +1512,23 @@ describe('/api/facturacion · la cobranza sale de la tabla pública', () => {
 		assert.equal(r.status, 403);
 	});
 
+	test('solo puede leer el día de renovación de su propia cuenta', async () => {
+		S.conTabla(st => st.tabla === 'restaurantes_facturacion'
+			? { data: { dia_pago: 12 }, error: null } : { data: null, error: null });
+		const r = await S.pedir('GET', '/api/mi-renovacion', null, tokenCliente);
+		assert.equal(r.status, 200);
+		assert.deepEqual(r.body, { dia_pago: 12 });
+		const lectura = S.llamadas.find(l => l.tabla === 'restaurantes_facturacion');
+		assert.equal(lectura.cols, 'dia_pago', 'no debe devolver el historial de pagos');
+		assert.equal(lectura.filtros.restaurante_id, IDS.restaurante, 'no puede elegir otro restaurante');
+	});
+
+	test('el superadmin no usa la ruta limitada del restaurante', async () => {
+		const r = await S.pedir('GET', '/api/mi-renovacion', null, tokenAdmin);
+		assert.equal(r.status, 403);
+		assert.equal(S.llamadas.length, 0);
+	});
+
 	test('ni escribirla', async () => {
 		const r = await S.pedir('PATCH', `/api/facturacion/${IDS.restaurante}`,
 			{ ultimo_pago: '2026-08-24' }, tokenCliente);

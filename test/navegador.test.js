@@ -9124,6 +9124,37 @@ describe('Inicio: qué pide una acción y qué tiene encendido la carta', () => 
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('Inicio: aviso de renovación del plan', () => {
+	const reglas = () => cargar('inicio.js', 'function proximaRenovacion', 'const plural', { Date, Number, Math });
+
+	test('cuenta los cinco días previos y el día del vencimiento', () => {
+		const ctx = reglas();
+		const cinco = ctx.proximaRenovacion(15, new Date(2026, 8, 10));
+		const hoy = ctx.proximaRenovacion(15, new Date(2026, 8, 15));
+		assert.equal(cinco.dias, 5);
+		assert.equal(hoy.dias, 0);
+	});
+
+	test('tras vencer calcula la renovación del mes siguiente', () => {
+		const r = reglas().proximaRenovacion(5, new Date(2026, 8, 6));
+		assert.equal(r.dias, 29);
+		assert.equal(r.vence.getMonth(), 9);
+	});
+
+	test('un cobro el día 31 se ajusta al último día de febrero', () => {
+		const r = reglas().proximaRenovacion(31, new Date(2026, 1, 26));
+		assert.equal(r.dias, 2);
+		assert.equal(r.vence.getDate(), 28);
+	});
+
+	test('un día ausente o inválido no inventa un aviso', () => {
+		const ctx = reglas();
+		assert.equal(ctx.proximaRenovacion(null), null);
+		assert.equal(ctx.proximaRenovacion(32), null);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('un plato que no lleva foto a propósito', () => {
 	// 18/09/2026, pedido por el usuario: hay platos a los que no les toca foto
 	// aunque su categoría las lleve —una bebida, un adicional—, y sin marcarlo

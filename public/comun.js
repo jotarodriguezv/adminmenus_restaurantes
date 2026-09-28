@@ -60,6 +60,7 @@ let state = {
   extraImgs: [],
   facturacion: [],           // cobranza por restaurante, fuera de atributos
   facturacionCargada: false, // si es false el campo vacío significa "no se sabe"
+  renovacion: null,          // solo el próximo vencimiento del restaurante que inició sesión
   cupoIA: null,              // cuántas animaciones le quedan al restaurante
   videosPorAprobar: [],      // generados y convertidos, esperando que alguien los mire
   generandoIA: null,         // plato con una generación pedida y todavía sin trabajo
