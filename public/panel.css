@@ -299,6 +299,9 @@ a,button,input,select,textarea{font-family:inherit;}
 .inicio-configuracion .btn-sm{flex:0 0 auto;}
 .inicio-accesos{display:flex;flex-wrap:wrap;gap:8px;}
 .inicio-accesos .btn-sm{min-height:34px;}
+.orden-card{display:flex;justify-content:space-between;gap:12px;align-items:start;padding:12px 0;border-top:1px solid var(--border);font-size:13px;line-height:1.55;}
+.orden-card span{font-size:12px;color:var(--text-muted);}
+.orden-card select{width:150px;flex:0 0 auto;padding:7px 9px;font-size:12px;}
 
 /* Acciones principales de Inicio: botones con la misma voz visual que los estados,
    pero conservando una jerarquía clara entre acciones normales y la acción de crear. */
@@ -1292,6 +1295,8 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
   .inicio-configuracion{align-items:flex-start;flex-wrap:wrap;}
   .inicio-configuracion-texto{min-width:calc(100% - 38px);}
   .inicio-configuracion .btn-sm{margin-left:33px;}
+  .orden-card{flex-direction:column;}
+  .orden-card select{width:100%;}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important;}

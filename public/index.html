@@ -245,7 +245,8 @@
 				<button class="tab-btn" id="tabBtnTv" onclick="switchTab('tv',this)" style="display:none">Pantalla TV</button>
 				<button class="tab-btn" id="tabBtnImportar" onclick="switchTab('importar',this)" style="display:none">Importar carta</button>
 				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
-				<button class="tab-btn" onclick="switchTab('estadisticas',this)">Estadísticas</button>
+					<button class="tab-btn" onclick="switchTab('estadisticas',this)">Estadísticas</button>
+					<button class="tab-btn" onclick="switchTab('ordenes',this)">Pedidos</button>
 			</div>
 			<div class="content">
 				<!-- TAB INICIO -->
@@ -1829,6 +1830,9 @@
 						<div id="estIgnorados"></div>
 					</div>
 				</div>
+				<div id="tabOrdenes" class="hidden">
+					<div class="section-card"><div class="section-header"><div class="section-title">Pedidos desde la carta</div><button class="btn-sm" onclick="cargarOrdenes()">Actualizar</button></div><p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Son pedidos que el cliente confirmó haber enviado por WhatsApp. Confirma su atención aquí.</p><div id="ordenesResumen"></div><div id="ordenesLista"></div></div>
+				</div>
 			</div>
 		</div>
 
@@ -2735,6 +2739,7 @@
 <script src="video-subiendo.js"></script>
 <script src="toppings.js"></script>
 <script src="pedidos.js"></script>
+<script src="ordenes.js"></script>
 <script src="sesion.js"></script>
 <script src="ajustes.js"></script>
 <script src="aspecto.js"></script>
@@ -3118,7 +3123,7 @@ function switchTab(tab, btn) {
   // En un móvil la pestaña pulsada puede estar medio fuera; se trae a la vista
   // para que se vea cuál está activa. 'nearest' no mueve la página en vertical.
   btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  ['tabInicio','tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabAjustes','tabAspecto'].forEach(id=>{
+  ['tabInicio','tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabOrdenes','tabAjustes','tabAspecto'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
@@ -3126,6 +3131,7 @@ function switchTab(tab, btn) {
   if (tab === 'importar') renderImportar();
   if (tab === 'qr') renderQR().then(() => fijarFotoDePestana('qr'));
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
+  if (tab === 'ordenes' && !ordenesCargadas) cargarOrdenes();
   if (tab === 'ajustes') renderAjustes();
   if (tab === 'aspecto') renderAspecto();
   if (tab === 'inicio') renderInicio();
