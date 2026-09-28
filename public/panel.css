@@ -581,6 +581,7 @@ select.form-input{padding-right:42px;}
   display:grid;grid-template-columns:repeat(8,1fr);gap:2px;width:260px;max-height:220px;overflow-y:auto;
   background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
   box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.emoji-picker[hidden]{display:none;}
 .emoji-picker button{border:none;background:transparent;border-radius:6px;font-size:18px;
   line-height:1;padding:6px 0;cursor:pointer;}
 .emoji-picker button:hover{background:var(--card);}
