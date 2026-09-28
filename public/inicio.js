@@ -200,6 +200,98 @@ function pintarMetricas(productos, categorias) {
   }
 }
 
+// La suscripción la opera la plataforma; no mostramos fechas de pago aquí porque
+// son datos comerciales. Lo que el restaurante necesita para actuar es saber si
+// puede usar el servicio y qué ocurre con la carta que ven sus clientes.
+function pintarEstadoOperacion(restaurante) {
+  const cuenta = document.getElementById('inicioEstadoCuenta');
+  const cuentaDetalle = document.getElementById('inicioEstadoCuentaDetalle');
+  const cuentaAccion = document.getElementById('inicioEstadoCuentaAccion');
+  const publico = document.getElementById('inicioEstadoPublico');
+  const publicoDetalle = document.getElementById('inicioEstadoPublicoDetalle');
+  const publicoAccion = document.getElementById('inicioEstadoPublicoAccion');
+  if (!cuenta || !cuentaDetalle || !cuentaAccion || !publico || !publicoDetalle || !publicoAccion) return;
+
+  const suspendida = restaurante?.activo === false;
+  cuenta.className = 'inicio-estado-badge ' + (suspendida ? 'alerta' : 'correcto');
+  cuenta.textContent = suspendida ? 'Suspendida' : 'Activa';
+  cuentaDetalle.textContent = suspendida
+    ? 'Hay un pago pendiente. Cuando lo reportes y lo confirmemos, podrás volver a editar tu carta.'
+    : 'Tu acceso al panel está habilitado.';
+  const whatsapp = enlaceWhatsAppCobranza();
+  cuentaAccion.hidden = !suspendida || !whatsapp;
+  if (whatsapp) cuentaAccion.href = whatsapp;
+
+  publico.className = 'inicio-estado-badge ' + (suspendida ? 'alerta' : 'correcto');
+  publico.textContent = suspendida ? 'No disponible' : 'Disponible';
+  publicoDetalle.textContent = suspendida
+    ? 'Tus clientes verán un aviso temporal hasta que se reactive el servicio.'
+    : 'Tus clientes pueden abrir y consultar tu menú.';
+  publicoAccion.hidden = suspendida;
+  if (!suspendida) publicoAccion.href = urlPublica(restaurante);
+}
+
+// No es una auditoría que castigue por decisiones de diseño: logo, QR y TV son
+// opcionales. Esta lista separa lo esencial para publicar de los siguientes
+// pasos útiles y deja cada uno a un clic de distancia.
+function configuracionDeInicio({ productos = [], categorias = [], atributos = {}, plan = {}, restaurante = {} } = {}) {
+  const tieneCarta = productos.length > 0 && categorias.length > 0;
+  const requiereWhatsApp = cartaTieneCarrito(atributos, plan);
+  return [
+    { titulo: 'Carta base', lista: true, listo: tieneCarta,
+      detalle: tieneCarta ? 'Ya tienes categorías y platos publicados.' : 'Crea una categoría y agrega al menos un plato.',
+      accion: tieneCarta ? 'Ver productos' : 'Crear carta', tab: tieneCarta ? 'productos' : 'categorias' },
+    { titulo: 'Identidad del restaurante', lista: false, listo: !!restaurante.logo_url,
+      detalle: restaurante.logo_url ? 'Tu logo ya aparece en la carta.' : 'Añade un logo para que tu carta se reconozca mejor.',
+      accion: restaurante.logo_url ? 'Ver ajustes' : 'Añadir logo', tab: 'ajustes' },
+    { titulo: 'Pedidos por WhatsApp', lista: requiereWhatsApp, listo: !requiereWhatsApp || recibePedidos(atributos),
+      detalle: !requiereWhatsApp ? 'Opcional: actívalo cuando quieras recibir pedidos.'
+        : recibePedidos(atributos) ? 'El carrito ya puede enviar pedidos.' : 'Falta el número que recibe los pedidos.',
+      accion: recibePedidos(atributos) ? 'Ver pedidos' : 'Configurar', tab: 'ajustes' },
+    { titulo: 'Código QR', lista: true, listo: !!restaurante.slug,
+      detalle: restaurante.slug ? 'Tu QR ya está listo para descargar e imprimir.' : 'Primero define la dirección de tu carta.',
+      accion: restaurante.slug ? 'Abrir QR' : 'Ir a ajustes', tab: restaurante.slug ? 'qr' : 'ajustes' },
+    { titulo: 'Pantalla de TV', lista: false, listo: !!atributos.tv?.activa,
+      detalle: atributos.tv?.activa ? 'Tu cartelera está encendida.' : 'Opcional: muestra tus productos en una pantalla.',
+      accion: atributos.tv?.activa ? 'Ver pantalla' : 'Configurar TV', tab: 'tv' },
+  ];
+}
+
+function pintarConfiguracion(items) {
+  const caja = document.getElementById('inicioConfiguracion');
+  const cuenta = document.getElementById('inicioConfiguracionCuenta');
+  if (!caja || !cuenta) return;
+  caja.replaceChildren();
+  const pendientes = items.filter(i => i.lista && !i.listo).length;
+  cuenta.textContent = pendientes ? String(pendientes) : '';
+  for (const item of items) {
+    const fila = el('div', 'inicio-configuracion' + (item.listo ? ' lista' : ''));
+    const texto = el('div', 'inicio-configuracion-texto');
+    texto.append(el('div', 'inicio-configuracion-titulo', item.titulo), el('div', 'inicio-configuracion-detalle', item.detalle));
+    const boton = el('button', 'btn-sm' + (item.listo ? '' : ' accent'), item.accion);
+    boton.type = 'button';
+    boton.onclick = () => abrirDesdeInicio(item.tab);
+    fila.append(el('span', 'inicio-configuracion-marca', item.listo ? '✓' : '○'), texto, boton);
+    caja.appendChild(fila);
+  }
+}
+
+function pintarAccesos() {
+  const caja = document.getElementById('inicioAccesos');
+  if (!caja) return;
+  caja.replaceChildren();
+  const accesos = [
+    ['+ Nuevo producto', 'productos'], ['Organizar categorías', 'categorias'],
+    ['Configurar pedidos', 'ajustes'], ['Pantalla de TV', 'tv'],
+  ];
+  for (const [texto, tab] of accesos) {
+    const boton = el('button', 'btn-sm', texto);
+    boton.type = 'button';
+    boton.onclick = () => abrirDesdeInicio(tab);
+    caja.appendChild(boton);
+  }
+}
+
 function pintarPendientes({ pendientes, enOrden }) {
   const caja = document.getElementById('inicioPendientes');
   caja.replaceChildren();
@@ -265,6 +357,9 @@ function renderInicio() {
   if (enlace) enlace.href = urlPublica(state.restaurante);
 
   pintarMetricas(datos.productos, datos.categorias);
+  pintarEstadoOperacion(state.restaurante);
   pintarPendientes(revisionDeInicio(datos));
   pintarFunciones(funcionesDeInicio(datos));
+  pintarConfiguracion(configuracionDeInicio({ ...datos, restaurante: state.restaurante }));
+  pintarAccesos();
 }
