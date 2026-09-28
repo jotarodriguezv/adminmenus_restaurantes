@@ -1108,7 +1108,7 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 .encuadre-marco:focus-visible{border-color:var(--accent);}
 
 /* ── Bandeja de solicitudes de alta (bandeja-solicitudes.js) ── */
-#solicitudesPanel{border-color:#7252bb;background:linear-gradient(135deg,rgba(113,77,193,.18),transparent 38%),var(--panel);}
+#solicitudesPanel{border-color:rgba(255,255,255,.78);background:linear-gradient(135deg,rgba(113,77,193,.18),transparent 38%),var(--panel);}
 #solicitudesPanel .section-title{border-color:#9d78f1;background:rgba(126,85,212,.2);color:#e3d8ff;}
 #solicitudesPanel .resto-filtros-fila{margin:2px 0 14px;padding:10px;border:1px solid rgba(139,101,222,.35);border-radius:12px;background:rgba(77,50,133,.13);}
 #solicitudesFiltros .solicitud-filter{padding:7px 12px;border-color:rgba(173,146,239,.42);color:var(--text-muted);font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.2px;}
