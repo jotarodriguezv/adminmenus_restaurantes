@@ -66,6 +66,7 @@ Object.assign(process.env, {
   PIN_ADMIN: '9999',
   BASE_URL: 'http://localhost',
   PORT: '0',          // el sistema operativo elige un puerto libre
+  NODE_ENV: 'test',   // las tareas periódicas reales no deben tocar el falso Supabase
   VIDEO_WORKER: '0',  // sin cola de conversión: las pruebas no llaman a ffmpeg
   VIDEO_MARGEN_MB: '0', // el margen de disco real haría fallar la prueba en un
                         // contenedor pequeño por un motivo que no se prueba

@@ -1517,9 +1517,9 @@ describe('/api/facturacion · la cobranza sale de la tabla pública', () => {
 			? { data: { dia_pago: 12 }, error: null } : { data: null, error: null });
 		const r = await S.pedir('GET', '/api/mi-renovacion', null, tokenCliente);
 		assert.equal(r.status, 200);
-		assert.deepEqual(r.body, { dia_pago: 12 });
+		assert.deepEqual(r.body, { dia_pago: 12, prueba_gratuita_hasta: null });
 		const lectura = S.llamadas.find(l => l.tabla === 'restaurantes_facturacion');
-		assert.equal(lectura.cols, 'dia_pago', 'no debe devolver el historial de pagos');
+		assert.equal(lectura.cols, 'dia_pago, prueba_gratuita_hasta', 'solo entrega el calendario, no el historial de pagos');
 		assert.equal(lectura.filtros.restaurante_id, IDS.restaurante, 'no puede elegir otro restaurante');
 	});
 
