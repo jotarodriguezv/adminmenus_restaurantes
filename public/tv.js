@@ -859,7 +859,7 @@ function tvRejillaDePlatos(cont, seleccion, filtro, alCambiar) {
     b.type = 'button';
     b.style.cssText =
       'width:112px;padding:0;border-radius:10px;cursor:pointer;overflow:hidden;text-align:left;' +
-      'font-family:inherit;background:var(--card);transition:all .15s;border:2px solid ' +
+      'font-family:inherit;font-weight:600;color:var(--text);background:var(--card);transition:all .15s;border:2px solid ' +
       (marcado ? 'var(--accent)' : 'var(--border)') + ';' +
       'opacity:' + (marcado ? '1' : '.62') + ';';
     // Marcado con innerHTML pero sin datos dentro: el nombre se pone después
