@@ -4,6 +4,7 @@
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>Panel Admin · Menús</title>
+		<link rel="icon" type="image/png" href="/logo-vmenus.png">
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 		<link rel="stylesheet" href="panel.css">
@@ -6617,12 +6618,16 @@ function abrirSelectorEmoji(idCampo) {
       const b = document.createElement('button');
       b.type = 'button';
       b.textContent = emoji;
-      b.onclick = () => {
+		b.onclick = () => {
         // El campo, aparte: cerrarSelectorEmoji() vacía inputSelectorEmoji, y
         // llamar .focus() sobre esa misma variable después reventaría.
         const campo = inputSelectorEmoji;
-        campo.value = emoji;
-        cerrarSelectorEmoji();
+		campo.value = emoji;
+		if (typeof campo.dispatchEvent === 'function') {
+			campo.dispatchEvent(new Event('input', { bubbles: true }));
+			campo.dispatchEvent(new Event('change', { bubbles: true }));
+		}
+		cerrarSelectorEmoji();
         campo.focus();
       };
       return b;
