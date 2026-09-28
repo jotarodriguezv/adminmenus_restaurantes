@@ -151,6 +151,8 @@ Ninguno está en el repositorio, y así debe seguir.
 | `RESPALDO_PING` | `/root/.respaldo.env` | se regenera en healthchecks.io |
 | `RESTAURACION_PING` | `/root/.respaldo.env` | se regenera en healthchecks.io (es otro check) |
 | `PIN_ADMIN` | variables de entorno de Dokploy | se cambia en el panel de Dokploy |
+| `NOMBRE_EMPRESA` | variables de entorno de Dokploy | nombre que ve el restaurante al reportar un pago |
+| `WHATSAPP_COBRANZA` | variables de entorno de Dokploy | número de cobros, con código de país y sin `+` (ej. `573001234567`) |
 | `REPLICATE_API_TOKEN` | variables de entorno de Dokploy | se genera otro en Replicate |
 | `ANTHROPIC_API_KEY` | variables de entorno de Dokploy | se genera otra en la consola de Anthropic |
 | PIN de cada restaurante | tabla `restaurantes_privado`, como hash bcrypt | se reasigna desde el panel |

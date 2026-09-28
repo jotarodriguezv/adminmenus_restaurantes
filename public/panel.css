@@ -235,6 +235,12 @@ a,button,input,select,textarea{font-family:inherit;}
    con su botón, lo que está en orden en una línea, y las funciones como
    interruptores. */
 .inicio-encabezado{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:8px 0 20px;}
+.cuenta-suspendida{max-width:720px;margin:38px auto;padding:36px 32px;text-align:center;border:1px solid var(--warn);border-radius:var(--r-lg);background:linear-gradient(145deg,var(--warn-dim),var(--panel));}
+.cuenta-suspendida-icono{font-size:42px;margin-bottom:12px;}
+.cuenta-suspendida h1{font-size:26px;line-height:1.2;margin:0 0 12px;}
+.cuenta-suspendida p{max-width:560px;margin:0 auto 22px;color:var(--text-muted);font-size:14px;line-height:1.55;}
+.cuenta-suspendida .btn-sm{display:inline-flex;text-decoration:none;}
+.tab-btn:disabled{opacity:.48;cursor:not-allowed;}
 .inicio-sobrelinea{display:inline-flex;align-items:center;min-height:26px;padding:5px 10px;border-radius:999px;background:var(--accent-dim);border:1px solid var(--accent);font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.7px;color:var(--accent-texto);margin-bottom:9px;}
 .inicio-encabezado h1{font-size:28px;line-height:1.15;font-weight:800;letter-spacing:-.7px;}
 .inicio-acciones{display:flex;gap:8px;flex-wrap:wrap;}
