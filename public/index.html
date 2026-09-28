@@ -91,6 +91,16 @@
 			</div>
 			
 			<div class="admin-content">
+				<section class="section-card" id="cobranzaEmpresaPanel">
+					<div class="section-title">Contacto para reportar pagos</div>
+					<p class="form-help">Lo verá un restaurante suspendido para avisar que ya pagó.</p>
+					<div class="form-row">
+						<div class="form-group"><label class="form-label" for="cobroNombreEmpresa">Nombre de la empresa</label><input class="form-input" id="cobroNombreEmpresa" maxlength="80" placeholder="VMenús"></div>
+						<div class="form-group"><label class="form-label" for="cobroWhatsapp">WhatsApp de cobros</label><input class="form-input" id="cobroWhatsapp" inputmode="numeric" placeholder="573001234567"></div>
+					</div>
+					<div style="text-align:right"><button type="button" class="btn-save" onclick="guardarContactoCobranza()">Guardar contacto</button></div>
+					<div id="cobroContactoStatus" class="form-status"></div>
+				</section>
 				<!-- Solicitudes de alta (18-19/09/2026): lo primero que se ve al entrar,
 				     porque un lead que espera se enfría. Ver public/bandeja-solicitudes.js. -->
 				<div class="section-card" id="solicitudesPanel">
@@ -240,6 +250,14 @@
 			<div class="content">
 				<!-- TAB INICIO -->
 				<div id="tabInicio">
+					<section class="cuenta-suspendida" id="inicioSuspension" hidden>
+						<div class="cuenta-suspendida-icono" aria-hidden="true">🔒</div>
+						<div class="inicio-sobrelinea">CUENTA SUSPENDIDA</div>
+						<h1>Necesitamos confirmar tu pago</h1>
+						<p id="inicioSuspensionDetalle"></p>
+						<a class="btn-sm accent" id="inicioReportarPago" target="_blank" rel="noopener noreferrer" hidden>Reportar mi pago por WhatsApp</a>
+					</section>
+					<div id="inicioNormal">
 					<!-- Rehecha el 17/09/2026: ver la cabecera de public/inicio.js. -->
 					<div class="inicio-encabezado">
 						<div>
@@ -267,6 +285,7 @@
 							<div class="section-title">Tu carta tiene</div>
 							<div id="inicioFunciones"></div>
 						</section>
+					</div>
 					</div>
 				</div>
 
@@ -2868,6 +2887,11 @@ async function loadData() {
     document.getElementById('topbarResto').textContent = state.restaurante.nombre.toUpperCase();
     state.categorias = await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
+		// Solo hace falta cuando la cuenta está suspendida. Si no se configuró el
+		// WhatsApp todavía, el aviso sigue explicando qué hacer sin inventar uno.
+		if (state.rol === 'cliente' && state.restaurante.activo === false) {
+			state.soporteCobranza = await apiFetch('GET', '/api/soporte-cobranza').catch(() => null);
+		}
     await cargarTrabajosVideo();
     renderCatFilter(); renderOrdenProductos(); renderProducts(); renderCatList(); await renderPromociones(); renderInicio();
     // Apariencia es solo para superadmin: lo que le queda es el plan, el
@@ -2888,6 +2912,7 @@ async function loadData() {
     // Toppings y Pedidos son del modelo "carrito" (o si ya tenía toppings de antes)
     const attr = state.restaurante?.atributos || {};
     ajustarPestanasAlModelo();
+		actualizarBloqueoPorSuspension();
     aplicarPlanAlPanel();
   } catch(e) { showToast('Error cargando datos','error'); }
 }
@@ -3050,6 +3075,10 @@ function idPlanActual() {
 // ── TABS ──────────────────────────────────────────────────────
 function switchTab(tab, btn) {
   if (tab === 'apariencia' && state.rol !== 'admin') return;
+	if (state.rol !== 'admin' && state.restaurante?.activo === false && tab !== 'inicio') {
+		showToast('Tu cuenta está suspendida. Reporta tu pago para volver a editar la carta.', 'error');
+		return;
+	}
   // Con cambios sin guardar no se sale sin preguntar. Tampoco se vuelve a pulsar
   // la misma pestaña: Ajustes, TV y QR se repintan desde lo guardado al entrar,
   // y eso tiraba lo escrito igual que irse.
@@ -3075,6 +3104,17 @@ function switchTab(tab, btn) {
   if (tab === 'aspecto') renderAspecto();
   if (tab === 'inicio') renderInicio();
   fijarFotoDePestana(tab);
+}
+
+// Ocultar botones no basta —switchTab y el servidor también cierran el paso—,
+// pero evita invitar a editar algo que la cuenta no puede guardar todavía.
+function actualizarBloqueoPorSuspension() {
+	const bloqueada = cuentaSuspendida();
+	document.querySelectorAll('.tab-btn').forEach(boton => {
+		const esInicio = boton.id === 'tabBtnInicio';
+		boton.disabled = bloqueada && !esInicio;
+		boton.title = bloqueada && !esInicio ? 'Tu cuenta está suspendida por un pago pendiente' : '';
+	});
 }
 
 // ── CAMBIOS SIN GUARDAR AL CAMBIAR DE PESTAÑA ─────────────────
@@ -8198,7 +8238,33 @@ async function enterAdmin() {
   // Las solicitudes van aparte y sin esperar: si fallan, la lista de
   // restaurantes se tiene que ver igual.
   cargarSolicitudes();
+	await cargarContactoCobranza();
   await cargarListaRestos();
+}
+
+async function cargarContactoCobranza() {
+	const campoNombre = document.getElementById('cobroNombreEmpresa');
+	const campoWhatsapp = document.getElementById('cobroWhatsapp');
+	const estado = document.getElementById('cobroContactoStatus');
+	if (!campoNombre || !campoWhatsapp || !estado) return;
+	try {
+		state.soporteCobranza = await apiFetch('GET', '/api/soporte-cobranza');
+		campoNombre.value = state.soporteCobranza?.nombre || '';
+		campoWhatsapp.value = state.soporteCobranza?.whatsapp || '';
+	} catch (e) {
+		estado.textContent = e.message;
+	}
+}
+
+async function guardarContactoCobranza() {
+	const estado = document.getElementById('cobroContactoStatus');
+	try {
+		const nombre = document.getElementById('cobroNombreEmpresa').value.trim();
+		const whatsapp = document.getElementById('cobroWhatsapp').value;
+		state.soporteCobranza = await apiFetch('PATCH', '/api/soporte-cobranza', { nombre, whatsapp });
+		document.getElementById('cobroWhatsapp').value = state.soporteCobranza.whatsapp;
+		estado.textContent = '✓ Contacto guardado'; estado.style.color = 'var(--success)';
+	} catch (e) { estado.textContent = e.message; estado.style.color = 'var(--danger)'; }
 }
 
 // ── ESTADO DE MENSUALIDAD (informativo, nada automático) ──────

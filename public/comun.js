@@ -64,6 +64,7 @@ let state = {
   videosPorAprobar: [],      // generados y convertidos, esperando que alguien los mire
   generandoIA: null,         // plato con una generación pedida y todavía sin trabajo
   videoEnRevisionActual: null, // el que se está mirando en la ficha abierta
+  soporteCobranza: null,       // nombre y WhatsApp operativo, nunca público
   resumenVideo: {},          // videos y cupo de IA por restaurante, para la lista
   filtrosDisponibles: [],   // filtros que el restaurante activó (modelo explorar)
   prodFiltros: [],          // filtros marcados en el producto que se edita

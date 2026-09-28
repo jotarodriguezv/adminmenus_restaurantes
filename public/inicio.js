@@ -33,6 +33,34 @@ function abrirDesdeInicio(tab) {
   if (boton) switchTab(tab, boton);
 }
 
+function cuentaSuspendida() {
+  return state.rol !== 'admin' && state.restaurante?.activo === false;
+}
+
+function enlaceWhatsAppCobranza() {
+  const numero = state.soporteCobranza?.whatsapp;
+  if (!numero) return '';
+  const restaurante = state.restaurante?.nombre || 'mi restaurante';
+  return `https://wa.me/${numero}?text=${encodeURIComponent(`Hola, ya realicé el pago de ${restaurante} y quiero reportarlo.`)}`;
+}
+
+function pintarSuspension() {
+  const caja = document.getElementById('inicioSuspension');
+  if (!caja) return;
+  const suspendida = cuentaSuspendida();
+  caja.hidden = !suspendida;
+  document.getElementById('inicioNormal').hidden = suspendida;
+  if (!suspendida) return;
+
+  const contacto = state.soporteCobranza?.nombre || 'nuestro equipo';
+  const detalle = document.getElementById('inicioSuspensionDetalle');
+  detalle.textContent = `Tu cuenta está suspendida por un pago pendiente. Para reactivar el servicio, reporta tu pago a ${contacto}. Mientras tanto, no puedes realizar cambios en la carta.`;
+  const boton = document.getElementById('inicioReportarPago');
+  const url = enlaceWhatsAppCobranza();
+  boton.hidden = !url;
+  if (url) boton.href = url;
+}
+
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
 // Qué ve el comensal cuando falta. Tiene que decir la verdad según el modelo:
@@ -220,6 +248,8 @@ function pintarFunciones(funciones) {
 
 function renderInicio() {
   if (!document.getElementById('inicioResumen') || !state.restaurante) return;
+  pintarSuspension();
+  if (cuentaSuspendida()) return;
   const datos = {
     productos: state.productos || [],
     categorias: state.categorias || [],

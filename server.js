@@ -473,12 +473,61 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const TIPOS_EVENTO = ['visita', 'clic', 'agregar_carrito'];
 
 // ── Auth ──────────────────────────────────────────────────────
-function auth(req, res, next) {
+async function auth(req, res, next) {
   const h = req.headers.authorization;
   if (!h?.startsWith('Bearer ')) return res.status(401).json({ error: 'No autorizado' });
-  try { req.user = jwt.verify(h.split(' ')[1], process.env.JWT_SECRET); next(); }
+  try {
+    req.user = jwt.verify(h.split(' ')[1], process.env.JWT_SECRET);
+
+    // La suspensión no puede ser solo una capa del panel: un navegador con una
+    // pestaña vieja, o una petición construida a mano, seguiría pudiendo
+    // cambiar la carta. El superadmin conserva acceso para poder reactivarla.
+    // Cambiar el PIN no altera la carta ni el servicio y debe seguir siendo
+    // posible: es el camino de recuperación de acceso del propio negocio.
+    // Borrar una subida pasa por restaurante_del_archivo, que debe ser la
+    // ÚNICA consulta de ese camino (ver sql/17). No se duplica aquí la lectura
+    // de restaurantes: el endpoint ya comprueba que el archivo sea suyo.
+    const borrarSubida = req.method === 'DELETE' && /^\/api\/upload\/[^/]+\/[^/]+$/.test(req.path);
+    if (req.user.rol === 'cliente' && req.path !== '/api/mi-pin' && !borrarSubida && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      const { data: restaurante, error } = await supabase.from('restaurantes')
+        .select('activo').eq('id', req.user.restauranteId).maybeSingle();
+      if (error)
+        return res.status(503).json({ error: 'No se pudo comprobar el estado de tu cuenta. Intenta de nuevo.' });
+      // Una sesión vieja cuyo restaurante ya no existe seguirá topándose con
+      // canAccessRestaurante en cada ruta. No se trata como suspensión: así
+      // el guardián no tapa el 400/403 específico que cada operación devuelve.
+      if (restaurante?.activo === false)
+        return res.status(423).json({ error: 'Tu cuenta está suspendida por un pago pendiente. Reporta tu pago para reactivar el servicio.' });
+    }
+    next();
+  }
   catch { res.status(401).json({ error: 'Token inválido' }); }
 }
+
+// El contacto de cobranza es de la plataforma, no de cada carta. Se guarda
+// fuera de restaurantes (esa tabla es pública) y solo llega a quien inició
+// sesión. Así el superadmin lo actualiza desde su propio panel, sin Dokploy.
+app.get('/api/soporte-cobranza', auth, async (req, res) => {
+  const { data, error } = await supabase.from('configuracion_plataforma')
+    .select('nombre_empresa, whatsapp_cobranza').eq('id', true).maybeSingle();
+  if (error) return res.status(500).json({ error: 'No se pudo cargar el contacto de cobranza' });
+  res.json({ nombre: data?.nombre_empresa || 'el equipo de VMenus', whatsapp: data?.whatsapp_cobranza || '' });
+});
+
+app.patch('/api/soporte-cobranza', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  const nombre = String(req.body.nombre || '').trim();
+  const whatsapp = String(req.body.whatsapp || '').replace(/\D/g, '');
+  if (!nombre || nombre.length > 80) return res.status(400).json({ error: 'Escribe el nombre de la empresa (máximo 80 caracteres)' });
+  if (!whatsapp || whatsapp.length < 8 || whatsapp.length > 15)
+    return res.status(400).json({ error: 'Escribe el WhatsApp completo con código de país' });
+  const { error } = await supabase.from('configuracion_plataforma').upsert(
+    { id: true, nombre_empresa: nombre, whatsapp_cobranza: whatsapp, actualizado_at: new Date().toISOString() },
+    { onConflict: 'id' }
+  );
+  if (error) return res.status(500).json({ error: 'No se pudo guardar el contacto de cobranza' });
+  res.json({ nombre, whatsapp });
+});
 
 function canAccessRestaurante(user, restauranteId) {
   return user.rol === 'admin' || user.restauranteId === restauranteId;
