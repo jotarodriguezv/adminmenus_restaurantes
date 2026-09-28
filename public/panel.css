@@ -251,8 +251,18 @@ a,button,input,select,textarea{font-family:inherit;}
 .inicio-metrica{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;min-width:0;}
 .inicio-metrica-numero{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--text);}
 .inicio-metrica-etiqueta{font-size:12px;color:var(--text-muted);margin-top:4px;}
+.inicio-estados{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:-10px 0 20px;}
+.inicio-estado{margin:0;padding:15px 16px;}
+.inicio-estado-cabecera{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.inicio-estado-titulo{font-size:13px;font-weight:700;color:var(--text);}
+.inicio-estado-badge{flex-shrink:0;padding:5px 9px;border-radius:999px;font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:.55px;text-transform:uppercase;}
+.inicio-estado-badge.correcto{color:#fff;background:#159957;border:1px solid #1ba765;}
+.inicio-estado-badge.alerta{color:#fff;background:#a64231;border:1px solid #d96750;}
+.inicio-estado-detalle{margin:8px 0 12px;font-size:12px;line-height:1.45;color:var(--text-muted);}
+.inicio-estado .btn-sm{display:inline-flex;text-decoration:none;}
 .inicio-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;align-items:start;}
 .inicio-tarjeta{margin-bottom:0;}
+.inicio-tarjeta-ancha{grid-column:1 / -1;}
 .inicio-cuenta:not(:empty){display:inline-block;margin-left:8px;padding:1px 7px;border-radius:10px;
   background:var(--warn-dim);color:var(--warn);font-size:10px;letter-spacing:0;}
 .inicio-pendiente{display:flex;align-items:center;justify-content:space-between;gap:14px;
@@ -279,6 +289,16 @@ a,button,input,select,textarea{font-family:inherit;}
   line-height:1;text-align:center;text-transform:uppercase;box-shadow:inset 0 1px rgba(255,255,255,.12);transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;}
 .inicio-pastilla.encendida{border-color:#1ba765;background:#159957;color:#fff;box-shadow:inset 0 1px rgba(255,255,255,.18),0 3px 10px rgba(21,153,87,.2);}
 .inicio-funcion:hover .inicio-pastilla{transform:translateY(-1px);filter:brightness(1.08);box-shadow:inset 0 1px rgba(255,255,255,.2),0 6px 14px rgba(0,0,0,.2);}
+.inicio-configuracion{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid var(--border);}
+.inicio-configuracion:first-child{padding-top:0;border-top:0;}
+.inicio-configuracion-marca{width:22px;height:22px;display:grid;place-items:center;flex:0 0 auto;border-radius:50%;background:var(--warn-dim);color:var(--warn);font-size:14px;font-weight:800;}
+.inicio-configuracion.lista .inicio-configuracion-marca{background:var(--success-dim);color:var(--success);}
+.inicio-configuracion-texto{min-width:0;flex:1;}
+.inicio-configuracion-titulo{font-size:13px;font-weight:600;color:var(--text);}
+.inicio-configuracion-detalle{margin-top:2px;font-size:12px;line-height:1.4;color:var(--text-muted);}
+.inicio-configuracion .btn-sm{flex:0 0 auto;}
+.inicio-accesos{display:flex;flex-wrap:wrap;gap:8px;}
+.inicio-accesos .btn-sm{min-height:34px;}
 
 /* Acciones principales de Inicio: botones con la misma voz visual que los estados,
    pero conservando una jerarquía clara entre acciones normales y la acción de crear. */
@@ -1264,6 +1284,14 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 }
 @media (hover:none){
   .btn-primary:active,.btn-sm:active,.tab-btn:active,.cat-chip:active,.btn-edit:active{filter:brightness(1.08);transform:scale(.98);}
+}
+@media (max-width:680px){
+  .inicio-estados{grid-template-columns:1fr;}
+  .inicio-grid{grid-template-columns:1fr;}
+  .inicio-tarjeta-ancha{grid-column:auto;}
+  .inicio-configuracion{align-items:flex-start;flex-wrap:wrap;}
+  .inicio-configuracion-texto{min-width:calc(100% - 38px);}
+  .inicio-configuracion .btn-sm{margin-left:33px;}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important;}
