@@ -484,7 +484,11 @@ async function auth(req, res, next) {
     // cambiar la carta. El superadmin conserva acceso para poder reactivarla.
     // Cambiar el PIN no altera la carta ni el servicio y debe seguir siendo
     // posible: es el camino de recuperación de acceso del propio negocio.
-    if (req.user.rol === 'cliente' && req.path !== '/api/mi-pin' && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    // Borrar una subida pasa por restaurante_del_archivo, que debe ser la
+    // ÚNICA consulta de ese camino (ver sql/17). No se duplica aquí la lectura
+    // de restaurantes: el endpoint ya comprueba que el archivo sea suyo.
+    const borrarSubida = req.method === 'DELETE' && /^\/api\/upload\/[^/]+\/[^/]+$/.test(req.path);
+    if (req.user.rol === 'cliente' && req.path !== '/api/mi-pin' && !borrarSubida && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       const { data: restaurante, error } = await supabase.from('restaurantes')
         .select('activo').eq('id', req.user.restauranteId).maybeSingle();
       if (error)
@@ -500,15 +504,29 @@ async function auth(req, res, next) {
   catch { res.status(401).json({ error: 'Token inválido' }); }
 }
 
-// Este contacto no vive en la carta pública ni en la base de cada restaurante:
-// es un dato operativo de VMenus. Se entrega solo a quien ya inició sesión.
-// WHATSAPP_COBRANZA debe llevar el número completo con código de país, sin +.
-app.get('/api/soporte-cobranza', auth, (req, res) => {
-  const whatsapp = String(process.env.WHATSAPP_COBRANZA || '').replace(/\D/g, '');
-  res.json({
-    nombre: String(process.env.NOMBRE_EMPRESA || 'el equipo de VMenus').trim(),
-    whatsapp: whatsapp.length >= 8 && whatsapp.length <= 15 ? whatsapp : ''
-  });
+// El contacto de cobranza es de la plataforma, no de cada carta. Se guarda
+// fuera de restaurantes (esa tabla es pública) y solo llega a quien inició
+// sesión. Así el superadmin lo actualiza desde su propio panel, sin Dokploy.
+app.get('/api/soporte-cobranza', auth, async (req, res) => {
+  const { data, error } = await supabase.from('configuracion_plataforma')
+    .select('nombre_empresa, whatsapp_cobranza').eq('id', true).maybeSingle();
+  if (error) return res.status(500).json({ error: 'No se pudo cargar el contacto de cobranza' });
+  res.json({ nombre: data?.nombre_empresa || 'el equipo de VMenus', whatsapp: data?.whatsapp_cobranza || '' });
+});
+
+app.patch('/api/soporte-cobranza', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
+  const nombre = String(req.body.nombre || '').trim();
+  const whatsapp = String(req.body.whatsapp || '').replace(/\D/g, '');
+  if (!nombre || nombre.length > 80) return res.status(400).json({ error: 'Escribe el nombre de la empresa (máximo 80 caracteres)' });
+  if (!whatsapp || whatsapp.length < 8 || whatsapp.length > 15)
+    return res.status(400).json({ error: 'Escribe el WhatsApp completo con código de país' });
+  const { error } = await supabase.from('configuracion_plataforma').upsert(
+    { id: true, nombre_empresa: nombre, whatsapp_cobranza: whatsapp, actualizado_at: new Date().toISOString() },
+    { onConflict: 'id' }
+  );
+  if (error) return res.status(500).json({ error: 'No se pudo guardar el contacto de cobranza' });
+  res.json({ nombre, whatsapp });
 });
 
 function canAccessRestaurante(user, restauranteId) {
