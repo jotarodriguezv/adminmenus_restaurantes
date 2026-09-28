@@ -471,6 +471,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // si aquí se acepta un tipo que allí no existe, el evento se pierde con un
 // error 500 en vez de rechazarse limpiamente.
 const TIPOS_EVENTO = ['visita', 'clic', 'agregar_carrito'];
+const ESTADOS_PEDIDO = ['enviado_cliente', 'recibido', 'en_preparacion', 'completado', 'cancelado'];
+const TIPOS_ENTREGA_PEDIDO = ['domicilio', 'local', 'recoger'];
 
 // ── Auth ──────────────────────────────────────────────────────
 async function auth(req, res, next) {
@@ -2844,6 +2846,59 @@ app.post('/api/track', async (req, res) => {
     return res.status(500).json({ error: 'No se pudo registrar el evento' });
   }
   res.status(204).end();
+});
+
+// El menú público no tiene sesión. Esta puerta recibe solamente el pedido que
+// la persona confirmó haber enviado por WhatsApp; se valida y se limita antes
+// de guardar datos personales. Nunca se reutiliza /api/track.
+app.post('/api/pedidos-publicos', async (req, res) => {
+  if (!dentroDelLimite(req.ip)) return res.status(429).json({ error: 'Intenta de nuevo en un momento' });
+  const b = req.body || {};
+  const nombre = typeof b.cliente_nombre === 'string' ? b.cliente_nombre.trim().slice(0, 80) : '';
+  const telefono = typeof b.cliente_telefono === 'string' ? b.cliente_telefono.trim().slice(0, 30) : '';
+  const direccion = typeof b.direccion_entrega === 'string' ? b.direccion_entrega.trim().slice(0, 240) : '';
+  const pago = typeof b.metodo_pago === 'string' ? b.metodo_pago.trim().slice(0, 50) : '';
+  const items = Array.isArray(b.items) ? b.items.slice(0, 40) : [];
+  if (!UUID_RE.test(b.restaurante_id || '') || !nombre || !telefono || !pago ||
+      !TIPOS_ENTREGA_PEDIDO.includes(b.tipo_entrega) || !items.length ||
+      (b.tipo_entrega === 'domicilio' && !direccion)) return res.status(400).json({ error: 'Datos del pedido inválidos' });
+  const limpios = items.map(i => ({
+    producto_id: UUID_RE.test(i?.producto_id || '') ? i.producto_id : null,
+    nombre: typeof i?.nombre === 'string' ? i.nombre.trim().slice(0, 160) : '',
+    cantidad: Number.isInteger(i?.cantidad) && i.cantidad > 0 && i.cantidad <= 30 ? i.cantidad : 0,
+    precio_unitario: Number.isInteger(i?.precio_unitario) && i.precio_unitario >= 0 ? i.precio_unitario : 0,
+    descripcion: typeof i?.descripcion === 'string' ? i.descripcion.trim().slice(0, 500) : ''
+  }));
+  if (limpios.some(i => !i.producto_id || !i.nombre || !i.cantidad)) return res.status(400).json({ error: 'Productos inválidos' });
+  const total = Number.isInteger(b.total_reportado) && b.total_reportado >= 0 ? b.total_reportado : -1;
+  if (total < 0) return res.status(400).json({ error: 'Total inválido' });
+  const { data: resto } = await supabase.from('restaurantes').select('id, activo, atributos').eq('id', b.restaurante_id).maybeSingle();
+  if (!resto || resto.activo === false || !resto.atributos?.carrito || !String(resto.atributos?.whatsapp_pedidos || '').replace(/[^0-9]/g, ''))
+    return res.status(400).json({ error: 'El restaurante no recibe pedidos' });
+  const { error } = await supabase.from('pedidos_carta').insert([{
+    restaurante_id: resto.id, cliente_nombre: nombre, cliente_telefono: telefono,
+    tipo_entrega: b.tipo_entrega, direccion_entrega: b.tipo_entrega === 'domicilio' ? direccion : null,
+    metodo_pago: pago, total_reportado: total, items: limpios
+  }]);
+  if (error) { console.error('[pedidos] no se pudo guardar:', error.message); return res.status(500).json({ error: 'No se pudo registrar el pedido' }); }
+  res.status(201).json({ ok: true });
+});
+
+app.get('/api/pedidos', auth, async (req, res) => {
+  const rid = req.query.restaurante_id;
+  if (!UUID_RE.test(rid || '') || !canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+  const { data, error } = await supabase.from('pedidos_carta').select('*').eq('restaurante_id', rid).order('creado_en', { ascending: false }).limit(200);
+  if (error) return res.status(500).json({ error: 'No se pudieron cargar los pedidos' });
+  res.json(data || []);
+});
+
+app.patch('/api/pedidos/:id', auth, async (req, res) => {
+  if (!UUID_RE.test(req.params.id) || !ESTADOS_PEDIDO.includes(req.body?.estado)) return res.status(400).json({ error: 'Estado inválido' });
+  const { data: pedido } = await supabase.from('pedidos_carta').select('restaurante_id').eq('id', req.params.id).maybeSingle();
+  if (!pedido || !canAccessRestaurante(req.user, pedido.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  const { error } = await supabase.from('pedidos_carta').update({ estado: req.body.estado, actualizado_en: new Date().toISOString() }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: 'No se pudo actualizar el pedido' });
+  res.json({ ok: true });
 });
 
 // Consulta agregada: sí requiere auth y respeta el mismo control de acceso
