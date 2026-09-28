@@ -416,6 +416,10 @@
 							<label for="apDiaPago" class="form-label">Día de cobro mensual <span style="color:var(--text-dim)">(1-31 — se calcula solo cada mes; edítalo solo si cambia el acuerdo con el cliente)</span></label>
 							<input type="number" class="form-input" id="apDiaPago" min="1" max="31" placeholder="1">
 						</div>
+						<div class="form-group" style="margin-top:14px;margin-bottom:0">
+							<label for="apPruebaHasta" class="form-label">Prueba comercial gratuita hasta <span style="color:var(--text-dim)">(último día con acceso; déjalo vacío para cliente mensual)</span></label>
+							<input type="date" class="form-input" id="apPruebaHasta">
+						</div>
 						<div class="form-check" style="margin-top:16px;margin-bottom:4px">
 							<label class="toggle"><input type="checkbox" id="apEsPrueba"><span class="toggle-slider"></span></label>
 							<span style="font-size:13px;color:var(--text-muted)">Es un restaurante de prueba</span>
@@ -7413,6 +7417,7 @@ function datosRestoActuales() {
     nombre: document.getElementById('apNombreResto').value.trim(),
     slug: document.getElementById('apSlugResto').value.trim(),
     dia_pago: document.getElementById('apDiaPago').value,
+    prueba_gratuita_hasta: document.getElementById('apPruebaHasta').value,
     es_prueba: document.getElementById('apEsPrueba').checked,
   });
 }
@@ -7516,6 +7521,7 @@ async function renderDatosResto() {
   // pública y estos datos son de nuestra cobranza, no del restaurante.
   await asegurarFacturacion();
   document.getElementById('apDiaPago').value = facturacionDe(r.id)?.dia_pago ?? '';
+  document.getElementById('apPruebaHasta').value = facturacionDe(r.id)?.prueba_gratuita_hasta ?? '';
   document.getElementById('apEsPrueba').checked = !!facturacionDe(r.id)?.es_prueba;
   fotoDatosResto = datosRestoActuales();
   marcarPendientes();
@@ -7526,6 +7532,7 @@ async function guardarDatosResto() {
   const slug = document.getElementById('apSlugResto').value.trim();
   const diaPagoRaw = document.getElementById('apDiaPago').value;
   const dia_pago = diaPagoRaw ? Math.min(31, Math.max(1, parseInt(diaPagoRaw, 10))) : null;
+  const prueba_gratuita_hasta = document.getElementById('apPruebaHasta').value || null;
   const st = document.getElementById('apDatosRestoStatus');
 
   if (!nombre) { st.textContent = 'El nombre no puede estar vacío'; st.style.color = 'var(--danger)'; return; }
@@ -7556,9 +7563,9 @@ async function guardarDatosResto() {
     if (state.facturacionCargada) {
       const anterior = facturacionDe(state.restaurante.id);
       const es_prueba = document.getElementById('apEsPrueba').checked;
-      await apiFetch('PATCH', `/api/facturacion/${state.restaurante.id}`, { dia_pago, es_prueba });
+      await apiFetch('PATCH', `/api/facturacion/${state.restaurante.id}`, { dia_pago, es_prueba, prueba_gratuita_hasta });
       state.facturacion = (state.facturacion || []).filter(f => f.restaurante_id !== state.restaurante.id);
-      state.facturacion.push({ ...(anterior || {}), restaurante_id: state.restaurante.id, dia_pago, es_prueba });
+      state.facturacion.push({ ...(anterior || {}), restaurante_id: state.restaurante.id, dia_pago, es_prueba, prueba_gratuita_hasta });
     }
 
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, { nombre, slug });

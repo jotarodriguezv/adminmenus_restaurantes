@@ -79,6 +79,25 @@ function proximaRenovacion(diaPago, ahora = new Date()) {
 function pintarAvisoRenovacion() {
   const caja = document.getElementById('inicioRenovacion');
   if (!caja) return;
+  const prueba = String(state.renovacion?.prueba_gratuita_hasta || '');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(prueba)) {
+    const vence = new Date(prueba + 'T00:00:00');
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const dias = Math.round((vence - hoy) / 86400000);
+    if (state.rol === 'cliente' && state.restaurante?.activo !== false && dias <= 5) {
+      caja.hidden = false;
+      const terminado = dias < 0, venceHoy = dias === 0;
+      document.getElementById('inicioRenovacionTitulo').textContent = terminado ? 'Tu período de prueba terminó' : venceHoy ? 'Tu período de prueba termina hoy' : `Tu período de prueba termina en ${dias} día${dias === 1 ? '' : 's'}`;
+      document.getElementById('inicioRenovacionDias').textContent = terminado ? 'Finalizado' : venceHoy ? 'Termina hoy' : `Faltan ${dias} día${dias === 1 ? '' : 's'}`;
+      document.getElementById('inicioRenovacionDetalle').textContent = terminado ? 'Escríbenos para continuar con tu plan mensual.' : 'Aprovecha estos últimos días y escríbenos para continuar con tu plan mensual.';
+      document.getElementById('inicioRenovacionProgreso').style.width = `${Math.max(0, Math.min(100, Math.round(((5 - dias + 1) / 6) * 100)))}%`;
+      const accion = document.getElementById('inicioRenovacionAccion'), contacto = enlaceWhatsAppCobranza();
+      accion.hidden = !contacto; if (contacto) accion.href = contacto;
+      return;
+    }
+    caja.hidden = true;
+    return;
+  }
   const proxima = state.rol === 'cliente' && state.restaurante?.activo !== false
     ? proximaRenovacion(state.renovacion?.dia_pago) : null;
   if (!proxima || proxima.dias > 5) { caja.hidden = true; return; }

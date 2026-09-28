@@ -538,9 +538,9 @@ app.patch('/api/soporte-cobranza', auth, async (req, res) => {
 app.get('/api/mi-renovacion', auth, async (req, res) => {
   if (req.user.rol !== 'cliente') return res.status(403).json({ error: 'Solo restaurantes' });
   const { data, error } = await supabase.from('restaurantes_facturacion')
-    .select('dia_pago').eq('restaurante_id', req.user.restauranteId).maybeSingle();
+    .select('dia_pago, prueba_gratuita_hasta').eq('restaurante_id', req.user.restauranteId).maybeSingle();
   if (error) return res.status(500).json({ error: 'No se pudo cargar la fecha de renovación' });
-  res.json({ dia_pago: data?.dia_pago || null });
+  res.json({ dia_pago: data?.dia_pago || null, prueba_gratuita_hasta: data?.prueba_gratuita_hasta || null });
 });
 
 function canAccessRestaurante(user, restauranteId) {
@@ -1720,7 +1720,7 @@ app.post('/api/ia/por-aprobar/:id/descartar', auth, async (req, res) => {
 app.get('/api/facturacion', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
   const { data, error } = await supabase.from('restaurantes_facturacion')
-    .select('restaurante_id, dia_pago, ultimo_pago, es_prueba');
+    .select('restaurante_id, dia_pago, ultimo_pago, es_prueba, prueba_gratuita_hasta');
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
@@ -1749,6 +1749,12 @@ app.patch('/api/facturacion/:restauranteId', auth, async (req, res) => {
     // un error de Postgres con nombres de tabla dentro.
     else if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.ultimo_pago))) fila.ultimo_pago = req.body.ultimo_pago;
     else return res.status(400).json({ error: 'La fecha de pago debe ser AAAA-MM-DD' });
+  }
+
+  if (req.body.prueba_gratuita_hasta !== undefined) {
+    if (req.body.prueba_gratuita_hasta === null || req.body.prueba_gratuita_hasta === '') fila.prueba_gratuita_hasta = null;
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.prueba_gratuita_hasta))) fila.prueba_gratuita_hasta = req.body.prueba_gratuita_hasta;
+    else return res.status(400).json({ error: 'La fecha de prueba debe ser AAAA-MM-DD' });
   }
 
   // Producción o prueba. Vive aquí y no en 'atributos' porque es un dato
@@ -3624,6 +3630,20 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 // teléfono o poner en un QR: /solicitud y no /solicitud.html.
 app.get('/solicitud', (req, res) => res.sendFile(path.join(__dirname, 'public', 'solicitud.html')));
 
+// La fecha de prueba vive en la tabla privada. Al terminar el último día, se
+// convierte en la misma suspensión que ya entiende la carta pública, la TV y
+// el panel. Así ninguna de esas tres aplicaciones necesita conocer la fecha.
+async function suspenderPruebasVencidas() {
+  const ayer = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const { data, error } = await supabase.from('restaurantes_facturacion')
+    .select('restaurante_id').lte('prueba_gratuita_hasta', ayer);
+  if (error) { console.error('⚠️ no se pudieron revisar las pruebas vencidas:', error.message); return; }
+  for (const fila of data || []) {
+    const { error: e } = await supabase.from('restaurantes').update({ activo: false }).eq('id', fila.restaurante_id);
+    if (e) console.error('⚠️ no se pudo suspender una prueba vencida:', e.message);
+  }
+}
+
 const servidor = app.listen(PORT, () => {
   console.log(`✅ Panel corriendo en puerto ${PORT}`);
   // Se puede apagar con VIDEO_WORKER=0 si algún día conviene moverlo a un
@@ -3635,6 +3655,10 @@ const servidor = app.listen(PORT, () => {
   else if (!process.env.REPLICATE_API_TOKEN) console.log('✨ cola de IA apagada: falta REPLICATE_API_TOKEN');
   limpieza.arrancar(supabase);
   solicitudes.arrancarPurga(supabase);
+  if (process.env.NODE_ENV !== 'test') {
+    suspenderPruebasVencidas();
+    setInterval(suspenderPruebasVencidas, 15 * 60 * 1000).unref();
+  }
 });
 
 // ── PARADA ORDENADA ───────────────────────────────────────────
