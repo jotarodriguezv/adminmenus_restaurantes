@@ -19,9 +19,10 @@ function valorBienvenida(id, defecto = '') { return campoBienvenida(id)?.value ?
 function pintarControlesTextoBienvenida(textos = {}) {
   const zona = campoBienvenida('apIntroTextosControles');
   if (!zona) return;
+  const abiertos = new Set([...zona.querySelectorAll('details[open][data-texto]')].map(panel => panel.dataset.texto));
   const fuentes = (typeof FUENTES_TEXTO_MENU !== 'undefined' ? FUENTES_TEXTO_MENU : ['', 'Montserrat', 'Inter', 'Poppins'])
     .map(f => `<option value="${f}">${f || 'Montserrat (predeterminada)'}</option>`).join('');
-  zona.innerHTML = TIPOS_TEXTO_BIENVENIDA.map(([tipo, nombre]) => `<details class="bienvenida-texto-control" data-texto="${tipo}">
+  zona.innerHTML = TIPOS_TEXTO_BIENVENIDA.map(([tipo, nombre]) => `<details class="bienvenida-texto-control" data-texto="${tipo}"${abiertos.has(tipo) ? ' open' : ''}>
     <summary><span>${nombre}</span><span class="bienvenida-texto-resumen" data-resumen>Predeterminado</span></summary>
     <div class="bienvenida-texto-cuerpo"><label>Color</label><input type="color" data-prop="color" value="#ffffff">
       <label>Fuente</label><select data-prop="fuente">${fuentes}</select><label>Grosor</label>
