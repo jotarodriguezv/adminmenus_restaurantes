@@ -847,18 +847,18 @@
 								<div id="tvTemaAyuda" style="font-size:11px;color:var(--text-dim);margin-top:6px"></div>
 							</div>
 
-								<div id="tvDescripcionFila" class="form-check" style="margin-bottom:16px">
+								<div id="tvDescripcionFila" class="form-check tv-opcion" style="margin-bottom:16px">
 									<label class="toggle"><input type="checkbox" id="tvMostrarDescripcion"><span class="toggle-slider"></span></label>
 									<span style="font-size:13px;color:var(--text-muted)">Mostrar la descripción del plato</span>
-									<div style="font-size:11px;color:var(--text-dim);margin:6px 0 0 42px;line-height:1.5">
+									<div class="tv-opcion-ayuda" style="font-size:11px;color:var(--text-dim);line-height:1.5">
 										Solo aparece con <strong>1 plato por pantalla</strong>. Con dos o más se oculta para que fotos y precios sigan leyéndose desde lejos.
 									</div>
 								</div>
 
-								<div class="form-check" style="margin-bottom:16px">
+								<div class="form-check tv-opcion" style="margin-bottom:16px">
 									<label class="toggle"><input type="checkbox" id="tvListaSinFoto" onchange="tvCambiarListaSinFoto()"><span class="toggle-slider"></span></label>
 									<span style="font-size:13px;color:var(--text-muted)">Mostrar productos sin foto como lista</span>
-									<div style="font-size:11px;color:var(--text-dim);margin:6px 0 0 42px;line-height:1.5">
+									<div class="tv-opcion-ayuda" style="font-size:11px;color:var(--text-dim);line-height:1.5">
 										Agrupa bebidas y complementos sin fotografía por categoría, en hasta dos columnas con nombre y precio. Está apagado por defecto.
 									</div>
 								</div>
@@ -868,14 +868,14 @@
 								     plato (opcional), pero decidir si se enseña es del restaurante
 								     entero — con muchos platos, marcarlo uno por uno cansaría para
 								     algo que casi siempre se quiere igual en toda la carta. -->
-								<div class="form-check" style="margin-bottom:16px">
+								<div class="form-check tv-opcion" style="margin-bottom:16px">
 									<label class="toggle"><input type="checkbox" id="tvMostrarPersonas" onchange="tvAlternarMostrarPersonas()"><span class="toggle-slider"></span></label>
 									<span style="font-size:13px;color:var(--text-muted)">Mostrar para cuántas personas alcanza cada plato</span>
-									<div style="font-size:11px;color:var(--text-dim);margin:6px 0 0 42px;line-height:1.5">
+									<div class="tv-opcion-ayuda" style="font-size:11px;color:var(--text-dim);line-height:1.5">
 										Se enseña debajo del precio, en los platos cuya ficha tenga más de una persona. El número se escribe en Productos, al editar cada plato.
 									</div>
 								</div>
-								<div class="form-check" id="tvMostrarPersonasUnoFila" style="margin-bottom:16px">
+								<div class="form-check tv-opcion" id="tvMostrarPersonasUnoFila" style="margin-bottom:16px">
 									<label class="toggle"><input type="checkbox" id="tvMostrarPersonasUno"><span class="toggle-slider"></span></label>
 									<span style="font-size:13px;color:var(--text-muted)">Mostrarlo también en los platos de una sola persona</span>
 								</div>
@@ -883,22 +883,22 @@
 								     junto a la frase se notaba tan poco que no cumplía su propósito.
 								     Con este interruptor la frase desaparece y solo queda el icono,
 								     bastante más grande. -->
-								<div class="form-check" id="tvPersonasSoloIconoFila" style="margin-bottom:16px">
+								<div class="form-check tv-opcion" id="tvPersonasSoloIconoFila" style="margin-bottom:16px">
 									<label class="toggle"><input type="checkbox" id="tvPersonasSoloIcono"><span class="toggle-slider"></span></label>
 									<span style="font-size:13px;color:var(--text-muted)">Mostrar solo el icono, sin la frase</span>
-									<div style="font-size:11px;color:var(--text-dim);margin:6px 0 0 42px;line-height:1.5">
+									<div class="tv-opcion-ayuda" style="font-size:11px;color:var(--text-dim);line-height:1.5">
 										El icono sale bastante más grande cuando no lleva la frase al lado.
 									</div>
 								</div>
 
-							<div class="form-check" style="margin-bottom:14px">
+							<div class="form-check tv-opcion" style="margin-bottom:16px">
 								<label class="toggle"><input type="checkbox" id="tvMostrarCategoria" onchange="tvAlternarCategoria()"><span class="toggle-slider"></span></label>
 								<span style="font-size:13px;color:var(--text-muted)">Mostrar la categoría en cada plato</span>
-							</div>
-							<div style="font-size:11px;color:var(--text-dim);margin:-8px 0 12px">
-								Una etiqueta pequeña en la esquina de la foto. Útil cuando el nombre del
-								plato no dice qué es — «Pepito», «La Descarada». Se coloca sola en la
-								esquina contraria a tu logo, para que no se tapen.
+								<div class="tv-opcion-ayuda" style="font-size:11px;color:var(--text-dim);line-height:1.5">
+									Una etiqueta pequeña en la esquina de la foto. Útil cuando el nombre del
+									plato no dice qué es — «Pepito», «La Descarada». Se coloca sola en la
+									esquina contraria a tu logo, para que no se tapen.
+								</div>
 							</div>
 							<div id="tvColorCategoriaFila" style="margin:0 0 16px;display:none">
 								<label for="tvColorCategoria" class="form-label">Color de la etiqueta</label>
