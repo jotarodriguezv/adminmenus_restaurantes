@@ -220,7 +220,7 @@ describe('el televisor solo se ofrece a quien puede tenerlo', () => {
 		// Si algún día vuelve un plan sin TV, un cambio de plan no puede dejar una
 		// pantalla encendida en la pared de un local sin forma de apagarla.
 		assert.match(fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8'),
-			/function restauranteTieneTv\(\) \{\s*return !!planActual\(\)\.tv \|\| !!state\.restaurante\?\.atributos\?\.tv;/);
+			/function restauranteTieneTv\(\) \{\s*return !!planActual\(\)\.tv \|\| !!state\.restaurante\?\.atributos\?\.tv \|\|\s*Object\.keys\(state\.restaurante\?\.atributos\?\.tv_pantallas \|\| \{\}\)\.length > 0;/);
 	});
 });
 
@@ -1998,12 +1998,14 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 	const nodoDeMentira = () => ({
 		style: {}, onclick: null, onchange: null, textContent: '', className: '',
 		value: '', src: '', title: '', type: '',
+		classList: clasesDeMentira(),
 		_html: '', firstChild: { style: {} }, lastChild: { style: {}, textContent: '' },
 		set innerHTML(v) { this._html = v; },
 		get innerHTML() { return this._html; },
 		appendChild(h) { return h; },
 		replaceWith() {},
 		querySelector: () => nodoDeMentira(),
+		setAttribute() {},
 		addEventListener() {},
 	});
 	const clasesDeMentira = () => {
@@ -2013,6 +2015,8 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 
 	const montar = (opciones = {}) => {
 		const campos = {
+			tvPantallas: { innerHTML: '', appendChild() {} },
+			tvNombre: { value: opciones.nombre || '' },
 			tvActiva:      { checked: opciones.activa !== false },
 			tvModo:        { value: opciones.modo || 'todos' },
 			tvCategoria:   { value: opciones.categoria || 'c1', innerHTML: '', appendChild() {} },
@@ -2099,7 +2103,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 				promociones: opciones.promociones || [],
 				restaurante: Object.assign(
 				{ id: 'r1', slug: 'bonzas', color_primario: opciones.colorPrimario,
-				  atributos: { tv: opciones.guardado || {} } },
+				  atributos: { tv: opciones.guardado || {}, tv_pantallas: opciones.pantallas || {} } },
 				opciones.promo || {}),
 				categorias: [{ id: 'c1', nombre: 'Hamburguesas' }, { id: 'c2', nombre: 'Bebidas' }],
 				productos: opciones.productos || [
@@ -2186,6 +2190,27 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		await ctx.saveTV();
 		assert.deepEqual(Object.keys(enviado[0].atributos), ['tv']);
 		assert.deepEqual(Object.keys(enviado[0]).sort(), ['atributos', 'promo_en_tv']);
+	});
+
+	test('la segunda pantalla tiene nombre, URL y configuración propios', () => {
+		const { ctx, campos } = montar({ pantallas: { 2: { nombre: 'Entrada', activa: true, modo: 'categoria', categoria_id: 'c2' } } });
+		ctx.renderTV();
+		ctx.tvCambiarPantalla(2);
+		assert.equal(campos.tvNombre.value, 'Entrada');
+		assert.equal(campos.tvActiva.checked, true);
+		assert.equal(campos.tvModo.value, 'categoria');
+		assert.match(campos.tvEnlace.value, /\/tv\/2$/);
+	});
+
+	test('guardar la segunda pantalla no pisa la primera ni deriva su promoción', async () => {
+		const { ctx, campos, enviado } = montar();
+		ctx.renderTV();
+		ctx.tvCambiarPantalla(2);
+		campos.tvNombre.value = 'Terraza';
+		await ctx.saveTV();
+		assert.deepEqual(Object.keys(enviado[0].atributos), ['tv_pantallas']);
+		assert.equal(enviado[0].atributos.tv_pantallas['2'].nombre, 'Terraza');
+		assert.equal('promo_en_tv' in enviado[0], false);
 	});
 
 	test('guarda la velocidad elegida para las cintas', () => {
