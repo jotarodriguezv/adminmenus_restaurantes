@@ -104,10 +104,12 @@ async function apiFetch(method, endpoint, body=null, isForm=false) {
 function openModal(id) {
   document.getElementById(id).classList.add('open');
   document.body.style.overflow='hidden';
+  if (typeof actualizarVisibilidadAccesoRapido === 'function') actualizarVisibilidadAccesoRapido();
 }
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
   document.body.style.overflow='';
+  if (typeof actualizarVisibilidadAccesoRapido === 'function') actualizarVisibilidadAccesoRapido();
 }
 function handleModalBg(e,id) { if(e.target.id===id) closeModal(id); }
 
