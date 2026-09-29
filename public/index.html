@@ -1586,6 +1586,25 @@
 						</div>
 					</div>
 
+					<details class="section-card menu-text-style" id="apTextoMenuPanel">
+						<summary>
+							<span>Tipografía y colores del menú</span>
+							<small>Personaliza cada tipo de texto sin alterar los ajustes generales</small>
+						</summary>
+						<p class="menu-text-style-intro">Los valores vacíos conservan el diseño actual. Los cambios se ven de inmediato en la muestra y se guardan solo para este restaurante.</p>
+						<div class="menu-text-preview" id="apTextoMenuPreview" aria-live="polite">
+							<div data-preview="titulo">Hamburguesa de la casa</div>
+							<div data-preview="subtitulo">Nuestra recomendación para hoy</div>
+							<div data-preview="categoria">Hamburguesas especiales</div>
+							<div data-preview="producto">Doble tocineta</div>
+							<div data-preview="descripcion">Carne artesanal, queso y vegetales frescos.</div>
+							<div><span data-preview="precio">$ 24.000</span> <span data-preview="adicional">· Incluye papas</span></div>
+							<button type="button" data-preview="boton">Añadir al pedido</button>
+							<div data-preview="carrito">Carrito · 1 producto</div>
+						</div>
+						<div class="menu-text-groups" id="apTextoMenuGrupos"></div>
+					</details>
+
 					<!-- Pantalla de bienvenida (intro), desde el 27/09/2026: opcional y
 					     apagada por defecto, visto en una carta de otra empresa. Se
 					     antepone a la carta, sin cambiar el tema de nav ni su diseño.
@@ -2471,10 +2490,10 @@
 
 <!-- MODAL AÑADIR TOPPING -->
 <div class="modal-bg" id="toppingModal" onclick="handleModalBg(event,'toppingModal')">
-  <div class="modal-box" style="max-width:380px;">
+  <div class="modal-box topping-modal-box" style="max-width:380px;" role="dialog" aria-modal="true" aria-labelledby="toppingModalTitle">
     <div class="modal-head">
       <span class="modal-title" id="toppingModalTitle">Nuevo adicional</span>
-      <button class="modal-close" onclick="closeModal('toppingModal')">✕</button>
+      <button type="button" class="modal-close" aria-label="Cerrar" title="Cerrar" onclick="closeModal('toppingModal')">✕</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="toppingTipo">
@@ -7590,6 +7609,92 @@ async function guardarDatosResto() {
 }
 
 // ── APARIENCIA ────────────────────────────────────────────────
+const GRUPOS_TEXTO_MENU = [
+  ['titulo', 'Títulos principales', 'Nombre del restaurante y titulares'],
+  ['subtitulo', 'Subtítulos y encabezados', 'Frases de apoyo y encabezados de sección'],
+  ['categoria', 'Nombres de categorías', 'Agrupadores de platos'],
+  ['producto', 'Nombres de productos', 'Nombre de cada plato'],
+  ['descripcion', 'Descripciones de productos', 'Ingredientes y detalle del plato'],
+  ['precio', 'Precios', 'Valor de cada producto'],
+  ['adicional', 'Textos adicionales', 'Ingredientes, etiquetas y avisos'],
+  ['boton', 'Botones y llamados a la acción', 'Acciones para pedir o continuar'],
+  ['carrito', 'Carrito y resumen de pedido', 'Textos funcionales del pedido'],
+];
+const FUENTES_TEXTO_MENU = ['', 'Montserrat', 'Inter', 'Poppins', 'Roboto', 'Open Sans', 'Lato', 'DM Sans', 'Playfair Display'];
+
+function opcionesTextoMenu(valores, actual, vacio) {
+  return valores.map(v => `<option value="${esc(v)}"${v === actual ? ' selected' : ''}>${v ? esc(v) : vacio}</option>`).join('');
+}
+
+function renderTipografiaMenu(configuracion = {}) {
+  const contenedor = document.getElementById('apTextoMenuGrupos');
+  if (!contenedor) return;
+  contenedor.innerHTML = GRUPOS_TEXTO_MENU.map(([clave, nombre, ayuda]) => {
+    const valor = configuracion[clave] || {};
+    const color = /^#[0-9a-f]{6}$/i.test(valor.color || '') ? valor.color : '#fff2e8';
+    const peso = ['', '400', '500', '600', '700', '800'].includes(String(valor.peso || '')) ? String(valor.peso || '') : '';
+    const tamano = Number.isFinite(Number(valor.tamano)) ? Math.min(48, Math.max(10, Number(valor.tamano))) : '';
+    return `<details class="menu-text-group" data-menu-text-role="${clave}">
+      <summary><span>${nombre}</span><small>${ayuda}</small></summary>
+      <div class="menu-text-controls">
+        <label>Color<input type="color" value="${color}" data-menu-text-color oninput="this.closest('[data-menu-text-role]').dataset.colorCustom='true';previsualizarTipografiaMenu()"></label>
+        <label>Fuente<select data-menu-text-font onchange="previsualizarTipografiaMenu()">${opcionesTextoMenu(FUENTES_TEXTO_MENU, valor.fuente || '', 'Predeterminada')}</select></label>
+        <label>Peso<select data-menu-text-weight onchange="previsualizarTipografiaMenu()">${opcionesTextoMenu(['', '400', '500', '600', '700', '800'], peso, 'Predeterminado')}</select></label>
+        <label>Tamaño (px)<input type="number" min="10" max="48" step="1" value="${tamano}" placeholder="Predeterminado" data-menu-text-size oninput="previsualizarTipografiaMenu()"></label>
+      </div>
+      <button type="button" class="menu-text-reset" onclick="restablecerTipografiaMenu('${clave}')">Restablecer este grupo</button>
+    </details>`;
+  }).join('');
+  contenedor.querySelectorAll('[data-menu-text-role]').forEach(el => {
+    const valor = configuracion[el.dataset.menuTextRole] || {};
+    el.dataset.colorCustom = /^#[0-9a-f]{6}$/i.test(valor.color || '') ? 'true' : 'false';
+  });
+  previsualizarTipografiaMenu();
+}
+
+function valoresTipografiaMenu(clave) {
+  const grupo = document.querySelector(`[data-menu-text-role="${clave}"]`);
+  if (!grupo) return {};
+  const color = grupo.querySelector('[data-menu-text-color]').value;
+  const fuente = grupo.querySelector('[data-menu-text-font]').value;
+  const peso = grupo.querySelector('[data-menu-text-weight]').value;
+  const tamano = Number(grupo.querySelector('[data-menu-text-size]').value);
+  const salida = {};
+  if (grupo.dataset.colorCustom === 'true' && /^#[0-9a-f]{6}$/i.test(color)) salida.color = color;
+  if (FUENTES_TEXTO_MENU.includes(fuente) && fuente) salida.fuente = fuente;
+  if (['400', '500', '600', '700', '800'].includes(peso)) salida.peso = Number(peso);
+  if (Number.isFinite(tamano) && tamano >= 10 && tamano <= 48) salida.tamano = tamano;
+  return salida;
+}
+
+function recolectarTipografiaMenu() {
+  return Object.fromEntries(GRUPOS_TEXTO_MENU.map(([clave]) => [clave, valoresTipografiaMenu(clave)]));
+}
+
+function previsualizarTipografiaMenu() {
+  const vista = document.getElementById('apTextoMenuPreview');
+  if (!vista) return;
+  GRUPOS_TEXTO_MENU.forEach(([clave]) => {
+    const muestra = vista.querySelector(`[data-preview="${clave}"]`);
+    if (!muestra) return;
+    const valor = valoresTipografiaMenu(clave);
+    muestra.style.color = valor.color || '';
+    muestra.style.fontFamily = FUENTES_TEXTO_MENU.includes(valor.fuente) && valor.fuente ? `'${valor.fuente}', var(--sans)` : '';
+    muestra.style.fontWeight = valor.peso || '';
+    muestra.style.fontSize = valor.tamano ? `${valor.tamano}px` : '';
+  });
+}
+
+function restablecerTipografiaMenu(clave) {
+  const grupo = document.querySelector(`[data-menu-text-role="${clave}"]`);
+  if (!grupo) return;
+  grupo.dataset.colorCustom = 'false';
+  grupo.querySelector('[data-menu-text-font]').value = '';
+  grupo.querySelector('[data-menu-text-weight]').value = '';
+  grupo.querySelector('[data-menu-text-size]').value = '';
+  previsualizarTipografiaMenu();
+}
+
 function renderApariencia() {
   const r = state.restaurante;
   const at = r.atributos || {};

@@ -53,6 +53,11 @@ function recolectarAspecto() {
     fondo_intensidad: document.getElementById('apFondoIntensidad').value,
     fuente_titulo: valor('apFuenteTitulo'),
     fuente_cuerpo: valor('apFuenteCuerpo'),
+    // Las pruebas de esta pestaña pueden cargarla aislada; en el panel real
+    // la función vive en index.html y siempre está disponible antes de guardar.
+    ...(typeof recolectarTipografiaMenu === 'function'
+      ? { texto_menu: recolectarTipografiaMenu() }
+      : {}),
     nav: navElegido(),
     estilo: estiloElegido(),
     subtitulo: valor('apSubtitulo'),
@@ -194,6 +199,7 @@ function pintarModeloYTipografia(at) {
   // Apariencia es cómo se ve lo que ya está puesto.
   previsualizarFuente('titulo');
   previsualizarFuente('cuerpo');
+  if (typeof renderTipografiaMenu === 'function') renderTipografiaMenu(at.texto_menu || {});
 
   pintarNotaModelo();
 }

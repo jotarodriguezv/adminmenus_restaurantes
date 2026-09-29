@@ -117,6 +117,7 @@ a,button,input,select,textarea{font-family:inherit;}
 #appScreen{display:none;min-height:100vh;}
 .topbar{position:sticky;top:0;z-index:100;background:var(--topbar-bg);backdrop-filter:blur(12px);
   border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;}
+.topbar,.topbar *{font-family:var(--sans);}
 .topbar-left{display:flex;align-items:center;gap:10px;min-width:0;}
 .topbar-badge{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
   padding:4px 10px;border-radius:999px;border:1px solid var(--accent);color:var(--accent);background:var(--accent-dim);}
@@ -538,7 +539,7 @@ a,button,input,select,textarea{font-family:inherit;}
 .modal-bg.open .modal-box{transform:translateY(0);}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;
   border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:1;}
-.modal-title{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text);}
+.modal-title{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text);}
 /* Título y «Ver en mi carta» agrupados: así modal-head sigue teniendo dos
    hijos (este bloque y el botón de cerrar) y su space-between no cambia. */
 .modal-head-titulo{display:flex;align-items:center;gap:14px;flex-wrap:wrap;row-gap:4px;}
@@ -565,9 +566,25 @@ a,button,input,select,textarea{font-family:inherit;}
 .ficha-tab-oculta{display:none!important;}
 .modal-close{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:transparent;
   color:var(--text-muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s;}
-.modal-close:hover{border-color:var(--danger);color:var(--danger);}
+.modal-close:hover{border-color:var(--danger);background:var(--danger-dim);color:var(--danger);transform:rotate(90deg);}
+.modal-close:active{transform:rotate(90deg) scale(.94);}
 .modal-body{padding:22px;}
 .modal-foot{display:flex;gap:10px;padding:14px 22px 22px;}
+
+/* Alta y edición de adicionales: el flujo se conserva, con más jerarquía. */
+.topping-modal-box{box-shadow:0 20px 60px rgba(0,0,0,.28);}
+#toppingModal .modal-head{padding:16px 18px;}
+#toppingModal .modal-title{display:inline-flex;align-items:center;min-height:31px;padding:0 13px;border-radius:999px;background:var(--accent);color:var(--on-accent);box-shadow:0 5px 15px var(--accent-glow);transition:transform .18s,filter .18s,box-shadow .18s;}
+#toppingModal .modal-title:hover{transform:translateY(-1px);filter:brightness(1.06);box-shadow:0 8px 18px var(--accent-glow);}
+#toppingModal .modal-body{padding:20px 22px 8px;}
+#toppingModal .form-group{margin-bottom:17px;}
+#toppingModal .form-label{font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--text);}
+#toppingModal .form-input{font-family:var(--sans);font-weight:500;box-shadow:inset 0 1px 0 rgba(255,255,255,.03);}
+#toppingModal .form-input::placeholder{font-family:var(--sans);}
+#toppingModal .modal-foot{align-items:center;padding:16px 22px 22px;}
+#toppingModal .btn-cancel{font-family:var(--sans);font-weight:600;letter-spacing:.1px;border-color:var(--border2);color:var(--text-muted);background:transparent;}
+#toppingModal .btn-cancel:hover{border-color:var(--text-muted);background:var(--card);color:var(--text);}
+#toppingModal .btn-save{font-family:var(--sans);font-weight:700;letter-spacing:.15px;}
 /* Pie fijo de "Editar producto" (25/09/2026): Cancelar/Guardar siguen a la
    vista aunque la ficha sea larga y se desplace. Mismo patrón que ya usa
    .modal-head con su propio lado (position:sticky;top:0). Solo esta ficha:
@@ -769,10 +786,10 @@ select.form-input{padding-right:42px;}
 .btn-vista-previa:hover{border-color:var(--accent);background:rgba(231,115,6,.16);color:var(--accent-texto);transform:translateY(-1px);box-shadow:0 7px 15px var(--accent-glow);}
 
 /* ── TOAST ── */
-.toast{position:fixed;bottom:22px;right:22px;padding:11px 18px;border-radius:var(--radius);
-  font-family:var(--mono);font-size:10px;letter-spacing:1px;z-index:900;
-  transform:translateY(8px);opacity:0;transition:all .25s;pointer-events:none;}
-.toast.show{opacity:1;transform:translateY(0);}
+.toast{position:fixed;bottom:22px;right:22px;padding:11px 18px;border-radius:12px;
+  font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:0;z-index:900;
+  transform:translateY(10px) scale(.98);opacity:0;transition:opacity .24s,transform .24s,box-shadow .24s;pointer-events:none;box-shadow:0 12px 32px rgba(0,0,0,.18);}
+.toast.show{opacity:1;transform:translateY(0) scale(1);}
 /* El toast normal lleva pointer-events:none a propósito: aparece en la
    esquina donde suele estar el botón de Guardar, y no debe tragarse el
    clic de lo que tiene debajo. Solo el que trae una acción —«Deshacer»—
@@ -784,6 +801,42 @@ select.form-input{padding-right:42px;}
 .toast.success{background:var(--success-dim);border:1px solid var(--success);color:var(--success);}
 .toast.error{background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger);}
 .toast.info{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent-texto);}
+.toast.success:not(.con-accion)::before,.toast.error:not(.con-accion)::before,.toast.info:not(.con-accion)::before{width:20px;height:20px;margin-right:9px;border-radius:50%;display:inline-grid;place-items:center;vertical-align:middle;font-size:12px;font-weight:800;animation:toast-icon-in .34s cubic-bezier(.2,.8,.2,1);}
+.toast.success:not(.con-accion)::before{content:'✓';background:var(--success);color:#fff;}
+.toast.error:not(.con-accion)::before{content:'!';background:var(--danger);color:#fff;}
+.toast.info:not(.con-accion)::before{content:'i';background:var(--accent);color:var(--on-accent);}
+@keyframes toast-icon-in{from{transform:scale(.45) rotate(-18deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+
+/* Personalización específica de textos de la carta. */
+.menu-text-style{padding:0;overflow:hidden;}
+.menu-text-style>summary{cursor:pointer;list-style:none;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;font-family:var(--sans);font-weight:700;color:var(--text);}
+.menu-text-style>summary::-webkit-details-marker,.menu-text-group>summary::-webkit-details-marker{display:none;}
+.menu-text-style>summary::after{content:'⌄';font-size:18px;color:var(--accent);transition:transform .18s;}
+.menu-text-style[open]>summary{border-bottom:1px solid var(--border);}
+.menu-text-style[open]>summary::after{transform:rotate(180deg);}
+.menu-text-style>summary small{margin-left:auto;font-size:11px;font-weight:500;color:var(--text-muted);}
+.menu-text-style-intro{padding:16px 20px 0;font-size:12px;line-height:1.55;color:var(--text-muted);}
+.menu-text-preview{margin:16px 20px;padding:16px;border:1px solid var(--border2);border-radius:12px;background:linear-gradient(135deg,var(--surface),var(--card));display:grid;gap:5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.menu-text-preview [data-preview="titulo"]{font-size:24px;font-weight:800;line-height:1.1;}
+.menu-text-preview [data-preview="subtitulo"],.menu-text-preview [data-preview="descripcion"],.menu-text-preview [data-preview="adicional"],.menu-text-preview [data-preview="carrito"]{font-size:12px;color:var(--text-muted);}
+.menu-text-preview [data-preview="categoria"]{margin-top:5px;color:var(--accent);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;}
+.menu-text-preview [data-preview="producto"]{font-size:16px;font-weight:700;}
+.menu-text-preview [data-preview="precio"]{font-weight:800;color:var(--success);}
+.menu-text-preview [data-preview="boton"]{justify-self:start;margin-top:7px;padding:8px 12px;border:0;border-radius:999px;background:var(--accent);color:var(--on-accent);font-size:11px;font-weight:700;}
+.menu-text-groups{display:grid;gap:9px;padding:0 20px 20px;}
+.menu-text-group{border:1px solid var(--border);border-radius:10px;background:var(--panel);}
+.menu-text-group>summary{cursor:pointer;list-style:none;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:700;color:var(--text);}
+.menu-text-group>summary::after{content:'+';color:var(--accent);font-size:18px;line-height:1;}
+.menu-text-group[open]>summary{border-bottom:1px solid var(--border);}
+.menu-text-group[open]>summary::after{content:'–';}
+.menu-text-group>summary small{font-size:11px;font-weight:500;color:var(--text-dim);text-align:right;}
+.menu-text-controls{display:grid;grid-template-columns:90px minmax(130px,1fr) minmax(120px,1fr) 110px;gap:10px;padding:14px;}
+.menu-text-controls label{display:grid;gap:5px;font-size:10px;font-weight:700;letter-spacing:.35px;text-transform:uppercase;color:var(--text-muted);}
+.menu-text-controls input,.menu-text-controls select{width:100%;min-height:36px;border:1px solid var(--border);border-radius:7px;background:var(--card);color:var(--text);font-family:var(--sans);font-size:12px;font-weight:500;padding:6px 8px;}
+.menu-text-controls input[type="color"]{padding:3px;cursor:pointer;}
+.menu-text-reset{margin:0 14px 14px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:transparent;color:var(--text-muted);font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;transition:background .18s,color .18s,border-color .18s;}
+.menu-text-reset:hover{border-color:var(--accent);background:var(--accent-dim);color:var(--accent-texto);}
+@media (max-width:640px){.menu-text-style>summary{align-items:flex-start;flex-wrap:wrap;}.menu-text-style>summary small{margin-left:0;flex-basis:calc(100% - 28px);}.menu-text-controls{grid-template-columns:1fr 1fr;}.menu-text-group>summary{align-items:flex-start;}.menu-text-group>summary small{display:none;}}
 
 .empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);font-family:var(--mono);font-size:11px;letter-spacing:1px;}
 /* El vacío que explica qué hacer. El de siempre —mayúsculas de máquina,

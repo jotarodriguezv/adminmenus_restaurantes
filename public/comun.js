@@ -117,8 +117,9 @@ function showToast(msg,type='info',accion=null) {
   const t=document.getElementById('toast');
   clearTimeout(toastTimer);
   if (!accion) {
-    // textContent y className sobrescriben lo que hubiera: si había un toast
-    // con botón a la vista, este lo reemplaza entero, botón y clase incluidos.
+    // textContent borra por completo un posible botón de acción anterior.
+    // El icono y su animación son un pseudo-elemento CSS: así el mensaje
+    // sigue siendo texto plano y accesible para lectores de pantalla.
     t.textContent=msg; t.className=`toast ${type} show`;
     toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
     return;
