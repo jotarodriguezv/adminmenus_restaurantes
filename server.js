@@ -131,6 +131,26 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const HOSTS_MAPAS_GOOGLE = /(^|\.)(google\.[a-z.]+|goo\.gl)$/i;
+function esEnlaceGoogleMapsSeguro(valor) {
+  try { const url = new URL(valor); return url.protocol === 'https:' && HOSTS_MAPAS_GOOGLE.test(url.hostname); } catch { return false; }
+}
+
+app.get('/api/mapa-embed', async (req, res) => {
+  let actual = typeof req.query.url === 'string' ? req.query.url.trim() : '';
+  if (!esEnlaceGoogleMapsSeguro(actual)) return res.status(400).json({ error: 'Enlace de Google Maps no válido' });
+  try {
+    for (let salto = 0; salto < 5; salto++) {
+      const respuesta = await fetch(actual, { redirect: 'manual', signal: AbortSignal.timeout(5000) });
+      const destino = respuesta.headers.get('location');
+      if (!destino) return res.json({ url: actual });
+      actual = new URL(destino, actual).href;
+      if (!esEnlaceGoogleMapsSeguro(actual)) return res.status(400).json({ error: 'El enlace redirige a un destino no permitido' });
+    }
+    return res.status(422).json({ error: 'El enlace de Google Maps redirige demasiadas veces' });
+  } catch { return res.status(422).json({ error: 'No se pudo resolver el enlace de Google Maps' }); }
+});
+
 // ── req.body SIEMPRE ES UN OBJETO ─────────────────────────────
 // Express 4 dejaba req.body en {} cuando ningún parser reconocía el cuerpo.
 // Express 5 lo deja en undefined, y las rutas que desestructuran —
@@ -1005,7 +1025,7 @@ const INTRO_FUENTE_MAX = 60;
 const INTRO_AJUSTES_IMAGEN = ['cover', 'contain', 'center'];
 const INTRO_ESTILOS_SOCIAL = ['circular', 'redondeado', 'pildora'];
 const INTRO_MAPA_MODOS = ['mapa', 'boton', 'ambos'];
-const INTRO_TIPOS_TEXTO = ['nombre', 'eslogan', 'adicional', 'cta'];
+const INTRO_TIPOS_TEXTO = ['nombre', 'eslogan', 'adicional', 'cta', 'direccion'];
 const FUENTE_INTRO_SEGURA = /^[\p{L}\p{N} .-]{0,60}$/u;
 
 function limpiarIntroTextos(valor) {
