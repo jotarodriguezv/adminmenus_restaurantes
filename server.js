@@ -860,7 +860,12 @@ const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 's
   'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador',
   'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
   'fuente_titulo', 'fuente_cuerpo', 'estilo', 'subtitulo', 'mostrar_hero', 'nav',
-  'intro_activo', 'intro_eslogan', 'direccion'];
+  'intro_activo', 'intro_eslogan', 'direccion', 'intro_nombre', 'intro_texto_adicional',
+  'intro_cta', 'intro_fondo_url', 'intro_fondo_color', 'intro_overlay_color',
+  'intro_overlay_opacidad', 'intro_imagen_ajuste', 'intro_textos',
+  'intro_social_instagram', 'intro_social_facebook', 'intro_social_estilo',
+  'intro_social_icono_color', 'intro_social_fondo', 'intro_social_borde',
+  'intro_social_tamano', 'intro_mapa_activo', 'intro_mapa_url', 'intro_mapa_modo'];
 
 // ── EL MODELO SEGÚN EL PLAN, PARA UN CLIENTE ──────────────────
 // Duplica MODELOS de vmenus-app/core/planes.js (y el PLANES de este mismo
@@ -995,6 +1000,34 @@ function validarTipografiaYEstilo(atributos) {
 // diseño: solo se antepone. Ver vmenus-app/core/intro.js.
 const ESLOGAN_MAX = 80;
 const DIRECCION_MAX = 120;
+const INTRO_TEXTO_MAX = 120;
+const INTRO_FUENTE_MAX = 60;
+const INTRO_AJUSTES_IMAGEN = ['cover', 'contain', 'center'];
+const INTRO_ESTILOS_SOCIAL = ['circular', 'redondeado', 'pildora'];
+const INTRO_MAPA_MODOS = ['mapa', 'boton', 'ambos'];
+const INTRO_TIPOS_TEXTO = ['nombre', 'eslogan', 'adicional', 'cta'];
+const FUENTE_INTRO_SEGURA = /^[\p{L}\p{N} .-]{0,60}$/u;
+
+function limpiarIntroTextos(valor) {
+  if (!valor || typeof valor !== 'object' || Array.isArray(valor)) return {};
+  const limpios = {};
+  for (const tipo of INTRO_TIPOS_TEXTO) {
+    const origen = valor[tipo];
+    if (!origen || typeof origen !== 'object' || Array.isArray(origen)) continue;
+    const color = String(origen.color ?? '').trim();
+    const fuente = String(origen.fuente ?? '').trim();
+    const peso = Number(origen.peso);
+    const tamano = Number(origen.tamano);
+    const alineacion = String(origen.alineacion ?? 'centro');
+    if (color && !HEX_COLOR.test(color)) throw new Error(`El color de ${tipo} no es válido`);
+    if (fuente.length > INTRO_FUENTE_MAX || !FUENTE_INTRO_SEGURA.test(fuente)) throw new Error(`La fuente de ${tipo} no es válida`);
+    if (peso && ![400, 500, 600, 700, 800].includes(peso)) throw new Error(`El grosor de ${tipo} no es válido`);
+    if (tamano && (!Number.isFinite(tamano) || tamano < 12 || tamano > 64)) throw new Error(`El tamaño de ${tipo} debe estar entre 12 y 64`);
+    if (!['izquierda', 'centro', 'derecha'].includes(alineacion)) throw new Error(`La alineación de ${tipo} no es válida`);
+    limpios[tipo] = { color, fuente, peso: peso || 0, tamano: tamano || 0, alineacion };
+  }
+  return limpios;
+}
 
 function validarIntro(atributos) {
   if ('intro_activo' in atributos) atributos.intro_activo = atributos.intro_activo === true;
@@ -1002,6 +1035,58 @@ function validarIntro(atributos) {
     atributos.intro_eslogan = String(atributos.intro_eslogan ?? '').trim().slice(0, ESLOGAN_MAX);
   if ('direccion' in atributos)
     atributos.direccion = String(atributos.direccion ?? '').trim().slice(0, DIRECCION_MAX);
+  for (const clave of ['intro_nombre', 'intro_texto_adicional', 'intro_cta']) {
+    if (clave in atributos) atributos[clave] = String(atributos[clave] ?? '').trim().slice(0, INTRO_TEXTO_MAX);
+  }
+  for (const [clave, nombre] of [['intro_fondo_color', 'El color de fondo de bienvenida'], ['intro_overlay_color', 'El color de superposición']]) {
+    if (clave in atributos) {
+      const error = validarColorHex(atributos[clave], nombre);
+      if (error) return error;
+    }
+  }
+  if ('intro_fondo_url' in atributos) {
+    const error = validarUrlImagen(atributos.intro_fondo_url, 'La imagen de bienvenida');
+    if (error) return error;
+  }
+  if ('intro_overlay_opacidad' in atributos) {
+    const opacidad = Number(atributos.intro_overlay_opacidad);
+    if (!Number.isFinite(opacidad) || opacidad < 0 || opacidad > 100) return 'La opacidad de la superposición debe estar entre 0 y 100';
+    atributos.intro_overlay_opacidad = Math.round(opacidad);
+  }
+  if ('intro_imagen_ajuste' in atributos && !INTRO_AJUSTES_IMAGEN.includes(atributos.intro_imagen_ajuste))
+    return 'El ajuste de la imagen de bienvenida no es válido';
+  if ('intro_textos' in atributos) {
+    try { atributos.intro_textos = limpiarIntroTextos(atributos.intro_textos); }
+    catch (error) { return error.message; }
+  }
+  for (const clave of ['intro_social_instagram', 'intro_social_facebook', 'intro_mapa_activo']) {
+    if (clave in atributos) atributos[clave] = atributos[clave] === true;
+  }
+  if ('intro_social_estilo' in atributos && !INTRO_ESTILOS_SOCIAL.includes(atributos.intro_social_estilo))
+    return 'El estilo de los botones sociales no es válido';
+  for (const [clave, nombre] of [['intro_social_icono_color', 'El color del ícono social'], ['intro_social_fondo', 'El fondo del botón social'], ['intro_social_borde', 'El borde del botón social']]) {
+    if (clave in atributos) {
+      const error = validarColorHex(atributos[clave], nombre);
+      if (error) return error;
+    }
+  }
+  if ('intro_social_tamano' in atributos) {
+    const tamano = Number(atributos.intro_social_tamano);
+    if (!Number.isFinite(tamano) || tamano < 36 || tamano > 72) return 'El tamaño de los botones sociales debe estar entre 36 y 72';
+    atributos.intro_social_tamano = Math.round(tamano);
+  }
+  if ('intro_mapa_url' in atributos) {
+    const url = String(atributos.intro_mapa_url ?? '').trim();
+    atributos.intro_mapa_url = url;
+    if (url) {
+      let destino;
+      try { destino = new URL(url); } catch { destino = null; }
+      if (!destino || destino.protocol !== 'https:' || !/(^|\.)google\.[a-z.]+$/.test(destino.hostname) && !/(^|\.)goo\.gl$/.test(destino.hostname))
+        return 'La ubicación debe ser un enlace seguro de Google Maps';
+    }
+  }
+  if ('intro_mapa_modo' in atributos && !INTRO_MAPA_MODOS.includes(atributos.intro_mapa_modo))
+    return 'La forma de mostrar la ubicación no es válida';
   return null;
 }
 
