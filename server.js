@@ -865,7 +865,7 @@ const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 's
   'intro_overlay_opacidad', 'intro_imagen_ajuste', 'intro_textos',
   'intro_social_instagram', 'intro_social_facebook', 'intro_social_estilo',
   'intro_social_icono_color', 'intro_social_fondo', 'intro_social_borde',
-  'intro_social_tamano', 'intro_mapa_activo', 'intro_mapa_url', 'intro_mapa_modo'];
+  'intro_social_tamano', 'intro_mapa_activo', 'intro_mapa_url', 'intro_mapa_modo', 'intro_mapa_boton_fondo', 'intro_mapa_boton_color', 'intro_mapa_boton_fuente'];
 
 // ── EL MODELO SEGÚN EL PLAN, PARA UN CLIENTE ──────────────────
 // Duplica MODELOS de vmenus-app/core/planes.js (y el PLANES de este mismo
@@ -1072,6 +1072,17 @@ function validarIntro(atributos) {
       const error = validarColorHex(atributos[clave], nombre);
       if (error) return error;
     }
+  }
+  for (const [clave, nombre] of [['intro_mapa_boton_fondo', 'El fondo del botón de ubicación'], ['intro_mapa_boton_color', 'El color del texto del botón de ubicación']]) {
+    if (clave in atributos) {
+      const error = validarColorHex(atributos[clave], nombre);
+      if (error) return error;
+    }
+  }
+  if ('intro_mapa_boton_fuente' in atributos) {
+    const fuente = String(atributos.intro_mapa_boton_fuente ?? '').trim();
+    if (fuente.length > INTRO_FUENTE_MAX || !FUENTE_INTRO_SEGURA.test(fuente)) return 'La fuente del botón de ubicación no es válida';
+    atributos.intro_mapa_boton_fuente = fuente;
   }
   if ('intro_social_tamano' in atributos) {
     const tamano = Number(atributos.intro_social_tamano);

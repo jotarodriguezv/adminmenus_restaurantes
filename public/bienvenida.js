@@ -10,7 +10,7 @@ const VALORES_BIENVENIDA = {
   intro_overlay_opacidad: 50, intro_imagen_ajuste: 'cover', intro_cta: 'Ver carta',
   intro_social_estilo: 'circular', intro_social_icono_color: '#ffffff',
   intro_social_fondo: '#ef7a00', intro_social_borde: '#ffffff', intro_social_tamano: 48,
-  intro_mapa_modo: 'mapa', intro_textos: {}
+  intro_mapa_modo: 'mapa', intro_mapa_boton_fondo: '#17120b', intro_mapa_boton_color: '#ffffff', intro_mapa_boton_fuente: '', intro_textos: {}
 };
 
 function campoBienvenida(id) { return document.getElementById(id); }
@@ -73,6 +73,27 @@ function sincronizarHexBienvenida(id) {
   actualizarVistaPreviaBienvenida();
 }
 
+function consultaMapaBienvenida(url) {
+  try {
+    const enlace = new URL(url); const directo = enlace.searchParams.get('q') || enlace.searchParams.get('query') || enlace.searchParams.get('destination') || enlace.searchParams.get('center') || enlace.searchParams.get('ll');
+    if (directo) return directo;
+    const coordenadas = enlace.pathname.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (coordenadas) return `${coordenadas[1]},${coordenadas[2]}`;
+    const lugar = enlace.pathname.match(/\/maps\/(?:place|search)\/([^/?]+)/i);
+    return lugar ? decodeURIComponent(lugar[1].replace(/\+/g, ' ')) : '';
+  } catch { return ''; }
+}
+
+function fuenteMapaBienvenida(url) {
+  try {
+    const enlace = new URL(url);
+    if (/\/maps\/embed/i.test(enlace.pathname)) return enlace.href;
+    if (/(^|\.)maps\.app\.goo\.gl$/i.test(enlace.hostname)) return enlace.href;
+    const consulta = consultaMapaBienvenida(enlace.href);
+    return consulta ? `https://maps.google.com/maps?output=embed&q=${encodeURIComponent(consulta)}` : '';
+  } catch { return ''; }
+}
+
 function recolectarTextosBienvenida() {
   const salida = {};
   document.querySelectorAll('#apIntroTextosControles [data-texto]').forEach(el => {
@@ -97,7 +118,8 @@ function valoresBienvenida() {
     intro_social_facebook: campoBienvenida('apIntroSocialFacebook').checked, intro_social_estilo: valorBienvenida('apIntroSocialEstilo'),
     intro_social_icono_color: valorBienvenida('apIntroSocialIconoColor'), intro_social_fondo: valorBienvenida('apIntroSocialFondo'),
     intro_social_borde: valorBienvenida('apIntroSocialBorde'), intro_social_tamano: Number(valorBienvenida('apIntroSocialTamano')),
-    intro_mapa_activo: campoBienvenida('apIntroMapaActivo').checked, intro_mapa_url: valorBienvenida('apIntroMapaUrl').trim(), intro_mapa_modo: valorBienvenida('apIntroMapaModo')
+    intro_mapa_activo: campoBienvenida('apIntroMapaActivo').checked, intro_mapa_url: valorBienvenida('apIntroMapaUrl').trim(), intro_mapa_modo: valorBienvenida('apIntroMapaModo'),
+    intro_mapa_boton_fondo: valorBienvenida('apIntroMapaBotonFondo'), intro_mapa_boton_color: valorBienvenida('apIntroMapaBotonColor'), intro_mapa_boton_fuente: valorBienvenida('apIntroMapaBotonFuente')
   };
 }
 
@@ -120,6 +142,7 @@ function actualizarVistaPreviaBienvenida() {
   preview.style.backgroundPosition = 'center'; preview.style.backgroundRepeat = datos.intro_imagen_ajuste === 'center' ? 'no-repeat' : 'no-repeat';
   overlay.style.background = datos.intro_overlay_color; overlay.style.opacity = datos.intro_overlay_activo ? String(datos.intro_overlay_opacidad / 100) : '0';
   campoBienvenida('apIntroOverlayControles').hidden = !datos.intro_overlay_activo;
+  campoBienvenida('apIntroMapaBotonControles').hidden = datos.intro_mapa_modo === 'mapa';
   campoBienvenida('apIntroOverlayOpacidadValor').textContent = `${datos.intro_overlay_opacidad}%`;
   campoBienvenida('apIntroSocialTamanoValor').textContent = `${datos.intro_social_tamano} px`;
   const r = state.restaurante || {}; aplicarTextoPrevisualizacion('nombre', datos.intro_nombre || r.nombre || 'Tu restaurante');
@@ -139,9 +162,10 @@ function actualizarVistaPreviaBienvenida() {
   const mapa = campoBienvenida('apIntroPreviewMapa'); mapa.replaceChildren();
   if (datos.intro_mapa_activo && datos.intro_mapa_url) {
     if (datos.intro_mapa_modo !== 'boton') {
-      const iframe = document.createElement('iframe'); iframe.title = 'Vista previa de ubicación'; iframe.loading = 'lazy'; iframe.src = `https://www.google.com/maps?output=embed&q=${encodeURIComponent(datos.intro_mapa_url)}`; mapa.appendChild(iframe);
+      const fuente = fuenteMapaBienvenida(datos.intro_mapa_url);
+      if (fuente) { const iframe = document.createElement('iframe'); iframe.title = 'Vista previa de ubicación'; iframe.loading = 'lazy'; iframe.src = fuente; mapa.appendChild(iframe); }
     }
-    if (datos.intro_mapa_modo !== 'mapa') { const boton = document.createElement('span'); boton.textContent = 'Ver ubicación'; mapa.appendChild(boton); }
+    if (datos.intro_mapa_modo !== 'mapa') { const boton = document.createElement('span'); boton.textContent = 'Ver ubicación'; boton.style.background = datos.intro_mapa_boton_fondo; boton.style.color = datos.intro_mapa_boton_color; boton.style.fontFamily = datos.intro_mapa_boton_fuente ? `'${datos.intro_mapa_boton_fuente}', Montserrat, sans-serif` : 'Montserrat, sans-serif'; mapa.appendChild(boton); }
   }
   actualizarResumenesBienvenida();
 }
@@ -153,7 +177,8 @@ function renderBienvenida(at = {}) {
   marcar('apIntroActivo', datos.intro_activo); poner('apIntroNombre', datos.intro_nombre); poner('apIntroEslogan', datos.intro_eslogan); poner('apIntroTextoAdicional', datos.intro_texto_adicional); poner('apIntroCta', datos.intro_cta); poner('apDireccion', datos.direccion);
   poner('apIntroFondoColor', datos.intro_fondo_color); poner('apIntroFondoColorHex', datos.intro_fondo_color); marcar('apIntroOverlayActivo', datos.intro_overlay_activo); poner('apIntroOverlayColor', datos.intro_overlay_color); poner('apIntroOverlayColorHex', datos.intro_overlay_color); poner('apIntroOverlayOpacidad', datos.intro_overlay_opacidad); poner('apIntroImagenAjuste', datos.intro_imagen_ajuste);
   marcar('apIntroSocialInstagram', datos.intro_social_instagram); marcar('apIntroSocialFacebook', datos.intro_social_facebook); poner('apIntroSocialEstilo', datos.intro_social_estilo); poner('apIntroSocialIconoColor', datos.intro_social_icono_color); poner('apIntroSocialFondo', datos.intro_social_fondo); poner('apIntroSocialBorde', datos.intro_social_borde); poner('apIntroSocialTamano', datos.intro_social_tamano);
-  marcar('apIntroMapaActivo', datos.intro_mapa_activo); poner('apIntroMapaUrl', datos.intro_mapa_url); poner('apIntroMapaModo', datos.intro_mapa_modo);
+  marcar('apIntroMapaActivo', datos.intro_mapa_activo); poner('apIntroMapaUrl', datos.intro_mapa_url); poner('apIntroMapaModo', datos.intro_mapa_modo); poner('apIntroMapaBotonFondo', datos.intro_mapa_boton_fondo); poner('apIntroMapaBotonColor', datos.intro_mapa_boton_color); poner('apIntroMapaBotonFuente', datos.intro_mapa_boton_fuente);
+  const fuentesMapa = campoBienvenida('apIntroMapaBotonFuente'); if (fuentesMapa && !fuentesMapa.options.length) fuentesMapa.innerHTML = (typeof FUENTES_TEXTO_MENU !== 'undefined' ? FUENTES_TEXTO_MENU : ['', 'Montserrat', 'Inter', 'Poppins']).map(f => `<option value="${f}">${f || 'Montserrat (predeterminada)'}</option>`).join(''); poner('apIntroMapaBotonFuente', datos.intro_mapa_boton_fuente);
   const imagen = campoBienvenida('apIntroImagenPreview'); imagen.dataset.url = datos.intro_fondo_url || ''; imagen.hidden = !datos.intro_fondo_url; if (datos.intro_fondo_url) imagen.src = datos.intro_fondo_url;
   campoBienvenida('apIntroImagenVacia').hidden = !!datos.intro_fondo_url; campoBienvenida('apIntroImagenEliminar').hidden = !datos.intro_fondo_url;
   const redes = state.restaurante?.atributos || {}; campoBienvenida('apIntroEstadoInstagram').textContent = redes.social_instagram ? 'Instagram · enlace configurado' : 'Instagram · agrega el enlace en Ajustes';
