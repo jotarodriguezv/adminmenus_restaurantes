@@ -3,7 +3,7 @@
 
 const TIPOS_TEXTO_BIENVENIDA = [
   ['nombre', 'Nombre'], ['eslogan', 'Frase de bienvenida'],
-  ['adicional', 'Texto adicional'], ['cta', 'Botón principal']
+  ['adicional', 'Texto adicional'], ['cta', 'Botón principal'], ['direccion', 'Dirección opcional']
 ];
 const VALORES_BIENVENIDA = {
   intro_fondo_color: '#111827', intro_overlay_activo: true, intro_overlay_color: '#0a0a0f',
@@ -50,7 +50,8 @@ function actualizarResumenTextoBienvenida(el) {
     nombre: valorBienvenida('apIntroNombre') || state.restaurante?.nombre || 'Nombre del restaurante',
     eslogan: valorBienvenida('apIntroEslogan') || 'Sin frase configurada',
     adicional: valorBienvenida('apIntroTextoAdicional') || 'Sin texto adicional',
-    cta: valorBienvenida('apIntroCta') || 'Ver carta'
+    cta: valorBienvenida('apIntroCta') || 'Ver carta',
+    direccion: valorBienvenida('apDireccion') || 'Sin dirección configurada'
   };
   resumen.textContent = valores[el.dataset.texto] || 'Predeterminado';
 }
@@ -88,9 +89,19 @@ function fuenteMapaBienvenida(url) {
   try {
     const enlace = new URL(url);
     if (/\/maps\/embed/i.test(enlace.pathname)) return enlace.href;
-    if (/(^|\.)maps\.app\.goo\.gl$/i.test(enlace.hostname)) return enlace.href;
+    if (/(^|\.)maps\.app\.goo\.gl$/i.test(enlace.hostname)) return '';
     const consulta = consultaMapaBienvenida(enlace.href);
     return consulta ? `https://maps.google.com/maps?output=embed&q=${encodeURIComponent(consulta)}` : '';
+  } catch { return ''; }
+}
+
+async function resolverFuenteMapaBienvenida(url) {
+  const directa = fuenteMapaBienvenida(url);
+  if (directa) return directa;
+  try {
+    const respuesta = await fetch(`/api/mapa-embed?url=${encodeURIComponent(url)}`);
+    if (!respuesta.ok) return '';
+    const datos = await respuesta.json(); return fuenteMapaBienvenida(datos.url);
   } catch { return ''; }
 }
 
@@ -124,7 +135,7 @@ function valoresBienvenida() {
 }
 
 function aplicarTextoPrevisualizacion(tipo, contenido) {
-  const nombres = { nombre: 'apIntroPreviewNombre', eslogan: 'apIntroPreviewEslogan', adicional: 'apIntroPreviewExtra', cta: 'apIntroPreviewCta' };
+  const nombres = { nombre: 'apIntroPreviewNombre', eslogan: 'apIntroPreviewEslogan', adicional: 'apIntroPreviewExtra', cta: 'apIntroPreviewCta', direccion: 'apIntroPreviewDireccion' };
   const el = campoBienvenida(nombres[tipo]); const datos = recolectarTextosBienvenida()[tipo] || {};
   if (!el) return;
   if (tipo === 'cta') el.textContent = contenido || 'Ver carta'; else el.textContent = contenido;
@@ -147,7 +158,7 @@ function actualizarVistaPreviaBienvenida() {
   campoBienvenida('apIntroSocialTamanoValor').textContent = `${datos.intro_social_tamano} px`;
   const r = state.restaurante || {}; aplicarTextoPrevisualizacion('nombre', datos.intro_nombre || r.nombre || 'Tu restaurante');
   aplicarTextoPrevisualizacion('eslogan', datos.intro_eslogan || 'Hecho con cariño'); aplicarTextoPrevisualizacion('adicional', datos.intro_texto_adicional);
-  aplicarTextoPrevisualizacion('cta', datos.intro_cta); const logo = campoBienvenida('apIntroPreviewLogo');
+  aplicarTextoPrevisualizacion('cta', datos.intro_cta); aplicarTextoPrevisualizacion('direccion', datos.direccion); const logo = campoBienvenida('apIntroPreviewLogo');
   logo.replaceChildren();
   if (r.logo_url) {
     const imagenLogo = document.createElement('img');
@@ -164,6 +175,11 @@ function actualizarVistaPreviaBienvenida() {
     if (datos.intro_mapa_modo !== 'boton') {
       const fuente = fuenteMapaBienvenida(datos.intro_mapa_url);
       if (fuente) { const iframe = document.createElement('iframe'); iframe.title = 'Vista previa de ubicación'; iframe.loading = 'lazy'; iframe.src = fuente; mapa.appendChild(iframe); }
+      else resolverFuenteMapaBienvenida(datos.intro_mapa_url).then(resuelta => {
+        if (!resuelta || valorBienvenida('apIntroMapaUrl').trim() !== datos.intro_mapa_url) return;
+        const iframe = document.createElement('iframe'); iframe.title = 'Vista previa de ubicación'; iframe.loading = 'lazy'; iframe.src = resuelta;
+        const boton = mapa.querySelector('span'); if (boton) boton.before(iframe); else mapa.appendChild(iframe);
+      });
     }
     if (datos.intro_mapa_modo !== 'mapa') { const boton = document.createElement('span'); boton.textContent = 'Ver ubicación'; boton.style.background = datos.intro_mapa_boton_fondo; boton.style.color = datos.intro_mapa_boton_color; boton.style.fontFamily = datos.intro_mapa_boton_fuente ? `'${datos.intro_mapa_boton_fuente}', Montserrat, sans-serif` : 'Montserrat, sans-serif'; mapa.appendChild(boton); }
   }
