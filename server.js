@@ -861,7 +861,7 @@ const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 's
   'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
   'fuente_titulo', 'fuente_cuerpo', 'estilo', 'subtitulo', 'mostrar_hero', 'nav',
   'intro_activo', 'intro_eslogan', 'direccion', 'intro_nombre', 'intro_texto_adicional',
-  'intro_cta', 'intro_fondo_url', 'intro_fondo_color', 'intro_overlay_color',
+  'intro_cta', 'intro_fondo_url', 'intro_fondo_color', 'intro_overlay_activo', 'intro_overlay_color',
   'intro_overlay_opacidad', 'intro_imagen_ajuste', 'intro_textos',
   'intro_social_instagram', 'intro_social_facebook', 'intro_social_estilo',
   'intro_social_icono_color', 'intro_social_fondo', 'intro_social_borde',
@@ -1031,6 +1031,7 @@ function limpiarIntroTextos(valor) {
 
 function validarIntro(atributos) {
   if ('intro_activo' in atributos) atributos.intro_activo = atributos.intro_activo === true;
+  if ('intro_overlay_activo' in atributos) atributos.intro_overlay_activo = atributos.intro_overlay_activo === true;
   if ('intro_eslogan' in atributos)
     atributos.intro_eslogan = String(atributos.intro_eslogan ?? '').trim().slice(0, ESLOGAN_MAX);
   if ('direccion' in atributos)
