@@ -34,9 +34,12 @@ function renderAspecto() {
   pintarFondo();
   pintarColores(r, at);
   pintarModeloYTipografia(at);
+  // Las pruebas unitarias de Apariencia cargan este archivo solo; en el panel
+  // real bienvenida.js completa los controles y la vista previa.
   document.getElementById('apIntroActivo').checked = !!at.intro_activo;
   document.getElementById('apIntroEslogan').value = at.intro_eslogan || '';
   document.getElementById('apDireccion').value = at.direccion || '';
+  if (typeof renderBienvenida === 'function') renderBienvenida(at);
   const st = document.getElementById('aspectoStatus');
   st.textContent = ''; st.style.color = 'var(--text-muted)';
 }
@@ -62,9 +65,10 @@ function recolectarAspecto() {
     estilo: estiloElegido(),
     subtitulo: valor('apSubtitulo'),
     mostrar_hero: document.getElementById('apMostrarHero').checked,
-    intro_activo: document.getElementById('apIntroActivo').checked,
-    intro_eslogan: valor('apIntroEslogan'),
-    direccion: valor('apDireccion'),
+    ...(typeof valoresBienvenida === 'function' ? valoresBienvenida() : {
+      intro_activo: document.getElementById('apIntroActivo').checked,
+      intro_eslogan: valor('apIntroEslogan'), direccion: valor('apDireccion'),
+    }),
   };
 }
 
