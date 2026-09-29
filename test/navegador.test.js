@@ -7603,7 +7603,8 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 	});
 
 	test('se ajusta al cambiar el modelo y al cargar', () => {
-		assert.match(src, /id="apNavModelo" onchange="ajustarEstiloAlModelo\(\)"/);
+		assert.match(src, /id="apNavModelo" tabindex="-1" aria-hidden="true"/);
+		assert.match(src, /onclick="seleccionarModeloPagina\('topnav'\)"/);
 		// El selector vive en la pestaña Apariencia desde el 27/09/2026
 		// (public/aspecto.js, pintarModeloYTipografia()), pero la de solo
 		// superadmin sigue sincronizando su propio valor —sin pintar nada—
@@ -7616,6 +7617,12 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 
 		const aspecto = fs.readFileSync(path.join(PUBLIC, 'aspecto.js'), 'utf8');
 		assert.match(aspecto, /nav\.value = at\.nav \|\| 'topnav';[\s\S]{0,200}?ajustarEstiloAlModelo\(\);/);
+	});
+
+	test('una carta de fotos esconde, no solo desactiva, los modelos de video', () => {
+		const aspecto = fs.readFileSync(path.join(PUBLIC, 'aspecto.js'), 'utf8');
+		assert.match(aspecto, /const disponible = permitidos\.includes\(modelo\);[\s\S]{0,100}?tarjeta\.hidden = !disponible;/);
+		assert.match(aspecto, /if \(!selector \|\| selector\.disabled \|\| !plan\?\.modelos\?\.includes\(modelo\)\) return;/);
 	});
 
 	test('los filtros no se esconden ni dicen que son de explorar: los pintan todos los modelos', () => {
