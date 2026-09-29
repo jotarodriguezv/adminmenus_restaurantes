@@ -4994,10 +4994,11 @@ function cargarFuenteDeMuestra(familia) {
 	fuentesCargadas[familia] = true;
 	const link = document.createElement('link');
 	link.rel = 'stylesheet';
-	// Los mismos pesos que pide la carta, para que la muestra no engañe: una
-	// fuente en 400 y la misma en 700 no se parecen tanto como se cree.
-	link.href = `https://fonts.googleapis.com/css2?family=${familia.replace(/ /g, '+')}` +
-	            `:wght@300;400;600;700&display=swap`;
+	// Algunas fuentes de la lista solo existen en un peso. Pedir pesos que no
+	// tienen hace que Google Fonts rechace toda la hoja y la vista no cambie.
+	// Cargamos la familia disponible y el navegador aplica grosor real o
+	// sintetizado de forma segura cuando corresponda.
+	link.href = `https://fonts.googleapis.com/css2?family=${familia.replace(/ /g, '+')}&display=swap`;
 	document.head.appendChild(link);
 }
 
@@ -7620,7 +7621,13 @@ const GRUPOS_TEXTO_MENU = [
   ['boton', 'Botones y llamados a la acción', 'Acciones para pedir o continuar'],
   ['carrito', 'Carrito y resumen de pedido', 'Textos funcionales del pedido'],
 ];
-const FUENTES_TEXTO_MENU = ['', 'Montserrat', 'Inter', 'Poppins', 'Roboto', 'Open Sans', 'Lato', 'DM Sans', 'Playfair Display'];
+const FUENTES_TEXTO_MENU = [
+  '', 'Montserrat', 'Inter', 'Poppins', 'Roboto', 'Open Sans', 'Lato',
+  'DM Sans', 'Manrope', 'Figtree', 'Work Sans', 'Nunito', 'Rubik',
+  'Quicksand', 'Raleway', 'Barlow', 'Archivo', 'Oswald', 'Bebas Neue',
+  'Anton', 'Playfair Display', 'Merriweather', 'Libre Baskerville',
+  'Cormorant Garamond', 'Abril Fatface', 'Righteous', 'Pacifico', 'Lobster',
+];
 const GROSOR_TEXTO_MENU = [
   ['', 'Predeterminado'], ['400', 'Normal'], ['500', 'Medio'],
   ['600', 'Seminegrita'], ['700', 'Negrita'], ['800', 'Extranegrita'],
