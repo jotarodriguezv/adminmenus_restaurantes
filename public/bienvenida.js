@@ -6,7 +6,7 @@ const TIPOS_TEXTO_BIENVENIDA = [
   ['adicional', 'Texto adicional'], ['cta', 'Botón principal']
 ];
 const VALORES_BIENVENIDA = {
-  intro_fondo_color: '#111827', intro_overlay_color: '#0a0a0f',
+  intro_fondo_color: '#111827', intro_overlay_activo: true, intro_overlay_color: '#0a0a0f',
   intro_overlay_opacidad: 50, intro_imagen_ajuste: 'cover', intro_cta: 'Ver carta',
   intro_social_estilo: 'circular', intro_social_icono_color: '#ffffff',
   intro_social_fondo: '#ef7a00', intro_social_borde: '#ffffff', intro_social_tamano: 48,
@@ -21,13 +21,15 @@ function pintarControlesTextoBienvenida(textos = {}) {
   if (!zona) return;
   const fuentes = (typeof FUENTES_TEXTO_MENU !== 'undefined' ? FUENTES_TEXTO_MENU : ['', 'Montserrat', 'Inter', 'Poppins'])
     .map(f => `<option value="${f}">${f || 'Montserrat (predeterminada)'}</option>`).join('');
-  zona.innerHTML = TIPOS_TEXTO_BIENVENIDA.map(([tipo, nombre]) => `<div class="bienvenida-texto-control" data-texto="${tipo}">
-    <h4>${nombre}</h4><label>Color</label><input type="color" data-prop="color" value="#ffffff">
-    <label>Fuente</label><select data-prop="fuente">${fuentes}</select><label>Grosor</label>
-    <select data-prop="peso"><option value="0">Predeterminado</option><option value="400">Normal</option><option value="500">Medio</option><option value="600">Seminegrita</option><option value="700">Negrita</option><option value="800">Extranegrita</option></select>
-    <label>Tamaño <span data-tamano></span></label><input type="range" data-prop="tamano" min="12" max="64" value="${tipo === 'nombre' ? 30 : tipo === 'cta' ? 15 : 16}">
-    <label>Alineación</label><select data-prop="alineacion"><option value="centro">Centro</option><option value="izquierda">Izquierda</option><option value="derecha">Derecha</option></select>
-  </div>`).join('');
+  zona.innerHTML = TIPOS_TEXTO_BIENVENIDA.map(([tipo, nombre]) => `<details class="bienvenida-texto-control" data-texto="${tipo}">
+    <summary><span>${nombre}</span><span class="bienvenida-texto-resumen" data-resumen>Predeterminado</span></summary>
+    <div class="bienvenida-texto-cuerpo"><label>Color</label><input type="color" data-prop="color" value="#ffffff">
+      <label>Fuente</label><select data-prop="fuente">${fuentes}</select><label>Grosor</label>
+      <select data-prop="peso"><option value="0">Predeterminado</option><option value="400">Normal</option><option value="500">Medio</option><option value="600">Seminegrita</option><option value="700">Negrita</option><option value="800">Extranegrita</option></select>
+      <label>Tamaño <span data-tamano></span></label><input type="range" data-prop="tamano" min="12" max="64" value="${tipo === 'nombre' ? 30 : tipo === 'cta' ? 15 : 16}">
+      <label>Alineación</label><select data-prop="alineacion"><option value="centro">Centro</option><option value="izquierda">Izquierda</option><option value="derecha">Derecha</option></select>
+    </div>
+  </details>`).join('');
   zona.querySelectorAll('[data-texto]').forEach(el => {
     const dato = textos[el.dataset.texto] || {};
     for (const prop of ['color', 'fuente', 'peso', 'tamano', 'alineacion']) {
@@ -35,7 +37,38 @@ function pintarControlesTextoBienvenida(textos = {}) {
       if (dato[prop] && input) input.value = dato[prop];
     }
     el.querySelectorAll('input,select').forEach(input => input.addEventListener('input', actualizarVistaPreviaBienvenida));
+    actualizarResumenTextoBienvenida(el);
   });
+}
+
+function actualizarResumenTextoBienvenida(el) {
+  const resumen = el?.querySelector('[data-resumen]');
+  if (!resumen) return;
+  const valores = {
+    nombre: valorBienvenida('apIntroNombre') || state.restaurante?.nombre || 'Nombre del restaurante',
+    eslogan: valorBienvenida('apIntroEslogan') || 'Sin frase configurada',
+    adicional: valorBienvenida('apIntroTextoAdicional') || 'Sin texto adicional',
+    cta: valorBienvenida('apIntroCta') || 'Ver carta'
+  };
+  resumen.textContent = valores[el.dataset.texto] || 'Predeterminado';
+}
+
+function actualizarResumenesBienvenida() {
+  document.querySelectorAll('#apIntroTextosControles [data-texto]').forEach(actualizarResumenTextoBienvenida);
+}
+
+function sincronizarColorBienvenida(id) {
+  const color = campoBienvenida(id);
+  const hex = campoBienvenida(`${id}Hex`);
+  if (color && hex) hex.value = color.value.toUpperCase();
+  actualizarVistaPreviaBienvenida();
+}
+
+function sincronizarHexBienvenida(id) {
+  const color = campoBienvenida(id);
+  const hex = campoBienvenida(`${id}Hex`);
+  if (color && hex && /^#[0-9a-f]{6}$/i.test(hex.value.trim())) color.value = hex.value.trim();
+  actualizarVistaPreviaBienvenida();
 }
 
 function recolectarTextosBienvenida() {
@@ -55,7 +88,8 @@ function valoresBienvenida() {
     intro_nombre: valorBienvenida('apIntroNombre').trim(), intro_eslogan: valorBienvenida('apIntroEslogan').trim(),
     intro_texto_adicional: valorBienvenida('apIntroTextoAdicional').trim(), intro_cta: valorBienvenida('apIntroCta').trim() || 'Ver carta',
     direccion: valorBienvenida('apDireccion').trim(), intro_fondo_url: imagen?.dataset.url || '',
-    intro_fondo_color: valorBienvenida('apIntroFondoColor'), intro_overlay_color: valorBienvenida('apIntroOverlayColor'),
+    intro_fondo_color: valorBienvenida('apIntroFondoColor'), intro_overlay_activo: campoBienvenida('apIntroOverlayActivo').checked,
+    intro_overlay_color: valorBienvenida('apIntroOverlayColor'),
     intro_overlay_opacidad: Number(valorBienvenida('apIntroOverlayOpacidad')), intro_imagen_ajuste: valorBienvenida('apIntroImagenAjuste'),
     intro_textos: recolectarTextosBienvenida(), intro_social_instagram: campoBienvenida('apIntroSocialInstagram').checked,
     intro_social_facebook: campoBienvenida('apIntroSocialFacebook').checked, intro_social_estilo: valorBienvenida('apIntroSocialEstilo'),
@@ -82,13 +116,19 @@ function actualizarVistaPreviaBienvenida() {
   preview.style.backgroundColor = datos.intro_fondo_color; preview.style.backgroundImage = datos.intro_fondo_url ? `url("${datos.intro_fondo_url}")` : 'none';
   preview.style.backgroundSize = datos.intro_imagen_ajuste === 'contain' ? 'contain' : datos.intro_imagen_ajuste === 'center' ? 'auto' : 'cover';
   preview.style.backgroundPosition = 'center'; preview.style.backgroundRepeat = datos.intro_imagen_ajuste === 'center' ? 'no-repeat' : 'no-repeat';
-  overlay.style.background = datos.intro_overlay_color; overlay.style.opacity = String(datos.intro_overlay_opacidad / 100);
+  overlay.style.background = datos.intro_overlay_color; overlay.style.opacity = datos.intro_overlay_activo ? String(datos.intro_overlay_opacidad / 100) : '0';
+  campoBienvenida('apIntroOverlayControles').hidden = !datos.intro_overlay_activo;
   campoBienvenida('apIntroOverlayOpacidadValor').textContent = `${datos.intro_overlay_opacidad}%`;
   campoBienvenida('apIntroSocialTamanoValor').textContent = `${datos.intro_social_tamano} px`;
   const r = state.restaurante || {}; aplicarTextoPrevisualizacion('nombre', datos.intro_nombre || r.nombre || 'Tu restaurante');
   aplicarTextoPrevisualizacion('eslogan', datos.intro_eslogan || 'Hecho con cariño'); aplicarTextoPrevisualizacion('adicional', datos.intro_texto_adicional);
   aplicarTextoPrevisualizacion('cta', datos.intro_cta); const logo = campoBienvenida('apIntroPreviewLogo');
-  logo.innerHTML = r.logo_url ? `<img src="${r.logo_url}" alt="">` : 'VM';
+  logo.replaceChildren();
+  if (r.logo_url) {
+    const imagenLogo = document.createElement('img');
+    imagenLogo.src = r.logo_url; imagenLogo.alt = '';
+    logo.appendChild(imagenLogo);
+  } else logo.textContent = 'VM';
   const social = campoBienvenida('apIntroPreviewSocial'); const at = r.atributos || {};
   const redes = [datos.intro_social_instagram && at.social_instagram ? '◎' : '', datos.intro_social_facebook && at.social_facebook ? 'f' : ''].filter(Boolean);
   social.textContent = redes.join('  '); social.style.display = redes.length ? '' : 'none'; social.style.color = datos.intro_social_icono_color; social.style.background = datos.intro_social_fondo;
@@ -101,7 +141,7 @@ function actualizarVistaPreviaBienvenida() {
     }
     if (datos.intro_mapa_modo !== 'mapa') { const boton = document.createElement('span'); boton.textContent = 'Ver ubicación'; mapa.appendChild(boton); }
   }
-  content.style.opacity = datos.intro_activo ? '1' : '.58';
+  actualizarResumenesBienvenida();
 }
 
 function renderBienvenida(at = {}) {
@@ -109,7 +149,7 @@ function renderBienvenida(at = {}) {
   const poner = (id, valor) => { const el = campoBienvenida(id); if (el) el.value = valor ?? ''; };
   const marcar = (id, valor) => { const el = campoBienvenida(id); if (el) el.checked = !!valor; };
   marcar('apIntroActivo', datos.intro_activo); poner('apIntroNombre', datos.intro_nombre); poner('apIntroEslogan', datos.intro_eslogan); poner('apIntroTextoAdicional', datos.intro_texto_adicional); poner('apIntroCta', datos.intro_cta); poner('apDireccion', datos.direccion);
-  poner('apIntroFondoColor', datos.intro_fondo_color); poner('apIntroOverlayColor', datos.intro_overlay_color); poner('apIntroOverlayOpacidad', datos.intro_overlay_opacidad); poner('apIntroImagenAjuste', datos.intro_imagen_ajuste);
+  poner('apIntroFondoColor', datos.intro_fondo_color); poner('apIntroFondoColorHex', datos.intro_fondo_color); marcar('apIntroOverlayActivo', datos.intro_overlay_activo); poner('apIntroOverlayColor', datos.intro_overlay_color); poner('apIntroOverlayColorHex', datos.intro_overlay_color); poner('apIntroOverlayOpacidad', datos.intro_overlay_opacidad); poner('apIntroImagenAjuste', datos.intro_imagen_ajuste);
   marcar('apIntroSocialInstagram', datos.intro_social_instagram); marcar('apIntroSocialFacebook', datos.intro_social_facebook); poner('apIntroSocialEstilo', datos.intro_social_estilo); poner('apIntroSocialIconoColor', datos.intro_social_icono_color); poner('apIntroSocialFondo', datos.intro_social_fondo); poner('apIntroSocialBorde', datos.intro_social_borde); poner('apIntroSocialTamano', datos.intro_social_tamano);
   marcar('apIntroMapaActivo', datos.intro_mapa_activo); poner('apIntroMapaUrl', datos.intro_mapa_url); poner('apIntroMapaModo', datos.intro_mapa_modo);
   const imagen = campoBienvenida('apIntroImagenPreview'); imagen.dataset.url = datos.intro_fondo_url || ''; imagen.hidden = !datos.intro_fondo_url; if (datos.intro_fondo_url) imagen.src = datos.intro_fondo_url;
