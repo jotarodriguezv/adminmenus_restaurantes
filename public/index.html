@@ -2757,11 +2757,41 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Acceso global de la sesión autenticada. Se llena desde acceso-rapido.js
+     con los mismos destinos que tiene Inicio, y se mantiene fuera del login. -->
+<aside class="quick-access" id="quickAccess" aria-label="Acciones rápidas" hidden>
+  <div class="quick-access-panel" id="quickAccessPanel" aria-hidden="true">
+    <div class="quick-access-title">Acciones rápidas</div>
+    <div class="quick-access-actions">
+      <button type="button" class="quick-access-action quick-access-menu" data-quick-action="menu" aria-label="Ver menú público">
+        <span class="quick-access-icon" aria-hidden="true">↗</span><span>Ver menú</span>
+      </button>
+      <button type="button" class="quick-access-action" data-quick-tab="productos" aria-label="Crear nuevo producto">
+        <span class="quick-access-icon" aria-hidden="true">＋</span><span>Nuevo producto</span>
+      </button>
+      <button type="button" class="quick-access-action" data-quick-tab="categorias" aria-label="Organizar categorías">
+        <span class="quick-access-icon" aria-hidden="true">☷</span><span>Categorías</span>
+      </button>
+      <button type="button" class="quick-access-action" data-quick-tab="ajustes" aria-label="Configurar pedidos y ajustes">
+        <span class="quick-access-icon" aria-hidden="true">⚙</span><span>Ajustes</span>
+      </button>
+      <button type="button" class="quick-access-action" data-quick-tab="tv" aria-label="Abrir pantalla de TV">
+        <span class="quick-access-icon" aria-hidden="true">▣</span><span>Pantalla TV</span>
+      </button>
+    </div>
+  </div>
+  <button type="button" class="quick-access-toggle" id="quickAccessToggle" aria-expanded="false" aria-controls="quickAccessPanel">
+    <span class="quick-access-grid" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+    <span>Acciones rápidas</span>
+  </button>
+</aside>
+
 <script src="comun.js"></script>
 <script src="preguntar.js"></script>
 <script src="bandeja-solicitudes.js"></script>
 <script src="encuadre.js"></script>
 <script src="inicio.js"></script>
+<script src="acceso-rapido.js"></script>
 <script src="imprimir.js"></script>
 <script src="estadisticas.js"></script>
 <script src="tv.js"></script>
@@ -2902,6 +2932,7 @@ function logout() {
   document.getElementById('appScreen').style.display='none';
   document.getElementById('adminScreen').style.display='none';
   document.getElementById('loginScreen').style.display='flex';
+  actualizarVisibilidadAccesoRapido();
   enfocarLogin();
 }
 
@@ -2935,6 +2966,7 @@ async function enterApp() {
   // restaurante no le da su PIN actual, y para él está «Cambiar PIN» en la lista.
   document.getElementById('btnMiPin').style.display = state.rol==='cliente' ? 'block':'none';
   await loadData();
+  actualizarVisibilidadAccesoRapido();
   // Otro restaurante: las fotos del anterior no dicen nada de este.
   pestanaActual = null; fotosDePestana = {};
   switchTab('inicio', document.getElementById('tabBtnInicio'));
@@ -2947,6 +2979,7 @@ async function loadData() {
     if (!restos) return;
     state.restaurante = restos.find(r=>r.slug===state.restauranteSlug) || restos[0];
     state.restauranteSlug = state.restaurante.slug;
+    actualizarVisibilidadAccesoRapido();
     document.getElementById('topbarResto').textContent = state.restaurante.nombre.toUpperCase();
     state.categorias = await apiFetch('GET',`/api/categorias?restaurante_id=${state.restaurante.id}`);
     state.productos  = await apiFetch('GET',`/api/productos?restaurante_id=${state.restaurante.id}`);
@@ -8414,6 +8447,7 @@ async function enterAdmin() {
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appScreen').style.display='none';
   document.getElementById('adminScreen').style.display='block';
+  actualizarVisibilidadAccesoRapido();
   // Las solicitudes van aparte y sin esperar: si fallan, la lista de
   // restaurantes se tiene que ver igual.
   cargarSolicitudes();
@@ -9096,6 +9130,7 @@ function volverAlAdmin() {
   detenerVigilanciaIA();
   sessionStorage.removeItem('menuAdminEditingResto');
   document.getElementById('appScreen').style.display='none';
+  actualizarVisibilidadAccesoRapido();
   // Lo mismo al volver (X2): se aterrizaba a la altura que tuviera la carta.
   window.scrollTo(0, 0);
   enterAdmin();
