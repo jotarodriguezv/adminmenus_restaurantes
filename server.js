@@ -875,7 +875,7 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // imagen de encabezado del modelo Explorar (portada_url/portada_activa)—, ni
 // 'mostrar_hero' —ese es el mensaje de bienvenida dentro de sidebar/topnav—.
 // Se llama 'intro' a propósito para no chocar con ninguno de los dos.
-const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv',
+const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv', 'tv_pantallas',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
   'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador',
   'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
@@ -1192,7 +1192,7 @@ function validarRedes(atributos) {
 // que ya se repite el chequeo del QR y de los videos.
 // 'carrito' desde el 15/09/2026: el restaurante lo enciende en Ajustes, pero solo
 // si su plan incluye pedidos. Vitrina no.
-const ATRIBUTOS_SEGUN_PLAN = { qr: 'qr_disenador', tv: 'tv', carrito: 'carrito' };
+const ATRIBUTOS_SEGUN_PLAN = { qr: 'qr_disenador', tv: 'tv', tv_pantallas: 'tv', carrito: 'carrito' };
 
 // 'promociones' es un NÚMERO y no una bandera, y por eso vive aquí y no como
 // una constante ni como un 'check' en la tabla: el día que se quiera vender
@@ -2290,6 +2290,13 @@ function promoDelCuerpo(body) {
   if (body.activa !== undefined) fila.activa = !!body.activa;
   if (body.en_popup !== undefined) fila.en_popup = !!body.en_popup;
   if (body.en_tv !== undefined) fila.en_tv = !!body.en_tv;
+  if (body.pantallas_tv !== undefined) {
+    if (!Array.isArray(body.pantallas_tv)) return { error: 'Las pantallas del televisor deben ser una lista' };
+    const destinos = [...new Set(body.pantallas_tv.map(Number))].sort((a, b) => a - b);
+    if (!destinos.every(n => Number.isInteger(n) && n >= 1 && n <= 3))
+      return { error: 'Solo se puede mostrar en las pantallas 1, 2 o 3' };
+    fila.pantallas_tv = destinos;
+  }
   if (body.orden !== undefined) fila.orden = Number.isInteger(body.orden) ? body.orden : 0;
   if (body.programacion !== undefined) fila.programacion = body.programacion || {};
   return fila;
@@ -2321,6 +2328,7 @@ app.post('/api/promociones', auth, async (req, res) => {
     return res.status(403).json({ error: 'Sin permiso' });
 
   const fila = promoDelCuerpo(req.body);
+  if (fila.error) return res.status(400).json({ error: fila.error });
   const malImagen = errorDeImagen(fila.imagen_url);
   if (malImagen) return res.status(400).json({ error: malImagen });
   const malProg = errorDeProgramacion(fila.programacion);
@@ -2358,6 +2366,7 @@ app.patch('/api/promociones/:id', auth, async (req, res) => {
     return res.status(403).json({ error: 'Sin permiso' });
 
   const fila = promoDelCuerpo(req.body);
+  if (fila.error) return res.status(400).json({ error: fila.error });
   // 'restaurante_id' no está en promoDelCuerpo, así que una promoción no se
   // puede mover al restaurante de otro mandándolo en el cuerpo.
   if (fila.imagen_url !== undefined) {
