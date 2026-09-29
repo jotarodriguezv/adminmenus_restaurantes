@@ -24,7 +24,8 @@ function pintarControlesTextoBienvenida(textos = {}) {
     .map(f => `<option value="${f}">${f || 'Montserrat (predeterminada)'}</option>`).join('');
   zona.innerHTML = TIPOS_TEXTO_BIENVENIDA.map(([tipo, nombre]) => `<details class="bienvenida-texto-control" data-texto="${tipo}"${abiertos.has(tipo) ? ' open' : ''}>
     <summary><span>${nombre}</span><span class="bienvenida-texto-resumen" data-resumen>Predeterminado</span></summary>
-    <div class="bienvenida-texto-cuerpo"><label>Color</label><input type="color" data-prop="color" value="#ffffff">
+    <div class="bienvenida-texto-cuerpo"><label>${tipo === 'cta' ? 'Color del botón' : 'Color'}</label><input type="color" data-prop="color" value="#ffffff">
+      ${tipo === 'cta' ? '<label>Color del texto</label><input type="color" data-prop="color_texto" value="#15100b">' : ''}
       <label>Fuente</label><select data-prop="fuente">${fuentes}</select><label>Grosor</label>
       <select data-prop="peso"><option value="0">Predeterminado</option><option value="400">Normal</option><option value="500">Medio</option><option value="600">Seminegrita</option><option value="700">Negrita</option><option value="800">Extranegrita</option></select>
       <label>Tamaño <span data-tamano></span></label><input type="range" data-prop="tamano" min="12" max="64" value="${tipo === 'nombre' ? 30 : tipo === 'cta' ? 15 : 16}">
@@ -33,7 +34,7 @@ function pintarControlesTextoBienvenida(textos = {}) {
   </details>`).join('');
   zona.querySelectorAll('[data-texto]').forEach(el => {
     const dato = textos[el.dataset.texto] || {};
-    for (const prop of ['color', 'fuente', 'peso', 'tamano', 'alineacion']) {
+    for (const prop of ['color', 'color_texto', 'fuente', 'peso', 'tamano', 'alineacion']) {
       const input = el.querySelector(`[data-prop="${prop}"]`);
       if (dato[prop] && input) input.value = dato[prop];
     }
@@ -76,7 +77,7 @@ function recolectarTextosBienvenida() {
   const salida = {};
   document.querySelectorAll('#apIntroTextosControles [data-texto]').forEach(el => {
     const leer = prop => el.querySelector(`[data-prop="${prop}"]`)?.value || '';
-    salida[el.dataset.texto] = { color: leer('color'), fuente: leer('fuente'), peso: Number(leer('peso')) || 0,
+    salida[el.dataset.texto] = { color: leer('color'), color_texto: leer('color_texto'), fuente: leer('fuente'), peso: Number(leer('peso')) || 0,
       tamano: Number(leer('tamano')) || 0, alineacion: leer('alineacion') || 'centro' };
   });
   return salida;
@@ -107,7 +108,7 @@ function aplicarTextoPrevisualizacion(tipo, contenido) {
   if (tipo === 'cta') el.textContent = contenido || 'Ver carta'; else el.textContent = contenido;
   el.style.color = datos.color || '#ffffff'; el.style.fontFamily = datos.fuente ? `'${datos.fuente}', Montserrat, sans-serif` : 'Montserrat, sans-serif';
   el.style.fontWeight = datos.peso || ''; el.style.fontSize = `${datos.tamano || (tipo === 'nombre' ? 30 : 16)}px`; el.style.textAlign = datos.alineacion || 'center';
-  if (tipo === 'cta') { el.style.background = datos.color || '#ffffff'; el.style.color = '#15100b'; }
+  if (tipo === 'cta') { el.style.background = datos.color || '#ffffff'; el.style.color = datos.color_texto || '#15100b'; }
 }
 
 function actualizarVistaPreviaBienvenida() {

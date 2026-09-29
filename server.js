@@ -1015,16 +1015,18 @@ function limpiarIntroTextos(valor) {
     const origen = valor[tipo];
     if (!origen || typeof origen !== 'object' || Array.isArray(origen)) continue;
     const color = String(origen.color ?? '').trim();
+    const colorTexto = String(origen.color_texto ?? '').trim();
     const fuente = String(origen.fuente ?? '').trim();
     const peso = Number(origen.peso);
     const tamano = Number(origen.tamano);
     const alineacion = String(origen.alineacion ?? 'centro');
     if (color && !HEX_COLOR.test(color)) throw new Error(`El color de ${tipo} no es válido`);
+    if (colorTexto && !HEX_COLOR.test(colorTexto)) throw new Error(`El color del texto de ${tipo} no es válido`);
     if (fuente.length > INTRO_FUENTE_MAX || !FUENTE_INTRO_SEGURA.test(fuente)) throw new Error(`La fuente de ${tipo} no es válida`);
     if (peso && ![400, 500, 600, 700, 800].includes(peso)) throw new Error(`El grosor de ${tipo} no es válido`);
     if (tamano && (!Number.isFinite(tamano) || tamano < 12 || tamano > 64)) throw new Error(`El tamaño de ${tipo} debe estar entre 12 y 64`);
     if (!['izquierda', 'centro', 'derecha'].includes(alineacion)) throw new Error(`La alineación de ${tipo} no es válida`);
-    limpios[tipo] = { color, fuente, peso: peso || 0, tamano: tamano || 0, alineacion };
+    limpios[tipo] = { color, color_texto: colorTexto, fuente, peso: peso || 0, tamano: tamano || 0, alineacion };
   }
   return limpios;
 }
