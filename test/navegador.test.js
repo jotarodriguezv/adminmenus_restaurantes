@@ -7625,6 +7625,14 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 		assert.match(aspecto, /if \(!selector \|\| selector\.disabled \|\| !plan\?\.modelos\?\.includes\(modelo\)\) return;/);
 	});
 
+	test('las tarjetas cargan la carta real con cada navegación sin guardarla', () => {
+		const aspecto = fs.readFileSync(path.join(PUBLIC, 'aspecto.js'), 'utf8');
+		assert.match(src, /class="modelo-vista-real"[\s\S]{0,150}?<iframe/);
+		assert.match(aspecto, /urlPublica\(state\.restaurante, 'ruta'\)/);
+		assert.match(aspecto, /atributos: \{ \.\.\.atributos, nav: tarjeta\.dataset\.modelo \}/);
+		assert.match(aspecto, /if \(tarjeta\.hidden\) return;/, 'no carga previews de video para una carta de fotos');
+	});
+
 	test('los filtros no se esconden ni dicen que son de explorar: los pintan todos los modelos', () => {
 		// Desde el 15/09/2026, en la pestaña Ajustes y no en Apariencia.
 		assert.match(src, /<div class="section-card" id="ajFiltrosCard">[\s\S]{0,600}?<div class="section-title">Filtros y etiquetas<\/div>/);

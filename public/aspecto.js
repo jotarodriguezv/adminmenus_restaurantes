@@ -207,6 +207,7 @@ function pintarModeloYTipografia(at) {
   if (typeof renderTipografiaMenu === 'function') renderTipografiaMenu(at.texto_menu || {});
 
   pintarNotaModelo();
+  pintarVistasPreviasModelo();
 }
 
 // Los identificadores técnicos (topnav, sidebar…) sirven al código, no a quien
@@ -238,6 +239,27 @@ function seleccionarModeloPagina(modelo) {
   selector.value = modelo;
   ajustarEstiloAlModelo();
   pintarOpcionesModelo();
+}
+
+// No son dibujos aproximados: cada tarjeta carga la carta pública real con
+// el mismo menú, logo y colores, cambiando únicamente la navegación dentro
+// del parámetro de vista previa. La URL de ruta funciona también cuando el
+// restaurante tiene como dirección oficial un subdominio aún sin configurar.
+function pintarVistasPreviasModelo() {
+  const tarjetas = document.querySelectorAll?.('[data-modelo]') || [];
+  if (!tarjetas.length || typeof urlPublica !== 'function') return;
+  const { color_primario, color_secundario, ...atributos } = recolectarAspecto();
+  tarjetas.forEach(tarjeta => {
+    // No cargamos en segundo plano los modelos que este plan ni siquiera puede
+    // mostrar. Además de respetar el límite Fotos/Video, evita dos cartas
+    // públicas innecesarias al abrir esta pestaña.
+    if (tarjeta.hidden) return;
+    const marco = tarjeta.querySelector?.('iframe');
+    if (!marco) return;
+    const vista = { color_primario, color_secundario, atributos: { ...atributos, nav: tarjeta.dataset.modelo } };
+    const url = `${urlPublica(state.restaurante, 'ruta')}?preview=${encodeURIComponent(JSON.stringify(vista))}`;
+    if (marco.dataset.vista !== url) { marco.src = url; marco.dataset.vista = url; }
+  });
 }
 
 // Por qué el modelo está bloqueado: solo aplica a un restaurante de video,
