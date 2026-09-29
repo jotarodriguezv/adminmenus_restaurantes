@@ -863,3 +863,28 @@ imagen ahí en vez de texto. **No implementar hasta que lo pida expresamente**;
 esto es solo la nota para no perderlo. La pantalla de TV no se mencionó, así
 que de entrada esto es cosa del panel (`productos-marcas.js`), no de
 `tv.html`.
+
+---
+
+## 14. Hasta tres carteleras por restaurante (29/09/2026)
+
+La primera cartelera sigue viviendo en `atributos.tv` y conserva su URL de
+siempre: `/{slug}/tv`. No se migra ni se renombra: un televisor que ya estaba
+encendido debe seguir leyendo exactamente el mismo dato y enlace.
+
+Las adicionales viven en `atributos.tv_pantallas`, con las claves `"2"` y
+`"3"`, y usan `/{slug}/tv/2` y `/{slug}/tv/3`. Cada una guarda la misma
+configuración que la primera —selección de platos, diseño, horarios y ritmo—
+más un `nombre` que solo ayuda a identificar el televisor físico desde el
+panel. `tv.html` ignora ese nombre.
+
+La pestaña **Pantalla TV** enseña tres tarjetas, una por URL. Elegir una abre
+su configuración en el mismo formulario, en vez de duplicar tres formularios
+que inevitablemente acabarían con comportamientos distintos. La tarjeta dice
+si la pantalla está encendida, preparada o sin configurar; cambiar de tarjeta
+con cambios pendientes se bloquea hasta guardar, para no perder una selección
+de platos por accidente.
+
+No es obligatorio crear tres configuraciones: si varios televisores muestran
+lo mismo, se abre la misma URL en todos. Eso no multiplica las solicitudes ni
+crea un segundo ciclo distinto en la pared.

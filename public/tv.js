@@ -42,6 +42,76 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
 
 let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
 let tvFiltro = 'all';   // categoría que se está mirando en el selector
+let tvPantallaActual = 1;
+let tvFormularioInicial = '';
+
+// La primera cartelera conserva la forma que ya tenían todos los restaurantes:
+// atributos.tv y /tv. Las dos adicionales viven juntas en tv_pantallas para no
+// obligar a migrar ni cambiar la URL de quien ya tenía un televisor encendido.
+function tvConfiguracionDePantalla(numero = tvPantallaActual) {
+  const atributos = state.restaurante?.atributos || {};
+  if (numero === 1) return atributos.tv || {};
+  return atributos.tv_pantallas?.[String(numero)] || {};
+}
+
+function tvNombrePorDefecto(numero) { return `Pantalla ${numero}`; }
+
+function tvEnlaceDePantalla(numero = tvPantallaActual) {
+  return urlPublica(state.restaurante) + '/tv' + (numero === 1 ? '' : '/' + numero);
+}
+
+function tvPintarPantallas() {
+  const cont = document.getElementById('tvPantallas');
+  if (!cont) return;
+  cont.innerHTML = '';
+  for (let numero = 1; numero <= 3; numero++) {
+    const cfg = tvConfiguracionDePantalla(numero);
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'tv-pantalla' + (numero === tvPantallaActual ? ' activa' : '');
+    boton.setAttribute('aria-pressed', String(numero === tvPantallaActual));
+    boton.title = `Configurar ${cfg.nombre || tvNombrePorDefecto(numero)}`;
+    boton.innerHTML = '<span class="tv-pantalla-cabecera"><span class="tv-pantalla-numero"></span><span class="tv-pantalla-estado"></span></span>' +
+      '<span class="tv-pantalla-nombre"></span><span class="tv-pantalla-url"></span>';
+    boton.querySelector('.tv-pantalla-numero').textContent = `Pantalla ${numero}`;
+    const estado = boton.querySelector('.tv-pantalla-estado');
+    estado.textContent = cfg.activa ? 'ENCENDIDA' : (Object.keys(cfg).length ? 'PREPARADA' : 'SIN CONFIGURAR');
+    estado.classList.toggle('encendida', !!cfg.activa);
+    boton.querySelector('.tv-pantalla-nombre').textContent = cfg.nombre || tvNombrePorDefecto(numero);
+    boton.querySelector('.tv-pantalla-url').textContent = tvEnlaceDePantalla(numero);
+    boton.onclick = () => tvCambiarPantalla(numero);
+    cont.appendChild(boton);
+  }
+}
+
+function tvCambiarPantalla(numero) {
+  if (numero === tvPantallaActual) return;
+  // Cambiar de tarjeta no debe descartar silenciosamente una configuración que
+  // todavía no llegó a Guardar. La tarjeta elegida queda visible para que se
+  // entienda cuál se puede abrir después de guardar.
+  if (tvFormularioTieneCambios()) {
+    showToast('Guarda los cambios de esta pantalla antes de abrir otra', 'error');
+    return;
+  }
+  tvPantallaActual = numero;
+  renderTV();
+}
+
+function tvFormularioTieneCambios() {
+  const campo = document.getElementById('tvNombre');
+  if (!campo) return false;
+  return tvSerializar(tvDelFormulario()) !== tvFormularioInicial;
+}
+
+// JSON.stringify depende del orden en que llegaron las claves desde Supabase.
+// Para saber si el formulario cambió, se comparan ordenadas; no sería justo
+// bloquear el paso a otra tarjeta solo porque la base devolvió otro orden.
+function tvSerializar(valor) {
+  if (Array.isArray(valor)) return '[' + valor.map(tvSerializar).join(',') + ']';
+  if (valor && typeof valor === 'object')
+    return '{' + Object.keys(valor).sort().map(k => JSON.stringify(k) + ':' + tvSerializar(valor[k])).join(',') + '}';
+  return JSON.stringify(valor);
+}
 
 // La configuración creció más de lo que una sola tarjeta puede explicar de un
 // vistazo. Estas pestañas son solo una forma de recorrer el mismo formulario:
@@ -72,9 +142,11 @@ function tvPlatosPosibles() {
 }
 
 function renderTV() {
-  const cfg = { ...TV_POR_DEFECTO, ...(state.restaurante?.atributos?.tv || {}) };
+  const cfg = { ...TV_POR_DEFECTO, ...tvConfiguracionDePantalla() };
   tvSeleccion = Array.isArray(cfg.productos) ? [...cfg.productos] : [];
 
+  tvPintarPantallas();
+  document.getElementById('tvNombre').value = cfg.nombre || tvNombrePorDefecto(tvPantallaActual);
   document.getElementById('tvActiva').checked = !!cfg.activa;
   document.getElementById('tvModo').value = cfg.modo || 'todos';
   document.getElementById('tvOrientacion').value = cfg.orientacion === 'vertical' ? 'vertical' : 'horizontal';
@@ -132,7 +204,7 @@ function renderTV() {
   const cadaGuardado = parseInt(cfg.cada, 10) || parseInt(state.restaurante?.promo_cada, 10);
   document.getElementById('tvCada').value =
     String([2, 3, 4, 6, 8].includes(cadaGuardado) ? cadaGuardado : 4);
-  document.getElementById('tvEnlace').value = urlPublica(state.restaurante) + '/tv';
+  document.getElementById('tvEnlace').value = tvEnlaceDePantalla();
   document.getElementById('tvStatus').textContent = '';
 
   // Al entrar en otro restaurante se empieza por la decisión principal:
@@ -155,6 +227,7 @@ function renderTV() {
   tvAvisoTamano();
   tvAlternarDescripcion();
   tvPintarAhora();
+  tvFormularioInicial = tvSerializar(tvDelFormulario());
 }
 
 function tvPintarCategorias(elegida) {
@@ -1138,6 +1211,9 @@ function excepcionesQueNoSirven(lista = tvProgs) {
 function tvDelFormulario() {
   const modo = document.getElementById('tvModo').value;
   return {
+    // El nombre no lo usa la cartelera pública: sirve para que quien administra
+    // reconozca a qué televisor físico corresponde cada URL.
+    nombre: document.getElementById('tvNombre').value.trim().slice(0, 60) || tvNombrePorDefecto(tvPantallaActual),
     activa: document.getElementById('tvActiva').checked,
     orientacion: document.getElementById('tvOrientacion').value,
     por_slide: parseInt(document.getElementById('tvPorSlide').value, 10) || 2,
@@ -1236,14 +1312,24 @@ async function saveTV() {
   // 'promo_cada' ya NO se escribe. El ritmo es del televisor, no de la
   // promoción: manda sobre cualquier intercalado. Queda en la tabla como
   // respaldo de lectura para las pantallas de quien todavía no haya guardado.
-  const cuerpo = {
-    atributos: { tv },
-    promo_en_tv: tv.intercalados.some(i => i.tipo === 'promocion'),
-  };
+  const atributos = state.restaurante?.atributos || {};
+  const cuerpo = tvPantallaActual === 1
+    ? {
+        atributos: { tv },
+        promo_en_tv: tv.intercalados.some(i => i.tipo === 'promocion'),
+      }
+    : {
+        // Se manda el mapa completo porque el servidor funde atributos, no
+        // conoce las claves internas de tv_pantallas. Así guardar la 2 nunca
+        // pisa lo que ya preparó la 3.
+        atributos: { tv_pantallas: { ...(atributos.tv_pantallas || {}), [String(tvPantallaActual)]: tv } },
+      };
   try {
     const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`, cuerpo);
     if (data) state.restaurante = data;
     document.getElementById('tvSegundos').value = tv.segundos;
+    tvPintarPantallas();
+    tvFormularioInicial = tvSerializar(tvDelFormulario());
     fijarFotoDePestana('tv');
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     avisarGuardadoConCarta('Pantalla TV guardada', 'tv');

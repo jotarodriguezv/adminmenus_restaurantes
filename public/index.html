@@ -665,10 +665,16 @@
 						</div>
 						<p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:16px">
 							Una página que va pasando tus platos sola, para dejarla abierta en un
-							televisor del local. Se configura aquí y el enlace no cambia nunca.
+							televisor del local. Puedes preparar hasta tres pantallas independientes.
 						</p>
+						<div class="tv-pantallas" id="tvPantallas" aria-label="Pantallas del local"></div>
+						<p class="tv-pantallas-nota">Si dos televisores deben mostrar lo mismo, abre la misma URL en ambos: no necesitas crear otra pantalla.</p>
 
 						<div id="tvCuerpo" style="display:none">
+							<div class="form-group">
+								<label for="tvNombre" class="form-label">Nombre de esta pantalla</label>
+								<input type="text" class="form-input" id="tvNombre" maxlength="60" placeholder="Por ejemplo: TV del salón">
+							</div>
 							<!-- ── LA CARTELERA DE VERDAD, DENTRO DEL PANEL ──────────
 							     No es una imitación: es la MISMA página que se abre en el
 							     televisor, embebida. Una imitación tendría que reproducir
@@ -8065,7 +8071,8 @@ function ajustarPestanasAlModelo() {
 // incluya: un cambio de plan no puede dejar una pantalla encendida en la pared
 // de un local sin forma de apagarla desde el panel.
 function restauranteTieneTv() {
-  return !!planActual().tv || !!state.restaurante?.atributos?.tv;
+  return !!planActual().tv || !!state.restaurante?.atributos?.tv ||
+    Object.keys(state.restaurante?.atributos?.tv_pantallas || {}).length > 0;
 }
 
 // Qué modelo se guarda. Parece una lectura tonta del desplegable y no lo es.
