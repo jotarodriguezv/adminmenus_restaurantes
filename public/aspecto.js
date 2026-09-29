@@ -192,6 +192,7 @@ function pintarModeloYTipografia(at) {
   const nav = document.getElementById('apNavModelo');
   if (!nav) return;   // pestaña Apariencia no está en el DOM (pruebas parciales)
   nav.value = at.nav || 'topnav';
+  pintarOpcionesModelo();
   document.getElementById('apEstilo').value = at.estilo || 'clasico';
   ajustarEstiloAlModelo();
   document.getElementById('apSubtitulo').value = at.subtitulo || '';
@@ -206,6 +207,37 @@ function pintarModeloYTipografia(at) {
   if (typeof renderTipografiaMenu === 'function') renderTipografiaMenu(at.texto_menu || {});
 
   pintarNotaModelo();
+}
+
+// Los identificadores técnicos (topnav, sidebar…) sirven al código, no a quien
+// monta una carta. Estas tarjetas son la interfaz: muestran una maqueta de
+// cada forma y solo dejan a la vista los modelos que el plan actual permite.
+// El select oculto se conserva como única fuente del valor que guardamos.
+function pintarOpcionesModelo() {
+  const selector = document.getElementById('apNavModelo');
+  const tarjetas = document.querySelectorAll?.('[data-modelo]') || [];
+  if (!selector || !tarjetas.length) return;
+  const plan = planActual();
+  const permitidos = plan?.modelos || [];
+  const bloqueado = selector.disabled;
+  tarjetas.forEach(tarjeta => {
+    const modelo = tarjeta.dataset.modelo;
+    const disponible = permitidos.includes(modelo);
+    tarjeta.hidden = !disponible;
+    tarjeta.disabled = bloqueado || !disponible;
+    const elegido = selector.value === modelo;
+    tarjeta.classList.toggle('seleccionado', elegido);
+    tarjeta.setAttribute('aria-checked', String(elegido));
+  });
+}
+
+function seleccionarModeloPagina(modelo) {
+  const selector = document.getElementById('apNavModelo');
+  const plan = planActual();
+  if (!selector || selector.disabled || !plan?.modelos?.includes(modelo)) return;
+  selector.value = modelo;
+  ajustarEstiloAlModelo();
+  pintarOpcionesModelo();
 }
 
 // Por qué el modelo está bloqueado: solo aplica a un restaurante de video,

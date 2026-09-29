@@ -1484,16 +1484,39 @@
 					<div class="section-card">
 						<div class="section-title">Modelo de página</div>
 						<div class="form-group" id="apNavModeloFila" style="margin-bottom:0">
-							<label class="form-label">Navegación</label>
-							<!-- Al vuelo, no solo al cargar: elegir 'vertical' y no ver
-							     aparecer el estilo deja pensando que no existe. -->
-							<select class="form-select" id="apNavModelo" onchange="ajustarEstiloAlModelo()">
+							<p class="modelo-pagina-ayuda">Elige la forma en que tus clientes recorrerán la carta. Puedes cambiarla cuando quieras.</p>
+							<!-- Este select conserva el valor que guarda la API. La elección se
+							     hace con las tarjetas de abajo: los nombres internos por sí solos
+							     no permiten imaginar cómo se verá una carta. -->
+							<select class="modelo-selector-nativo" id="apNavModelo" tabindex="-1" aria-hidden="true">
 								<option value="topnav">Topnav — header centrado + menú horizontal</option>
 								<option value="sidebar">Sidebar — header fijo + menú lateral</option>
 								<option value="explorar">Explorar — portada, búsqueda y filtros</option>
 								<option value="video">Video horizontal — una columna, un plato por fila</option>
 								<option value="vertical">Vertical — pantalla completa, se desliza como reels</option>
 							</select>
+							<div class="modelos-pagina" id="apModelosPagina" role="radiogroup" aria-label="Modelo de página">
+								<button type="button" class="modelo-pagina" data-modelo="topnav" onclick="seleccionarModeloPagina('topnav')" role="radio" aria-checked="false">
+									<span class="modelo-mini modelo-mini-topnav" aria-hidden="true"><i></i><b></b><b></b><b></b><em></em><em></em></span>
+									<span class="modelo-pagina-texto"><strong>Categorías arriba</strong><small>Encabezado y navegación horizontal</small></span>
+								</button>
+								<button type="button" class="modelo-pagina" data-modelo="sidebar" onclick="seleccionarModeloPagina('sidebar')" role="radio" aria-checked="false">
+									<span class="modelo-mini modelo-mini-sidebar" aria-hidden="true"><i></i><b></b><b></b><b></b><em></em><em></em></span>
+									<span class="modelo-pagina-texto"><strong>Menú lateral</strong><small>Categorías siempre a un lado</small></span>
+								</button>
+								<button type="button" class="modelo-pagina" data-modelo="explorar" onclick="seleccionarModeloPagina('explorar')" role="radio" aria-checked="false">
+									<span class="modelo-mini modelo-mini-explorar" aria-hidden="true"><i></i><b></b><b></b><b></b><em></em><em></em></span>
+									<span class="modelo-pagina-texto"><strong>Explorar y filtrar</strong><small>Portada, buscador y filtros</small></span>
+								</button>
+								<button type="button" class="modelo-pagina" data-modelo="video" onclick="seleccionarModeloPagina('video')" role="radio" aria-checked="false">
+									<span class="modelo-mini modelo-mini-video" aria-hidden="true"><i></i><b></b><b></b><b></b><em></em><em></em></span>
+									<span class="modelo-pagina-texto"><strong>Video horizontal</strong><small>Un plato por fila, formato panorámico</small></span>
+								</button>
+								<button type="button" class="modelo-pagina" data-modelo="vertical" onclick="seleccionarModeloPagina('vertical')" role="radio" aria-checked="false">
+									<span class="modelo-mini modelo-mini-vertical" aria-hidden="true"><i></i><b></b><b></b><b></b><em></em><em></em></span>
+									<span class="modelo-pagina-texto"><strong>Video vertical</strong><small>Pantalla completa, se desliza como reels</small></span>
+								</button>
+							</div>
 							<p id="apNavModeloNota" style="display:none;font-size:12px;color:var(--text-muted);margin:8px 0 0;line-height:1.5"></p>
 						</div>
 						<!-- Solo con el modelo vertical: los demás no tienen estilos.
@@ -8101,6 +8124,9 @@ function aplicarPlanAlPanel() {
     o.textContent = o.textContent.replace(/ — no incluido en este plan$| — lo cambia tu asesor$/, '')
       + (!incluido ? ' — no incluido en este plan' : modeloBloqueadoPorVideo ? ' — lo cambia tu asesor' : '');
   });
+  // La galería de modelos usa la misma regla que el select conservado arriba:
+  // una carta de fotos nunca ve modelos de video, ni siquiera desactivados.
+  if (typeof pintarOpcionesModelo === 'function') pintarOpcionesModelo();
   // Ajustes pinta su propia nota si el restaurante no puede tocar el modelo;
   // esta llamada solo asegura que, si Ajustes ya está en el DOM, la vea
   // también sin tener que volver a abrir esa pestaña.
