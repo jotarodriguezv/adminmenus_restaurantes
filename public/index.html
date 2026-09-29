@@ -656,16 +656,17 @@
 				     Apariencia a propósito: es otro servicio, no una opción de la carta. -->
 				<div id="tabTv" class="hidden">
 					<div class="section-card">
-						<div class="section-title">Carta en el televisor</div>
+						<div class="section-header tv-encabezado">
+							<div class="section-title" style="margin-bottom:0">Carta en el televisor</div>
+							<div class="form-check" style="margin:0">
+								<label class="toggle"><input type="checkbox" id="tvActiva" onchange="tvAlternarActiva()"><span class="toggle-slider"></span></label>
+								<span style="font-size:13px;color:var(--text-muted)">Encender la cartelera</span>
+							</div>
+						</div>
 						<p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:16px">
 							Una página que va pasando tus platos sola, para dejarla abierta en un
 							televisor del local. Se configura aquí y el enlace no cambia nunca.
 						</p>
-
-						<div class="form-check" style="margin-bottom:18px">
-							<label class="toggle"><input type="checkbox" id="tvActiva" onchange="tvAlternarActiva()"><span class="toggle-slider"></span></label>
-							<span style="font-size:13px;color:var(--text-muted)">Encender la cartelera</span>
-						</div>
 
 						<div id="tvCuerpo" style="display:none">
 							<!-- ── LA CARTELERA DE VERDAD, DENTRO DEL PANEL ──────────
@@ -731,6 +732,13 @@
 					</div>
 
 					<div id="tvAjustes" style="display:none">
+						<div class="tv-config-tabs" role="tablist" aria-label="Configuración de la cartelera">
+							<button type="button" class="tv-config-tab active" id="tvTabContenido" role="tab" aria-selected="true" aria-controls="tvPanelContenido" onclick="tvCambiarSeccion('contenido')">Contenido</button>
+							<button type="button" class="tv-config-tab" id="tvTabDiseno" role="tab" aria-selected="false" aria-controls="tvPanelDiseno" onclick="tvCambiarSeccion('diseno')">Diseño</button>
+							<button type="button" class="tv-config-tab" id="tvTabDestacados" role="tab" aria-selected="false" aria-controls="tvPanelDestacados" onclick="tvCambiarSeccion('destacados')">Destacados</button>
+						</div>
+
+						<div id="tvPanelContenido" role="tabpanel" aria-labelledby="tvTabContenido">
 						<div class="section-card">
 							<div class="section-title">Qué se muestra</div>
 							<div class="form-group">
@@ -789,7 +797,9 @@
 								</div>
 							</div>
 						</div>
+						</div>
 
+						<div id="tvPanelDiseno" role="tabpanel" aria-labelledby="tvTabDiseno" class="hidden">
 						<div class="section-card">
 							<div class="section-title">Cómo se ve</div>
 							<div class="form-row">
@@ -935,8 +945,13 @@
 								<div id="tvNotaHorarios" style="font-size:12px;color:var(--text-muted);line-height:1.6"></div>
 								<div id="tvCategoriasHorario" class="tv-categorias-horario" style="display:none"></div>
 							</div>
+						</div>
+						</div>
 
+						<div id="tvPanelDestacados" role="tabpanel" aria-labelledby="tvTabDestacados" class="hidden">
+						<div class="section-card">
 							<div id="tvPromoBloque" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+								<div class="section-title" style="margin-bottom:18px">Destacados y avisos</div>
 								<div class="section-title" style="margin-bottom:4px">Cintas de aviso</div>
 								<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
 									Hasta cinco avisos que se desplazan como un noticiero. Cada uno puede ir arriba o abajo; deja vacíos los que no necesites.
@@ -1039,10 +1054,11 @@
 									<div id="tvImagenes" style="display:flex;flex-wrap:wrap;gap:8px"></div>
 								</div>
 							</div>
+							</div>
 						</div>
-					</div>
+						</div>
 
-					<div style="text-align:right;">
+						<div style="text-align:right;">
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveTV()">Guardar</button>
 					</div>
 					<div id="tvStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>

@@ -2006,6 +2006,10 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		querySelector: () => nodoDeMentira(),
 		addEventListener() {},
 	});
+	const clasesDeMentira = () => {
+		const clases = new Set();
+		return { toggle(nombre, poner) { poner ? clases.add(nombre) : clases.delete(nombre); }, contiene: nombre => clases.has(nombre) };
+	};
 
 	const montar = (opciones = {}) => {
 		const campos = {
@@ -2063,6 +2067,12 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvStatus:      { textContent: '', style: {} },
 			tvCategoriaWrap: { style: {} }, tvManualWrap: { style: {} },
 			tvCuerpo: { style: {} }, tvAjustes: { style: {} },
+			tvPanelContenido: { classList: clasesDeMentira() },
+			tvPanelDiseno: { classList: clasesDeMentira() },
+			tvPanelDestacados: { classList: clasesDeMentira() },
+			tvTabContenido: { classList: clasesDeMentira(), setAttribute() {}, tabIndex: 0 },
+			tvTabDiseno: { classList: clasesDeMentira(), setAttribute() {}, tabIndex: -1 },
+			tvTabDestacados: { classList: clasesDeMentira(), setAttribute() {}, tabIndex: -1 },
 			tvPlatos: { innerHTML: '', appendChild() {} },
 			tvFiltroCat: { innerHTML: '', appendChild() {} },
 			tvSeleccionados: { textContent: '' },
@@ -2124,6 +2134,17 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		// restaurante los marca y luego no salen en la pantalla.
 		const { ctx } = montar();
 		assert.equal(ctx.tvPlatosPosibles().length, 2, 'de cuatro, dos sirven');
+	});
+
+	test('cambiar de sección solo oculta paneles: no reinicia el formulario', () => {
+		const { ctx, campos } = montar();
+		campos.tvSegundos.value = '17';
+		ctx.tvCambiarSeccion('destacados');
+		assert.equal(campos.tvPanelContenido.classList.contiene('hidden'), true);
+		assert.equal(campos.tvPanelDiseno.classList.contiene('hidden'), true);
+		assert.equal(campos.tvPanelDestacados.classList.contiene('hidden'), false);
+		assert.equal(campos.tvTabDestacados.classList.contiene('active'), true);
+		assert.equal(campos.tvSegundos.value, '17');
 	});
 
 	test('avisa cuando la selección no mostraría ningún plato', () => {

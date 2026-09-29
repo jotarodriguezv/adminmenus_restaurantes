@@ -43,6 +43,27 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
 let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
 let tvFiltro = 'all';   // categoría que se está mirando en el selector
 
+// La configuración creció más de lo que una sola tarjeta puede explicar de un
+// vistazo. Estas pestañas son solo una forma de recorrer el mismo formulario:
+// no guardan por separado ni reconstruyen controles, así que cambiar entre
+// ellas nunca descarta lo que el restaurante ya escribió.
+function tvCambiarSeccion(seccion) {
+  const secciones = ['contenido', 'diseno', 'destacados'];
+  if (!secciones.includes(seccion)) return;
+
+  secciones.forEach(nombre => {
+    const activa = nombre === seccion;
+    const panel = document.getElementById(`tvPanel${nombre[0].toUpperCase()}${nombre.slice(1)}`);
+    const tab = document.getElementById(`tvTab${nombre[0].toUpperCase()}${nombre.slice(1)}`);
+    if (panel) panel.classList.toggle('hidden', !activa);
+    if (tab) {
+      tab.classList.toggle('active', activa);
+      tab.setAttribute('aria-selected', String(activa));
+      tab.tabIndex = activa ? 0 : -1;
+    }
+  });
+}
+
 // Sin foto normalmente no hay slide. El restaurante puede incluirlos como una
 // lista por categoría: útil para bebidas y complementos que no necesitan foto.
 function tvPlatosPosibles() {
@@ -113,6 +134,11 @@ function renderTV() {
     String([2, 3, 4, 6, 8].includes(cadaGuardado) ? cadaGuardado : 4);
   document.getElementById('tvEnlace').value = urlPublica(state.restaurante) + '/tv';
   document.getElementById('tvStatus').textContent = '';
+
+  // Al entrar en otro restaurante se empieza por la decisión principal:
+  // qué contenido va a salir. Dentro de una edición las pestañas no vuelven a
+  // renderizarse, por lo que se conserva la sección que se estaba revisando.
+  tvCambiarSeccion('contenido');
 
 	// Solo categorías con platos que la cartelera pueda enseñar.
 	tvPintarCategorias(cfg.categoria_id);
