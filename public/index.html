@@ -7621,9 +7621,18 @@ const GRUPOS_TEXTO_MENU = [
   ['carrito', 'Carrito y resumen de pedido', 'Textos funcionales del pedido'],
 ];
 const FUENTES_TEXTO_MENU = ['', 'Montserrat', 'Inter', 'Poppins', 'Roboto', 'Open Sans', 'Lato', 'DM Sans', 'Playfair Display'];
+const GROSOR_TEXTO_MENU = [
+  ['', 'Predeterminado'], ['400', 'Normal'], ['500', 'Medio'],
+  ['600', 'Seminegrita'], ['700', 'Negrita'], ['800', 'Extranegrita'],
+];
 
 function opcionesTextoMenu(valores, actual, vacio) {
   return valores.map(v => `<option value="${esc(v)}"${v === actual ? ' selected' : ''}>${v ? esc(v) : vacio}</option>`).join('');
+}
+
+function opcionesGrosorTextoMenu(actual) {
+  return GROSOR_TEXTO_MENU.map(([valor, etiqueta]) =>
+    `<option value="${valor}"${valor === actual ? ' selected' : ''}>${etiqueta}</option>`).join('');
 }
 
 function renderTipografiaMenu(configuracion = {}) {
@@ -7639,7 +7648,7 @@ function renderTipografiaMenu(configuracion = {}) {
       <div class="menu-text-controls">
         <label>Color<input type="color" value="${color}" data-menu-text-color oninput="this.closest('[data-menu-text-role]').dataset.colorCustom='true';previsualizarTipografiaMenu()"></label>
         <label>Fuente<select data-menu-text-font onchange="previsualizarTipografiaMenu()">${opcionesTextoMenu(FUENTES_TEXTO_MENU, valor.fuente || '', 'Predeterminada')}</select></label>
-        <label>Peso<select data-menu-text-weight onchange="previsualizarTipografiaMenu()">${opcionesTextoMenu(['', '400', '500', '600', '700', '800'], peso, 'Predeterminado')}</select></label>
+        <label>Grosor<select data-menu-text-weight onchange="previsualizarTipografiaMenu()">${opcionesGrosorTextoMenu(peso)}</select></label>
         <label>Tamaño (px)<input type="number" min="10" max="48" step="1" value="${tamano}" placeholder="Predeterminado" data-menu-text-size oninput="previsualizarTipografiaMenu()"></label>
       </div>
       <button type="button" class="menu-text-reset" onclick="restablecerTipografiaMenu('${clave}')">Restablecer este grupo</button>
@@ -7679,7 +7688,11 @@ function previsualizarTipografiaMenu() {
     if (!muestra) return;
     const valor = valoresTipografiaMenu(clave);
     muestra.style.color = valor.color || '';
-    muestra.style.fontFamily = FUENTES_TEXTO_MENU.includes(valor.fuente) && valor.fuente ? `'${valor.fuente}', var(--sans)` : '';
+    const familia = FUENTES_TEXTO_MENU.includes(valor.fuente) ? valor.fuente : '';
+    // La fuente se descarga al elegirla; en cuanto Google Fonts responde, el
+    // navegador aplica la familia ya escrita en la muestra sin otro clic.
+    if (familia && typeof cargarFuenteDeMuestra === 'function') cargarFuenteDeMuestra(familia);
+    muestra.style.fontFamily = familia ? `'${familia}', var(--sans)` : '';
     muestra.style.fontWeight = valor.peso || '';
     muestra.style.fontSize = valor.tamano ? `${valor.tamano}px` : '';
   });
