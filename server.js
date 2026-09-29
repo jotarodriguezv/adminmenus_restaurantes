@@ -685,7 +685,7 @@ function errorDeSlug(slug) {
   return null;
 }
 
-const ATRIBUTOS_CLONABLES = ['nav', 'estilo', 'fuente_titulo', 'fuente_cuerpo', 'color_surface', 'color_card', 'fondo_tipo', 'fondo_color', 'fondo_intensidad', 'css_custom'];
+const ATRIBUTOS_CLONABLES = ['nav', 'estilo', 'fuente_titulo', 'fuente_cuerpo', 'texto_menu', 'color_surface', 'color_card', 'fondo_tipo', 'fondo_color', 'fondo_intensidad', 'css_custom'];
 
 app.post('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
