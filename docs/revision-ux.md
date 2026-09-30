@@ -2939,16 +2939,19 @@ anterior quedaba de respaldo.
 
 ## FM5 · Guardar cierra la ficha, y los mensajes no lo decían · **Baja**
 
-- [ ] Pendiente · texto hecho en #316; el comportamiento es una decisión del usuario
+- [ ] En un PR abierto · #317 (se marca al mergear). Los textos ya estaban en #316.
 
 «Primero guarda el producto con su foto; después podrás subir un video» no decía
 que **guardar cierra la ficha** y hay que volver a abrir el producto, ir a
 Multimedia y seguir. Es un paso que nadie avisa.
 
-**Lo hecho:** los dos mensajes ahora dicen «…y ábrelo de nuevo».
-**Lo que queda:** dejar la ficha abierta al guardar un producto nuevo de una
-carta de video sería más cómodo, pero cambia el flujo de todos los productos y
-no se tocó.
+**Lo hecho en dos pasos.** Primero (#316) los mensajes pasaron a decir «…y ábrelo
+de nuevo». Después, a pedido del usuario (#317), la ficha **se queda abierta**,
+pero acotado: guardar cierra la ficha en todos los productos de todas las cartas,
+y quien solo cambia un precio quiere salir. Se vuelve a abrir ya guardada, en
+Multimedia, únicamente si la carta permite video, la foto **acaba de quedar
+guardada** (producto nuevo, o uno que no la tenía) y todavía no hay video. Lo
+demás cierra como siempre. Ver `docs/planesymodelos.md` §4.bis.
 
 ## FM6 · `planesymodelos.md` decía que subir un video no exige foto · **Baja**
 
