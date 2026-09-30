@@ -2034,6 +2034,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvMostrarDescripcion: { checked: !!opciones.mostrarDescripcion },
 			tvDescripcionFila: { style: {} },
 			tvListaSinFoto: { checked: !!opciones.listaSinFoto },
+			tvMostrarTodosLista: { checked: !!opciones.listaCompleta },
 			tvMostrarPersonas: { checked: opciones.mostrarPersonas !== false },
 			tvMostrarPersonasUno: { checked: !!opciones.mostrarPersonasUno, disabled: false },
 			tvMostrarPersonasUnoFila: { style: {} },
@@ -2230,6 +2231,12 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const { ctx, campos } = montar();
 		campos.tvListaSinFoto.checked = true;
 		assert.equal(ctx.tvDelFormulario().mostrar_sin_foto_lista, true);
+	});
+
+	test('guarda la vista de lista para toda la selección', () => {
+		const { ctx, campos } = montar();
+		campos.tvMostrarTodosLista.checked = true;
+		assert.equal(ctx.tvDelFormulario().mostrar_todos_lista, true);
 	});
 
 	// 24/09/2026 (sql/28): es un interruptor del restaurante, no de cada plato.
