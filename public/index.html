@@ -821,11 +821,12 @@
 								</div>
 								<div class="form-group">
 									<label for="tvPorSlide" class="form-label">Platos a la vez</label>
-									<select class="form-input" id="tvPorSlide" onchange="tvAvisoTamano();tvAlternarDescripcion()">
+									<select class="form-input" id="tvPorSlide" onchange="tvCambiarPlatosPorSlide()">
 										<option value="1">1 — formato detalle</option>
 										<option value="2">2</option>
 										<option value="3">3</option>
 										<option value="4">4 — caben más, se ven pequeños</option>
+										<option value="lista">Lista — hasta 20, sin fotos</option>
 									</select>
 								</div>
 							</div>
@@ -866,14 +867,6 @@
 									<span style="font-size:13px;color:var(--text-muted)">Mostrar productos sin foto como lista</span>
 									<div class="tv-opcion-ayuda" style="font-size:11px;color:var(--text-dim);line-height:1.5">
 										Agrupa bebidas y complementos sin fotografía por categoría, en hasta dos columnas con nombre y precio. Está apagado por defecto.
-									</div>
-								</div>
-
-								<div class="form-check tv-opcion" style="margin-bottom:16px">
-									<label class="toggle"><input type="checkbox" id="tvMostrarTodosLista" onchange="tvCambiarVistaListaCompleta()"><span class="toggle-slider"></span></label>
-									<span style="font-size:13px;color:var(--text-muted)">Mostrar toda la selección como lista</span>
-									<div class="tv-opcion-ayuda" style="font-size:11px;color:var(--text-dim);line-height:1.5">
-										Quita las fotos y muestra los platos elegidos con su categoría y precio, en dos columnas. Caben hasta 20 por pantalla.
 									</div>
 								</div>
 

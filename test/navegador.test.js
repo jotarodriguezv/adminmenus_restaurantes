@@ -2034,7 +2034,6 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvMostrarDescripcion: { checked: !!opciones.mostrarDescripcion },
 			tvDescripcionFila: { style: {} },
 			tvListaSinFoto: { checked: !!opciones.listaSinFoto },
-			tvMostrarTodosLista: { checked: !!opciones.listaCompleta },
 			tvMostrarPersonas: { checked: opciones.mostrarPersonas !== false },
 			tvMostrarPersonasUno: { checked: !!opciones.mostrarPersonasUno, disabled: false },
 			tvMostrarPersonasUnoFila: { style: {} },
@@ -2233,9 +2232,9 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		assert.equal(ctx.tvDelFormulario().mostrar_sin_foto_lista, true);
 	});
 
-	test('guarda la vista de lista para toda la selección', () => {
+	test('guarda la vista de lista desde «Platos a la vez»', () => {
 		const { ctx, campos } = montar();
-		campos.tvMostrarTodosLista.checked = true;
+		campos.tvPorSlide.value = 'lista';
 		assert.equal(ctx.tvDelFormulario().mostrar_todos_lista, true);
 	});
 
