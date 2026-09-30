@@ -2720,6 +2720,148 @@ son `div` con `onclick`. Y hay velo que cierra al tocarlo.
 ---
 ---
 
+# Modelo Vertical, sobre MONTANA · 30/09/2026
+
+**Una pasada pedida por el usuario**, sobre la carta que más le gusta a la gente
+(`menu.vmenus.co/montanarest`: plan Video, modelo Vertical, estilo *intenso*, 12
+pantallas). Método igual que el resto: producción, en un móvil de **390 × 844**,
+midiendo con `getBoundingClientRect` y mirando el fuente
+(`vmenus-app/temas/vertical.js` y su CSS en `index.html`). **Solo se miró**; los
+arreglos se probaron contra una copia local con los datos reales, sin guardar
+nada en el restaurante.
+
+Las tres primeras se aplican en tres pull requests independientes, porque es una
+carta que ven clientes reales y así cada cambio se puede revertir por separado.
+
+## VT1 · El botón «+ Agregar» medía casi lo mismo que el precio · **Media**
+
+- [ ] En un PR abierto · vmenus-app#78 (se marca al mergear)
+
+`.ver-add` medía **105 × 42 px**, más que el precio que tiene al lado (letra de
+22 px). Justo al lado flota el carrito de 56 px, del mismo color terracota, que ya
+lleva la cuenta: el texto «Agregar» repetía lo que el carrito explica.
+
+**Decisión del usuario:** dejar solo el signo «+».
+
+**Arreglo:** un botón de **40 × 40 px** con el «+» dentro, relleno del color de la
+marca. Se probó primero uno de contorno blanco translúcido y se descartó: el
+relleno se lee como «esto va al carrito» porque es el mismo color del carrito.
+
+Lo que hay que saber, porque un botón sin texto pierde tres cosas que el texto
+daba gratis:
+
+- **Nombre accesible.** `aria-label`: «Agregar X al pedido» o «Personalizar X», y
+  «X agregado al pedido» durante la confirmación.
+- **Área de toque.** Se ve de 40 px pero el `::after` la deja en 44, que es lo
+  que se pide a un dedo (ver V3).
+- **Confirmación.** Antes el texto cambiaba a «✓ Agregado»; ahora el botón pasa
+  a «✓» y **el carrito flotante rebota** cuando el contador sube (no con
+  `prefers-reduced-motion`). Con un botón tan pequeño, eso es lo que dice que el
+  toque hizo algo.
+
+**Un fallo latente que salió de paso:** el código anterior guardaba «lo de antes»
+antes de cambiar el texto. Con **dos toques seguidos**, «lo de antes» ya era
+«✓ Agregado» y el botón se quedaba pegado así para siempre. Ahora se restauran
+valores calculados desde el plato, y hay una prueba para los dos toques.
+
+## VT2 · La barra de arriba se comía casi una sexta parte de la pantalla · **Media**
+
+- [ ] En un PR abierto · vmenus-app#79 (se marca al mergear)
+
+Tres filas flotando sobre el video —categorías, filtros y buscador— medían
+**148 px de 844: el 17,5 %**. En una carta cuyo punto fuerte es el video a
+pantalla completa es lo que más resta. Además, los filtros de MONTANA son dos
+(«Vegetariano» y «Picante») y ocupaban una fila entera, y el buscador, que se
+usa de vez en cuando, era una barra grande siempre a la vista.
+
+**Arreglo:** una sola fila de **54 px** con las categorías y una **lupa** a la
+derecha. La lupa abre un panel con el buscador y, debajo, los filtros; el cursor
+entra solo al buscador.
+
+Las decisiones que conviene no deshacer:
+
+- **La lupa solo existe si hay algo detrás**: un buscador que se ofrece (8 platos
+  o más y no apagado) o al menos un filtro en uso.
+- **Con el panel cerrado, un punto en la lupa avisa de que hay algo puesto.** Es la
+  pieza que hace aceptable esconderlo: sin ella, una carta acotada por un filtro
+  se ve como una carta a la que le faltan platos.
+- **La lupa va dentro de la fila, no encima de las categorías**: así nunca tapa
+  la última, y un desvanecido en el borde avisa de que se puede desplazar. La
+  primera prueba la puso encima y tapaba «Salchipapa».
+- **`core/buscador.js` y `core/filtros.js` no cambian.** Solo se les da otro
+  contenedor, y el buscador sigue en uno propio porque `montarChips` vacía el suyo
+  al repintar y se llevaría lo que se estuviera escribiendo.
+
+**Lo que se cede:** los filtros quedan un toque más escondidos. La alternativa, si
+se prefiere verlos siempre, es dejarlos en la fila de categorías tras un
+separador. Se eligió la lupa porque son solo dos chips.
+
+## VT3 · La pantalla de lista quedaba corrida a la izquierda · **Baja**
+
+- [ ] En un PR abierto · vmenus-app#80 (se marca al mergear)
+
+Los platos sin foto ni video se agrupan en una pantalla de filas (las Bebidas de
+MONTANA). La tarjeta llevaba **70 px de relleno solo a la derecha**, para esquivar
+el WhatsApp y el carrito flotantes, así que quedaba corrida a la izquierda, con
+un hueco a un lado que no era de nadie, en medio de una pantalla vacía.
+
+**Arreglo:** esa columna flotante solo estorba **abajo**, así que el espacio se
+reserva abajo (104 px) y a los lados queda un margen simétrico de 18 px. Probado
+en el peor caso —8 filas, el máximo por pantalla—: la última queda a 106 px del
+carrito.
+
+Con VT1 sus botones pasan a ser el mismo «+» que el resto de la carta; antes eran
+un «+ Agregar» más pequeño y en otra tipografía.
+
+## VT4 · Las categorías y los chips miden 34 px · **Baja**
+
+- [ ] Pendiente
+
+Los botones de categoría y los chips de filtro miden **34 px de alto**, por debajo
+de los 44 px que se piden a un dedo. Es el mismo criterio de V3.
+
+**No se tocó en esta pasada** y es una decisión, no un olvido: subirlos a 44 px
+hace la fila más alta, y justo acabamos de bajarla de 148 a 54 px para devolverle
+la pantalla al video. Hay un camino intermedio —mantenerlos de 34 px a la vista y
+ampliar solo el área de toque con un `::after`, como se hizo con el «+» y la
+lupa— pero con ocho categorías pegadas una a otra, las áreas de toque se
+solaparían. Decidirlo con la fila ya medida.
+
+## VT5 · El modelo Video tiene su propio «+ Agregar» · **Baja**
+
+- [ ] Pendiente · decisión del usuario
+
+`temas/video.js` (16:9) usa `.vid-add`, que sigue siendo «+ Agregar» con texto. No
+se tocó: el usuario pidió revisar la plantilla vertical, y las dos comparten
+maquinaria pero no estilos de esta pieza. Si el «+» funciona bien en Vertical,
+igualarlo aquí evita que dos modelos de la misma familia —los dos de video—
+pidan lo mismo de dos formas.
+
+## VT6 · Tres cosas de los datos de MONTANA, no del diseño · **Baja**
+
+- [ ] Pendiente · para el equipo, no para el código
+
+Vistas al recorrer la carta; ninguna se arregla tocando el tema:
+
+- **Solo «Bebidas» lleva emoji** en el nombre de su categoría; las otras cuatro
+  no. Con las categorías en una fila, se nota la diferencia.
+- **Un plato de prueba llamado «hla»** está publicado en Principales.
+- **El video del Chilli Dog trae la marca de agua de otra cuenta de TikTok**
+  (`@…cocinaa2`) grabada en el propio video. Además del aspecto, es material
+  ajeno sirviéndose desde la carta de un cliente: conviene cambiarlo por uno propio.
+
+## Lo que está bien
+
+**Es, con diferencia, la plantilla más cuidada.** El video a pantalla completa
+con el texto pegado abajo se lee bien sobre cualquier fotograma (el velo de
+*intenso* es lo que lo consigue); la pista «Desliza» se mide contra la ficha más
+alta para no caer encima del nombre; la categoría activa sigue al plato; y la
+navegación flota en vez de reservar una barra, que es justo la decisión que VT2
+refuerza.
+
+---
+---
+
 # Qué queda por revisar
 
 Actualizado tras la décima pasada. Nada de esto está mirado.
