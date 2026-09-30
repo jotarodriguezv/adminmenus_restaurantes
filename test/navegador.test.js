@@ -981,17 +981,18 @@ describe('pintarCaminosVideo · sin foto no hay de dónde sacar un video nuevo',
 	// para uno nuevo (videoCaminos), porque quitarFoto() permite a propósito
 	// que un plato se quede con video y sin foto.
 	const pantalla = () => {
-		const ids = ['videoCaminos', 'videoCaminosTitulo', 'videoSinFoto'];
+		const ids = ['videoCaminos', 'videoCaminosTitulo', 'videoSinFoto', 'iaAvisos', 'iaBloque'];
 		const mapa = {};
 		for (const id of ids) mapa[id] = { style: {}, textContent: '' };
+		mapa.iaBloque.style.display = '';   // la tarjeta de la IA está a la vista
 		return mapa;
 	};
 
-	const pintar = (id, productos, mapa, proceso = null) => {
+	const pintar = (id, productos, mapa, proceso = null, pendingImgUrl = null) => {
 		const ctx = cargar('index.html', [
 			['// Los trabajos de conversión del restaurante.', '// Elegir el archivo ya no lo sube'],
 		], {
-			state: { productos },
+			state: { productos, pendingImgUrl },
 			document: { getElementById: eid => (eid === 'editProductId' ? { value: id } : mapa[eid]) },
 			procesoEnMarchaDelPlato: () => proceso,
 			procesoBloquea: p => !!p,
@@ -1031,6 +1032,72 @@ describe('pintarCaminosVideo · sin foto no hay de dónde sacar un video nuevo',
 		const m = pintar('', [], pantalla());
 		assert.equal(m.videoCaminos.style.display, '');
 		assert.equal(m.videoSinFoto.style.display, 'none');
+	});
+
+	// 30/09/2026: subías la foto, la ficha decía «✓ Lista para guardar» y, justo
+	// debajo, «Sube primero una foto del plato». Lo que falta es guardar.
+	describe('con la foto ya subida pero sin guardar', () => {
+		test('no dice «sube primero una foto»: dice que falta guardar y volver a abrir', () => {
+			const m = pintar('p1', [{ id: 'p1' }], pantalla(), null, '/uploads/productos/nueva.jpg');
+			assert.equal(m.videoSinFoto.style.display, 'block');
+			assert.doesNotMatch(m.videoSinFoto.textContent, /Sube primero/);
+			assert.match(m.videoSinFoto.textContent, /Foto lista\. Guarda el producto y ábrelo de nuevo/);
+		});
+
+		test('los caminos siguen escondidos: el servidor mira la foto guardada, no la pendiente', () => {
+			const m = pintar('p1', [{ id: 'p1' }], pantalla(), null, '/uploads/productos/nueva.jpg');
+			assert.equal(m.videoCaminos.style.display, 'none');
+		});
+
+		test('si se quita esa foto, vuelve el «sube primero»', () => {
+			const m = pintar('p1', [{ id: 'p1' }], pantalla(), null, '__remove__');
+			assert.match(m.videoSinFoto.textContent, /Sube primero una foto del plato y guarda el producto/);
+		});
+
+		test('sin foto ni pendiente, el mensaje pide la foto y guardar', () => {
+			const m = pintar('p1', [{ id: 'p1' }], pantalla());
+			assert.match(m.videoSinFoto.textContent, /Sube primero una foto del plato y guarda el producto/);
+		});
+	});
+
+	describe('los avisos de la IA, que hablan de un botón escondido', () => {
+		test('sin foto se esconden: repetían (o contradecían) el mensaje de arriba', () => {
+			const m = pintar('p1', [{ id: 'p1' }], pantalla());
+			assert.equal(m.iaAvisos.style.display, 'none');
+		});
+
+		test('con foto vuelven a seguir a la tarjeta de la IA', () => {
+			const conIA = pantalla();
+			assert.equal(pintar('p1', [{ id: 'p1', imagen_url: '/uploads/a.jpg' }], conIA).iaAvisos.style.display, '');
+			const sinIA = pantalla();
+			sinIA.iaBloque.style.display = 'none';
+			assert.equal(pintar('p1', [{ id: 'p1', imagen_url: '/uploads/a.jpg' }], sinIA).iaAvisos.style.display, 'none');
+		});
+
+		test('con algo en marcha se ven aunque no haya foto: la barra de la generación vive ahí', () => {
+			const m = pintar('p1', [{ id: 'p1' }], pantalla(), 'generando');
+			assert.equal(m.iaAvisos.style.display, '');
+		});
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('la foto del plato anterior no se queda puesta al abrir otro', () => {
+	// 30/09/2026: se abría un plato con foto y luego uno sin ella, y la
+	// previsualización conservaba el src del primero. La nota de la proporción
+	// de la IA lo medía y decía «Tu foto es 800×999…» en un plato sin foto,
+	// justo debajo de «Sube primero una foto».
+	const fuente = codigoDelPanel();
+	const sinFoto = f => f.slice(f.indexOf('function openEditProductModal'), f.indexOf('fillCatSelect(p.categoria_id)'));
+
+	test('un plato existente sin foto suelta el src de la previsualización', () => {
+		const tramo = sinFoto(fuente);
+		assert.match(tramo, /}\s*else\s*{[\s\S]*?prev\.removeAttribute\('src'\);[\s\S]*?prev\.style\.display='none'/);
+	});
+
+	test('y un producto nuevo también', () => {
+		const tramo = fuente.slice(fuente.indexOf('function openNewProductModal'), fuente.indexOf('function openEditProductModal'));
+		assert.match(tramo, /imgEditPreview'\)\.removeAttribute\('src'\)/);
 	});
 });
 
@@ -3210,7 +3277,7 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 			// El motivo por el que el botón está apagado, y la previa de la foto:
 			// desde que el bloque se ve también sin foto, "hay foto" es una de las
 			// condiciones y hay que poder simular las dos.
-			'iaMotivo', 'imgEditPreview'])
+			'iaMotivo', 'iaRegenerarNota', 'imgEditPreview'])
 			mapa[id] = { style: {}, textContent: '', value: '', disabled: false };
 		mapa.editProductId.value = 'p1';
 		// Con foto por defecto: es el estado en el que estas pruebas ya se
@@ -3373,7 +3440,10 @@ describe('refrescarCupoIA · no puede pisar ni reencender lo que otro apagó', (
 		const m = pantalla();
 		await correr(m, { productos: [{ id: 'p1', atributos: { video: { url: 'https://x/v.mp4' } } }] });
 
-		assert.match(m.iaMotivo.textContent, /sigue en la carta hasta que revises/);
+		// En la tarjeta de la IA y no bajo las dos: un video subido reemplaza al
+		// actual en cuanto termina de convertir, sin pasar por revisión.
+		assert.match(m.iaRegenerarNota.textContent, /sigue en la carta hasta que revises/);
+		assert.equal(m.iaMotivo.textContent, '', 'el motivo de los apagados queda libre');
 	});
 
 	test('sin video puesto dice "Generar", no "Regenerar"', async () => {
@@ -9424,6 +9494,128 @@ describe('video recién subido · la ficha no se cierra mientras convierte', () 
 		assert.notEqual(anota, -1, 'la subida tiene que apuntar el trabajo');
 		assert.ok(anota < subir.indexOf('vigilarVideo(r.trabajo_id'));
 		assert.ok(anota < subir.indexOf('} finally'));
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('guardar con un video elegido · se sube al guardar, y no se pierde', () => {
+	// 30/09/2026, el fallo que más le costó al usuario en esta ficha: elegir un
+	// video, pulsar «Guardar cambios» sin tocar «Subir y convertir», y que la
+	// ficha se cerrara guardando los datos y dejando el video sin subir.
+	const montar = ({ id = 'p1', videoElegido = null, subiendoVideo = false, falla = false } = {}) => {
+		const mapa = {
+			btnSaveProduct:   { textContent: '', disabled: false },
+			editProductId:    { value: id },
+			editCategoria:    { value: 'cat-1' },
+			editNombre:       { value: 'Croquetas' },
+			editPrecioNum:    { value: '24000' },
+			editPersonas:     { value: '' },
+			editDesc:         { value: '' },
+			editDescAvanzada: { value: '' },
+			editDisponible:   { checked: true },
+			editPrecioGratis: { checked: false },
+			editSinFoto:      { checked: false },
+		};
+		for (const el of Object.values(mapa)) {
+			el.classList = { add() {}, remove() {} };
+			el.removeAttribute = () => {};
+		}
+		const orden = [], cerrados = [], avisos = [];
+		const estado = { pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {}, prodPers: {},
+			productos: [{ id: 'p1', atributos: {} }], subiendoVideo, vigilandoTrabajo: null };
+		const ctx = cargar('index.html', [
+			['function firmaProducto', 'async function saveProduct'],
+			['async function saveProduct', '// ── CATEGORÍAS ──'],
+		], {
+			state: estado,
+			videoElegido,
+			document: { getElementById: x => mapa[x], querySelectorAll: () => [] },
+			trabajoEnCursoDe: () => null,
+			erroresDeFicha: () => [], limpiarErroresFicha() {}, formatPrecio: n => String(n),
+			precioNumericoDe: v => { const d = String(v ?? '').replace(/\D/g, ''); return d === '' ? NaN : Number(d); },
+			apiFetch: async () => { orden.push('guardado'); if (falla) throw new Error('sin red'); return {}; },
+			renderCatFilter() {}, renderProducts() {}, renderInicio() {},
+			openModal() {}, closeModal: x => cerrados.push(x),
+			showToast: a => avisos.push(a), avisarGuardadoConCarta: a => avisos.push(a),
+			// Lo que hace la subida de verdad al empezar, de forma síncrona.
+			confirmarSubidaVideo: () => { orden.push('subida'); estado.subiendoVideo = true; },
+		});
+		return { ctx, mapa, orden, cerrados, avisos, estado };
+	};
+
+	test('con un archivo elegido, guarda y después lo sube', async () => {
+		const { ctx, orden } = montar({ videoElegido: { name: 'plato.mov' } });
+		await ctx.saveProduct();
+		assert.deepEqual(orden, ['guardado', 'subida'], 'primero los datos —y la foto—, después el video');
+	});
+
+	test('y la ficha se queda abierta mientras sube, diciendo por qué', async () => {
+		const { ctx, cerrados, avisos } = montar({ videoElegido: { name: 'plato.mov' } });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, [], 'cerrarla habría sido perder la subida de vista');
+		assert.match(avisos[0], /subiendo el video/);
+	});
+
+	test('sin archivo elegido no sube nada y cierra como siempre', async () => {
+		const { ctx, orden, cerrados } = montar();
+		await ctx.saveProduct();
+		assert.deepEqual(orden, ['guardado']);
+		assert.deepEqual(cerrados, ['productModal']);
+	});
+
+	test('si ya se está subiendo, no empieza una segunda subida', async () => {
+		const { ctx, orden } = montar({ videoElegido: { name: 'plato.mov' }, subiendoVideo: true });
+		await ctx.saveProduct();
+		assert.deepEqual(orden, ['guardado']);
+	});
+
+	test('si guardar falla, el video no se sube y sigue elegido', async () => {
+		const { ctx, orden } = montar({ videoElegido: { name: 'plato.mov' }, falla: true });
+		await ctx.saveProduct();
+		assert.deepEqual(orden, ['guardado']);
+		assert.equal(ctx.videoElegido.name, 'plato.mov');
+	});
+
+	test('un producto nuevo (sin id) no intenta subir: todavía no hay a qué colgarlo', async () => {
+		const { ctx, orden } = montar({ id: '', videoElegido: { name: 'plato.mov' } });
+		await ctx.saveProduct();
+		assert.ok(!orden.includes('subida'));
+	});
+
+	describe('lo que dice el botón de guardar', () => {
+		const etiqueta = (estado) => {
+			const mapa = { editProductId: { value: estado.id ?? 'p1' }, btnSaveProduct: { textContent: '', disabled: false } };
+			const ctx = cargar('index.html', 'function etiquetaGuardarProducto', '// ── CATEGORÍAS ──', {
+				state: { subiendoVideo: !!estado.subiendo },
+				videoElegido: estado.elegido ?? null,
+				document: { getElementById: x => mapa[x] },
+			});
+			return { ctx, mapa };
+		};
+
+		test('de siempre: «Guardar cambios», o «Crear producto» si es nuevo', () => {
+			assert.equal(etiqueta({}).ctx.etiquetaGuardarProducto(), 'Guardar cambios');
+			assert.equal(etiqueta({ id: '' }).ctx.etiquetaGuardarProducto(), 'Crear producto');
+		});
+
+		test('con un video elegido y sin subir, dice que lo sube', () => {
+			const { ctx, mapa } = etiqueta({ elegido: { name: 'a.mov' } });
+			assert.equal(ctx.etiquetaGuardarProducto(), 'Guardar y subir video');
+			ctx.actualizarEtiquetaGuardar();
+			assert.equal(mapa.btnSaveProduct.textContent, 'Guardar y subir video');
+		});
+
+		test('ya subiéndose, vuelve a «Guardar cambios»: no hay nada más que subir', () => {
+			assert.equal(etiqueta({ elegido: { name: 'a.mov' }, subiendo: true }).ctx.etiquetaGuardarProducto(), 'Guardar cambios');
+		});
+
+		test('no pisa el «Guardando...» mientras el botón está apagado', () => {
+			const { ctx, mapa } = etiqueta({ elegido: { name: 'a.mov' } });
+			mapa.btnSaveProduct.disabled = true;
+			mapa.btnSaveProduct.textContent = 'Guardando...';
+			ctx.actualizarEtiquetaGuardar();
+			assert.equal(mapa.btnSaveProduct.textContent, 'Guardando...');
+		});
 	});
 });
 

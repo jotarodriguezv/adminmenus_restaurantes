@@ -2735,7 +2735,7 @@ carta que ven clientes reales y así cada cambio se puede revertir por separado.
 
 ## VT1 · El botón «+ Agregar» medía casi lo mismo que el precio · **Media**
 
-- [ ] En un PR abierto · vmenus-app#78 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · vmenus-app#78
 
 `.ver-add` medía **105 × 42 px**, más que el precio que tiene al lado (letra de
 22 px). Justo al lado flota el carrito de 56 px, del mismo color terracota, que ya
@@ -2766,7 +2766,7 @@ valores calculados desde el plato, y hay una prueba para los dos toques.
 
 ## VT2 · La barra de arriba se comía casi una sexta parte de la pantalla · **Media**
 
-- [ ] En un PR abierto · vmenus-app#79 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · vmenus-app#79
 
 Tres filas flotando sobre el video —categorías, filtros y buscador— medían
 **148 px de 844: el 17,5 %**. En una carta cuyo punto fuerte es el video a
@@ -2798,7 +2798,7 @@ separador. Se eligió la lupa porque son solo dos chips.
 
 ## VT3 · La pantalla de lista quedaba corrida a la izquierda · **Baja**
 
-- [ ] En un PR abierto · vmenus-app#80 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · vmenus-app#80
 
 Los platos sin foto ni video se agrupan en una pantalla de filas (las Bebidas de
 MONTANA). La tarjeta llevaba **70 px de relleno solo a la derecha**, para esquivar
@@ -2858,6 +2858,122 @@ con el texto pegado abajo se lee bien sobre cualquier fotograma (el velo de
 alta para no caer encima del nombre; la categoría activa sigue al plato; y la
 navegación flota en vez de reservar una barra, que es justo la decisión que VT2
 refuerza.
+
+---
+---
+
+# Ficha de producto, pestaña Multimedia · 30/09/2026
+
+**Una pasada pedida por el usuario** sobre «Editar producto»: si se entiende bien
+qué se puede poner, y en particular la relación entre la foto, el video subido y
+el video generado con IA. Método: la ficha cargada en local con datos de MONTANA,
+en cada caso —restaurante sin plan de video, plan de video con la IA apagada,
+producto nuevo, sin foto, con foto, y con foto y video—, más lectura del fuente.
+Sin iniciar sesión en ninguna cuenta.
+
+**La regla, aclarada por el usuario:** para subir un video ya grabado **y** para
+generarlo con IA hace falta una **foto guardada**. Siempre fue la lógica; el
+documento decía lo contrario (FM6).
+
+## FM1 · «Guardar cambios» perdía el video elegido sin avisar · **Alta**
+
+- [ ] En un PR abierto · #316 (se marca al mergear)
+
+Elegir un archivo de video **no lo sube**: subirlo era un botón aparte, «Subir y
+convertir». Quien elegía el archivo y pulsaba «Guardar cambios» —lo natural, si
+la ficha parece un formulario— guardaba los datos, **cerraba la ficha y el
+video se perdía**, porque el proceso nunca empezaba. No daba error ni aviso.
+
+Ya había un texto que lo advertía («Todavía no se ha subido: toca "Subir y
+convertir"») y el botón verde, y aun así le pasó al propio usuario. **Advertir no alcanzó: el botón que la gente pulsa por costumbre tenía que
+hacer lo que espera.**
+
+**Arreglo:** con un archivo elegido, el botón de guardar dice **«Guardar y subir
+video»** y hace las dos cosas —guarda primero, porque la subida necesita la foto
+ya en la base, y después sube, sin esperarla—. La ficha se queda abierta
+mientras sube y convierte. Si guardar falla, no se sube. «Subir y convertir»
+sigue ahí. Ver `docs/planesymodelos.md` §4.bis.
+
+## FM2 · Con la foto recién subida seguía diciendo «Sube primero una foto» · **Media**
+
+- [ ] En un PR abierto · #316 (se marca al mergear)
+
+En un producto guardado sin foto: se sube la foto, y la ficha dice «✓ Lista para
+guardar»; **justo debajo**, «Sube primero una foto del plato…» y, en otra línea,
+«Sube una foto del producto. La IA crea el video…». Dos veces lo contrario de lo
+que se ve.
+
+La regla detrás es correcta: el servidor mira la foto **guardada**, no la que
+está en pantalla. Lo que fallaba era el mensaje, que no distinguía «falta la
+foto» de «falta guardarla».
+
+**Arreglo:** con la foto pendiente dice «✓ Foto lista. Guarda el producto y
+ábrelo de nuevo: podrás subir un video o generarlo con IA a partir de ella.» Y
+los avisos de la IA, que hablaban de un botón escondido, dejan de verse en ese
+estado (siguen viéndose si hay una generación en marcha).
+
+## FM3 · La foto del plato anterior se quedaba puesta · **Media**
+
+- [ ] En un PR abierto · #316 (se marca al mergear)
+
+Se abre un producto con foto, se cierra y se abre uno **sin** foto: la
+previsualización conserva el `src` del primero, aunque no se vea. Quien mira la
+foto a través de ella —la nota de la proporción de la IA— decía «Tu foto es
+800×999 y esta carta es vertical…» en un plato sin foto, bajo «Sube primero una
+foto». `fichaTieneFoto()` ya lo sabía y miraba el dato; `hayFotoEnLaFicha()`,
+no.
+
+**Arreglo:** al abrir un plato sin foto (o uno nuevo) se suelta el `src`.
+
+## FM4 · «La actual sigue en la carta hasta que publiques» parecía valer para subir también · **Media**
+
+- [ ] En un PR abierto · #316 (se marca al mergear)
+
+La frase «Crea una versión nueva. La actual sigue en la carta hasta que revises y
+publiques la nueva.» estaba **bajo las dos tarjetas** (Subir y Regenerar). Solo
+es cierta para la IA: **un video subido reemplaza al actual en cuanto termina de
+convertir**, sin pasar por revisión. Quien sube uno nuevo podía creer que el
+anterior quedaba de respaldo.
+
+**Arreglo:** la frase vive dentro de la tarjeta de la IA.
+
+## FM5 · Guardar cierra la ficha, y los mensajes no lo decían · **Baja**
+
+- [ ] Pendiente · texto hecho en #316; el comportamiento es una decisión del usuario
+
+«Primero guarda el producto con su foto; después podrás subir un video» no decía
+que **guardar cierra la ficha** y hay que volver a abrir el producto, ir a
+Multimedia y seguir. Es un paso que nadie avisa.
+
+**Lo hecho:** los dos mensajes ahora dicen «…y ábrelo de nuevo».
+**Lo que queda:** dejar la ficha abierta al guardar un producto nuevo de una
+carta de video sería más cómodo, pero cambia el flujo de todos los productos y
+no se tocó.
+
+## FM6 · `planesymodelos.md` decía que subir un video no exige foto · **Baja**
+
+- [ ] En un PR abierto · #316 (se marca al mergear)
+
+§4.bis decía «**Subir un video NO exige foto**» y armaba la tabla sobre eso. Era
+un error de redacción: el usuario aclaró que la foto es obligatoria en los dos
+caminos, y el servidor la exige en los dos (`POST /api/video` y la de generar).
+Un comentario del código del 25/09/2026 («la foto va primero, igual en subir que
+en generar») ya decía lo correcto.
+
+**Corregido** el documento, distinguiendo el motivo: para generar, la foto es la
+entrada del modelo; para subir un video ya grabado es una regla de la casa, no
+una necesidad técnica. **No está escrito por qué se decidió así** para el video
+subido; si se quiere decirlo en la pantalla, hay que poner ese motivo.
+
+## Lo que está bien
+
+- **Sin plan de video, la sección no existe**: nada apagado, nada que explicar.
+- **Con la IA apagada, su tarjeta tampoco existe** (no «no disponible»): la regla
+  es coherente —lo que tu carta no hace, no aparece— y evita preguntas por algo
+  que se quitó a propósito.
+- **Un producto nuevo** dice qué hacer en vez de enseñar botones muertos.
+- **Con video puesto** la pregunta cambia a «¿Quieres cambiar el video?» y el
+  botón a «Regenerar con IA».
 
 ---
 ---

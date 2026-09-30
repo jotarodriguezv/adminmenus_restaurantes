@@ -886,6 +886,22 @@ al terminar la conversión. Por eso el aviso final dice «✓ Video guardado en 
 plato» y no «✓ Video listo», y la lista se repinta para que salga la portada:
 sin eso seguía la foto de antes y parecía que faltaba guardar.
 
+### Guardar con un video elegido lo sube
+
+**Decidido por el usuario el 30/09/2026**, tras perder un video él mismo: elegir
+un archivo no lo sube, y «Guardar cambios» guardaba los datos, cerraba la ficha y
+dejaba el video sin subir, sin avisar. Ahora `saveProduct` llama a
+`confirmarSubidaVideo()` **después** de guardar —la subida necesita la foto ya en
+la base— y **sin esperarla**, porque dura minutos y lo que sigue decide que la
+ficha se queda abierta (`state.subiendoVideo`). El botón lo dice: «Guardar y subir
+video» (`etiquetaGuardarProducto`). Si guardar falla, no se sube.
+
+Va con tres arreglos del mismo repaso (ver «Ficha de producto» en
+`docs/revision-ux.md`): con la foto recién subida la ficha ya no pide «sube
+primero una foto»; un plato sin foto ya no hereda la del anterior; y la frase
+«la actual sigue en la carta hasta que publiques» vive en la tarjeta de la IA,
+porque un video subido reemplaza al actual en cuanto convierte.
+
 ### Ocho diálogos del navegador sin unificar
 
 **Hecho el 18/09/2026, decidido con el equipo:** se usa la ventana del panel,
