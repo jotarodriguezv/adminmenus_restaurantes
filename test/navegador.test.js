@@ -629,6 +629,7 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 			style: {}, textContent: '', value: '', disabled: false,
 			classList: { add() {}, remove() {} },
 			removeAttribute(n) { delete this[n]; },
+			setAttribute(n, v) { this[n] = v; },
 			load() {},
 		};
 		return mapa;
@@ -642,9 +643,9 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		const ctx = cargar('index.html', [
 			['function formatoDeLaCarta', 'function idPlanActual'],
 			['// Los trabajos de conversión del restaurante.', '// Elegir el archivo ya no lo sube'],
-			// pintarMiniaturaVideo(): la miniatura clicable del video ya guardado.
+			// pintarVideoGuardado(): el reproductor con el video ya guardado.
 			// De verdad y no un doble, por lo mismo que formatoDeLaCarta arriba.
-			['function pintarMiniaturaVideo', 'function ampliarVideoPlato'],
+			['function pintarVideoGuardado', '// ── IMÁGENES ADICIONALES'],
 		], {
 				clearInterval() {},
 				planActual: () => ({ videos }),
@@ -887,10 +888,10 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		assert.equal(m.videoEditPreview.style.display, 'none');
 	});
 
-	// ── LA MINIATURA: TARJETA COMPACTA EN VEZ DEL REPRODUCTOR ─────
-	// Pedido en el diagnóstico de UX. pintarMiniaturaVideo() (llamada desde
-	// aquí dentro) es la que pone poster y duración; estas pruebas comprueban
-	// lo que pintarVideoPlato le pasa, no reinventan sus propias.
+	// ── EL VIDEO GUARDADO: EL MISMO REPRODUCTOR QUE AL ELEGIRLO ───
+	// pintarVideoGuardado() (llamada desde aquí dentro) es la que pone poster,
+	// controles y duración; estas pruebas comprueban lo que pintarVideoPlato le
+	// pasa, no reinventan sus propias.
 	const url = 'https://ejemplo.test/uploads/videos/a.mp4';
 
 	test('un video subido dice su duración fija: 8 s', () => {
@@ -931,44 +932,44 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-describe('ampliarVideoPlato · ver el video guardado a tamaño completo', () => {
-	// Calcado de ampliarFotoPlato/cerrarFotoAmpliada (PR #227): la miniatura
-	// de la ficha abre el video grande en su propia ventana, aparte de
-	// productModal para que un clic fuera no cierre también la ficha.
-	const montar = (srcMiniatura = '') => {
-		const campos = {
-			videoEditPreview: { src: srcMiniatura, poster: '' },
-			videoAmpliadoEl: { src: '', poster: '', removeAttribute(n) { delete this[n]; }, pause() {}, load() {} },
-			videoAmpliadoModal: { classList: { add() {}, remove() {} } },
-		};
-		const ctx = cargar('index.html', 'function ampliarVideoPlato', '// ── IMÁGENES ADICIONALES', {
+describe('El video guardado se ve del tamaño del reproductor, no como miniatura', () => {
+	// 30/09/2026, pedido por el usuario: con el video ya guardado la ficha
+	// enseñaba una miniatura de 90 px que abría una ventana aparte, y mientras se
+	// elegía un archivo, el reproductor grande. «Lo detesto»: el video se ve en la
+	// ficha, igual en los dos momentos. El tamaño lo decide el modelo de la carta
+	// (ajustarFichaAlModelo) y no el estado del video.
+	const panel = codigoDelPanel();
+	const estilos = fs.readFileSync(path.join(PUBLIC, 'panel.css'), 'utf8');
+
+	const montar = () => {
+		const prev = { style: {}, setAttribute(n, v) { this[n] = v; }, removeAttribute(n) { delete this[n]; } };
+		const campos = { videoEditPreview: prev, videoEditDuracion: { style: {}, textContent: '' } };
+		const ctx = cargar('index.html', 'function pintarVideoGuardado', '// ── IMÁGENES ADICIONALES', {
 			document: { getElementById: id => campos[id] },
+			trabajoListoDe: () => null,
 		});
-		return { ctx, campos };
+		return { ctx, prev };
 	};
 
-	test('sin video en la miniatura, no abre nada', () => {
-		const { ctx, campos } = montar('');
-		ctx.ampliarVideoPlato();
-		assert.equal(campos.videoAmpliadoEl.src, '');
+	test('lo pinta con controles, su portada de poster y sin nada que lo encoja ni lo haga clicable', () => {
+		const { ctx, prev } = montar();
+		ctx.pintarVideoGuardado({ id: 'p1', atributos: { video: { url: 'https://e.test/a.mp4', portada: 'https://e.test/p.jpg' } } }, 'https://e.test/a.mp4');
+		assert.equal(prev.src, 'https://e.test/a.mp4');
+		assert.equal(prev.poster, 'https://e.test/p.jpg');
+		assert.equal(prev.controls, '', 'con controles nativos: reproducir, pausar, pantalla completa');
+		assert.equal(prev.style.display, 'block');
+		assert.equal(prev.onclick, undefined, 'ya no abre una ventana aparte');
+		assert.equal(prev.classList, undefined, 'y no le pone la clase de miniatura');
 	});
 
-	test('con video, copia el src y el poster a la ventana grande', () => {
-		const { ctx, campos } = montar('https://ejemplo.test/a.mp4');
-		campos.videoEditPreview.poster = 'https://ejemplo.test/portada.jpg';
-		ctx.ampliarVideoPlato();
-		assert.equal(campos.videoAmpliadoEl.src, 'https://ejemplo.test/a.mp4');
-		assert.equal(campos.videoAmpliadoEl.poster, 'https://ejemplo.test/portada.jpg');
+	test('la miniatura y su ventana de ampliar ya no existen en el panel', () => {
+		assert.doesNotMatch(panel, /video-mini|pintarMiniaturaVideo|ampliarVideoPlato|videoAmpliadoModal/);
+		assert.doesNotMatch(estilos, /video-mini/);
 	});
 
-	test('cerrar para la reproducción y suelta el archivo', () => {
-		const { ctx, campos } = montar('https://ejemplo.test/a.mp4');
-		ctx.ampliarVideoPlato();
-		let pausado = false;
-		campos.videoAmpliadoEl.pause = () => { pausado = true; };
-		ctx.cerrarVideoAmpliado();
-		assert.equal(pausado, true);
-		assert.equal(campos.videoAmpliadoEl.src, undefined);
+	test('el reproductor conserva un tamaño base en CSS, que el modelo de la carta ajusta', () => {
+		assert.match(estilos, /#videoEditPreview\{width:100%;aspect-ratio:16\/9;/);
+		assert.match(panel, /previa\.style\.maxHeight\s*=\s*vertical \? '340px'/);
 	});
 });
 
