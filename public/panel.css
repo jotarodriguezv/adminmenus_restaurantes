@@ -661,11 +661,24 @@ select.form-input{padding-right:42px;}
 .tv-pantalla-url{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:5px;font-family:var(--mono);font-size:9px;color:var(--text-dim);}
 .tv-pantallas-nota{margin:0 0 18px;font-size:11px;line-height:1.5;color:var(--text-dim);}
 @media(max-width:620px){.tv-pantallas{grid-template-columns:1fr;}.tv-pantalla{padding:11px 12px;}.tv-pantalla-url{font-size:10px;}}
-.tv-opcion{display:grid;grid-template-columns:40px minmax(180px,300px) minmax(0,1fr);align-items:start;column-gap:10px;}
-.tv-opcion>.toggle{grid-column:1;grid-row:1;align-self:start;margin-top:1px;}
-.tv-opcion>span{grid-column:2;grid-row:1;padding-top:1px;}
-.tv-opcion>.tv-opcion-ayuda{grid-column:3;grid-row:1;margin:1px 0 0!important;}
-@media(max-width:760px){.tv-opcion{grid-template-columns:40px minmax(0,1fr);row-gap:6px;}.tv-opcion>.tv-opcion-ayuda{grid-column:2;grid-row:2;margin:0!important;}}
+/* Las opciones de Diseño comparten tres columnas. Centrar cada pieza evita que
+   un título o una ayuda de dos líneas empuje el interruptor hacia arriba y
+   haga que parezcan controles de filas distintas. */
+.tv-opcion{display:grid;grid-template-columns:40px minmax(180px,300px) minmax(0,1fr);align-items:center;column-gap:10px;}
+.tv-opcion>.toggle{grid-column:1;grid-row:1;align-self:center;margin:0;}
+.tv-opcion>span{grid-column:2;grid-row:1;padding:0;line-height:1.4;}
+.tv-opcion>.tv-opcion-ayuda{grid-column:3;grid-row:1;align-self:center;margin:0!important;}
+/* El selector no tiene interruptor, pero conserva su primera columna vacía:
+   así su título y su campo empiezan exactamente donde empiezan las demás
+   etiquetas, y la explicación sigue usando la misma tercera columna. */
+.tv-opcion-select>label{grid-column:2;grid-row:1;margin:0!important;line-height:1.35;}
+.tv-opcion-select>select{grid-column:2;grid-row:2;width:100%;margin-top:7px;}
+.tv-opcion-select>.tv-opcion-ayuda{grid-column:3;grid-row:1 / span 2;}
+@media(max-width:760px){
+  .tv-opcion{grid-template-columns:40px minmax(0,1fr);row-gap:6px;}
+  .tv-opcion>.tv-opcion-ayuda{grid-column:2;grid-row:2;margin:0!important;}
+  .tv-opcion-select>.tv-opcion-ayuda{grid-column:2;grid-row:3;}
+}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .form-check{display:flex;align-items:center;gap:10px;padding:10px 0;}
 .form-ayuda{font-size:11px;color:var(--text-dim);line-height:1.5;margin:-2px 0 7px;}
