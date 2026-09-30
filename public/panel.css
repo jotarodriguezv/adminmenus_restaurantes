@@ -803,6 +803,19 @@ select.form-input{padding-right:42px;}
 .video-caminos-titulo{font-size:13px;color:var(--text);margin:12px 0 10px;}
 .video-caminos{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;}
 .video-camino{border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px;}
+/* «Subir y convertir» con un archivo elegido y sin subir (30/09/2026, pedido por
+   el usuario). Pintarlo de verde no alcanzaba: elegir el archivo parece el final
+   y se cerraba la ficha sin subir nada. Más grande, con brillo y un aro que late.
+   Los !important son porque el botón lleva su tamaño escrito en el propio HTML.
+   El latido se apaga al empezar la subida (el botón se deshabilita) y con
+   prefers-reduced-motion, que ya lo recorta todo más abajo. */
+#btnConfirmarVideo.subir-pendiente{position:relative;padding:8px 18px!important;font-size:11px!important;font-weight:700;
+  filter:drop-shadow(0 0 7px var(--success));}
+#btnConfirmarVideo.subir-pendiente::after{content:'';position:absolute;inset:-3px;border-radius:9px;
+  border:2px solid var(--success);opacity:0;pointer-events:none;animation:subir-pendiente-aro 1.4s ease-out infinite;}
+#btnConfirmarVideo.subir-pendiente:disabled{filter:none;}
+#btnConfirmarVideo.subir-pendiente:disabled::after{animation:none;opacity:0;}
+@keyframes subir-pendiente-aro{0%{opacity:.95;transform:scale(1);}100%{opacity:0;transform:scale(1.16,1.5);}}
 .video-camino-boton{padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;
   color:var(--text);font-family:var(--mono);font-size:10px;letter-spacing:1px;cursor:pointer;text-align:left;}
 .video-camino-boton:hover:not(:disabled){border-color:var(--accent);}

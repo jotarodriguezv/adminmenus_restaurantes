@@ -742,6 +742,14 @@ describe('pintarVideoPlato · la subida de video depende del plan', () => {
 		assert.equal(m.btnConfirmarVideo.style.background, 'transparent');
 	});
 
+	test('y deja de latir: abrir otro plato no hereda el resaltado', () => {
+		const quitadas = [];
+		const m = pantalla();
+		m.btnConfirmarVideo.classList = { add() {}, remove: c => quitadas.push(c) };
+		pintar(true, { id: 'p1' }, m);
+		assert.deepEqual(quitadas, ['subir-pendiente']);
+	});
+
 	test('y el de elegir recupera su nombre', () => {
 		const m = pantalla();
 		m.btnSubirVideo.textContent = '🎬 Cambiar archivo';
@@ -9630,6 +9638,32 @@ describe('guardar con un video elegido · se sube al guardar, y no se pierde', (
 			ctx.actualizarEtiquetaGuardar();
 			assert.equal(mapa.btnSaveProduct.textContent, 'Guardando...');
 		});
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('«Subir y convertir» late mientras hay un archivo elegido y sin subir', () => {
+	// 30/09/2026, pedido por el usuario. Pintarlo de verde no alcanzaba: elegir el
+	// archivo parece el final, y se siguió cerrando la ficha sin subir nada.
+	const fuente = codigoDelPanel();
+	const estilos = fs.readFileSync(path.join(PUBLIC, 'panel.css'), 'utf8');
+
+	test('al elegir el archivo, el botón recibe la clase que lo resalta', () => {
+		const elegir = fuente.match(/function prepararVideoElegido\(input\) \{[\s\S]*?\n\}/)[0];
+		assert.match(elegir, /conf\.classList\.add\('subir-pendiente'\)/);
+	});
+
+	test('al empezar la subida se le quita', () => {
+		const subir = fuente.match(/async function confirmarSubidaVideo\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(subir, /btn\.classList\?\.remove\('subir-pendiente'\)/);
+	});
+
+	test('el latido existe en CSS, se apaga con el botón deshabilitado y no depende de moverse', () => {
+		assert.match(estilos, /#btnConfirmarVideo\.subir-pendiente::after\{[^}]*animation:subir-pendiente-aro/);
+		assert.match(estilos, /#btnConfirmarVideo\.subir-pendiente:disabled::after\{animation:none/);
+		assert.match(estilos, /@keyframes subir-pendiente-aro/);
+		// Lo recorta el bloque general de prefers-reduced-motion: debe seguir ahí.
+		assert.match(estilos, /prefers-reduced-motion:reduce\)\{\s*\*,\*::before,\*::after\{animation-duration:\.01ms!important;animation-iteration-count:1!important/);
 	});
 });
 

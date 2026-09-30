@@ -4321,6 +4321,7 @@ function pintarVideoPlato(p) {
 	conf.style.display = 'none';
 	conf.style.background = 'transparent';
 	conf.style.color = 'var(--success)';
+	conf.classList.remove('subir-pendiente');
 	btn.textContent = '🎬 Subir un video';
 
 	// Si su última conversión falló, decirlo aquí y ofrecer descartarla. El
@@ -4581,6 +4582,11 @@ function prepararVideoElegido(input) {
 	conf.style.display = 'inline-block';
 	conf.style.background = 'var(--success)';
 	conf.style.color = 'var(--on-accent)';
+	// Y late, para que no se pase por alto (30/09/2026, pedido por el usuario):
+	// pintarlo de verde no bastaba, y se siguió perdiendo gente entre elegir el
+	// archivo y subirlo. El latido se apaga solo al empezar la subida
+	// (.subir-pendiente:disabled, en panel.css).
+	conf.classList.add('subir-pendiente');
 
 	// El de elegir pasa a ser el de cambiar: ya se eligió, y llamarlo igual
 	// que antes invita a pulsarlo creyendo que es el que continúa.
@@ -4841,6 +4847,7 @@ async function confirmarSubidaVideo() {
 		// por la definitiva.
 		document.getElementById('videoDesdeFila').style.display = 'none';
 		btn.style.display = 'none';
+		btn.classList?.remove('subir-pendiente');
 		videoElegido = null;
 		document.getElementById('videoFileInput').value = '';
 		if (typeof actualizarEtiquetaGuardar === 'function') actualizarEtiquetaGuardar();
