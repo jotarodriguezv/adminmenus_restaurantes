@@ -2045,6 +2045,7 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvCinta4: { value: '' }, tvCintaPos4: { value: 'arriba' },
 			tvCinta5: { value: '' }, tvCintaPos5: { value: 'arriba' },
 			tvVelocidadCintas: { value: 'normal' },
+			tvSeparadorCintas: { value: 'estrella' },
 			tvReloj: { checked: !!opciones.reloj },
 			tvRespetarHorarios: { checked: opciones.respetarHorarios !== false },
 			tvProgramaciones: { innerHTML: '', appendChild() {} },
@@ -2217,6 +2218,12 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		const { ctx, campos } = montar();
 		campos.tvVelocidadCintas.value = 'rapida';
 		assert.equal(ctx.tvDelFormulario().velocidad_cintas, 'rapida');
+	});
+
+	test('guarda el separador elegido para las cintas', () => {
+		const { ctx, campos } = montar();
+		campos.tvSeparadorCintas.value = 'ninguno';
+		assert.equal(ctx.tvDelFormulario().separador_cintas, 'ninguno');
 	});
 
 	test('guarda si los productos sin foto deben salir como lista', () => {

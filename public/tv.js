@@ -21,7 +21,7 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          productos: [], aleatorio: false, animacion: 'suave',
 							 mostrar_categoria: false, color_categoria: 'oscuro',
 							 tema: 'oscuro', mostrar_descripcion: false, mostrar_sin_foto_lista: false,
-                         cintas: [], velocidad_cintas: 'normal', reloj: false,
+                         cintas: [], velocidad_cintas: 'normal', separador_cintas: 'estrella', reloj: false,
                          // Por defecto SÍ, que es lo que hacía la cartelera
                          // antes de existir esta clave.
                          respetar_horarios: true,
@@ -172,6 +172,8 @@ function renderTV() {
   }
   document.getElementById('tvVelocidadCintas').value =
     ['lenta', 'normal', 'rapida'].includes(cfg.velocidad_cintas) ? cfg.velocidad_cintas : 'normal';
+  document.getElementById('tvSeparadorCintas').value =
+    ['estrella', 'punto', 'barra', 'ninguno'].includes(cfg.separador_cintas) ? cfg.separador_cintas : 'estrella';
   document.getElementById('tvReloj').checked = !!cfg.reloj;
   // '!== false' y no '!!': quien no tenga la clave guardada tiene que salir
   // encendido, que es lo que su cartelera lleva haciendo desde siempre.
@@ -1236,6 +1238,7 @@ function tvDelFormulario() {
 			personas_solo_icono: document.getElementById('tvPersonasSoloIcono').checked,
     cintas: tvCintasDelFormulario(),
     velocidad_cintas: document.getElementById('tvVelocidadCintas').value,
+    separador_cintas: document.getElementById('tvSeparadorCintas').value,
     reloj: document.getElementById('tvReloj').checked,
     respetar_horarios: document.getElementById('tvRespetarHorarios').checked,
     programaciones: tvProgramacionesParaGuardar(),

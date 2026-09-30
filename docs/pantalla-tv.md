@@ -255,8 +255,9 @@ lo elimina: un computador conectado por HDMI puede quedarse encendido días.
   pequeña quita espacio a las fotos y deja de leerse desde las mesas.
 - Puede haber hasta **cinco cintas de aviso**, cada una arriba o abajo. Se
   desplazan continuamente, se agrupan por franja y su velocidad puede ser lenta,
-  normal o rápida; no son pantallas del ciclo ni cambian su duración. El reloj
-  con fecha es también opcional y toma la zona horaria del restaurante.
+  normal o rápida; el separador entre mensajes puede ser estrella (por defecto),
+  punto, barra o ninguno. No son pantallas del ciclo ni cambian su duración. El
+  reloj con fecha es también opcional y toma la zona horaria del restaurante.
 - **Se respetan los horarios de categoría** si el plan los incluye. Un
   restaurante que esconde los desayunos a las 4 de la tarde no querría verlos
   en la pantalla de la sala.
