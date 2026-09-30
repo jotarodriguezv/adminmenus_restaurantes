@@ -2296,10 +2296,10 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		assert.equal(campos.tvFormatoPersonas.disabled, true);
 	});
 
-	test('la preferencia anterior de solo icono se lee como número destacado', () => {
+	test('la preferencia anterior de solo icono se conserva como icono solo', () => {
 		const { ctx, campos } = montar({ guardado: { personas_solo_icono: true } });
 		ctx.renderTV();
-		assert.equal(campos.tvFormatoPersonas.value, 'numero');
+		assert.equal(campos.tvFormatoPersonas.value, 'icono');
 	});
 
 	test('no deja encender una cartelera que no enseñaría nada', async () => {

@@ -854,10 +854,10 @@ mostrar = mostrar_personas !== false && (personas > 1 || mostrar_personas_uno ==
 
 **Formato junto al precio (30/09/2026).** La información ya no se coloca
 debajo del precio, ni se ofrece el icono solo. El panel permite elegir
-`icono_frase` («ícono + Para 3 personas»), `frase` o `numero`. Este último es
+`icono_frase` («ícono + 3 personas»), `frase`, `icono` o `numero`. Este último es
 una insignia cuadrada con la cifra —sin icono—, alineada con el precio para que
 se lea desde lejos. La antigua clave `personas_solo_icono: true` se interpreta
-como `numero` al abrir y al pintar la pantalla; así ningún restaurante queda
+como `icono` al abrir y al pintar la pantalla; así ningún restaurante queda
 con un formato retirado.
 
 **Por qué se cuenta el intento fallido.** `sql/19` cierra lo que abre `sql/18`

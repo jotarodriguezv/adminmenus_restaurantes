@@ -39,8 +39,8 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          // que no cumplía su propósito (visto en la pantalla de un
                          // cliente). En false: no le cambia la pantalla a nadie que
                          // no lo pida.
-                         // Formas de enseñar el dato: el icono acompañado de frase,
-                         // solo la frase o una cifra grande junto al precio.
+                         // Formas de enseñar el dato: icono y frase, frase, icono
+                         // solo o una cifra grande junto al precio.
                          formato_personas: 'icono_frase',
                          // Compatibilidad de lectura: la versión anterior guardaba
                          // este booleano. Al encontrarlo se convierte a número.
@@ -291,13 +291,12 @@ function tvAlternarDescripcion() {
 }
 
 function tvFormatoPersonasDe(cfg) {
-  if (['icono_frase', 'frase', 'numero'].includes(cfg.formato_personas)) {
+  if (['icono_frase', 'frase', 'icono', 'numero'].includes(cfg.formato_personas)) {
     return cfg.formato_personas;
   }
   // Quien hubiera elegido el antiguo «solo icono» recibe el sucesor más
-  // informativo: el número destacado. No se pierde su decisión de no usar
-  // frase y tampoco se conserva un icono que ya no se ofrece.
-  return cfg.personas_solo_icono ? 'numero' : 'icono_frase';
+  // equivalente: el icono solo. No se pierde la decisión de no usar frase.
+  return cfg.personas_solo_icono ? 'icono' : 'icono_frase';
 }
 
 // Los otros controles solo tienen sentido con este encendido: con la nota
