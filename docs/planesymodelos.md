@@ -188,16 +188,23 @@ modal se construya contra estas reglas y no contra una conversación.
 | Plan Video | **sí** | **sí** |
 | IA encendida y con cupo | no | **sí** |
 | El plato ya guardado | **sí** | **sí** |
-| El plato con foto | **no** | **sí** |
+| El plato con foto guardada | **sí** | **sí** |
 
-**Subir un video NO exige foto.** Exige que el plato exista, porque el trabajo
-de conversión se cuelga de su identificador. Son cosas distintas y se
-confundían: un restaurante que llega con video profesional puede tener platos
-solo con video, y la carta funciona — el video trae su propia portada, sacada
-por ffmpeg del propio video.
+**Las dos exigen una foto guardada, y siempre fue así.** Hasta el 30/09/2026
+este documento decía lo contrario —«subir un video NO exige foto»— y era un
+error de redacción: el usuario lo aclaró, y el servidor lo exige igual en las
+dos rutas (`POST /api/video` y la de generar con IA). Subir exige además que el
+plato exista, porque el trabajo de conversión se cuelga de su identificador.
 
-Generar sí exige foto, y no es un requisito administrativo: **la foto es la
-entrada del modelo**. Sin ella no hay nada que animar.
+Para generar, la foto no es un requisito administrativo: **es la entrada del
+modelo**, sin ella no hay nada que animar. Para subir un video ya grabado es una
+regla de la casa —«la foto va primero», decidido el 25/09/2026— y no una
+necesidad técnica: el video trae su propia portada, sacada por ffmpeg.
+
+**Foto guardada quiere decir guardada.** Una foto recién subida a la ficha, pero
+sin pulsar «Guardar», todavía no cuenta: el servidor mira la base, no la pantalla.
+El panel lo dice («✓ Foto lista. Guarda el producto y ábrelo de nuevo…») en vez
+de seguir pidiendo la foto.
 
 ### La IA sigue exigiendo plan Video, a propósito
 
@@ -231,6 +238,21 @@ No hay versiones. El historial vive en `trabajos_video`, y la vuelta atrás es
 el master: quitar un video lo deja guardado y "volver a poner" lo recupera
 reconvirtiendo. Soportar varias versiones por plato sería otro producto.
 
+### Un video elegido se sube al guardar (30/09/2026)
+
+Elegir un archivo no lo sube: antes había que tocar «Subir y convertir», y quien
+pulsaba «Guardar cambios» sin hacerlo guardaba los datos, cerraba la ficha **y
+perdía el video sin un aviso**. Le pasó al propio usuario y era el peor fallo de
+la ficha.
+
+Ahora, con un archivo elegido, el botón de guardar dice **«Guardar y subir
+video»** y hace las dos cosas: primero guarda los datos —y la foto, que la
+subida necesita ya en la base— y después empieza la subida. La ficha se queda
+abierta mientras sube y convierte, como con cualquier video en marcha. «Subir y
+convertir» sigue existiendo para quien quiera subirlo sin guardar el resto.
+
+Si guardar falla, el video **no** se sube y sigue elegido.
+
 ### La regla que ordena la ficha
 
 > **La IA no desaparece nunca por el estado del plato. Solo desaparece cuando
@@ -248,8 +270,8 @@ superadmin decide. Está en la sección 4.
 | Estado del plato | Acción principal | La IA |
 |---|---|---|
 | Sin guardar | — | Apagada: *guarda el plato primero* |
-| Guardado, sin foto | **Elegir video** | Apagada: *sube una foto, es de donde sale el video* |
-| Con foto, sin video | **Elegir video** | Visible: *✨ Generar con IA* |
+| Guardado, sin foto | — *(sube una foto y guarda)* | Sin caminos: el mensaje de arriba explica qué falta |
+| Con foto guardada, sin video | **Elegir video** | Visible: *✨ Generar con IA* |
 | Archivo elegido, sin subir | **Subir y convertir** | Se repliega, no desaparece |
 | Subiendo o convirtiendo | Solo el progreso | Apagada |
 | Generado, sin revisar | Publicar / Descartar | El bloque de revisión |

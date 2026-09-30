@@ -2051,8 +2051,8 @@
 						     hacer para llegar a ellos. -->
 						<div id="videoNuevo" class="video-nuevo" style="display:none">
 							Esta carta permite que tus productos tengan video. Primero guarda el
-							producto con su foto; después podrás subir un video o generarlo con IA
-							a partir de esa foto.
+							producto con su foto y ábrelo de nuevo: después podrás subir un video o
+							generarlo con IA a partir de esa foto.
 						</div>
 						<div id="zonaVideo" style="border:1px solid var(--border);border-radius:8px;padding:12px;">
 							<!-- El reproductor, a tamaño completo y con controles, tanto con el video ya
@@ -2148,8 +2148,8 @@
 							     saberlo. Reemplaza a videoCaminos y no a zonaVideo entero: un video
 							     que YA existe se sigue viendo arriba. Ver pintarCaminosVideo(). -->
 							<div id="videoSinFoto" class="video-nuevo" style="display:none">
-								Sube primero una foto del plato: podrás subir un video o generarlo con
-								IA a partir de ella.
+								Sube primero una foto del plato y guarda el producto: después podrás
+								subir un video o generarlo con IA a partir de ella.
 							</div>
 							<div id="videoCaminos">
 								<div id="videoCaminosTitulo" class="video-caminos-titulo">¿Quieres añadir un video a este producto?</div>
@@ -2169,6 +2169,10 @@
 										<button type="button" id="btnGenerarIA" class="video-camino-boton video-camino-ia" onclick="generarConIA()">✨ Generar video con IA</button>
 										<div class="video-camino-detalle">Un video de 6 segundos a partir de la foto del producto</div>
 										<div id="iaCupo" class="video-camino-detalle"></div>
+										<!-- Solo vale para la IA: un video subido reemplaza al actual en cuanto
+										     termina de convertir. Antes vivía bajo las dos tarjetas y parecía
+										     valer para las dos. -->
+										<div id="iaRegenerarNota" class="video-camino-detalle"></div>
 									</div>
 								</div>
 							</div>
@@ -3699,6 +3703,7 @@ function openNewProductModal() {
 	contarCaracteres('editDescAvanzada','editDescAvanzadaContador');
 	document.getElementById('editDisponible').checked=true;
 	document.getElementById('editDisponibleLabel').textContent='Disponible';
+	document.getElementById('imgEditPreview').removeAttribute('src');
 	document.getElementById('imgEditPreview').style.display='none';
 	document.getElementById('imgEditPlaceholder').style.display='flex';
 	document.getElementById('btnQuitarFoto').style.display='none';
@@ -3974,6 +3979,10 @@ function openEditProductModal(id) {
 		btnQuitar.style.display='block';
 		btnAmpliar.style.display='flex';
 	} else {
+		// Sin quitar el src, la previsualización conserva la foto del plato
+		// anterior aunque no se vea, y lo que mira la foto por ella (la nota de
+		// la proporción de la IA) habla de una foto que este plato no tiene.
+		prev.removeAttribute('src');
 		prev.style.display='none'; ph.style.display='flex';
 		btnQuitar.style.display='none';
 		btnAmpliar.style.display='none';
@@ -4293,6 +4302,7 @@ function pintarVideoPlato(p) {
 	// otro plato — es lo que mantiene al día state.productos.
 	soltarPrevia();
 	videoElegido = null;
+	if (typeof actualizarEtiquetaGuardar === 'function') actualizarEtiquetaGuardar();
 
 	const prev  = document.getElementById('videoEditPreview');
 	const vacio = document.getElementById('videoEditVacio');
@@ -4474,7 +4484,28 @@ function pintarCaminosVideo() {
 	const sinFoto = !!id && !p?.imagen_url;
 	caja.style.display = (ocupado || sinFoto) ? 'none' : '';
 	const sinFotoDiv = document.getElementById('videoSinFoto');
-	if (sinFotoDiv) sinFotoDiv.style.display = (!ocupado && sinFoto) ? 'block' : 'none';
+	if (sinFotoDiv) {
+		sinFotoDiv.style.display = (!ocupado && sinFoto) ? 'block' : 'none';
+		// Con la foto ya subida pero sin guardar, «sube primero una foto» es
+		// mentira: está ahí, y justo encima dice «Lista para guardar». Lo que
+		// falta es guardar, y como guardar cierra la ficha, hay que decir que
+		// se vuelve a abrir (30/09/2026).
+		const fotoLista = !!state.pendingImgUrl && state.pendingImgUrl !== '__remove__';
+		sinFotoDiv.textContent = fotoLista
+			? '✓ Foto lista. Guarda el producto y ábrelo de nuevo: podrás subir un video o generarlo con IA a partir de ella.'
+			: 'Sube primero una foto del plato y guarda el producto: después podrás subir un video o generarlo con IA a partir de ella.';
+	}
+	// Los avisos de la IA hablan de un botón que aquí no se ve. El de «sube una
+	// foto del producto» decía lo mismo que el mensaje de arriba, y con la foto
+	// ya subida lo contradecía. Con algo en marcha sí se ven: la barra de la
+	// generación vive ahí. Al volver a haber caminos, vuelven a mandar los de
+	// su bloque (ajustarFichaAlModelo).
+	const avisosIA = document.getElementById('iaAvisos');
+	if (avisosIA) {
+		avisosIA.style.display = (!ocupado && sinFoto)
+			? 'none'
+			: (document.getElementById('iaBloque')?.style.display ?? 'none');
+	}
 	const titulo = document.getElementById('videoCaminosTitulo');
 	if (titulo) titulo.textContent = tieneVideoPuesto(id)
 		? '¿Quieres cambiar el video de este producto?'
@@ -4553,8 +4584,9 @@ function prepararVideoElegido(input) {
 	// Y se dice con todas las letras, porque el nombre del archivo en pantalla
 	// es justo lo que hace creer que ya subió.
 	const st = document.getElementById('videoUploadStatus');
-	st.textContent = `Elegiste ${file.name}. Todavía no se ha subido: toca «Subir y convertir».`;
+	st.textContent = `Elegiste ${file.name}. Todavía no se ha subido: toca «Subir y convertir», o guarda el producto y se sube con él.`;
 	st.style.color = 'var(--warn)';
+	if (typeof actualizarEtiquetaGuardar === 'function') actualizarEtiquetaGuardar();
 
 	// La IA se repliega mientras haya un archivo a medias. No desaparece —eso
 	// solo lo hace el interruptor del superadmin— pero deja de competir con
@@ -4806,6 +4838,7 @@ async function confirmarSubidaVideo() {
 		btn.style.display = 'none';
 		videoElegido = null;
 		document.getElementById('videoFileInput').value = '';
+		if (typeof actualizarEtiquetaGuardar === 'function') actualizarEtiquetaGuardar();
 		// Antes de vigilar y antes del finally que baja state.subiendoVideo: así
 		// no hay un instante entre subida y conversión en que la ficha se deje
 		// cerrar.
@@ -4841,6 +4874,7 @@ async function confirmarSubidaVideo() {
 		btn.disabled = false;
 		state.subiendoVideo = false;
 		pintarCaminosVideo();
+		if (typeof actualizarEtiquetaGuardar === 'function') actualizarEtiquetaGuardar();
 	}
 }
 
@@ -5009,6 +5043,7 @@ async function handleProductImgUpload(input) {
     document.getElementById('btnQuitarFoto').style.display='block';
     document.getElementById('btnAmpliarFoto').style.display='flex';
     pintarSinFoto();
+    if (typeof pintarCaminosVideo === 'function') pintarCaminosVideo();
     st.textContent='✓ Lista para guardar'; st.style.color='var(--success)';
   } catch(e) { st.textContent=e.message||'Error al subir'; st.style.color='var(--danger)'; }
 }
@@ -5184,6 +5219,7 @@ function quitarFoto() {
 	document.getElementById('btnQuitarFoto').style.display='none';
 	document.getElementById('btnAmpliarFoto').style.display='none';
 	pintarSinFoto();
+	if (typeof pintarCaminosVideo === 'function') pintarCaminosVideo();
 	const st=document.getElementById('imgUploadStatus');
 	st.textContent='Foto eliminada al guardar'; st.style.color='var(--warn)';
 
@@ -5485,6 +5521,8 @@ async function refrescarCupoIA() {
 	// del anterior, que es peor que no decir nada.
 	const razonAlEmpezar = document.getElementById('iaMotivo');
 	if (razonAlEmpezar) razonAlEmpezar.textContent = '';
+	const notaRegenerar = document.getElementById('iaRegenerarNota');
+	if (notaRegenerar) notaRegenerar.textContent = '';
 
 	// La etiqueta depende solo de si el plato tiene video, así que se decide
 	// una vez y fuera de las ramas de cupo: un botón agotado o sin cupo tiene
@@ -5581,7 +5619,7 @@ async function refrescarCupoIA() {
 			// que es donde están los clientes.
 			const MOTIVOS = {
 				'sin-guardar':     'Primero guarda el producto. Después podrás generarle el video: cada video queda asociado a un producto.',
-				'archivo-elegido': 'Termina primero con el video que elegiste: súbelo y conviértelo.',
+				'archivo-elegido': 'Termina primero con el video que elegiste: súbelo y conviértelo, o guarda el producto y se sube con él.',
 				'sin-foto':    'Sube una foto del producto. La IA crea el video a partir de esa foto.',
 				// La proporción ya se explica en 'iaEncaje', con el detalle de
 				// a cuánto habría que recortarla. Repetirlo aquí sería decir
@@ -5614,10 +5652,13 @@ async function refrescarCupoIA() {
 				// esconderla quitaría de la vista algo que se usa para vender
 				// el plan, delante de quien lo contrató.
 				if (razon) {
-					razon.textContent = tieneVideoPuesto(productoId)
+					razon.textContent = '';
+					razon.style.color = 'var(--text-muted)';
+				}
+				if (notaRegenerar) {
+					notaRegenerar.textContent = tieneVideoPuesto(productoId)
 						? 'Crea una versión nueva. La actual sigue en la carta hasta que revises y publiques la nueva.'
 						: '';
-					razon.style.color = 'var(--text-muted)';
 				}
 			}
 		} else {
@@ -5912,6 +5953,9 @@ function ajustarFichaAlModelo() {
 		bloqueIA.style.display = esVideo && !apagada ? '' : 'none';   // '' y no 'block': es una tarjeta flex
 		const avisosIA = document.getElementById('iaAvisos');
 		if (avisosIA) avisosIA.style.display = bloqueIA.style.display;
+		// Corre después de pintarVideoPlato al abrir la ficha, y lo de arriba
+		// volvería a enseñar los avisos de un plato sin foto.
+		if (typeof pintarCaminosVideo === 'function') pintarCaminosVideo();
 		if (esVideo) refrescarCupoIA();
 	}
 
@@ -6343,7 +6387,7 @@ async function saveProduct() {
 		pintarErroresFicha(errores);
 		// El aviso de siempre se queda, pero ahora resume: el detalle está en cada campo.
 		showToast(errores.length===1 ? errores[0].mensaje : `Faltan ${errores.length} datos del producto`,'error');
-		btn.disabled=false;btn.textContent=id ? 'Guardar cambios' : 'Crear producto';return;
+		btn.disabled=false;btn.textContent=etiquetaGuardarProducto();return;
 	}
 	limpiarErroresFicha();
 	// Ya validados arriba (erroresDeFicha): aquí solo se leen.
@@ -6408,6 +6452,18 @@ async function saveProduct() {
 		});
 		renderProducts();
 		renderInicio();
+		// ── UN VIDEO ELEGIDO Y SIN SUBIR SE SUBE AL GUARDAR ─────
+		// Hasta el 30/09/2026 «Guardar cambios» lo dejaba caer: guardaba los
+		// datos, cerraba la ficha y el video elegido se perdía sin un aviso,
+		// porque subirlo era un botón aparte («Subir y convertir») y quien
+		// pulsa Guardar cree que guarda TODO lo que ve en la ficha. Le pasó al
+		// propio usuario. Ahora, si hay un archivo elegido, se sube aquí mismo.
+		//
+		// Después de guardar y no antes: la subida exige que el plato ya tenga la
+		// foto en la base, y puede que esa foto sea la que se acaba de guardar. Y
+		// sin esperarla: dura minutos, y lo que sigue decide que la ficha se
+		// queda abierta mientras sube (state.subiendoVideo se pone al empezar).
+		if (id && videoElegido && !state.subiendoVideo) confirmarSubidaVideo();
 		// ── GUARDAR NO ES UNA SALIDA MÁS ────────────────────────
 		// Cerraba la ficha sin pasar por intentarCerrarProducto, y con eso era
 		// la quinta salida mientras el video sube, se convierte, se genera o
@@ -6425,7 +6481,9 @@ async function saveProduct() {
 			videoElegido = elegido;
 			showToast(proceso === 'por-revisar'
 				? 'Guardado. Publica o descarta el video generado para cerrar la ficha.'
-				: 'Guardado. La ficha sigue abierta hasta que termine el video.', 'success');
+				: proceso === 'subiendo'
+					? 'Guardado. Se está subiendo el video: la ficha sigue abierta hasta que termine.'
+					: 'Guardado. La ficha sigue abierta hasta que termine el video.', 'success');
 			return;
 		}
 		// Guardado: ya no hay nada pendiente que avisar al cerrar.
@@ -6433,7 +6491,20 @@ async function saveProduct() {
 		closeModal('productModal');
 		avisarGuardadoConCarta(id?'Producto guardado':'Producto creado');
 	} catch(e) { showToast('Error: '+e.message,'error'); }
-	finally { btn.disabled=false; btn.textContent=id ? 'Guardar cambios' : 'Crear producto'; }
+	finally { btn.disabled=false; btn.textContent=etiquetaGuardarProducto(); }
+}
+
+// Lo que dice el botón de guardar. Con un video elegido y sin subir dice que
+// lo sube, para que quien lo pulse sepa que no es solo guardar datos. Sin
+// archivo elegido, o con la subida ya empezada, es el de siempre.
+function etiquetaGuardarProducto() {
+	const id = document.getElementById('editProductId')?.value;
+	if (!id) return 'Crear producto';
+	return (videoElegido && !state.subiendoVideo) ? 'Guardar y subir video' : 'Guardar cambios';
+}
+function actualizarEtiquetaGuardar() {
+	const btn = document.getElementById('btnSaveProduct');
+	if (btn && !btn.disabled) btn.textContent = etiquetaGuardarProducto();
 }
 
 // ── CATEGORÍAS ────────────────────────────────────────────────
