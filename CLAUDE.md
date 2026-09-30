@@ -896,6 +896,14 @@ la base— y **sin esperarla**, porque dura minutos y lo que sigue decide que la
 ficha se queda abierta (`state.subiendoVideo`). El botón lo dice: «Guardar y subir
 video» (`etiquetaGuardarProducto`). Si guardar falla, no se sube.
 
+**Y con la foto recién guardada, la ficha se queda abierta** (30/09/2026, pedido
+por el usuario): en una carta de video, `saveProduct` vuelve a abrir el producto ya
+guardado en la pestaña Multimedia en vez de cerrarla, pero **solo** si la carta
+permite video, la foto acaba de quedar guardada (producto nuevo, o uno que no la
+tenía) y aún no hay video. Acotado a propósito: guardar cierra la ficha en todos los
+productos de todas las cartas, y quien solo cambia un precio quiere salir. Cada
+caso tiene su prueba, y las condiciones se comprobaron rompiéndolas.
+
 Va con tres arreglos del mismo repaso (ver «Ficha de producto» en
 `docs/revision-ux.md`): con la foto recién subida la ficha ya no pide «sube
 primero una foto»; un plato sin foto ya no hereda la del anterior; y la frase

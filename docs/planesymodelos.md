@@ -203,8 +203,8 @@ necesidad técnica: el video trae su propia portada, sacada por ffmpeg.
 
 **Foto guardada quiere decir guardada.** Una foto recién subida a la ficha, pero
 sin pulsar «Guardar», todavía no cuenta: el servidor mira la base, no la pantalla.
-El panel lo dice («✓ Foto lista. Guarda el producto y ábrelo de nuevo…») en vez
-de seguir pidiendo la foto.
+El panel lo dice («✓ Foto lista. Guarda el producto: la ficha se queda abierta…»)
+en vez de seguir pidiendo la foto.
 
 ### La IA sigue exigiendo plan Video, a propósito
 
@@ -252,6 +252,24 @@ abierta mientras sube y convierte, como con cualquier video en marcha. «Subir y
 convertir» sigue existiendo para quien quiera subirlo sin guardar el resto.
 
 Si guardar falla, el video **no** se sube y sigue elegido.
+
+### Al guardar la foto, la ficha se queda para el video (30/09/2026)
+
+Guardar cierra la ficha, y en una carta de video eso cortaba el camino justo
+cuando tocaba el video: había que buscar el producto, abrirlo e ir a Multimedia.
+Pedido por el usuario, ahora la ficha **se vuelve a abrir ya guardada**, como
+«Editar producto», en la pestaña Multimedia, con sus dos caminos a la vista.
+
+Es una excepción acotada, porque guardar cierra la ficha en todos los productos
+de todas las cartas y quien solo cambia un precio quiere salir. Se queda abierta
+solo si se cumplen **las tres**:
+
+1. la carta permite video (`planActual().videos`);
+2. la foto **acaba de quedar guardada** —producto nuevo, o uno que no la tenía—;
+3. el producto todavía no tiene video.
+
+En cualquier otro caso —carta de fotos, foto que ya estaba guardada, video ya
+puesto, producto sin foto— guardar cierra como siempre.
 
 ### La regla que ordena la ficha
 

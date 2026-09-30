@@ -2051,8 +2051,8 @@
 						     hacer para llegar a ellos. -->
 						<div id="videoNuevo" class="video-nuevo" style="display:none">
 							Esta carta permite que tus productos tengan video. Primero guarda el
-							producto con su foto y ábrelo de nuevo: después podrás subir un video o
-							generarlo con IA a partir de esa foto.
+							producto con su foto: la ficha se queda abierta para que subas un video
+							o lo generes con IA a partir de esa foto.
 						</div>
 						<div id="zonaVideo" style="border:1px solid var(--border);border-radius:8px;padding:12px;">
 							<!-- El reproductor, a tamaño completo y con controles, tanto con el video ya
@@ -4490,10 +4490,15 @@ function pintarCaminosVideo() {
 		// mentira: está ahí, y justo encima dice «Lista para guardar». Lo que
 		// falta es guardar, y como guardar cierra la ficha, hay que decir que
 		// se vuelve a abrir (30/09/2026).
+		// Si el plato ya tiene video, al guardar la ficha se cierra como siempre
+		// (la foto no es nueva para un video que ya existe): ahí sí hay que
+		// volver a abrirla. Sin video, guardar la deja abierta en esta pestaña.
 		const fotoLista = !!state.pendingImgUrl && state.pendingImgUrl !== '__remove__';
-		sinFotoDiv.textContent = fotoLista
-			? '✓ Foto lista. Guarda el producto y ábrelo de nuevo: podrás subir un video o generarlo con IA a partir de ella.'
-			: 'Sube primero una foto del plato y guarda el producto: después podrás subir un video o generarlo con IA a partir de ella.';
+		sinFotoDiv.textContent = !fotoLista
+			? 'Sube primero una foto del plato y guarda el producto: después podrás subir un video o generarlo con IA a partir de ella.'
+			: (tieneVideoPuesto(id)
+				? '✓ Foto lista. Guarda el producto y ábrelo de nuevo: podrás subir un video o generarlo con IA a partir de ella.'
+				: '✓ Foto lista. Guarda el producto: la ficha se queda abierta para que subas un video o lo generes con IA a partir de ella.');
 	}
 	// Los avisos de la IA hablan de un botón que aquí no se ve. El de «sube una
 	// foto del producto» decía lo mismo que el mensaje de arriba, y con la foto
@@ -6433,16 +6438,19 @@ async function saveProduct() {
 	delete body.atributos.toppings_platino;
 	delete body.atributos.toppings_premium;
 	delete body.atributos.salsas;
+	let guardado;   // el producto como quedó, para decidir qué hacer con la ficha
 	try {
 		if(id) {
 			const updated=await apiFetch('PATCH',`/api/productos/${id}`,body);
 			const idx=state.productos.findIndex(p=>p.id===id);
 			if(idx!==-1) state.productos[idx]={...state.productos[idx],...updated};
+			guardado = idx!==-1 ? state.productos[idx] : updated;
 		} else {
 			body.restaurante_id=state.restaurante.id;
 			body.orden=state.productos.length;
 			const nuevo=await apiFetch('POST','/api/productos',body);
 			state.productos.push(nuevo);
+			guardado = nuevo;
 		}
 		state.catFiltro=filtroActual;
 		renderCatFilter();
@@ -6484,6 +6492,29 @@ async function saveProduct() {
 				: proceso === 'subiendo'
 					? 'Guardado. Se está subiendo el video: la ficha sigue abierta hasta que termine.'
 					: 'Guardado. La ficha sigue abierta hasta que termine el video.', 'success');
+			return;
+		}
+		// ── CON LA FOTO RECIÉN GUARDADA, LA FICHA SE QUEDA PARA EL VIDEO ──
+		// (30/09/2026, pedido por el usuario.) En una carta de video, el paso
+		// natural tras guardar un producto con su foto es ponerle el video, y la
+		// ficha se cerraba justo ahí: había que buscar el producto, abrirlo e ir
+		// a Multimedia. Ahora se vuelve a abrir ya guardada, en esa pestaña.
+		//
+		// Acotado a propósito, porque guardar cierra la ficha en todos los
+		// productos de todas las cartas y quien solo cambia un precio quiere
+		// salir: solo cuando la foto ACABA de quedar guardada (producto nuevo, o
+		// uno que no la tenía) y todavía no hay video. Con la foto ya guardada
+		// de antes, o con video puesto, o en una carta de fotos, se cierra como
+		// siempre.
+		const recienConFoto = !!guardado?.imagen_url && !prodActual?.imagen_url;
+		if (recienConFoto && !guardado?.atributos?.video?.url &&
+		    typeof planActual === 'function' && planActual().videos) {
+			// Se recarga desde lo guardado en vez de parchear la ficha: así pasa a
+			// ser «Editar producto» con su id, su enlace a la carta y sus
+			// caminos de video, y la firma de cambios queda limpia.
+			openEditProductModal(guardado.id);
+			cambiarPestanaProducto('multimedia', document.querySelectorAll('.ficha-tabs .ficha-tab')[1]);
+			showToast('Guardado. Ya puedes subir un video o generarlo con IA, aquí mismo en Multimedia.', 'success');
 			return;
 		}
 		// Guardado: ya no hay nada pendiente que avisar al cerrar.

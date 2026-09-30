@@ -1041,7 +1041,21 @@ describe('pintarCaminosVideo · sin foto no hay de dónde sacar un video nuevo',
 			const m = pintar('p1', [{ id: 'p1' }], pantalla(), null, '/uploads/productos/nueva.jpg');
 			assert.equal(m.videoSinFoto.style.display, 'block');
 			assert.doesNotMatch(m.videoSinFoto.textContent, /Sube primero/);
-			assert.match(m.videoSinFoto.textContent, /Foto lista\. Guarda el producto y ábrelo de nuevo/);
+			assert.match(m.videoSinFoto.textContent, /Foto lista\. Guarda el producto: la ficha se queda abierta/);
+		});
+
+		test('si el plato ya tiene video, guardar cierra la ficha como siempre: ahí sí dice que se abra de nuevo', () => {
+			const ctx = cargar('index.html', [
+				['// Los trabajos de conversión del restaurante.', '// Elegir el archivo ya no lo sube'],
+			], {
+				state: { productos: [{ id: 'p1', atributos: { video: { url: 'x.mp4' } } }], pendingImgUrl: '/uploads/nueva.jpg' },
+				document: { getElementById: eid => (eid === 'editProductId' ? { value: 'p1' } : mapaConVideo[eid]) },
+				procesoEnMarchaDelPlato: () => null, procesoBloquea: () => false,
+				tieneVideoPuesto: () => true,
+			});
+			const mapaConVideo = pantalla();
+			ctx.pintarCaminosVideo();
+			assert.match(mapaConVideo.videoSinFoto.textContent, /Guarda el producto y ábrelo de nuevo/);
 		});
 
 		test('los caminos siguen escondidos: el servidor mira la foto guardada, no la pendiente', () => {
@@ -9616,6 +9630,112 @@ describe('guardar con un video elegido · se sube al guardar, y no se pierde', (
 			ctx.actualizarEtiquetaGuardar();
 			assert.equal(mapa.btnSaveProduct.textContent, 'Guardando...');
 		});
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('guardar un producto con foto nueva en una carta de video · la ficha se queda para el video', () => {
+	// 30/09/2026, pedido por el usuario. Tras guardar un producto con su foto, lo
+	// natural es ponerle el video, y la ficha se cerraba justo ahí. Acotado: solo
+	// cuando la foto ACABA de quedar guardada, todavía no hay video y la carta es
+	// de video. Quien solo edita un precio sigue saliendo como siempre.
+	const montar = ({ id = '', antes = null, respuesta, videos = true, falla = false } = {}) => {
+		const mapa = {
+			btnSaveProduct:   { textContent: '', disabled: false },
+			editProductId:    { value: id },
+			editCategoria:    { value: 'cat-1' },
+			editNombre:       { value: 'Croquetas' },
+			editPrecioNum:    { value: '24000' },
+			editPersonas:     { value: '' },
+			editDesc:         { value: '' },
+			editDescAvanzada: { value: '' },
+			editDisponible:   { checked: true },
+			editPrecioGratis: { checked: false },
+			editSinFoto:      { checked: false },
+			// cambiarPestanaProducto viene en el mismo tramo de código, así que no se
+			// sustituye: se mira lo que de verdad hace, que es marcar la pestaña.
+			productModal:     { dataset: { fichaTab: 'general' } },
+		};
+		for (const el of Object.values(mapa)) {
+			el.classList = { add() {}, remove() {} };
+			el.removeAttribute = () => {};
+		}
+		const cerrados = [], avisos = [], abiertos = [];
+		const ctx = cargar('index.html', [
+			['function firmaProducto', 'async function saveProduct'],
+			['async function saveProduct', '// ── CATEGORÍAS ──'],
+		], {
+			state: { pendingImgUrl: null, extraImgs: [], prodFiltros: [], prodBadges: {}, prodPers: {},
+				productos: antes ? [antes] : [], subiendoVideo: false, vigilandoTrabajo: null,
+				restaurante: { id: 'r1' } },
+			videoElegido: null,
+			document: { getElementById: x => mapa[x], querySelectorAll: () => [] },
+			trabajoEnCursoDe: () => null,
+			erroresDeFicha: () => [], limpiarErroresFicha() {}, formatPrecio: n => String(n),
+			precioNumericoDe: v => { const d = String(v ?? '').replace(/\D/g, ''); return d === '' ? NaN : Number(d); },
+			apiFetch: async () => { if (falla) throw new Error('sin red'); return respuesta; },
+			renderCatFilter() {}, renderProducts() {}, renderInicio() {},
+			openModal() {}, closeModal: x => cerrados.push(x),
+			showToast: a => avisos.push(a), avisarGuardadoConCarta: a => avisos.push(a),
+			planActual: () => ({ videos }),
+			openEditProductModal: x => abiertos.push(x),
+		});
+		return { ctx, mapa, cerrados, avisos, abiertos };
+	};
+
+	const FOTO = '/uploads/productos/a.jpg';
+
+	test('un producto nuevo con foto: se guarda y la ficha se vuelve a abrir, ya guardada, en Multimedia', async () => {
+		const { ctx, mapa, cerrados, abiertos, avisos } = montar({ respuesta: { id: 'n1', imagen_url: FOTO, atributos: {} } });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, [], 'no se cierra');
+		assert.deepEqual(abiertos, ['n1'], 'se recarga con el producto ya guardado y su id');
+		assert.equal(mapa.productModal.dataset.fichaTab, 'multimedia');
+		assert.match(avisos[0], /subir un video o generarlo con IA/);
+	});
+
+	test('uno que existía sin foto y ahora la tiene, también', async () => {
+		const { ctx, cerrados, abiertos } = montar({ id: 'p1', antes: { id: 'p1', atributos: {} },
+			respuesta: { id: 'p1', imagen_url: FOTO } });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, []);
+		assert.deepEqual(abiertos, ['p1']);
+	});
+
+	test('editar un producto que ya tenía su foto guardada cierra como siempre', async () => {
+		const { ctx, cerrados, abiertos } = montar({ id: 'p1', antes: { id: 'p1', imagen_url: FOTO, atributos: {} },
+			respuesta: { id: 'p1', imagen_url: FOTO } });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, ['productModal']);
+		assert.deepEqual(abiertos, []);
+	});
+
+	test('con video ya puesto, cierra: no hay nada que ofrecer', async () => {
+		const { ctx, cerrados } = montar({ id: 'p1', antes: { id: 'p1', atributos: {} },
+			respuesta: { id: 'p1', imagen_url: FOTO, atributos: { video: { url: 'v.mp4' } } } });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, ['productModal']);
+	});
+
+	test('en una carta de fotos cierra como siempre: no hay video que ofrecer', async () => {
+		const { ctx, cerrados, abiertos } = montar({ videos: false, respuesta: { id: 'n1', imagen_url: FOTO, atributos: {} } });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, ['productModal']);
+		assert.deepEqual(abiertos, []);
+	});
+
+	test('un producto nuevo sin foto cierra: sin ella el video no se puede ofrecer todavía', async () => {
+		const { ctx, cerrados } = montar({ respuesta: { id: 'n1', atributos: {} } });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, ['productModal']);
+	});
+
+	test('si guardar falla, no se abre ni se cierra nada', async () => {
+		const { ctx, cerrados, abiertos, avisos } = montar({ falla: true, respuesta: null });
+		await ctx.saveProduct();
+		assert.deepEqual(cerrados, []);
+		assert.deepEqual(abiertos, []);
+		assert.match(avisos[0], /Error/);
 	});
 });
 
