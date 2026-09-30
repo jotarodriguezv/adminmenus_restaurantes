@@ -889,3 +889,25 @@ de platos por accidente.
 No es obligatorio crear tres configuraciones: si varios televisores muestran
 lo mismo, se abre la misma URL en todos. Eso no multiplica las solicitudes ni
 crea un segundo ciclo distinto en la pared.
+
+---
+
+## 15. La carta completa como lista (30/09/2026)
+
+No todos los locales quieren usar fotografías en su televisor. El interruptor
+«Mostrar toda la selección como lista» guarda `mostrar_todos_lista` dentro de
+la configuración de **cada** pantalla: `atributos.tv` para la primera y
+`atributos.tv_pantallas["2"|"3"]` para las adicionales. No hace falta SQL:
+son preferencias de presentación, igual que el tema y las cintas.
+
+Al activarlo, la selección que ya tiene esa pantalla se conserva —toda la
+carta, una categoría, platos manuales o una programación horaria—, pero se
+presenta sin imágenes. Los platos se ordenan por categoría, muestran nombre y
+precio, y caben hasta veinte por pantalla: diez en cada columna. La categoría
+se repite al comenzar una columna para que nadie tenga que adivinar a qué
+pertenece un plato.
+
+No reemplaza «Mostrar productos sin foto como lista». Esa opción sigue siendo
+un complemento para una cartelera de fotos que quiere incluir bebidas o extras
+sin imagen; la nueva convierte **toda** la selección en una carta compacta.
+Los destacados, la marca y las cintas siguen rotando con el mismo ritmo.

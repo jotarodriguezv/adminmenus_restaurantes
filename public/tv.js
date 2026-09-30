@@ -19,8 +19,9 @@
 const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          segundos: 8, modo: 'todos', categoria_id: null,
                          productos: [], aleatorio: false, animacion: 'suave',
-							 mostrar_categoria: false, color_categoria: 'oscuro',
-							 tema: 'oscuro', mostrar_descripcion: false, mostrar_sin_foto_lista: false,
+						 mostrar_categoria: false, color_categoria: 'oscuro',
+						 tema: 'oscuro', mostrar_descripcion: false, mostrar_sin_foto_lista: false,
+						 mostrar_todos_lista: false,
                          cintas: [], velocidad_cintas: 'normal', separador_cintas: 'estrella', reloj: false,
                          // Por defecto SÍ, que es lo que hacía la cartelera
                          // antes de existir esta clave.
@@ -137,7 +138,8 @@ function tvCambiarSeccion(seccion) {
 // Sin foto normalmente no hay slide. El restaurante puede incluirlos como una
 // lista por categoría: útil para bebidas y complementos que no necesitan foto.
 function tvPlatosPosibles() {
-  const incluirSinFoto = !!document.getElementById('tvListaSinFoto')?.checked;
+  const incluirSinFoto = !!document.getElementById('tvListaSinFoto')?.checked ||
+    !!document.getElementById('tvMostrarTodosLista')?.checked;
   return (state.productos || []).filter(p => p.disponible && (p.imagen_url || incluirSinFoto));
 }
 
@@ -160,6 +162,7 @@ function renderTV() {
   document.getElementById('tvTema').value = cfg.tema === 'carta' ? 'carta' : 'oscuro';
   document.getElementById('tvMostrarDescripcion').checked = !!cfg.mostrar_descripcion;
   document.getElementById('tvListaSinFoto').checked = !!cfg.mostrar_sin_foto_lista;
+  document.getElementById('tvMostrarTodosLista').checked = !!cfg.mostrar_todos_lista;
   document.getElementById('tvMostrarPersonas').checked = cfg.mostrar_personas !== false;
   document.getElementById('tvMostrarPersonasUno').checked = !!cfg.mostrar_personas_uno;
   document.getElementById('tvPersonasSoloIcono').checked = !!cfg.personas_solo_icono;
@@ -249,6 +252,16 @@ function tvPintarCategorias(elegida) {
 }
 
 function tvCambiarListaSinFoto() {
+  tvPintarCategorias();
+  tvPintarFiltroCat();
+  tvPintarPlatos();
+  tvPintarMarcarTodos();
+  tvPintarResumen();
+}
+
+// La vista completa también deja elegir productos sin fotografía: aquí todos
+// se vuelven filas, por eso la imagen ya no decide si un plato es seleccionable.
+function tvCambiarVistaListaCompleta() {
   tvPintarCategorias();
   tvPintarFiltroCat();
   tvPintarPlatos();
@@ -1050,7 +1063,8 @@ function tvPintarResumen() {
     tvPintarAhora();
     return;
   }
-  const porSlide = parseInt(document.getElementById('tvPorSlide').value, 10) || 1;
+  const vistaLista = document.getElementById('tvMostrarTodosLista').checked;
+  const porSlide = vistaLista ? 20 : (parseInt(document.getElementById('tvPorSlide').value, 10) || 1);
   const seg = Math.min(60, Math.max(4, parseInt(document.getElementById('tvSegundos').value, 10) || 8));
   const pantallas = Math.ceil(n / porSlide);
 
@@ -1065,6 +1079,7 @@ function tvPintarResumen() {
   const min = Math.floor(vueltas / 60), s = vueltas % 60;
 
   const partes = [`${n} plato${n === 1 ? '' : 's'} · ${pantallas} pantalla${pantallas === 1 ? '' : 's'}` +
+    (vistaLista ? ' · lista de hasta 20 por pantalla' : '') +
     (dePromo ? ` + ${dePromo} intercalada${dePromo === 1 ? '' : 's'}` : '') + ' · ' +
     'la vuelta dura ' + (min ? `${min} min ${s ? s + ' s' : ''}`.trim() : `${s} s`)];
 
@@ -1233,6 +1248,7 @@ function tvDelFormulario() {
     // ignora mientras no haya un solo plato protagonista.
 			mostrar_descripcion: document.getElementById('tvMostrarDescripcion').checked,
 			mostrar_sin_foto_lista: document.getElementById('tvListaSinFoto').checked,
+			mostrar_todos_lista: document.getElementById('tvMostrarTodosLista').checked,
 			mostrar_personas: document.getElementById('tvMostrarPersonas').checked,
 			mostrar_personas_uno: document.getElementById('tvMostrarPersonasUno').checked,
 			personas_solo_icono: document.getElementById('tvPersonasSoloIcono').checked,
