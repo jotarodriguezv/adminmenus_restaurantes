@@ -139,8 +139,12 @@ function tvCambiarSeccion(seccion) {
 // lista por categoría: útil para bebidas y complementos que no necesitan foto.
 function tvPlatosPosibles() {
   const incluirSinFoto = !!document.getElementById('tvListaSinFoto')?.checked ||
-    !!document.getElementById('tvMostrarTodosLista')?.checked;
+    tvEsVistaListaCompleta();
   return (state.productos || []).filter(p => p.disponible && (p.imagen_url || incluirSinFoto));
+}
+
+function tvEsVistaListaCompleta() {
+  return document.getElementById('tvPorSlide')?.value === 'lista';
 }
 
 function renderTV() {
@@ -152,7 +156,8 @@ function renderTV() {
   document.getElementById('tvActiva').checked = !!cfg.activa;
   document.getElementById('tvModo').value = cfg.modo || 'todos';
   document.getElementById('tvOrientacion').value = cfg.orientacion === 'vertical' ? 'vertical' : 'horizontal';
-  document.getElementById('tvPorSlide').value = String(Math.min(4, Math.max(1, parseInt(cfg.por_slide, 10) || 2)));
+  document.getElementById('tvPorSlide').value = cfg.mostrar_todos_lista
+    ? 'lista' : String(Math.min(4, Math.max(1, parseInt(cfg.por_slide, 10) || 2)));
   document.getElementById('tvSegundos').value = Math.min(60, Math.max(4, parseInt(cfg.segundos, 10) || 8));
   document.getElementById('tvAleatorio').checked = !!cfg.aleatorio;
   document.getElementById('tvAnimacion').checked = cfg.animacion !== 'ninguna';
@@ -162,7 +167,6 @@ function renderTV() {
   document.getElementById('tvTema').value = cfg.tema === 'carta' ? 'carta' : 'oscuro';
   document.getElementById('tvMostrarDescripcion').checked = !!cfg.mostrar_descripcion;
   document.getElementById('tvListaSinFoto').checked = !!cfg.mostrar_sin_foto_lista;
-  document.getElementById('tvMostrarTodosLista').checked = !!cfg.mostrar_todos_lista;
   document.getElementById('tvMostrarPersonas').checked = cfg.mostrar_personas !== false;
   document.getElementById('tvMostrarPersonasUno').checked = !!cfg.mostrar_personas_uno;
   document.getElementById('tvPersonasSoloIcono').checked = !!cfg.personas_solo_icono;
@@ -259,9 +263,11 @@ function tvCambiarListaSinFoto() {
   tvPintarResumen();
 }
 
-// La vista completa también deja elegir productos sin fotografía: aquí todos
+// La opción «Lista» también deja elegir productos sin fotografía: aquí todos
 // se vuelven filas, por eso la imagen ya no decide si un plato es seleccionable.
-function tvCambiarVistaListaCompleta() {
+function tvCambiarPlatosPorSlide() {
+  tvAvisoTamano();
+  tvAlternarDescripcion();
   tvPintarCategorias();
   tvPintarFiltroCat();
   tvPintarPlatos();
@@ -1063,7 +1069,7 @@ function tvPintarResumen() {
     tvPintarAhora();
     return;
   }
-  const vistaLista = document.getElementById('tvMostrarTodosLista').checked;
+  const vistaLista = tvEsVistaListaCompleta();
   const porSlide = vistaLista ? 20 : (parseInt(document.getElementById('tvPorSlide').value, 10) || 1);
   const seg = Math.min(60, Math.max(4, parseInt(document.getElementById('tvSegundos').value, 10) || 8));
   const pantallas = Math.ceil(n / porSlide);
@@ -1248,7 +1254,7 @@ function tvDelFormulario() {
     // ignora mientras no haya un solo plato protagonista.
 			mostrar_descripcion: document.getElementById('tvMostrarDescripcion').checked,
 			mostrar_sin_foto_lista: document.getElementById('tvListaSinFoto').checked,
-			mostrar_todos_lista: document.getElementById('tvMostrarTodosLista').checked,
+			mostrar_todos_lista: tvEsVistaListaCompleta(),
 			mostrar_personas: document.getElementById('tvMostrarPersonas').checked,
 			mostrar_personas_uno: document.getElementById('tvMostrarPersonasUno').checked,
 			personas_solo_icono: document.getElementById('tvPersonasSoloIcono').checked,

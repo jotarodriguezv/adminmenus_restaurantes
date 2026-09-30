@@ -894,9 +894,9 @@ crea un segundo ciclo distinto en la pared.
 
 ## 15. La carta completa como lista (30/09/2026)
 
-No todos los locales quieren usar fotografías en su televisor. El interruptor
-«Mostrar toda la selección como lista» guarda `mostrar_todos_lista` dentro de
-la configuración de **cada** pantalla: `atributos.tv` para la primera y
+No todos los locales quieren usar fotografías en su televisor. La opción
+«Lista — hasta 20, sin fotos», dentro de «Platos a la vez», guarda
+`mostrar_todos_lista` dentro de la configuración de **cada** pantalla: `atributos.tv` para la primera y
 `atributos.tv_pantallas["2"|"3"]` para las adicionales. No hace falta SQL:
 son preferencias de presentación, igual que el tema y las cintas.
 
