@@ -886,15 +886,15 @@
 									<label class="toggle"><input type="checkbox" id="tvMostrarPersonasUno"><span class="toggle-slider"></span></label>
 									<span style="font-size:13px;color:var(--text-muted)">Mostrarlo también en los platos de una sola persona</span>
 								</div>
-								<!-- 27/09/2026: pedido al ver el icono en la pantalla de un cliente —
-								     junto a la frase se notaba tan poco que no cumplía su propósito.
-								     Con este interruptor la frase desaparece y solo queda el icono,
-								     bastante más grande. -->
-								<div class="form-check tv-opcion" id="tvPersonasSoloIconoFila" style="margin-bottom:16px">
-									<label class="toggle"><input type="checkbox" id="tvPersonasSoloIcono"><span class="toggle-slider"></span></label>
-									<span style="font-size:13px;color:var(--text-muted)">Mostrar solo el icono, sin la frase</span>
+								<div class="tv-opcion" id="tvFormatoPersonasFila" style="margin-bottom:16px">
+									<label for="tvFormatoPersonas" style="display:block;font-size:13px;color:var(--text-muted);margin-bottom:7px">Formato de las porciones</label>
+									<select id="tvFormatoPersonas" class="form-control">
+										<option value="icono_frase">Ícono y frase — Para 3 personas</option>
+										<option value="frase">Solo frase — Para 3 personas</option>
+										<option value="numero">Número destacado — 3</option>
+									</select>
 									<div class="tv-opcion-ayuda" style="font-size:11px;color:var(--text-dim);line-height:1.5">
-										El icono sale bastante más grande cuando no lleva la frase al lado.
+										El número destacado sale en un cuadro junto al precio, sin ícono. Los otros formatos se alinean con el precio para que se lean de un vistazo.
 									</div>
 								</div>
 
