@@ -665,6 +665,10 @@ select.form-input{padding-right:42px;}
    un título o una ayuda de dos líneas empuje el interruptor hacia arriba y
    haga que parezcan controles de filas distintas. */
 .tv-opcion{display:grid;grid-template-columns:40px minmax(180px,300px) minmax(0,1fr);align-items:center;column-gap:10px;}
+/* Estas filas también llevan .form-check para conservar su semántica. La
+   regla genérica de ese componente aparece más abajo y usa flex; esta mayor
+   especificidad impide que anule la cuadrícula de Diseño. */
+.form-check.tv-opcion{display:grid;gap:0 10px;padding:0;}
 .tv-opcion>.toggle{grid-column:1;grid-row:1;align-self:center;margin:0;}
 .tv-opcion>span{grid-column:2;grid-row:1;padding:0;line-height:1.4;}
 .tv-opcion>.tv-opcion-ayuda{grid-column:3;grid-row:1;align-self:center;margin:0!important;}
