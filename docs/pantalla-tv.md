@@ -799,8 +799,8 @@ compite con el nombre ni el precio por la atención de la mesa.
 
 | Repositorio | Qué hace |
 |---|---|
-| `adminmenus_restaurantes` | `sql/26` añade la columna `productos.personas`; `server.js` la valida en POST y PATCH de `/api/productos`; la ficha del plato tiene el campo «Para cuántas personas», debajo de la descripción; la lista de Productos la enseña como una marca más (`productos-marcas.js`, junto a filtros y toppings); la pestaña **Pantalla TV** tiene los dos interruptores de §13.bis |
-| `vmenus-app` | `tv.html` pide `personas` por su nombre en el `select` de productos, lee los dos interruptores de `atributos.tv` (que ya viaja completo en el `select` de `restaurantes`) y pinta la nota bajo el precio de cada plato |
+| `adminmenus_restaurantes` | `sql/26` añade la columna `productos.personas`; `server.js` la valida en POST y PATCH de `/api/productos`; la ficha del plato tiene el campo «Para cuántas personas», debajo de la descripción; la lista de Productos la enseña como una marca más (`productos-marcas.js`, junto a filtros y toppings); la pestaña **Pantalla TV** tiene los controles de §13.bis |
+| `vmenus-app` | `tv.html` pide `personas` por su nombre en el `select` de productos, lee los controles de `atributos.tv` (que ya viaja completo en el `select` de `restaurantes`) y pinta el formato elegido junto al precio de cada plato |
 
 **No entra en la carta del comensal (`temas/`), a propósito.** Se pidió para
 el panel y la pantalla de TV, que es donde hoy se contesta esa pregunta —el
@@ -834,6 +834,7 @@ columnas de `sql/27` se retiran de `productos`, y sus equivalentes pasan a
 |---|---|---|
 | `mostrar_personas` | ¿se enseña esta información, en toda la carta? | `true` |
 | `mostrar_personas_uno` | con 1, ¿se enseña igual, en toda la carta? | `false` |
+| `formato_personas` | ¿ícono y frase, solo frase o número destacado? | `icono_frase` |
 
 `productos.personas` (sql/26) se queda donde estaba: es un dato **del plato**
 —cuántas alcanza esa salchipapa—, y no tiene sustituto en `atributos.tv`. Lo
@@ -850,6 +851,14 @@ lo que ve el comensal, así que no depende del interruptor de la pantalla.
 ```
 mostrar = mostrar_personas !== false && (personas > 1 || mostrar_personas_uno === true)
 ```
+
+**Formato junto al precio (30/09/2026).** La información ya no se coloca
+debajo del precio, ni se ofrece el icono solo. El panel permite elegir
+`icono_frase` («ícono + Para 3 personas»), `frase` o `numero`. Este último es
+una insignia cuadrada con la cifra —sin icono—, alineada con el precio para que
+se lea desde lejos. La antigua clave `personas_solo_icono: true` se interpreta
+como `numero` al abrir y al pintar la pantalla; así ningún restaurante queda
+con un formato retirado.
 
 **Por qué se cuenta el intento fallido.** `sql/19` cierra lo que abre `sql/18`
 y `sql/22` corrige `sql/21` por la misma razón: una migración no se edita

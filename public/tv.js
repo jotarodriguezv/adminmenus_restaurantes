@@ -39,6 +39,11 @@ const TV_POR_DEFECTO = { activa: false, orientacion: 'horizontal', por_slide: 2,
                          // que no cumplía su propósito (visto en la pantalla de un
                          // cliente). En false: no le cambia la pantalla a nadie que
                          // no lo pida.
+                         // Formas de enseñar el dato: el icono acompañado de frase,
+                         // solo la frase o una cifra grande junto al precio.
+                         formato_personas: 'icono_frase',
+                         // Compatibilidad de lectura: la versión anterior guardaba
+                         // este booleano. Al encontrarlo se convierte a número.
                          personas_solo_icono: false };
 
 let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
@@ -169,7 +174,9 @@ function renderTV() {
   document.getElementById('tvListaSinFoto').checked = !!cfg.mostrar_sin_foto_lista;
   document.getElementById('tvMostrarPersonas').checked = cfg.mostrar_personas !== false;
   document.getElementById('tvMostrarPersonasUno').checked = !!cfg.mostrar_personas_uno;
-  document.getElementById('tvPersonasSoloIcono').checked = !!cfg.personas_solo_icono;
+  // Se lee el valor sin mezclar con el defecto para reconocer la antigua
+  // clave personas_solo_icono cuando todavía no existe formato_personas.
+  document.getElementById('tvFormatoPersonas').value = tvFormatoPersonasDe(tvConfiguracionDePantalla());
   tvAlternarMostrarPersonas();
   const cintas = Array.isArray(cfg.cintas) ? cfg.cintas : [];
   for (let i = 1; i <= 5; i++) {
@@ -283,19 +290,28 @@ function tvAlternarDescripcion() {
   fila.style.opacity = una ? '1' : '.5';
 }
 
-// Los otros dos interruptores solo tienen sentido con este encendido: con la
-// nota apagada del todo, ni "también con una" ni "solo el icono" significan
-// nada.
+function tvFormatoPersonasDe(cfg) {
+  if (['icono_frase', 'frase', 'numero'].includes(cfg.formato_personas)) {
+    return cfg.formato_personas;
+  }
+  // Quien hubiera elegido el antiguo «solo icono» recibe el sucesor más
+  // informativo: el número destacado. No se pierde su decisión de no usar
+  // frase y tampoco se conserva un icono que ya no se ofrece.
+  return cfg.personas_solo_icono ? 'numero' : 'icono_frase';
+}
+
+// Los otros controles solo tienen sentido con este encendido: con la nota
+// apagada del todo, ni «también con una» ni el formato cambian nada.
 function tvAlternarMostrarPersonas() {
   const on = document.getElementById('tvMostrarPersonas').checked;
   const fila = document.getElementById('tvMostrarPersonasUnoFila');
   const control = document.getElementById('tvMostrarPersonasUno');
   control.disabled = !on;
   fila.style.opacity = on ? '1' : '.5';
-  const filaIcono = document.getElementById('tvPersonasSoloIconoFila');
-  const controlIcono = document.getElementById('tvPersonasSoloIcono');
-  controlIcono.disabled = !on;
-  filaIcono.style.opacity = on ? '1' : '.5';
+  const filaFormato = document.getElementById('tvFormatoPersonasFila');
+  const controlFormato = document.getElementById('tvFormatoPersonas');
+  controlFormato.disabled = !on;
+  filaFormato.style.opacity = on ? '1' : '.5';
 }
 
 function tvAlternarActiva() {
@@ -1257,7 +1273,9 @@ function tvDelFormulario() {
 			mostrar_todos_lista: tvEsVistaListaCompleta(),
 			mostrar_personas: document.getElementById('tvMostrarPersonas').checked,
 			mostrar_personas_uno: document.getElementById('tvMostrarPersonasUno').checked,
-			personas_solo_icono: document.getElementById('tvPersonasSoloIcono').checked,
+			formato_personas: tvFormatoPersonasDe({
+				formato_personas: document.getElementById('tvFormatoPersonas').value
+			}),
     cintas: tvCintasDelFormulario(),
     velocidad_cintas: document.getElementById('tvVelocidadCintas').value,
     separador_cintas: document.getElementById('tvSeparadorCintas').value,

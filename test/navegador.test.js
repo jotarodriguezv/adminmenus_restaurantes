@@ -2037,8 +2037,8 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			tvMostrarPersonas: { checked: opciones.mostrarPersonas !== false },
 			tvMostrarPersonasUno: { checked: !!opciones.mostrarPersonasUno, disabled: false },
 			tvMostrarPersonasUnoFila: { style: {} },
-			tvPersonasSoloIcono: { checked: !!opciones.personasSoloIcono, disabled: false },
-			tvPersonasSoloIconoFila: { style: {} },
+			tvFormatoPersonas: { value: opciones.formatoPersonas || 'icono_frase', disabled: false },
+			tvFormatoPersonasFila: { style: {} },
 			tvCinta1: { value: '' }, tvCintaPos1: { value: 'arriba' },
 			tvCinta2: { value: '' }, tvCintaPos2: { value: 'arriba' },
 			tvCinta3: { value: '' }, tvCintaPos3: { value: 'arriba' },
@@ -2272,33 +2272,34 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		assert.equal(campos.tvMostrarPersonasUno.disabled, true);
 	});
 
-	// 27/09/2026: junto a la frase, el icono se notaba tan poco que no cumplía
-	// su propósito (visto en la pantalla de un cliente). Este interruptor quita
-	// la frase y deja solo el icono, más grande — lo agranda tv.html, no el panel.
-	test('guarda si se enseña solo el icono, sin la frase', () => {
+	test('guarda el formato elegido para las porciones', () => {
 		const { ctx, campos } = montar();
-		campos.tvPersonasSoloIcono.checked = true;
-		assert.equal(ctx.tvDelFormulario().personas_solo_icono, true);
+		campos.tvFormatoPersonas.value = 'numero';
+		assert.equal(ctx.tvDelFormulario().formato_personas, 'numero');
 	});
 
-	test('lo guardado de "solo icono" se relee al abrir la pestaña', () => {
-		const { ctx, campos } = montar({ guardado: { personas_solo_icono: true } });
+	test('el formato guardado se relee al abrir la pestaña', () => {
+		const { ctx, campos } = montar({ guardado: { formato_personas: 'frase' } });
 		ctx.renderTV();
-		assert.equal(campos.tvPersonasSoloIcono.checked, true);
+		assert.equal(campos.tvFormatoPersonas.value, 'frase');
 	});
 
-	test('sin nada guardado, "solo icono" empieza apagado', () => {
-		// Antes de este interruptor la cartelera siempre enseñaba la frase: sin
-		// esto, un restaurante que no vuelva a guardar no puede notar un cambio.
+	test('sin nada guardado, se conserva icono y frase', () => {
 		const { ctx, campos } = montar();
 		ctx.renderTV();
-		assert.equal(campos.tvPersonasSoloIcono.checked, false);
+		assert.equal(campos.tvFormatoPersonas.value, 'icono_frase');
 	});
 
-	test('con el interruptor general apagado, "solo icono" también se deshabilita', () => {
+	test('con el interruptor general apagado, el formato también se deshabilita', () => {
 		const { ctx, campos } = montar({ guardado: { mostrar_personas: false } });
 		ctx.renderTV();
-		assert.equal(campos.tvPersonasSoloIcono.disabled, true);
+		assert.equal(campos.tvFormatoPersonas.disabled, true);
+	});
+
+	test('la preferencia anterior de solo icono se lee como número destacado', () => {
+		const { ctx, campos } = montar({ guardado: { personas_solo_icono: true } });
+		ctx.renderTV();
+		assert.equal(campos.tvFormatoPersonas.value, 'numero');
 	});
 
 	test('no deja encender una cartelera que no enseñaría nada', async () => {
