@@ -854,11 +854,30 @@ mostrar = mostrar_personas !== false && (personas > 1 || mostrar_personas_uno ==
 
 **Formato junto al precio (30/09/2026).** La información ya no se coloca
 debajo del precio, ni se ofrece el icono solo. El panel permite elegir
-`icono_frase` («ícono + 3 personas»), `frase`, `icono` o `numero`. Este último es
-una insignia cuadrada con la cifra —sin icono—, alineada con el precio para que
-se lea desde lejos. La antigua clave `personas_solo_icono: true` se interpreta
-como `icono` al abrir y al pintar la pantalla; así ningún restaurante queda
-con un formato retirado.
+`icono_frase` («Para 3» bajo el ícono), `frase` («Para 3 personas»), `icono` o
+`numero`. Este último es una insignia con la cifra y una figura pequeña encima,
+alineada con el precio para que se lea desde lejos. La antigua clave
+`personas_solo_icono: true` se interpreta como `icono` al abrir y al pintar la
+pantalla; así ningún restaurante queda con un formato retirado.
+
+**Cómo se lee, revisado el 30/09/2026 en la cartelera de Malparados.** Los tamaños
+son relativos al del nombre del plato: la frase mide 0.6 (antes 0.4, el 43 % del
+precio y unos 20 px en una pantalla Full HD, lo más pequeño de la pantalla), el
+número 0.8 y el ícono 1.02 o 1.18. Tres cosas que no estaban:
+
+- **El ícono dice la verdad hasta cinco.** Antes tenía cuatro versiones y «varios»
+  dibujaba siempre cinco figuras: un combo para 4 salía con cinco, y uno para 8
+  también. Ahora son 2, 3, 4 y 5 figuras exactas, y de 6 en adelante cinco y un «+».
+  En estos íconos lo que se cuenta son las **cabezas**: todo es del mismo color y
+  una cabeza que cae sobre el cuerpo de al lado desaparece (el de 4 se rehízo tres
+  veces por eso).
+- **La frase dice «Para N»**, y sin ícono «Para N personas». Con una persona sigue
+  diciendo «1 persona».
+- **El número lleva una figura encima**: solo, junto al precio, se leía como piezas
+  o unidades, y en una carta con «X 15 UND» confunde.
+
+El código está en `vmenus-app/tv.html` (`iconoPersonas`, `pintarSlide`); aquí solo
+cambian los textos de ayuda del selector.
 
 **Por qué se cuenta el intento fallido.** `sql/19` cierra lo que abre `sql/18`
 y `sql/22` corrige `sql/21` por la misma razón: una migración no se edita
