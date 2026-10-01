@@ -1,0 +1,19 @@
+{
+  "descripcion": "Casos de la regla «¿rige esta oferta hoy?». DUPLICADO a propósito en adminmenus_restaurantes y vmenus-app: la regla vive en la carta, en la cartelera y en el espejo del panel, y este archivo es lo único que impide que se separen. Si se cambia aquí, se cambia igual en el otro repositorio. 'hoy' es la fecha en la zona del restaurante (AAAA-MM-DD); 'estado' es sin, programada, vigente o terminada; 'precio' es lo que paga el cliente ese día.",
+  "casos": [
+    { "nombre": "sin oferta", "plato": { "precio_numerico": 50000 }, "hoy": "2026-10-01", "estado": "sin", "precio": 50000 },
+    { "nombre": "oferta apagada aunque tenga precio", "plato": { "precio_numerico": 50000, "oferta_activa": false, "oferta_precio_numerico": 40000 }, "hoy": "2026-10-01", "estado": "sin", "precio": 50000 },
+    { "nombre": "encendida y sin fechas: rige siempre", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": 40000 }, "hoy": "2026-10-01", "estado": "vigente", "precio": 40000 },
+    { "nombre": "el primer día rige", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": 40000, "oferta_desde": "2026-12-01", "oferta_hasta": "2026-12-24" }, "hoy": "2026-12-01", "estado": "vigente", "precio": 40000 },
+    { "nombre": "el último día todavía rige (hasta es inclusivo)", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": 40000, "oferta_desde": "2026-12-01", "oferta_hasta": "2026-12-24" }, "hoy": "2026-12-24", "estado": "vigente", "precio": 40000 },
+    { "nombre": "el día siguiente al último ya terminó", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": 40000, "oferta_desde": "2026-12-01", "oferta_hasta": "2026-12-24" }, "hoy": "2026-12-25", "estado": "terminada", "precio": 50000 },
+    { "nombre": "la víspera todavía no empieza", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": 40000, "oferta_desde": "2026-12-01", "oferta_hasta": "2026-12-24" }, "hoy": "2026-11-30", "estado": "programada", "precio": 50000 },
+    { "nombre": "solo 'desde': rige desde ese día y sin fin", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": 40000, "oferta_desde": "2026-12-01" }, "hoy": "2027-06-01", "estado": "vigente", "precio": 40000 },
+    { "nombre": "solo 'hasta': rige ya y termina ese día", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": 40000, "oferta_hasta": "2026-10-05" }, "hoy": "2026-10-06", "estado": "terminada", "precio": 50000 },
+    { "nombre": "una oferta igual al precio normal se ignora", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": 50000 }, "hoy": "2026-10-01", "estado": "sin", "precio": 50000 },
+    { "nombre": "una oferta más cara que el precio normal se ignora", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": 60000 }, "hoy": "2026-10-01", "estado": "sin", "precio": 50000 },
+    { "nombre": "encendida sin precio de oferta: se ignora", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": null }, "hoy": "2026-10-01", "estado": "sin", "precio": 50000 },
+    { "nombre": "una oferta de cero pesos es un precio, no un hueco", "plato": { "precio_numerico": 50000, "oferta_activa": true, "oferta_precio_numerico": 0 }, "hoy": "2026-10-01", "estado": "vigente", "precio": 0 },
+    { "nombre": "el precio normal bajó por debajo de la oferta: se ignora", "plato": { "precio_numerico": 30000, "oferta_activa": true, "oferta_precio_numerico": 40000 }, "hoy": "2026-10-01", "estado": "sin", "precio": 30000 }
+  ]
+}

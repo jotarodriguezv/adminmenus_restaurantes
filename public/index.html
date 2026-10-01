@@ -2362,7 +2362,7 @@
 						     sin el signo menos ni el punto decimal que trae type="number". -->
 						<div class="precio-fila">
 							<input type="text" inputmode="numeric" class="form-input" id="editPrecioNum" placeholder="$ 0"
-							oninput="formatearPrecioAlEscribir(this); avisarSiElPrecioSeSale()">
+							oninput="formatearPrecioAlEscribir(this); avisarSiElPrecioSeSale(); ofertaActualizarResumen(true)">
 							<div class="form-check precio-gratis">
 								<label class="toggle"><input type="checkbox" id="editPrecioGratis" aria-labelledby="editPrecioGratisLabel" onchange="actualizarPrecioGratis()"><span class="toggle-slider"></span></label>
 								<span id="editPrecioGratisLabel">Es gratis</span>
@@ -2375,6 +2375,34 @@
 						     legítimos —una paella para ocho, un catering— y el sistema no
 						     puede distinguirlos. Esto solo pregunta. -->
 						<div id="precioAviso" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
+						<!-- La oferta no es la «promoción»: no es una imagen al abrir la
+						     carta, es un precio menor para este plato. Ver oferta.js. -->
+						<div class="oferta-bloque" id="ofertaBloque">
+							<div class="form-check">
+								<label class="toggle"><input type="checkbox" id="editOfertaActiva" aria-labelledby="editOfertaActivaLabel" onchange="ofertaAlternar()"><span class="toggle-slider"></span></label>
+								<span id="editOfertaActivaLabel">Poner en oferta</span>
+							</div>
+							<div id="ofertaCampos" hidden>
+								<div class="oferta-fila">
+									<label class="oferta-campo">Precio en oferta
+										<input type="text" inputmode="numeric" class="form-input" id="editOfertaPrecio" placeholder="$ 0" oninput="ofertaAlEscribirPrecio()">
+									</label>
+									<label class="oferta-campo oferta-porc">o rebaja de (%)
+										<input type="text" inputmode="numeric" class="form-input" id="editOfertaPorc" placeholder="20" maxlength="2" oninput="ofertaAlEscribirPorcentaje()">
+									</label>
+								</div>
+								<div class="oferta-fila">
+									<label class="oferta-campo">Desde <span style="color:var(--text-dim)">(opcional)</span>
+										<input type="date" class="form-input" id="editOfertaDesde" onchange="ofertaActualizarResumen(false)">
+									</label>
+									<label class="oferta-campo">Hasta <span style="color:var(--text-dim)">(opcional)</span>
+										<input type="date" class="form-input" id="editOfertaHasta" onchange="ofertaActualizarResumen(false)">
+									</label>
+								</div>
+								<div id="ofertaResumen" class="oferta-resumen"></div>
+								<div id="ofertaAviso" class="oferta-aviso"></div>
+							</div>
+						</div>
 					</div>
 					<div class="form-group producto-descripcion tab-detalles">
 						<div class="form-label-fila">
@@ -2910,6 +2938,7 @@
 <script src="bienvenida.js"></script>
 <script src="restaurantes-filtros.js"></script>
 <script src="productos-marcas.js"></script>
+<script src="oferta.js"></script>
 <script src="ver-en-la-carta.js"></script>
 <script src="paletas.js"></script>
 <script>
@@ -3612,10 +3641,18 @@ function renderProducts() {
     // Lo que el plato tiene marcado —filtros y toppings— sin abrir su ficha.
     const marcas = filaDeMarcas(p);
     if (marcas) infoDiv.appendChild(marcas);
+    // En qué punto está su oferta, y sobre todo si ya terminó sola.
+    const marcaOferta = ofertaEtiqueta(p);
+    if (marcaOferta) {
+      const m=document.createElement('div');
+      m.className='oferta-marca oferta-marca-'+marcaOferta.tono;
+      m.textContent=marcaOferta.texto;
+      infoDiv.appendChild(m);
+    }
     // Precio
     const precioDiv=document.createElement('div');
     precioDiv.style.cssText='font-family:var(--mono);font-size:13px;color:var(--accent)';
-    precioDiv.textContent=p.precio||formatPrecio(p.precio_numerico);
+    ofertaPintarPrecio(precioDiv, p);
     // Toggle disponible
     const toggleDiv=document.createElement('div');
     toggleDiv.style.cssText='display:flex;align-items:center;justify-content:center;';
@@ -3629,7 +3666,7 @@ function renderProducts() {
     // Precio solo visible en móvil (CSS lo oculta en desktop)
     const precioMovil=document.createElement('span');
     precioMovil.className='prod-precio-movil';
-    precioMovil.textContent=p.precio||formatPrecio(p.precio_numerico);
+    ofertaPintarPrecio(precioMovil, p);
     const editBtn=document.createElement('button');
     editBtn.className='btn-edit'; editBtn.type='button'; editBtn.textContent='Editar';
     editBtn.addEventListener('click',function(){openEditProductModal(p.id);});
@@ -3715,6 +3752,7 @@ function openNewProductModal() {
 	precioAntesDeGratis = null;   // no es el plato de antes
 	actualizarPrecioGratis(false);
 	document.getElementById('precioPreview').textContent='—';
+	ofertaPintarEnFicha(null);
 	// Los avisos blandos son del plato anterior: dejarlos puestos sobre una
 	// ficha vacía sería decir algo que no viene de nada que se vea.
 	document.getElementById('precioAviso').textContent='';
@@ -3983,6 +4021,7 @@ function openEditProductModal(id) {
 	document.getElementById('precioPreview').textContent=formatPrecio(p.precio_numerico);
 	avisarSiElPrecioSeSale();
 	actualizarPrecioGratis(false);
+	ofertaPintarEnFicha(p);
 	document.getElementById('editDesc').value=p.descripcion||'';
 	document.getElementById('editDescAvanzada').value=p.descripcion_avanzada||'';
 	contarCaracteres('editDesc','editDescContador');
@@ -6433,6 +6472,16 @@ async function saveProduct() {
 		showToast(errores.length===1 ? errores[0].mensaje : `Faltan ${errores.length} datos del producto`,'error');
 		btn.disabled=false;btn.textContent=etiquetaGuardarProducto();return;
 	}
+	// La oferta se comprueba aparte de erroresDeFicha(): vive en una tarjeta
+	// propia y su mensaje sale ahí, junto a lo que hay que corregir.
+	const oferta=ofertaLeerDeFicha();
+	const errOferta=ofertaErrores(precioNumericoDe(document.getElementById('editPrecioNum').value)||0, oferta);
+	if(errOferta){
+		cambiarPestanaProducto('general', document.querySelector('.ficha-tabs .ficha-tab'));
+		document.getElementById('ofertaAviso').textContent=errOferta;
+		showToast(errOferta,'error');
+		btn.disabled=false;btn.textContent=etiquetaGuardarProducto();return;
+	}
 	limpiarErroresFicha();
 	// Ya validados arriba (erroresDeFicha): aquí solo se leen.
 	const nombrePlato=document.getElementById('editNombre').value.trim();
@@ -6453,6 +6502,7 @@ async function saveProduct() {
 		descripcion:document.getElementById('editDesc').value.trim()||null,
 		descripcion_avanzada:document.getElementById('editDescAvanzada').value.trim()||null,
 		disponible:document.getElementById('editDisponible').checked,
+		...oferta,
 	};
 	if(state.pendingImgUrl==='__remove__') body.imagen_url=null;
 	else if(state.pendingImgUrl) body.imagen_url=state.pendingImgUrl;

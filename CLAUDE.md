@@ -38,6 +38,7 @@ la tarea roza alguno de estos temas, leer el documento primero:
 | `docs/seguridad-subidas.md` | Las dos puertas por las que entra un archivo. Qué se comprobó, qué se arregló y qué se dejó a propósito. |
 | `docs/importar-carta.md` | Importar la carta desde un PDF o una imagen. Las dos pruebas de realidad, con sus números. |
 | `docs/solicitudes.md` | Las solicitudes de alta (Meta, equipo en campo): qué protege cada cosa, las variables de entorno y los flujos de n8n y Telegram. |
+| `docs/ofertas.md` | La oferta de precio de un plato (precio rebajado, con fechas opcionales). No es la «promoción». Qué guarda `sql/35`, qué valida el servidor y la regla de «rige hoy», que vive en tres sitios. |
 | `docs/reservas.md` | Las reservas de mesa desde la bienvenida de la carta: qué protege el endpoint público, la retención de 90 días y el orden de despliegue. |
 | `docs/pruebas-manuales-ux.md` | **Qué comprobar a mano** de todo lo que cambió con la revisión de UX, ordenado por pantalla, con casillas. |
 | `docs/revision-ux.md` | **Revisión de UX de los tres repositorios**, con una casilla por hallazgo. Leerlo antes de proponer cambios de interfaz: trae lo ya detectado, lo comprobado que **no** es un fallo, y las decisiones tomadas a propósito. |
@@ -72,6 +73,10 @@ corregir el documento en la misma tarea.
 - `precios.js` — la regla de precios, compartida por la API y el importador.
   **Un precio se guarda dos veces** (`precio` y `precio_numerico`) y separarlos
   hace que la carta muestre uno y el carrito cobre otro. Ya pasó.
+- `public/oferta.js` — la oferta de precio de un plato: el bloque de la ficha y la
+  marca de la lista. Es el espejo en el panel de la regla de la carta; el juego
+  de casos es `test/casos-oferta.json`, **duplicado en `vmenus-app`**. La
+  validación del servidor es `normalizarOferta()` en `precios.js`.
 - `reservas.js` — las reglas de las reservas de mesa (validación en el reloj del restaurante, enlace de WhatsApp, purga a los 90 días). Es la hermana de `solicitudes.js`; ver `docs/reservas.md`.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.
 - `public/ajustes.js` — la pestaña Ajustes: lo que el restaurante configura de

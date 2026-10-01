@@ -773,6 +773,18 @@ select.form-input{padding-right:42px;}
 #productModal .ficha-cabecera-nombre .form-check{padding:0;gap:8px;}
 #productModal .precio-fila{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
 #productModal .precio-fila .form-input{flex:0 1 50%;min-width:140px;}
+/* La oferta de un plato: una sola tarjeta bajo el precio. */
+#productModal .oferta-bloque{margin-top:14px;padding-top:10px;border-top:1px dashed var(--border);}
+#productModal .oferta-fila{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;}
+#productModal .oferta-campo{display:flex;flex-direction:column;gap:4px;flex:1 1 140px;font-size:12px;color:var(--text-muted);}
+#productModal .oferta-porc{flex:0 1 110px;}
+#productModal .oferta-resumen{margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--accent);}
+#productModal .oferta-aviso{margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--text-muted);}
+.oferta-precio-antes{color:var(--text-muted);font-size:.85em;}
+.oferta-marca{margin-top:3px;font-family:var(--mono);font-size:10px;}
+.oferta-marca-ok{color:var(--accent);}
+.oferta-marca-espera{color:var(--text-muted);}
+.oferta-marca-aviso{color:var(--warn);}
 #productModal .precio-gratis{padding:0;gap:8px;font-size:12px;color:var(--text-muted);}
 /* La foto, con la proporción de la carta (16:9 o 9:16). Pedido el 26/09/2026:
    esta es la pantalla con la que interactúan todos los clientes, y una foto
