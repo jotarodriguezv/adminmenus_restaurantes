@@ -8,6 +8,7 @@ const TIPOS_TEXTO_BIENVENIDA = [
 const VALORES_BIENVENIDA = {
   intro_fondo_color: '#111827', intro_overlay_activo: true, intro_overlay_color: '#0a0a0f',
   intro_overlay_opacidad: 50, intro_imagen_ajuste: 'cover', intro_cta: 'Ver carta',
+  intro_social_tiktok: false, intro_resena_activo: false, intro_resena_url: '', intro_resena_texto: '',
   intro_social_estilo: 'circular', intro_social_icono_color: '#ffffff',
   intro_social_fondo: '#ef7a00', intro_social_borde: '#ffffff', intro_social_tamano: 48,
   intro_mapa_modo: 'mapa', intro_mapa_boton_fondo: '#17120b', intro_mapa_boton_color: '#ffffff', intro_mapa_boton_fuente: '',
@@ -129,6 +130,9 @@ function valoresBienvenida() {
     intro_tarjeta_fondo: valorBienvenida('apIntroTarjetaFondo'), intro_tarjeta_borde: valorBienvenida('apIntroTarjetaBorde'), intro_tarjeta_borde_grosor: Number(valorBienvenida('apIntroTarjetaBordeGrosor')),
     intro_textos: recolectarTextosBienvenida(), intro_social_instagram: campoBienvenida('apIntroSocialInstagram').checked,
     intro_social_facebook: campoBienvenida('apIntroSocialFacebook').checked, intro_social_estilo: valorBienvenida('apIntroSocialEstilo'),
+    intro_social_tiktok: campoBienvenida('apIntroSocialTiktok').checked,
+    intro_resena_activo: campoBienvenida('apIntroResenaActivo').checked, intro_resena_url: valorBienvenida('apIntroResenaUrl').trim(),
+    intro_resena_texto: valorBienvenida('apIntroResenaTexto').trim(),
     intro_social_icono_color: valorBienvenida('apIntroSocialIconoColor'), intro_social_fondo: valorBienvenida('apIntroSocialFondo'),
     intro_social_borde: valorBienvenida('apIntroSocialBorde'), intro_social_tamano: Number(valorBienvenida('apIntroSocialTamano')),
     intro_mapa_activo: campoBienvenida('apIntroMapaActivo').checked, intro_mapa_url: valorBienvenida('apIntroMapaUrl').trim(), intro_mapa_modo: valorBienvenida('apIntroMapaModo'),
@@ -170,7 +174,10 @@ function actualizarVistaPreviaBienvenida() {
     logo.appendChild(imagenLogo);
   } else logo.textContent = 'VM';
   const social = campoBienvenida('apIntroPreviewSocial'); const at = r.atributos || {};
-  const redes = [datos.intro_social_instagram && at.social_instagram ? '◎' : '', datos.intro_social_facebook && at.social_facebook ? 'f' : ''].filter(Boolean);
+  // El botón de reseñas se ve en la vista previa solo si saldría en la carta: encendido y con enlace.
+  const resena = campoBienvenida('apIntroPreviewResena');
+  if (resena) { resena.hidden = !(datos.intro_resena_activo && /^https?:\/\//i.test(datos.intro_resena_url)); resena.textContent = `★ ${datos.intro_resena_texto || 'Califícanos en Google'}`; }
+  const redes = [datos.intro_social_instagram && at.social_instagram ? '◎' : '', datos.intro_social_facebook && at.social_facebook ? 'f' : '', datos.intro_social_tiktok && at.social_tiktok ? '♪' : ''].filter(Boolean);
   social.textContent = redes.join('  '); social.style.display = redes.length ? '' : 'none'; social.style.color = datos.intro_social_icono_color; social.style.background = datos.intro_social_fondo;
   social.style.border = `1px solid ${datos.intro_social_borde}`; social.style.fontSize = `${Math.round(datos.intro_social_tamano * .45)}px`; social.style.padding = `7px ${datos.intro_social_estilo === 'pildora' ? 14 : 9}px`;
   social.style.borderRadius = datos.intro_social_estilo === 'circular' ? '999px' : datos.intro_social_estilo === 'redondeado' ? '10px' : '999px';
@@ -197,13 +204,15 @@ function renderBienvenida(at = {}) {
   marcar('apIntroActivo', datos.intro_activo); poner('apIntroNombre', datos.intro_nombre); poner('apIntroEslogan', datos.intro_eslogan); poner('apIntroTextoAdicional', datos.intro_texto_adicional); poner('apIntroCta', datos.intro_cta); poner('apDireccion', datos.direccion);
   poner('apIntroFondoColor', datos.intro_fondo_color); poner('apIntroFondoColorHex', datos.intro_fondo_color); marcar('apIntroOverlayActivo', datos.intro_overlay_activo); poner('apIntroOverlayColor', datos.intro_overlay_color); poner('apIntroOverlayColorHex', datos.intro_overlay_color); poner('apIntroOverlayOpacidad', datos.intro_overlay_opacidad); poner('apIntroImagenAjuste', datos.intro_imagen_ajuste);
   poner('apIntroTarjetaFondo', datos.intro_tarjeta_fondo); poner('apIntroTarjetaBorde', datos.intro_tarjeta_borde); poner('apIntroTarjetaBordeGrosor', datos.intro_tarjeta_borde_grosor);
-  marcar('apIntroSocialInstagram', datos.intro_social_instagram); marcar('apIntroSocialFacebook', datos.intro_social_facebook); poner('apIntroSocialEstilo', datos.intro_social_estilo); poner('apIntroSocialIconoColor', datos.intro_social_icono_color); poner('apIntroSocialFondo', datos.intro_social_fondo); poner('apIntroSocialBorde', datos.intro_social_borde); poner('apIntroSocialTamano', datos.intro_social_tamano);
+  marcar('apIntroSocialInstagram', datos.intro_social_instagram); marcar('apIntroSocialFacebook', datos.intro_social_facebook); marcar('apIntroSocialTiktok', datos.intro_social_tiktok);
+  marcar('apIntroResenaActivo', datos.intro_resena_activo); poner('apIntroResenaUrl', datos.intro_resena_url); poner('apIntroResenaTexto', datos.intro_resena_texto); poner('apIntroSocialEstilo', datos.intro_social_estilo); poner('apIntroSocialIconoColor', datos.intro_social_icono_color); poner('apIntroSocialFondo', datos.intro_social_fondo); poner('apIntroSocialBorde', datos.intro_social_borde); poner('apIntroSocialTamano', datos.intro_social_tamano);
   marcar('apIntroMapaActivo', datos.intro_mapa_activo); poner('apIntroMapaUrl', datos.intro_mapa_url); poner('apIntroMapaModo', datos.intro_mapa_modo); poner('apIntroMapaBotonFondo', datos.intro_mapa_boton_fondo); poner('apIntroMapaBotonColor', datos.intro_mapa_boton_color); poner('apIntroMapaBotonFuente', datos.intro_mapa_boton_fuente);
   const fuentesMapa = campoBienvenida('apIntroMapaBotonFuente'); if (fuentesMapa && !fuentesMapa.options.length) fuentesMapa.innerHTML = (typeof FUENTES_TEXTO_MENU !== 'undefined' ? FUENTES_TEXTO_MENU : ['', 'Montserrat', 'Inter', 'Poppins']).map(f => `<option value="${f}">${f || 'Montserrat (predeterminada)'}</option>`).join(''); poner('apIntroMapaBotonFuente', datos.intro_mapa_boton_fuente);
   const imagen = campoBienvenida('apIntroImagenPreview'); imagen.dataset.url = datos.intro_fondo_url || ''; imagen.hidden = !datos.intro_fondo_url; if (datos.intro_fondo_url) imagen.src = datos.intro_fondo_url;
   campoBienvenida('apIntroImagenVacia').hidden = !!datos.intro_fondo_url; campoBienvenida('apIntroImagenEliminar').hidden = !datos.intro_fondo_url;
   const redes = state.restaurante?.atributos || {}; campoBienvenida('apIntroEstadoInstagram').textContent = redes.social_instagram ? 'Instagram · enlace configurado' : 'Instagram · agrega el enlace en Ajustes';
-  campoBienvenida('apIntroEstadoFacebook').textContent = redes.social_facebook ? 'Facebook · enlace configurado' : 'Facebook · agrega el enlace en Ajustes'; actualizarVistaPreviaBienvenida();
+  campoBienvenida('apIntroEstadoFacebook').textContent = redes.social_facebook ? 'Facebook · enlace configurado' : 'Facebook · agrega el enlace en Ajustes';
+  campoBienvenida('apIntroEstadoTiktok').textContent = redes.social_tiktok ? 'TikTok · enlace configurado' : 'TikTok · agrega el enlace en Ajustes'; actualizarVistaPreviaBienvenida();
 }
 
 async function subirFondoBienvenida(input) {
