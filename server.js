@@ -2161,10 +2161,13 @@ app.post('/api/productos', auth, async (req, res) => {
   if (errPrecio) return res.status(400).json({ error: errPrecio });
   const errPersonas = normalizarPersonas(req.body);
   if (errPersonas) return res.status(400).json({ error: errPersonas });
+  const oferta = Object.fromEntries(precios.CAMPOS_OFERTA.filter((c) => req.body[c] !== undefined).map((c) => [c, req.body[c]]));
+  const errOferta = precios.normalizarOferta(oferta, p.precio_numerico ?? 0);
+  if (errOferta) return res.status(400).json({ error: errOferta });
   const errCat = await categoriaAjena(categoria_id, restaurante_id);
   if (errCat) return res.status(400).json({ error: errCat });
   const { data, error } = await supabase.from('productos')
-    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, personas: req.body.personas ?? 1, atributos: atributosProducto(atributos, null) }])
+    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, personas: req.body.personas ?? 1, atributos: atributosProducto(atributos, null), ...oferta }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -2172,9 +2175,11 @@ app.post('/api/productos', auth, async (req, res) => {
 
 app.patch('/api/productos/:id', auth, async (req, res) => {
   // 'atributos' hace falta para conservar lo que pone el worker (el video).
-  const { data: prod } = await supabase.from('productos').select('restaurante_id, atributos').eq('id', req.params.id).single();
+  // Los datos de la oferta y el precio, para validar lo que llegue contra lo que
+  // ya había (un PATCH puede traer solo el interruptor, sin el precio).
+  const { data: prod } = await supabase.from('productos').select('restaurante_id, atributos, precio_numerico, oferta_activa, oferta_precio_numerico, oferta_desde, oferta_hasta').eq('id', req.params.id).single();
   if (!prod || !canAccessRestaurante(req.user, prod.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
-  const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden', 'atributos', 'personas'];
+  const permitidos = ['nombre', 'precio', 'precio_numerico', 'descripcion', 'descripcion_avanzada', 'imagen_url', 'disponible', 'categoria_id', 'orden', 'atributos', 'personas', ...precios.CAMPOS_OFERTA];
   const body = Object.fromEntries(Object.entries(req.body).filter(([k]) => permitidos.includes(k)));
   // Solo si viene: un PATCH es parcial, y no mandar el nombre significa
   // dejarlo como está, no borrarlo. Lo que se cierra aquí es mandarlo vacío,
@@ -2187,6 +2192,10 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
   if (errPrecio) return res.status(400).json({ error: errPrecio });
   const errPersonas = normalizarPersonas(body);
   if (errPersonas) return res.status(400).json({ error: errPersonas });
+  // Después de normalizarPrecio: manda el precio normal con el que quedará el
+  // plato, que es el nuevo si llega en este mismo guardado.
+  const errOferta = precios.normalizarOferta(body, body.precio_numerico ?? prod.precio_numerico, prod);
+  if (errOferta) return res.status(400).json({ error: errOferta });
   if (body.atributos !== undefined) body.atributos = atributosProducto(body.atributos, prod.atributos);
   // Mover un plato de categoría es normal; moverlo a la de otro negocio no.
   if (body.categoria_id !== undefined) {
