@@ -2970,7 +2970,7 @@ subido; si se quiere decirlo en la pantalla, hay que poner ese motivo.
 
 ## FM7 · Tras subir un video, la tarjeta de la IA se quedaba como con el archivo elegido · **Media**
 
-- [ ] En un PR abierto · #320 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · #320 y #321 · verificado en producción
 
 **Visto en producción, probando en `ZZ Pruebas UX`** con el panel ya desplegado: se
 elige un video, y la tarjeta de la IA se apaga con «Termina primero con el video que
@@ -3215,6 +3215,128 @@ Replicate). Se revisó su interfaz sin lanzar el proceso.
 
 ---
 ---
+
+---
+---
+
+# Skipper, carta de video horizontal en móvil · 01/10/2026
+
+**Una pasada pedida por el usuario** sobre la carta de Skipper (`menu.vmenus.co/skipper`),
+el restaurante de prueba con videos generados con IA: «¿se ve bien o no?». Es el modelo
+**video horizontal** (`nav = 'video'`); el vertical tiene su propio tema y **no se miró**.
+
+Método: la carta pública en producción, en un móvil de 375 px, **solo lectura**. Se midió con
+el navegador (tamaños, contrastes calculados sobre el fondo real, estado de cada `<video>`) y
+se sacaron cuadros de cada video en cuatro instantes. **No se vio ni se oyó un video en
+movimiento**, ni se miró escritorio ni televisor.
+
+**El fondo real no es el del `body`.** El `body` es marrón (39,31,17) pero lleva encima una
+capa fija casi negra al 82 %, y lo que se ve es (15,14,15). Medir los contrastes contra el
+`body` daba números falsos; se calcularon contra el color compuesto.
+
+## Lo medido
+
+| Elemento | Medida | Veredicto |
+|---|---|---|
+| Nombre del plato (sobre la tarjeta) | 10,75 | Bien |
+| Chip inactivo | 9,11 | Bien |
+| Subtítulo «CARTA DIGITAL» (11 px) | 6,35 | Bien |
+| Descripción (13,5 px) | 5,73 | Bien |
+| Chip activo | 5,47 | Bien |
+| Título «SKIPPER» y títulos de categoría | 5,33 | Bien |
+| Precio (cobre, 17 px negrita) | 3,44 | **Justo** → SK5 |
+| Flecha de subir | 3,03 | Pasa por muy poco; no se tocó |
+| Chips de categoría | 30 px de alto, 4 px entre ellos | → SK4 |
+| Primer plato | a 355 de 812 px (44 %) | → SK3 |
+
+Los seis videos: 1280×720, 6 s, 265–896 KB, cacheados un año, `preload="none"`, mudos y con
+`playsinline`. Se mueve uno solo, el más centrado. Técnicamente están bien.
+
+## SK1 · Los videos de IA de dos platos se deforman · **Media**
+
+- [ ] Pendiente · decisión del usuario (regenerar o cambiar por foto)
+
+Cuadros a los 0 %, 34 %, 67 % y 100 % de cada video:
+
+- **Estables y apetecibles:** La Salvajada, Clásica, Papito y El Jalapeño. Órbita suave de cámara.
+- **Salchipapa Ensueño:** la comida se reacomoda y se deforma entre cuadros, y es el de más
+  movimiento (diferencia media entre cuadros ~26 de 255). Es el que más se nota «hecho por IA».
+- **La Burger Cronch:** el sándwich cambia de forma y las papas se mueven.
+
+Los seis tienen un **corte visible al reiniciar el bucle** (el último cuadro no empalma con
+el primero). Es lo normal en estos videos.
+
+## SK2 · Datos de Skipper que no son de diseño · **Media**
+
+- [ ] Pendiente · los cambia el restaurante, no el código
+
+- **La Burger Cronch** está en la categoría Salchipapas y su foto es un sándwich tipo club,
+  no una hamburguesa.
+- **Descripciones de prueba** en una carta pública: «xd» (La Salvajada) y «DWDW» (Papito).
+- Salchipapa Ensueño y El Jalapeño **sin descripción**.
+- El logo dice **«Eclipse»** y la carta se llama «Skipper»: correcto si es otra marca del
+  mismo dueño, incoherente si no.
+
+## SK3 · El encabezado se comía más de un tercio de la pantalla · **Media**
+
+- [x] Hecho · 2026-10-01 · vmenus-app#85
+
+Con el logo en 90 px y el título en 42, el primer video empezaba al 44 % de la altura: en
+una carta cuyo protagonista es el video, más de un tercio de la pantalla iba antes de ver
+un plato. **Arreglo:** logo 64 px, título 34 px y menos relleno. Ahora empieza al 37 % (299 px).
+
+## SK4 · Los chips de categoría medían 30 px y estaban a 4 px · **Baja**
+
+- [x] Hecho · 2026-10-01 · vmenus-app#85
+
+Cumplía el mínimo de WCAG 2.2 AA (24 px) pero no la guía de Apple y Material (44 px), y a
+30 px con 4 de separación es fácil tocar el vecino con el pulgar. **Arreglo:** 44 px de alto
+y 8 de separación. Con dos categorías el riesgo era bajo; con más, no.
+
+## SK5 · El precio quedaba justo de contraste · **Baja**
+
+- [x] Hecho · 2026-10-01 · vmenus-app#85
+
+17 px en negrita con 3,44 de contraste: WCAG llama «texto grande» a **18,66 px en negrita**
+y solo ahí deja el mínimo en 3. Sí cumplía la regla propia del panel (`REGLAS_COLOR`, 3 para
+precios sobre tarjeta, que cuenta la negrita como grande). **Arreglo:** 19 px, sin tocar el
+color del restaurante.
+
+**Todo SK3–SK5 vale solo con `body[data-tema="video"]`.** El encabezado y la nav son los de
+topnav (Bonzas y Malparados): comprobado con la rama que siguen igual, y Montana (vertical)
+no cambia. Para esto `activarTema` marca ahora el modelo en el `body`.
+
+## SK6 · No se nota que son videos · **Media**
+
+- [ ] Pendiente · sin decidir
+
+Los platos que no están en el centro se quedan **en pausa con un cuadro fijo**, igual que
+una foto, y no hay icono de reproducir ni ningún indicio de movimiento. Para el comensal,
+que cree estar viendo fotos, esa es justamente la gracia de pagar el plan Video y no se
+está notando. Ideas, sin probar: un pequeño distintivo de «video» en la esquina, o que
+arranquen todos los visibles aunque pese más (choca con la regla de un solo video a la vez).
+
+## SK7 · El recorte 16:9 corta partes de algunas hamburguesas · **Baja**
+
+- [ ] Pendiente · ya estaba en la lista de pendientes («recorte horizontal pierde alto»)
+
+El hueco es 16:9 fijo con `object-fit: cover`: la base de La Salvajada queda cortada. Es la
+consecuencia de generar el video horizontal a partir de una foto que no lo es.
+
+## Comprobado y no es un fallo: las tarjetas no son tocables
+
+- [~] Descartado · 2026-10-01 · es así por diseño del modelo (confirmado por el usuario)
+
+Tocar un plato no abre ninguna ficha. Se había anotado como posible carencia; el usuario
+confirmó que es lo previsto.
+
+## Lo que está bien
+
+- **Paleta y jerarquía:** cobre sobre casi negro, con la tarjeta marrón separándose lo justo.
+  El video domina, el nombre va en blanco y negrita, el precio en cobre a la derecha.
+- **Peso y carga:** nada se descarga hasta acercarse, y solo se mueve un video a la vez.
+- **Intro y encabezado:** un solo botón claro, y las fuentes combinan.
+- **Sin desbordamiento horizontal** en 375 px.
 
 ---
 ---
