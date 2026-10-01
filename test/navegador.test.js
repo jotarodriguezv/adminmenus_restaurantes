@@ -9927,6 +9927,14 @@ describe('reservas de mesa en el panel (01/10/2026)', () => {
 		assert.equal(c.enlaceReserva({ ...r, celular: '' }, 'x'), '');
 	});
 
+	test('guardar Apariencia repinta las pestañas: la de Reservas aparece sin recargar', () => {
+		// Salió probando en producción el 01/10/2026: el interruptor se guardaba y la pestaña
+		// no aparecía hasta recargar, porque saveAspecto no volvía a ajustar las pestañas.
+		const aspecto = fs.readFileSync(path.join(PUBLIC, 'aspecto.js'), 'utf8');
+		const guardar = aspecto.match(/async function saveAspecto\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(guardar, /state\.restaurante = data;[\s\S]*ajustarPestanasAlModelo\(\);/);
+	});
+
 	test('lo que escribe el comensal se pinta escapado', () => {
 		const lista = fs.readFileSync(path.join(PUBLIC, 'reservas.js'), 'utf8');
 		const tarjeta = lista.match(/function tarjetaReserva[\s\S]*$/)[0];

@@ -90,6 +90,9 @@ async function saveAspecto() {
     // Si el modelo cambió, refresca qué opciones quedan deshabilitadas y su
     // etiqueta — la misma llamada que hace saveApariencia() al guardar.
     aplicarPlanAlPanel();
+    // Las reservas (01/10/2026) tienen pestaña según el interruptor de la bienvenida,
+    // que se guarda aquí: sin esto la pestaña no aparecía hasta recargar el panel.
+    ajustarPestanasAlModelo();
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     avisarGuardadoConCarta('Apariencia guardada');
   } catch (e) {
