@@ -1476,3 +1476,20 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important;}
 }
+
+/* Reservas de mesa (01/10/2026). */
+.tab-contador{display:inline-block;min-width:18px;padding:1px 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:800;line-height:1.5;text-align:center;vertical-align:middle;}
+.reservas-resumen{font-size:12px;color:var(--text-muted);margin-bottom:14px;}
+.reservas-grupo{margin:18px 0 4px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);}
+.reserva-card{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--border);font-size:13px;line-height:1.55;}
+.reserva-cuando{font-weight:700;color:var(--text);}
+.reserva-estado{font-size:12px;color:var(--text-muted);}
+.reserva-pendiente .reserva-estado{color:var(--accent);font-weight:800;}
+.reserva-cancelada{opacity:.6;}
+.reserva-acciones{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;flex:0 1 auto;}
+.reserva-acciones .btn-sm{text-decoration:none;white-space:nowrap;}
+.reserva-ok{background:var(--accent);color:#fff;border-color:var(--accent);}
+@media (max-width:640px){
+  .reserva-card{flex-direction:column;align-items:stretch;}
+  .reserva-acciones{justify-content:flex-start;}
+}

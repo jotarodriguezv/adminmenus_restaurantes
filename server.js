@@ -19,6 +19,7 @@ const lectorpdf   = require('./lectorpdf');
 const lectorcarta = require('./lectorcarta');
 const importacion = require('./importacion');
 const solicitudes = require('./solicitudes');
+const reservas = require('./reservas');
 const { formatoPrecio } = precios;
 
 const app  = express();
@@ -885,6 +886,7 @@ const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 's
   'intro_overlay_opacidad', 'intro_imagen_ajuste', 'intro_textos',
   'intro_social_instagram', 'intro_social_facebook', 'intro_social_tiktok', 'intro_social_estilo',
   'intro_resena_activo', 'intro_resena_url', 'intro_resena_texto',
+  'intro_reservas_activo', 'intro_reservas_texto',
   'intro_social_icono_color', 'intro_social_fondo', 'intro_social_borde',
   'intro_social_tamano', 'intro_mapa_activo', 'intro_mapa_url', 'intro_mapa_modo', 'intro_mapa_boton_fondo', 'intro_mapa_boton_color', 'intro_mapa_boton_fuente', 'intro_tarjeta_fondo', 'intro_tarjeta_borde', 'intro_tarjeta_borde_grosor'];
 
@@ -1096,7 +1098,7 @@ function validarIntro(atributos) {
     try { atributos.intro_textos = limpiarIntroTextos(atributos.intro_textos); }
     catch (error) { return error.message; }
   }
-  for (const clave of ['intro_social_instagram', 'intro_social_facebook', 'intro_social_tiktok', 'intro_mapa_activo', 'intro_resena_activo']) {
+  for (const clave of ['intro_social_instagram', 'intro_social_facebook', 'intro_social_tiktok', 'intro_mapa_activo', 'intro_resena_activo', 'intro_reservas_activo']) {
     if (clave in atributos) atributos[clave] = atributos[clave] === true;
   }
   if ('intro_social_estilo' in atributos && !INTRO_ESTILOS_SOCIAL.includes(atributos.intro_social_estilo))
@@ -1149,6 +1151,10 @@ function validarIntro(atributos) {
   // maps.app.goo.gl, g.co…— y es lo que se le pone en la mano a un desconocido: solo
   // https y solo dominios de Google, igual que la ubicación. Un enlace cualquiera aquí
   // sería un botón con el nombre del restaurante que lleva a donde quiera quien lo edite.
+  // El botón «Reservar mesa» (01/10/2026): solo el texto se limpia; el interruptor ya
+  // pasó por la lista de booleanos de arriba.
+  if ('intro_reservas_texto' in atributos)
+    atributos.intro_reservas_texto = String(atributos.intro_reservas_texto ?? '').replace(/\s+/g, ' ').trim().slice(0, reservas.TEXTO_BOTON_MAX);
   if ('intro_resena_texto' in atributos)
     atributos.intro_resena_texto = String(atributos.intro_resena_texto ?? '').trim().slice(0, RESENA_TEXTO_MAX);
   if ('intro_resena_url' in atributos) {
@@ -3093,6 +3099,85 @@ app.patch('/api/pedidos/:id', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── RESERVAS DE MESA ──────────────────────────────────────────
+// Las pide el comensal desde la bienvenida de la carta (01/10/2026). Reglas y
+// motivos en reservas.js y en la cabecera de sql/34. Esta puerta no tiene
+// sesión, así que se protege con: campo trampa y tiempo mínimo, un tope por IP,
+// un tope de pendientes por celular, y que el restaurante las tenga encendidas.
+const RESERVA_VENTANA_MS = 60 * 60 * 1000;
+// Cambiable por entorno solo para que las pruebas no tengan que repartir sus peticiones
+// en un archivo por cada diez.
+const RESERVA_MAX_POR_VENTANA = Number(process.env.RESERVAS_MAX_POR_HORA) || 10;
+const reservasPorIp = new Map();
+
+function reservaPermitida(ip) {
+  const ahora = Date.now();
+  const reg = reservasPorIp.get(ip);
+  if (!reg || ahora - reg.desde >= RESERVA_VENTANA_MS) { reservasPorIp.set(ip, { desde: ahora, n: 1 }); return true; }
+  reg.n++;
+  return reg.n <= RESERVA_MAX_POR_VENTANA;
+}
+
+setInterval(() => {
+  const limite = Date.now() - RESERVA_VENTANA_MS;
+  for (const [ip, reg] of reservasPorIp) if (reg.desde < limite) reservasPorIp.delete(ip);
+}, RESERVA_VENTANA_MS).unref();
+
+app.post('/api/reservas', async (req, res) => {
+  if (!reservaPermitida(req.ip)) {
+    console.warn(`🤖 reservas: límite por hora alcanzado · ip ${req.ip}`);
+    return res.status(429).json({ error: 'Has enviado varias reservas seguidas. Espera un rato o escríbenos directamente.' });
+  }
+  const b = req.body || {};
+  // A un robot se le contesta como si todo fuera bien: que no aprenda a esquivarlo.
+  const robot = reservas.pareceRobot(b);
+  if (robot) {
+    console.warn(`🤖 reserva descartada (${robot}) · ip ${req.ip}`);
+    return res.status(201).json({ ok: true });
+  }
+  if (!UUID_RE.test(b.restaurante_id || '')) return res.status(400).json({ error: 'Datos de la reserva inválidos' });
+
+  const { data: resto, error: errResto } = await supabase.from('restaurantes')
+    .select('id, activo, atributos').eq('id', b.restaurante_id).maybeSingle();
+  if (errResto) { console.error('[reservas] no se pudo leer el restaurante:', errResto.message); return res.status(500).json({ error: 'No se pudo registrar la reserva' }); }
+  if (!resto || resto.activo === false || resto.atributos?.intro_reservas_activo !== true)
+    return res.status(400).json({ error: 'Este restaurante no recibe reservas por aquí' });
+
+  const { datos, error } = reservas.validarReserva(b, { zona: zonaDe(resto.atributos) });
+  if (error) return res.status(400).json({ error });
+
+  // Tope de pendientes por celular en este restaurante.
+  const { count, error: errCuenta } = await supabase.from('reservas')
+    .select('id', { count: 'exact', head: true })
+    .eq('restaurante_id', resto.id).eq('celular', datos.celular).eq('estado', 'pendiente');
+  if (errCuenta) { console.error('[reservas] no se pudo contar:', errCuenta.message); return res.status(500).json({ error: 'No se pudo registrar la reserva' }); }
+  if ((count || 0) >= reservas.PENDIENTES_MAX_POR_CELULAR)
+    return res.status(429).json({ error: 'Ya tienes reservas pendientes en este restaurante. Espera a que las confirmen o escríbenos directamente.' });
+
+  const { error: errGuardar } = await supabase.from('reservas').insert([{ restaurante_id: resto.id, ...datos }]);
+  if (errGuardar) { console.error('[reservas] no se pudo guardar:', errGuardar.message); return res.status(500).json({ error: 'No se pudo registrar la reserva' }); }
+  res.status(201).json({ ok: true });
+});
+
+app.get('/api/reservas', auth, async (req, res) => {
+  const rid = req.query.restaurante_id;
+  if (!UUID_RE.test(rid || '') || !canAccessRestaurante(req.user, rid)) return res.status(403).json({ error: 'Sin permiso' });
+  // Las de hoy en adelante primero, por fecha y hora; las pasadas al final, de la más reciente a la más vieja.
+  const { data, error } = await supabase.from('reservas').select('*').eq('restaurante_id', rid)
+    .order('fecha', { ascending: true }).order('hora', { ascending: true }).limit(500);
+  if (error) return res.status(500).json({ error: 'No se pudieron cargar las reservas' });
+  res.json(data || []);
+});
+
+app.patch('/api/reservas/:id', auth, async (req, res) => {
+  if (!UUID_RE.test(req.params.id) || !reservas.ESTADOS.includes(req.body?.estado)) return res.status(400).json({ error: 'Estado inválido' });
+  const { data: reserva } = await supabase.from('reservas').select('restaurante_id').eq('id', req.params.id).maybeSingle();
+  if (!reserva || !canAccessRestaurante(req.user, reserva.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  const { error } = await supabase.from('reservas').update({ estado: req.body.estado, actualizado_en: new Date().toISOString() }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: 'No se pudo actualizar la reserva' });
+  res.json({ ok: true });
+});
+
 // Consulta agregada: sí requiere auth y respeta el mismo control de acceso
 // que el resto (un cliente solo ve sus propias estadísticas).
 app.get('/api/estadisticas', auth, async (req, res) => {
@@ -3829,6 +3914,7 @@ const servidor = app.listen(PORT, () => {
   else if (!process.env.REPLICATE_API_TOKEN) console.log('✨ cola de IA apagada: falta REPLICATE_API_TOKEN');
   limpieza.arrancar(supabase);
   solicitudes.arrancarPurga(supabase);
+  reservas.arrancarPurga(supabase);
   if (process.env.NODE_ENV !== 'test') {
     suspenderPruebasVencidas();
     setInterval(suspenderPruebasVencidas, 15 * 60 * 1000).unref();
@@ -3844,7 +3930,7 @@ const servidor = app.listen(PORT, () => {
 // sobreviva a un despliegue el panel viejo puede quedarse vivo minutos junto al
 // nuevo, y con la cola de IA o el limpiador aún en marcha harían el trabajo dos
 // veces. Pararlas tiene que ir ANTES de alargar el plazo (PARADA_MAX_MS).
-const parar = pararOrdenadamente({ servidor, colas: [video.detener, colaia.detener, limpieza.detener, solicitudes.detenerPurga] });
+const parar = pararOrdenadamente({ servidor, colas: [video.detener, colaia.detener, limpieza.detener, solicitudes.detenerPurga, reservas.detenerPurga] });
 process.on('SIGTERM', () => parar('SIGTERM'));
 process.on('SIGINT',  () => parar('SIGINT'));
 

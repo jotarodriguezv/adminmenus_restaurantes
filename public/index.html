@@ -247,6 +247,8 @@
 				<button class="tab-btn" onclick="switchTab('qr',this)">QR</button>
 					<button class="tab-btn" onclick="switchTab('estadisticas',this)">Estadísticas</button>
 					<button class="tab-btn" onclick="switchTab('ordenes',this)">Pedidos</button>
+				<!-- Solo existe si el restaurante encendió las reservas en Apariencia; ver ajustarPestanasAlModelo(). -->
+				<button class="tab-btn" id="tabBtnReservas" onclick="switchTab('reservas',this)" style="display:none">Reservas</button>
 			</div>
 			<div class="content">
 				<!-- TAB INICIO -->
@@ -1686,7 +1688,7 @@
 							<div class="bienvenida-preview-content" id="apIntroPreviewContent">
 								<div class="bienvenida-preview-logo" id="apIntroPreviewLogo">VM</div>
 								<div id="apIntroPreviewNombre">Tu restaurante</div><div id="apIntroPreviewEslogan">Hecho con cariño</div>
-								<div id="apIntroPreviewExtra"></div><button type="button" id="apIntroPreviewCta">Ver carta</button><div class="bienvenida-preview-resena" id="apIntroPreviewResena" hidden>★ Califícanos en Google</div>
+								<div id="apIntroPreviewExtra"></div><button type="button" id="apIntroPreviewCta">Ver carta</button><div class="bienvenida-preview-resena" id="apIntroPreviewResena" hidden>★ Califícanos en Google</div><div class="bienvenida-preview-resena" id="apIntroPreviewReservas" hidden>Reservar mesa</div>
 								<div class="bienvenida-preview-social" id="apIntroPreviewSocial">◎ &nbsp; f</div><div id="apIntroPreviewDireccion"></div><div class="bienvenida-preview-map" id="apIntroPreviewMapa">Ubicación</div>
 							</div>
 						</div>
@@ -1724,6 +1726,11 @@
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroResenaActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Mostrar el botón de reseñas</span></div>
 							<div class="form-group"><label for="apIntroResenaUrl" class="form-label">Enlace para dejar la reseña</label><input type="url" class="form-input" id="apIntroResenaUrl" placeholder="https://g.page/r/…/review" oninput="actualizarVistaPreviaBienvenida()"><small class="bienvenida-ayuda">Lo sacas de tu perfil de Google Business Profile, en «Pedir reseñas»: copia el enlace tal cual. Tiene que ser un enlace de Google.</small></div>
 							<div class="form-group"><label for="apIntroResenaTexto" class="form-label">Texto del botón <span>(opcional)</span></label><input type="text" class="form-input" id="apIntroResenaTexto" maxlength="60" placeholder="Califícanos en Google" oninput="actualizarVistaPreviaBienvenida()"></div>
+						</div></details>
+						<details class="bienvenida-details"><summary>Botón «Reservar mesa»</summary><div class="bienvenida-details-body">
+							<p class="bienvenida-ayuda">Un botón en la bienvenida que abre un formulario: nombre, celular, fecha, hora y para cuántas personas. Las reservas te llegan a la pestaña <strong>Reservas</strong>, donde las confirmas o cancelas y le escribes al cliente por WhatsApp. No se avisa sola: revisa el contador de la pestaña.</p>
+							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroReservasActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Recibir reservas desde la bienvenida</span></div>
+							<div class="form-group"><label for="apIntroReservasTexto" class="form-label">Texto del botón <span>(opcional)</span></label><input type="text" class="form-input" id="apIntroReservasTexto" maxlength="40" placeholder="Reservar mesa" oninput="actualizarVistaPreviaBienvenida()"></div>
 						</div></details>
 						<div class="form-group" style="margin:14px 0 0"><label for="apDireccion" class="form-label">Dirección <span>(opcional)</span></label><input type="text" class="form-input" id="apDireccion" maxlength="120" placeholder="Cra 7 # 12-34, Bogotá" oninput="actualizarVistaPreviaBienvenida()"></div>
 						<button type="button" class="btn-sm bienvenida-reset" onclick="restaurarBienvenida()">Restaurar valores predeterminados</button>
@@ -1957,6 +1964,9 @@
 						</div>
 						<div id="estIgnorados"></div>
 					</div>
+				</div>
+				<div id="tabReservas" class="hidden">
+					<div class="section-card"><div class="section-header"><div class="section-title">Reservas de mesa</div><button class="btn-sm" onclick="cargarReservas()">Actualizar</button></div><p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Las que piden tus clientes desde la pantalla de bienvenida de la carta. Confírmalas o cancélalas y escríbeles por WhatsApp: no se les avisa solas.</p><div id="reservasResumen" class="reservas-resumen"></div><div id="reservasLista"></div></div>
 				</div>
 				<div id="tabOrdenes" class="hidden">
 					<div class="section-card"><div class="section-header"><div class="section-title">Pedidos desde la carta</div><button class="btn-sm" onclick="cargarOrdenes()">Actualizar</button></div><p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Son pedidos que el cliente confirmó haber enviado por WhatsApp. Confirma su atención aquí.</p><div id="ordenesResumen"></div><div id="ordenesLista"></div></div>
@@ -2893,6 +2903,7 @@
 <script src="toppings.js"></script>
 <script src="pedidos.js"></script>
 <script src="ordenes.js"></script>
+<script src="reservas.js"></script>
 <script src="sesion.js"></script>
 <script src="ajustes.js"></script>
 <script src="aspecto.js"></script>
@@ -3286,7 +3297,7 @@ function switchTab(tab, btn) {
   // En un móvil la pestaña pulsada puede estar medio fuera; se trae a la vista
   // para que se vea cuál está activa. 'nearest' no mueve la página en vertical.
   btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  ['tabInicio','tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabOrdenes','tabAjustes','tabAspecto'].forEach(id=>{
+  ['tabInicio','tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabOrdenes','tabReservas','tabAjustes','tabAspecto'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
@@ -3295,6 +3306,7 @@ function switchTab(tab, btn) {
   if (tab === 'qr') renderQR().then(() => fijarFotoDePestana('qr'));
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
   if (tab === 'ordenes' && !ordenesCargadas) cargarOrdenes();
+  if (tab === 'reservas') cargarReservas();
   if (tab === 'ajustes') renderAjustes();
   if (tab === 'aspecto') renderAspecto();
   if (tab === 'inicio') renderInicio();
@@ -8177,6 +8189,7 @@ function ajustarPestanasAlModelo() {
   // quien la quiera de verdad tiene que poder guardar 'tv', y eso lo filtra el
   // servidor por plan.
   document.getElementById('tabBtnTv').style.display = restauranteTieneTv() ? 'block' : 'none';
+  ajustarPestanaReservas();   // 01/10/2026: solo existe si el restaurante las encendió
   marcarBordesDeTabs();   // aparecer o desaparecer pestañas cambia si sobran
 }
 
