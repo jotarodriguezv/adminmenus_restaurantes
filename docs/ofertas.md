@@ -1,7 +1,7 @@
 # Ofertas de precio
 
-Estado: **panel hecho el 01/10/2026** (este repositorio). Falta la carta y la
-cartelera (`vmenus-app`, paso 3).
+Estado: **hecha el 01/10/2026** en los tres sitios: la base (`sql/35`), este
+repositorio (servidor y panel) y `vmenus-app` (carta, carrito y cartelera, PR 86).
 
 Un plato que ya está en la carta puede tener, por un tiempo limitado o
 indefinido, un precio menor. La carta enseña el de siempre tachado y el nuevo al
@@ -66,8 +66,9 @@ Cuatro estados, que son lo que cuenta el panel:
 Una oferta que no es menor que el normal **se ignora**: ante la duda, se enseña
 el precio de siempre.
 
-**La regla vivirá en tres sitios**: el espejo del panel (`public/oferta.js`), la
-carta y la cartelera de `vmenus-app`. `test/casos-oferta.json` es el juego de
+**La regla vive en tres sitios**: el espejo del panel (`public/oferta.js`), la
+carta (`core/ofertas.js`) y la cartelera (`tv.html`, en el dialecto viejo de los
+televisores), estas dos en `vmenus-app`. `test/casos-oferta.json` es el juego de
 casos y **va duplicado a propósito en los dos repositorios**; es lo único que
 impide que se separen, como con `casos-programacion.json`. Se evalúa al pintar,
 contra el reloj y nunca guardada ya resuelta.
@@ -99,5 +100,25 @@ contra el reloj y nunca guardada ya resuelta.
 - **«Imprimir carta» sigue imprimiendo el precio normal, a propósito.** Un papel
   no sabe cuándo termina la oferta: impresa con un descuento, seguiría
   enseñándolo semanas después de que la carta digital lo hubiera quitado.
-- **La carta y la cartelera** todavía no pintan la oferta: es el paso 3. Hasta
-  entonces el panel la guarda y la avisa, pero el comensal no la ve.
+## La carta, el carrito y la cartelera (`vmenus-app`)
+
+- **La carta** enseña el precio de siempre tachado y el nuevo al lado, en los
+  cinco modelos y en la ficha del plato. Todo pasa por `htmlPrecio()`
+  (`core/html.js`): una sola regla, no una por plantilla. «Gratis» manda sobre la
+  oferta.
+- **El carrito cobra el precio de oferta** (`precioVigente()`), también en el
+  total de un plato personalizado. Si una línea guardada ve empezar o terminar su
+  oferta, la revalidación la reprecia con el aviso de siempre.
+- **La cartelera** aplica la regla en ES5 y **se reconstruye también cuando solo
+  cambia el reloj**: al acabar el último día de una oferta no cambia ningún dato,
+  así que el sondeo compara además qué ofertas rigen ahora (`firmaDeOfertas()`).
+  Sin eso la pantalla seguiría enseñando una oferta terminada hasta la próxima
+  recarga.
+- La zona horaria es la del restaurante: lo fija `setRestaurante()` al cargar.
+  Un turista con el móvil en otro huso no ve una oferta terminada ni futura.
+
+## Qué falta
+
+- La landing (`vmenus-landing`) todavía dice «Activar promoción» en la maqueta
+  del editor; con la función ya real, debería decir «Activar oferta».
+- V-POS, por decisión: otro proyecto, cobra el precio normal por ahora.
