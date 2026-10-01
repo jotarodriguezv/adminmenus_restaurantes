@@ -226,6 +226,14 @@ Desde esta pestaña controlas cómo se ve tu carta:
   reseñas se pega aquí, y tiene que ser un enlace de Google: lo sacas de tu
   perfil de Google Business Profile, en «Pedir reseñas». Si el botón está
   encendido pero sin enlace, no se muestra, y el panel no te deja guardarlo así.
+- **Reservas de mesa.** En la misma sección puedes encender el botón **«Reservar mesa»**
+  (y cambiarle el texto). Tus clientes lo ven en la bienvenida, dejan nombre, celular, fecha,
+  hora y para cuántas personas, y la reserva te llega a la pestaña **Reservas**, que aparece
+  cuando lo enciendes. Ahí ves las próximas y las pasadas; un número naranja en la pestaña
+  cuenta las que están **por confirmar**. **No te llega ningún aviso**: tienes que abrir el
+  panel y mirar. Confirmar o cancelar cambia el estado, pero **no le avisa al cliente**: usa
+  «Escribir por WhatsApp», que abre la conversación con el mensaje ya escrito. Cada reserva se
+  borra sola 90 días después de su fecha.
 
 Lo que **no** aparece aquí —tu plan, el modelo de página, el dominio de tu
 carta, la zona horaria— lo administra Verificame directamente, porque son

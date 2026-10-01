@@ -1,6 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════
--- RESERVAS DE MESA — PREPARADA, SIN APLICAR (01/10/2026)
+-- RESERVAS DE MESA — APLICADA EL 01/10/2026
 -- ═══════════════════════════════════════════════════════════════
+-- Aplicada con el visto bueno del usuario. Comprobado después: RLS encendido,
+-- ninguna política, y anon y authenticated sin acceso (solo service_role).
+-- Probada de punta a punta en producción con «ZZ Pruebas UX» el mismo día.
+--
 -- Pedida por el usuario el 01/10/2026: botón «Reservar mesa» en la pantalla
 -- de bienvenida de la carta. El comensal deja nombre, celular, fecha, hora y
 -- para cuántas personas; el restaurante la ve en el panel, la confirma o la
