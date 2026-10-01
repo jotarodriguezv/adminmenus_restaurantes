@@ -134,7 +134,9 @@ describe('la vista previa de la cartelera', () => {
 		};
 		const ctx = cargar('tv.js',
 			[['const TV_ANCHO_PREVIA', 'async function saveTV']],
-			{ document: { getElementById: id => campos[id] }, Math, Date, Number });
+			{ document: { getElementById: id => campos[id] }, state: { restaurante: { id: 'r1' } },
+			  // Viven arriba del trozo que se carga: la pantalla elegida y de quién es la previa.
+			  tvPantallaActual: 1, Math, Date, Number });
 		return { ctx, campos };
 	};
 
@@ -2281,6 +2283,84 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 		await ctx.saveTV();
 		assert.deepEqual(Object.keys(enviado[0].atributos), ['tv']);
 		assert.deepEqual(Object.keys(enviado[0]).sort(), ['atributos', 'promo_en_tv']);
+	});
+
+	// ── 30/09/2026, revisión de UX de Pantalla TV ─────────────────
+	// La pantalla elegida y la vista previa se quedaban del restaurante o de la
+	// pantalla anteriores. Lo sufre sobre todo el superadmin, que salta de un
+	// restaurante a otro; lo de la vista previa pasaba también entre pantallas.
+	describe('al cambiar de restaurante o de pantalla', () => {
+		const abrirPrevia = (campos) => {
+			Object.assign(campos, {
+				tvPrevia: { style: {}, src: '' },
+				tvPreviaCaja: { style: {} },
+				tvPreviaMarco: { style: { display: 'none' } },
+				btnVistaPrevia: { textContent: '' },
+				btnRecargarPrevia: { style: {} },
+			});
+		};
+
+		test('un restaurante nuevo empieza por la pantalla 1, no por la que se dejó', () => {
+			const { ctx, campos } = montar();
+			ctx.renderTV();
+			ctx.tvCambiarPantalla(3);
+			assert.match(campos.tvEnlace.value, /\/tv\/3$/);
+			// El doble de urlPublica de esta prueba siempre dice «bonzas»: lo que
+			// importa es el final del enlace, que dice qué pantalla se abrió.
+			ctx.state.restaurante = { id: 'r2', slug: 'otro', atributos: { tv: { activa: true }, tv_pantallas: {} } };
+			ctx.renderTV();
+			assert.match(campos.tvEnlace.value, /\/tv$/, 'su pantalla 1, la que está encendida');
+			assert.doesNotMatch(campos.tvEnlace.value, /\/tv\/\d$/);
+		});
+
+		test('volver a entrar en el mismo restaurante conserva la pantalla elegida', () => {
+			const { ctx, campos } = montar();
+			ctx.renderTV();
+			ctx.tvCambiarPantalla(2);
+			ctx.renderTV();   // salir y volver a la pestaña
+			assert.match(campos.tvEnlace.value, /\/tv\/2$/);
+		});
+
+		test('con la vista previa abierta, cambiar de restaurante la cierra y la vacía', () => {
+			const { ctx, campos } = montar();
+			abrirPrevia(campos);
+			ctx.renderTV();
+			ctx.tvAlternarVistaPrevia();   // abrir
+			assert.match(campos.tvPrevia.src, /bonzas\/tv\?v=/);
+			ctx.state.restaurante = { id: 'r2', slug: 'otro', atributos: { tv: {}, tv_pantallas: {} } };
+			ctx.renderTV();
+			assert.equal(campos.tvPrevia.src, 'about:blank', 'no enseña la cartelera del anterior');
+			assert.equal(campos.tvPreviaMarco.style.display, 'none');
+		});
+
+		test('con la vista previa abierta, cambiar de pantalla también', () => {
+			const { ctx, campos } = montar();
+			abrirPrevia(campos);
+			ctx.renderTV();
+			ctx.tvAlternarVistaPrevia();
+			ctx.tvCambiarPantalla(2);
+			assert.equal(campos.tvPrevia.src, 'about:blank');
+			assert.equal(campos.tvPreviaMarco.style.display, 'none');
+		});
+
+		test('pero volver a entrar sin cambiar nada no la toca', () => {
+			const { ctx, campos } = montar();
+			abrirPrevia(campos);
+			ctx.renderTV();
+			ctx.tvAlternarVistaPrevia();
+			const abierta = campos.tvPrevia.src;
+			ctx.renderTV();
+			assert.equal(campos.tvPrevia.src, abierta);
+			assert.equal(campos.tvPreviaMarco.style.display, 'block');
+		});
+
+		test('cerrada, no hay nada que cerrar ni se carga nada', () => {
+			const { ctx, campos } = montar();
+			abrirPrevia(campos);
+			ctx.renderTV();
+			ctx.tvCambiarPantalla(2);
+			assert.equal(campos.tvPrevia.src, '');
+		});
 	});
 
 	test('la segunda pantalla tiene nombre, URL y configuración propios', () => {
@@ -9664,6 +9744,26 @@ describe('«Subir y convertir» late mientras hay un archivo elegido y sin subir
 		assert.match(estilos, /@keyframes subir-pendiente-aro/);
 		// Lo recorta el bloque general de prefers-reduced-motion: debe seguir ahí.
 		assert.match(estilos, /prefers-reduced-motion:reduce\)\{\s*\*,\*::before,\*::after\{animation-duration:\.01ms!important;animation-iteration-count:1!important/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Pantalla TV · marcado de la revisión de UX (30/09/2026)', () => {
+	const panel = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('la subpestaña no se llama «Destacados»: ya hay una pestaña del panel con ese nombre', () => {
+		assert.match(panel, /id="tvTabDestacados"[^>]*>Avisos<\/button>/);
+		assert.doesNotMatch(panel, /id="tvTabDestacados"[^>]*>Destacados<\/button>/);
+		// Y la del panel sigue llamándose así: es a ella a la que remite el texto.
+		assert.match(panel, /switchTab\('promo',this\)">Destacados<\//);
+	});
+
+	test('el selector Arriba/Abajo de las cintas es lo bastante ancho para leerse entero', () => {
+		const selectores = [...panel.matchAll(/<select class="form-input" id="tvCintaPos\d" style="width:(\d+)px">/g)];
+		assert.equal(selectores.length, 5, 'son cinco avisos');
+		// A 100 px sobraban 45 y «Arriba» necesita 43 más el relleno y la flecha:
+		// se leía «Arri» y «Aba».
+		for (const [, ancho] of selectores) assert.ok(Number(ancho) >= 120, `mide ${ancho}px`);
 	});
 });
 
