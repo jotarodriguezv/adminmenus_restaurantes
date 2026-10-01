@@ -50,16 +50,24 @@ la reserva** el panel las borra (`purgarPasadas`, una vez al día). Se cuenta
 desde la fecha de la reserva, no desde que se pidió: una reserva para dentro de
 dos meses no caduca antes de llegar.
 
-**Pendiente:** la política de privacidad de `verificamecentral` (`/privacidad`)
-habla de los datos de quienes solicitan el servicio; hay que añadirle que los
-restaurantes guardan reservas de sus comensales y por cuánto tiempo. El
-formulario de la carta avisa en una línea de para qué se usan los datos.
+La política de privacidad de `verificamecentral` lo recoge desde el 01/10/2026 (cláusula 06,
+`#reservas`: datos, encargado, Supabase, 90 días). El formulario de la carta avisa en una
+línea de para qué se usan los datos; no lleva casilla de autorización.
+
+**Lo que no se ha visto funcionar:** la purga de los 90 días solo está probada con pruebas
+unitarias (no había nada que borrar). Corre una vez al día desde el panel.
 
 ## Despliegue
 
 **Primero la base, después el código**: aplicar `sql/34`, luego el panel, luego
 la carta. Con el panel desplegado y sin la tabla, un restaurante que encendiera
 el interruptor recibiría un 500 al reservar.
+
+## Probado en producción (01/10/2026)
+Con `ZZ Pruebas UX`: el botón en la carta real, el envío, la lista y el contador en el panel,
+Confirmar y el enlace de WhatsApp, y los rechazos (fecha pasada, hora mala, restaurante sin el
+interruptor; los robots se descartan en silencio). Salió un fallo —la pestaña no aparecía al
+guardar el interruptor hasta recargar— y se arregló en #325.
 
 ## Qué no se hizo, a propósito
 
