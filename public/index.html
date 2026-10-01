@@ -4866,6 +4866,10 @@ async function confirmarSubidaVideo() {
 		barra.style.transition = 'width 1s linear';
 		pintarProgresoVideo();
 		pintarCaminosVideo();
+		// La tarjeta de la IA seguía diciendo «Termina primero con el video que
+		// elegiste» con el video ya subido y convirtiéndose: el archivo ya no está
+		// elegido, está en curso.
+		if (typeof refrescarCupoIA === 'function') refrescarCupoIA();
 	} catch (e) {
 		st.textContent = e.message || 'Error al subir';
 		st.style.color = 'var(--danger)';
@@ -4955,6 +4959,12 @@ function vigilarVideo(trabajoId, productoId) {
 		const b = document.getElementById('btnSubirVideo');
 		b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer';
 		pintarCaminosVideo();
+		// La tarjeta de la IA también cambia con el final: con el video ya puesto
+		// pasa a «Regenerar» y a decir que el actual sigue hasta publicar, y sin
+		// trabajo en curso se enciende. Sin esto se quedaba como estaba mientras
+		// convertía —apagada, «Generar», con el aviso de «archivo elegido»— hasta
+		// cerrar y reabrir la ficha (30/09/2026, visto en producción).
+		if (typeof refrescarCupoIA === 'function') refrescarCupoIA();
 	};
 
 	vigilanciaVideo = setInterval(async () => {
