@@ -1998,7 +1998,7 @@ describe('donde la carta tiene carrito se configuran los pedidos', () => {
 				state: { restaurante: { atributos } },
 				planActual: () => plan,
 				document: { getElementById: id => mapa[id] },
-				actualizarAvisoPedidos() {}, marcarBordesDeTabs() {},
+				actualizarAvisoPedidos() {}, marcarBordesDeTabs() {}, ajustarPestanaReservas() {},
 			});
 		ctx.ajustarPestanasAlModelo();
 		ctx.pintarPedidos();
@@ -9861,6 +9861,77 @@ describe('bienvenida · TikTok y el botón «Califícanos en Google» (01/10/202
 		for (const clave of ['intro_social_tiktok', 'intro_resena_activo', 'intro_resena_url', 'intro_resena_texto']) {
 			assert.ok(lista.includes("'" + clave + "'"), clave);
 		}
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('reservas de mesa en el panel (01/10/2026)', () => {
+	const panel = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const bien = fs.readFileSync(path.join(PUBLIC, 'bienvenida.js'), 'utf8');
+	const ctx = (atributos = {}) => cargar('reservas.js', 'function hoyDelRestaurante', 'async function cargarReservas', { state: { restaurante: { atributos, nombre: 'Bonzas' } } });
+
+	test('el panel tiene la pestaña, la lista, el interruptor y el texto del botón', () => {
+		for (const id of ['tabBtnReservas', 'tabReservas', 'reservasLista', 'reservasResumen', 'apIntroReservasActivo', 'apIntroReservasTexto', 'apIntroPreviewReservas']) {
+			assert.match(panel, new RegExp('id="' + id + '"'), id);
+		}
+		assert.match(panel, /id="apIntroReservasTexto"[^>]*maxlength="40"/);
+		assert.match(panel, /<script src="reservas\.js"><\/script>/);
+		assert.match(panel, /'tabOrdenes','tabReservas'/, 'switchTab tiene que ocultar y mostrar la pestaña');
+		assert.match(panel, /if \(tab === 'reservas'\) cargarReservas\(\);/);
+	});
+
+	test('la pestaña nace escondida y solo la enseña el interruptor encendido', () => {
+		assert.match(panel, /id="tabBtnReservas"[^>]*display:none/);
+		const c = ctx({ intro_reservas_activo: true });
+		assert.equal(c.restauranteTieneReservas(), true);
+		for (const a of [{}, { intro_reservas_activo: false }, { intro_reservas_activo: 'true' }]) assert.equal(ctx(a).restauranteTieneReservas(), false, JSON.stringify(a));
+		const ajustar = panel.match(/function ajustarPestanasAlModelo\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(ajustar, /ajustarPestanaReservas\(\)/);
+	});
+
+	test('lo que se guarda incluye las dos claves, apagado por defecto', () => {
+		const valores = bien.match(/function valoresBienvenida\(\) \{[\s\S]*?\n\}/)[0];
+		for (const clave of ['intro_reservas_activo', 'intro_reservas_texto']) assert.match(valores, new RegExp(clave + ':'), clave);
+		assert.match(bien.match(/const VALORES_BIENVENIDA = \{[\s\S]*?\n\};/)[0], /intro_reservas_activo: false, intro_reservas_texto: ''/);
+	});
+
+	test('solo cuentan las pendientes de hoy en adelante', () => {
+		const c = ctx();
+		const lista = [
+			{ estado: 'pendiente', fecha: '2026-10-05' }, { estado: 'pendiente', fecha: '2026-10-01' },
+			{ estado: 'pendiente', fecha: '2026-09-30' }, { estado: 'confirmada', fecha: '2026-10-05' }, { estado: 'cancelada', fecha: '2026-10-05' },
+		];
+		assert.equal(c.reservasPendientes(lista, '2026-10-01').length, 2);
+		assert.equal(c.reservasPendientes(null, '2026-10-01').length, 0);
+	});
+
+	test('"hoy" es el del reloj del restaurante, no el del navegador', () => {
+		// 9 pm del 1 de octubre en Bogotá = 02:00 UTC del 2.
+		const noche = new Date('2026-10-02T02:00:00Z');
+		assert.equal(ctx({}).hoyDelRestaurante(noche), '2026-10-01');
+		assert.equal(ctx({ zona_horaria: 'Asia/Tokyo' }).hoyDelRestaurante(noche), '2026-10-02');
+	});
+
+	test('la fecha se lee sin correrla de día', () => {
+		const c = cargar('reservas.js', 'function fechaHoraReserva', 'function mensajeReserva');
+		assert.match(c.fechaHoraReserva('2026-10-05', '19:30:00'), /lun.*5.*oct.* · 7:30 p. m./);
+		assert.match(c.fechaHoraReserva('2026-10-05', '00:05'), /12:05 a\. m\./);
+	});
+
+	test('el enlace de WhatsApp va al celular del comensal, con el mensaje de su estado', () => {
+		const c = cargar('reservas.js', 'function mensajeReserva', 'function pintarContadorReservas');
+		const r = { nombre: 'Ana', celular: '573001234567', fecha: '2026-10-05', hora: '19:30:00', personas: 4, estado: 'confirmada' };
+		const url = c.enlaceReserva(r, 'Bonzas');
+		assert.ok(url.startsWith('https://wa.me/573001234567?text='));
+		assert.equal(decodeURIComponent(url.split('text=')[1]), 'Hola Ana, tu reserva en Bonzas está confirmada: 05/10/2026 a las 19:30, para 4 personas. ¡Te esperamos!');
+		assert.equal(c.enlaceReserva({ ...r, celular: '' }, 'x'), '');
+	});
+
+	test('lo que escribe el comensal se pinta escapado', () => {
+		const lista = fs.readFileSync(path.join(PUBLIC, 'reservas.js'), 'utf8');
+		const tarjeta = lista.match(/function tarjetaReserva[\s\S]*$/)[0];
+		assert.match(tarjeta, /esc\(r\.nombre\)/);
+		assert.match(tarjeta, /esc\(r\.celular\)/);
 	});
 });
 

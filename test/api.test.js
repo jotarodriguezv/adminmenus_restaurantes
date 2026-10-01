@@ -2297,6 +2297,24 @@ describe('la pantalla de bienvenida (intro) · la enciende el restaurante', () =
 		}
 	});
 
+	// 01/10/2026: el botón «Reservar mesa» de la bienvenida.
+	describe('el botón de reservas', () => {
+		test('el restaurante lo enciende, con su texto recortado y limpio', async () => {
+			const r = await guardar({ intro_reservas_activo: true, intro_reservas_texto: '  Aparta   tu mesa ' });
+			assert.equal(r.status, 200);
+			const g = S.ultimaEscritura('restaurantes').atributos;
+			assert.equal(g.intro_reservas_activo, true);
+			assert.equal(g.intro_reservas_texto, 'Aparta tu mesa');
+			assert.equal((await guardar({ intro_reservas_texto: 'x'.repeat(100) })).status, 200);
+			assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_reservas_texto.length, 40);
+		});
+
+		test('solo el true de verdad lo enciende: un texto no, y es lo que mira POST /api/reservas', async () => {
+			assert.equal((await guardar({ intro_reservas_activo: 'true' })).status, 200);
+			assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_reservas_activo, false);
+		});
+	});
+
 	// 01/10/2026: TikTok y el botón «Califícanos en Google» en la bienvenida.
 	describe('TikTok y el botón de reseñas de Google', () => {
 		test('el restaurante puede encender TikTok en la bienvenida, y solo con true de verdad', async () => {
