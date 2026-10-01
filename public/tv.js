@@ -50,6 +50,11 @@ let tvSeleccion = [];   // ids de platos, cuando el modo es 'manual'
 let tvFiltro = 'all';   // categoría que se está mirando en el selector
 let tvPantallaActual = 1;
 let tvFormularioInicial = '';
+// De qué restaurante es lo que hay en pantalla, y de qué restaurante y pantalla
+// es la vista previa si está abierta. Dos variables y no una: la vista previa se
+// abre a mano y puede quedarse de un lado mientras la ficha ya cambió.
+let tvRestauranteVisto = '';
+let tvContextoDeLaPrevia = '';
 
 // La primera cartelera conserva la forma que ya tenían todos los restaurantes:
 // atributos.tv y /tv. Las dos adicionales viven juntas en tv_pantallas para no
@@ -153,6 +158,16 @@ function tvEsVistaListaCompleta() {
 }
 
 function renderTV() {
+  // Al entrar en OTRO restaurante se empieza por su pantalla 1 (30/09/2026).
+  // tvPantallaActual es una variable del módulo y solo la cambiaba la tarjeta de
+  // pantalla, así que el superadmin, que salta de un restaurante a otro, abría
+  // el siguiente en la «Pantalla 3 · sin configurar» que había dejado antes, en
+  // vez de en la 1, que es la que de verdad está encendida en el televisor.
+  const idRestaurante = state.restaurante?.id || '';
+  if (idRestaurante !== tvRestauranteVisto) {
+    tvRestauranteVisto = idRestaurante;
+    tvPantallaActual = 1;
+  }
   const cfg = { ...TV_POR_DEFECTO, ...tvConfiguracionDePantalla() };
   tvSeleccion = Array.isArray(cfg.productos) ? [...cfg.productos] : [];
 
@@ -244,6 +259,7 @@ function renderTV() {
   tvAlternarDescripcion();
   tvPintarAhora();
   tvFormularioInicial = tvSerializar(tvDelFormulario());
+  tvCerrarPreviaSiCambioElContexto();
 }
 
 function tvPintarCategorias(elegida) {
@@ -1203,8 +1219,26 @@ function tvAlternarVistaPrevia() {
   marco.style.display = 'block';
   recargar.style.display = '';
   boton.textContent = 'Ocultar vista previa';
+  tvContextoDeLaPrevia = tvContextoActual();
   tvPintarMedidasDePrevia();
   tvRecargarVistaPrevia();
+}
+
+// La vista previa es de UNA pantalla de UN restaurante. Si la ficha pasa a otra
+// mientras está abierta, se cierra (se vacía, como al cerrarla a mano): dejarla
+// puesta enseñaba la cartelera de la anterior bajo el nombre de la nueva, y la
+// única pista era un ↻ Recargar que nadie tenía por qué pulsar. Pasaba al saltar
+// de una pantalla a otra, y al saltar de un restaurante a otro siendo superadmin
+// (30/09/2026). Volver a entrar en la misma pestaña, sin cambiar de pantalla ni
+// de restaurante, no la toca.
+function tvContextoActual() {
+  return (state.restaurante?.id || '') + '/' + tvPantallaActual;
+}
+
+function tvCerrarPreviaSiCambioElContexto() {
+  const marco = document.getElementById('tvPreviaMarco');
+  if (!marco || marco.style.display === 'none') return;
+  if (tvContextoDeLaPrevia !== tvContextoActual()) tvAlternarVistaPrevia();
 }
 
 function tvRecargarVistaPrevia() {

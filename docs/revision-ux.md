@@ -2981,6 +2981,165 @@ subido; si se quiere decirlo en la pantalla, hay que poner ese motivo.
 ---
 ---
 
+# Pantalla TV, vista como superadmin · 30/09/2026
+
+**Una pasada pedida por el usuario** sobre la pestaña Pantalla TV, que desde la
+primera revisión creció mucho: hasta tres pantallas, horarios, cintas, formatos de
+porciones, intercalados. Aquella decía «sin hallazgos, es la mejor del panel»; sigue
+siendo buena, pero ya no está limpia.
+
+Método: la pestaña cargada en local, con el rol de superadmin y los datos reales de
+Malparados (que sí tiene cartelera), leídos con la clave pública —solo lectura—, en
+escritorio (1000 px) y en móvil (390 px). Sin iniciar sesión en ninguna cuenta. El
+cambio de restaurante desde la lista del superadmin **no se pudo recorrer entero**:
+se simuló cambiando el restaurante y volviendo a entrar en la pestaña.
+
+Lo propio del rol de superadmin es poco: solo dos avisos cambian de texto («se
+configura en la pestaña Superadmin»). Lo que sí lo castiga es **saltar de un
+restaurante a otro**, que es lo que hace todo el día: TV4 y TV5.
+
+## TV4 · Al cambiar de restaurante se abría en la pantalla que se había dejado · **Media**
+
+- [ ] En un PR abierto · #319 (se marca al mergear)
+
+`tvPantallaActual` es una variable del módulo y solo la cambiaba pulsar una tarjeta
+de pantalla. El superadmin, que salta de un restaurante a otro, abría el siguiente
+en la «Pantalla 3 · sin configurar» que había dejado, en vez de en la 1, que es la
+que está **encendida en el televisor**. Un restaurante con la 1 encendida parecía,
+a primera vista, no tener cartelera.
+
+**Arreglo:** `renderTV` recuerda de qué restaurante es lo que hay en pantalla y, si
+cambia, vuelve a la 1. Volver a entrar en el mismo restaurante conserva la pantalla
+elegida.
+
+## TV5 · La vista previa se quedaba con la cartelera de otro · **Media**
+
+- [ ] En un PR abierto · #319 (se marca al mergear)
+
+La vista previa es un iframe a la URL pública de **una** pantalla de **un**
+restaurante, y nada la cerraba al cambiar. Con ella abierta, cambiar de restaurante
+dejaba el panel en uno y la previa enseñando la cartelera del anterior; la única
+pista era un ↻ Recargar que nadie tenía por qué pulsar.
+
+**Es más general que el rol:** pasaba también al saltar de una pantalla a otra del
+mismo restaurante.
+
+**Arreglo:** si cambia el restaurante o la pantalla con la previa abierta, se cierra
+como cuando se cierra a mano —vacía el iframe, que no se queda rotando detrás—. Volver
+a entrar sin cambiar nada no la toca.
+
+## TV6 · Dos «Destacados» que no son lo mismo · **Media**
+
+- [ ] En un PR abierto · #319 (se marca al mergear)
+
+Hay una **pestaña del panel** «Destacados» (las imágenes con horario) y, dentro de
+Pantalla TV, una **subpestaña** «Destacados» con otro contenido: cintas de aviso, hora
+y fecha, pantallas intercaladas. Y dentro de la subpestaña, el texto mandaba a «la
+pestaña Destacados», estando en una que se llamaba igual.
+
+**Arreglo:** la subpestaña pasa a llamarse **«Avisos»**, y su título, «Avisos y
+pantallas extra». El id interno (`tvPanelDestacados`) no cambia: renombrarlo toca JS y
+pruebas por nada.
+
+## TV7 · El selector «Arriba/Abajo» de las cintas se leía cortado · **Baja**
+
+- [ ] En un PR abierto · #319 (se marca al mergear)
+
+Medía 100 px, con 13 de relleno a la izquierda y 42 a la derecha por la flecha, así
+que a «Arriba» (43 px) le quedaban unos 45. Se veía **«Arri»** y **«Aba»**, en los cinco.
+
+**Arreglo:** 120 px.
+
+## TV8 · Para ver el efecto de un cambio hay que recorrer toda la pestaña · **Media**
+
+- [ ] Pendiente · decisión del usuario
+
+La vista previa está arriba y los controles en medio. Con una ventana de 1200 px, la
+previa empieza en el píxel 432, las subpestañas en el 756 y **«Guardar» en el 1948**; en
+móvil la pestaña mide 2686 px. Y la previa solo enseña lo **guardado** —así lo dice,
+en letra de 11 px y color apagado, bajo la previa—: cambiar, bajar a guardar, subir a
+mirar.
+
+No es un descuido: se eligió enseñar la cartelera de verdad —la misma página del
+televisor— en vez de una imitación que mienta el día que cambie `tv.html`
+(comentario en `index.html`). Es el precio de esa decisión.
+
+**Lo que ayudaría:** una vista previa que refleje lo que aún no se guardó. Cambia
+cómo funciona `tv.html`, que corre en televisores viejos y no se toca a la ligera. Más
+barato: que «Guardar» y la previa estén a la vista a la vez, o que el aviso de «solo lo
+guardado» pase a estar junto al botón que lo abre.
+
+## TV9 · Cambiar de pantalla con cambios sin guardar da un error y no deja · **Media**
+
+- [ ] Pendiente · decisión del usuario
+
+«Guarda los cambios de esta pantalla antes de abrir otra» sale como aviso de error y
+la tarjeta no cambia: hay que ir al final de la pestaña, guardar y volver. La ficha de
+producto ya resolvió lo mismo con una ventana de tres salidas (guardar y seguir,
+descartar, quedarme). Es más trabajo que un renombrado y toca la lógica de guardado.
+
+## TV10 · «Encender la cartelera» parece global y es de la pantalla elegida · **Baja**
+
+- [ ] Pendiente
+
+El interruptor está arriba, sobre las tres tarjetas, y dice «la cartelera». Aplica solo a
+la pantalla que se está editando, y la tarjeta sigue diciendo «ENCENDIDA» o
+«PREPARADA» hasta que se guarda.
+
+## TV11 · «Lista» significa dos cosas · **Baja**
+
+- [ ] Pendiente
+
+«Lista — hasta 20, sin fotos» (en «Platos a la vez») y «Mostrar productos sin foto
+como lista» son cosas distintas. Con la primera elegida la segunda sigue activa y no
+hace nada, mientras que la casilla de la descripción —que tampoco aplica— sí se atenúa.
+
+## TV12 · Los segundos por pantalla se corrigen en silencio · **Baja**
+
+- [ ] Pendiente
+
+`tvDelFormulario` los recorta entre 4 y 60; quien escribe 2 ve que le pone 4 solo al
+guardar. El campo no dice el rango.
+
+## TV13 · El «⚠» del formato detalle está siempre puesto · **Baja**
+
+- [ ] Pendiente
+
+«El formato detalle reserva espacio para el texto. Usa una foto nítida…» sale en color de
+aviso siempre que se elige 1 plato por pantalla. Es información útil, no una
+advertencia, y un aviso permanente enseña a no leer los avisos.
+
+## TV14 · Los botones pequeños miden 27 px en móvil · **Baja**
+
+- [ ] Pendiente
+
+«Copiar», «Abrir», «Ver cómo está quedando» y los chips de categoría miden 27 px de alto;
+«Guardar», 35. Es el tamaño de todo botón pequeño del panel, no de esta pestaña. El que
+más pesa es «Copiar»: el enlace del televisor se copia a menudo desde el móvil.
+
+## Comprobado y no es un fallo: «Guardar» no desaparece al apagar la cartelera
+
+Por la sangría del marcado parecía que «Guardar» estaba dentro del bloque que se
+esconde al apagar el interruptor, lo que habría hecho imposible guardar el apagado. No
+es así: está fuera de `#tvAjustes` y sigue a la vista con la cartelera apagada. Medido
+en el navegador.
+
+## Lo que está bien
+
+- **«6 platos · 6 pantallas + 3 intercaladas · la vuelta dura 45 s»** sigue siendo lo
+  mejor de la pestaña: traduce los ajustes al único dato que le importa al dueño. Y
+  avisa de lo imposible («con 1 pantalla de platos y una intercalada cada 2, no
+  llegaría a salir nunca: baja ese número»).
+- **«Ahora en pantalla»** responde a «¿qué está saliendo?», y las excepciones por hora
+  dicen que el orden importa.
+- Las tres pantallas son **independientes y guardar una no pisa las otras**; cada una
+  con su URL fija.
+- Lo de llevarlo al televisor, **de más a menos estable**, con la pega de cada opción.
+- En móvil **no hay desbordes** y las subpestañas caben.
+
+---
+---
+
 # Qué queda por revisar
 
 Actualizado tras la décima pasada. Nada de esto está mirado.

@@ -741,7 +741,7 @@
 						<div class="tv-config-tabs" role="tablist" aria-label="Configuración de la cartelera">
 							<button type="button" class="tv-config-tab active" id="tvTabContenido" role="tab" aria-selected="true" aria-controls="tvPanelContenido" onclick="tvCambiarSeccion('contenido')">Contenido</button>
 							<button type="button" class="tv-config-tab" id="tvTabDiseno" role="tab" aria-selected="false" aria-controls="tvPanelDiseno" onclick="tvCambiarSeccion('diseno')">Diseño</button>
-							<button type="button" class="tv-config-tab" id="tvTabDestacados" role="tab" aria-selected="false" aria-controls="tvPanelDestacados" onclick="tvCambiarSeccion('destacados')">Destacados</button>
+							<button type="button" class="tv-config-tab" id="tvTabDestacados" role="tab" aria-selected="false" aria-controls="tvPanelDestacados" onclick="tvCambiarSeccion('destacados')">Avisos</button>
 						</div>
 
 						<div id="tvPanelContenido" role="tabpanel" aria-labelledby="tvTabContenido">
@@ -956,10 +956,14 @@
 						</div>
 						</div>
 
+						<!-- Se llama «Avisos» (30/09/2026) y no «Destacados»: ya hay una pestaña del panel
+						     con ese nombre y otro contenido —las imágenes con horario—, y aquí dentro
+						     el texto manda a «la pestaña Destacados» estando en una que se llamaba igual.
+						     El id sigue siendo tvPanelDestacados: renombrarlo toca JS y pruebas por nada. -->
 						<div id="tvPanelDestacados" role="tabpanel" aria-labelledby="tvTabDestacados" class="hidden">
 						<div class="section-card">
 							<div id="tvPromoBloque" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
-								<div class="section-title" style="margin-bottom:18px">Destacados y avisos</div>
+								<div class="section-title" style="margin-bottom:18px">Avisos y pantallas extra</div>
 								<div class="section-title" style="margin-bottom:4px">Cintas de aviso</div>
 								<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
 									Hasta cinco avisos que se desplazan como un noticiero. Cada uno puede ir arriba o abajo; deja vacíos los que no necesites.
@@ -982,11 +986,11 @@
 									</select>
 								</div>
 								<div id="tvCintas" style="display:grid;gap:8px;max-width:620px">
-									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta1" maxlength="160" placeholder="Ej.: Hoy 2x1 en hamburguesas" style="flex:1"><select class="form-input" id="tvCintaPos1" style="width:100px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
-									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta2" maxlength="160" placeholder="Segundo aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos2" style="width:100px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
-									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta3" maxlength="160" placeholder="Tercer aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos3" style="width:100px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
-									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta4" maxlength="160" placeholder="Cuarto aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos4" style="width:100px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
-									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta5" maxlength="160" placeholder="Quinto aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos5" style="width:100px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
+									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta1" maxlength="160" placeholder="Ej.: Hoy 2x1 en hamburguesas" style="flex:1"><select class="form-input" id="tvCintaPos1" style="width:120px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
+									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta2" maxlength="160" placeholder="Segundo aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos2" style="width:120px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
+									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta3" maxlength="160" placeholder="Tercer aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos3" style="width:120px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
+									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta4" maxlength="160" placeholder="Cuarto aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos4" style="width:120px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
+									<div style="display:flex;gap:8px"><input class="form-input" id="tvCinta5" maxlength="160" placeholder="Quinto aviso (opcional)" style="flex:1"><select class="form-input" id="tvCintaPos5" style="width:120px"><option value="arriba">Arriba</option><option value="abajo">Abajo</option></select></div>
 								</div>
 								<div class="form-check" style="margin:16px 0 0">
 									<label class="toggle"><input type="checkbox" id="tvReloj"><span class="toggle-slider"></span></label>
