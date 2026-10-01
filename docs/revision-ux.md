@@ -2877,7 +2877,7 @@ documento decía lo contrario (FM6).
 
 ## FM1 · «Guardar cambios» perdía el video elegido sin avisar · **Alta**
 
-- [ ] En un PR abierto · #316 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · #316 · verificado en producción: «Guardar y subir video» guarda y sube, y la ficha se queda abierta hasta que convierte
 
 Elegir un archivo de video **no lo sube**: subirlo era un botón aparte, «Subir y
 convertir». Quien elegía el archivo y pulsaba «Guardar cambios» —lo natural, si
@@ -2896,7 +2896,7 @@ sigue ahí. Ver `docs/planesymodelos.md` §4.bis.
 
 ## FM2 · Con la foto recién subida seguía diciendo «Sube primero una foto» · **Media**
 
-- [ ] En un PR abierto · #316 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · #316
 
 En un producto guardado sin foto: se sube la foto, y la ficha dice «✓ Lista para
 guardar»; **justo debajo**, «Sube primero una foto del plato…» y, en otra línea,
@@ -2914,7 +2914,7 @@ estado (siguen viéndose si hay una generación en marcha).
 
 ## FM3 · La foto del plato anterior se quedaba puesta · **Media**
 
-- [ ] En un PR abierto · #316 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · #316
 
 Se abre un producto con foto, se cierra y se abre uno **sin** foto: la
 previsualización conserva el `src` del primero, aunque no se vea. Quien mira la
@@ -2927,7 +2927,7 @@ no.
 
 ## FM4 · «La actual sigue en la carta hasta que publiques» parecía valer para subir también · **Media**
 
-- [ ] En un PR abierto · #316 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · #316 · verificado en producción: la nota vive en la tarjeta de la IA
 
 La frase «Crea una versión nueva. La actual sigue en la carta hasta que revises y
 publiques la nueva.» estaba **bajo las dos tarjetas** (Subir y Regenerar). Solo
@@ -2939,7 +2939,7 @@ anterior quedaba de respaldo.
 
 ## FM5 · Guardar cierra la ficha, y los mensajes no lo decían · **Baja**
 
-- [ ] En un PR abierto · #317 (se marca al mergear). Los textos ya estaban en #316.
+- [x] Hecho · 2026-09-30 · #316 (textos) y #317 (la ficha se queda abierta) · verificado en producción: crear un producto con foto lo deja abierto como «Editar producto», en Multimedia
 
 «Primero guarda el producto con su foto; después podrás subir un video» no decía
 que **guardar cierra la ficha** y hay que volver a abrir el producto, ir a
@@ -2955,7 +2955,7 @@ demás cierra como siempre. Ver `docs/planesymodelos.md` §4.bis.
 
 ## FM6 · `planesymodelos.md` decía que subir un video no exige foto · **Baja**
 
-- [ ] En un PR abierto · #316 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · #316
 
 §4.bis decía «**Subir un video NO exige foto**» y armaba la tabla sobre eso. Era
 un error de redacción: el usuario aclaró que la foto es obligatoria en los dos
@@ -2967,6 +2967,28 @@ en generar») ya decía lo correcto.
 entrada del modelo; para subir un video ya grabado es una regla de la casa, no
 una necesidad técnica. **No está escrito por qué se decidió así** para el video
 subido; si se quiere decirlo en la pantalla, hay que poner ese motivo.
+
+## FM7 · Tras subir un video, la tarjeta de la IA se quedaba como con el archivo elegido · **Media**
+
+- [ ] En un PR abierto · #320 (se marca al mergear)
+
+**Visto en producción, probando en `ZZ Pruebas UX`** con el panel ya desplegado: se
+elige un video, y la tarjeta de la IA se apaga con «Termina primero con el video que
+elegiste…» (bien). Se sube y se convierte, el video queda guardado y la ficha lo enseña
+—y la tarjeta **sigue igual**: apagada, «✨ Generar video con IA» en vez de «Regenerar»,
+el aviso del archivo elegido y sin la nota de que el actual sigue hasta publicar.
+Reabriendo la ficha sale bien: solo faltaba repintarla.
+
+Es anterior a #316–#318. Antes quedaba escondido: el aviso era menos visible y casi
+nadie subía un video y miraba la tarjeta de al lado.
+
+**Arreglo:** `refrescarCupoIA()` al empezar la subida y al terminar la conversión
+(`permitirSubir`, que corre en el final bueno y en los malos). Solo si la ficha sigue
+siendo la de ese plato.
+
+**Lo que enseñó esta pasada, y conviene no olvidar:** las pruebas simuladas no lo habrían
+visto. Salió porque alguien subió un video de verdad y miró la ficha entera, no solo el
+resultado que se esperaba.
 
 ## Lo que está bien
 
@@ -3000,7 +3022,7 @@ restaurante a otro**, que es lo que hace todo el día: TV4 y TV5.
 
 ## TV4 · Al cambiar de restaurante se abría en la pantalla que se había dejado · **Media**
 
-- [ ] En un PR abierto · #319 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · #319 · verificado en producción
 
 `tvPantallaActual` es una variable del módulo y solo la cambiaba pulsar una tarjeta
 de pantalla. El superadmin, que salta de un restaurante a otro, abría el siguiente
@@ -3014,7 +3036,7 @@ elegida.
 
 ## TV5 · La vista previa se quedaba con la cartelera de otro · **Media**
 
-- [ ] En un PR abierto · #319 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · #319 · verificado en producción
 
 La vista previa es un iframe a la URL pública de **una** pantalla de **un**
 restaurante, y nada la cerraba al cambiar. Con ella abierta, cambiar de restaurante
@@ -3030,7 +3052,7 @@ a entrar sin cambiar nada no la toca.
 
 ## TV6 · Dos «Destacados» que no son lo mismo · **Media**
 
-- [ ] En un PR abierto · #319 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · #319 · verificado en producción
 
 Hay una **pestaña del panel** «Destacados» (las imágenes con horario) y, dentro de
 Pantalla TV, una **subpestaña** «Destacados» con otro contenido: cintas de aviso, hora
@@ -3043,7 +3065,7 @@ pruebas por nada.
 
 ## TV7 · El selector «Arriba/Abajo» de las cintas se leía cortado · **Baja**
 
-- [ ] En un PR abierto · #319 (se marca al mergear)
+- [x] Hecho · 2026-09-30 · #319 · verificado en producción
 
 Medía 100 px, con 13 de relleno a la izquierda y 42 a la derecha por la flecha, así
 que a «Arriba» (43 px) le quedaban unos 45. Se veía **«Arri»** y **«Aba»**, en los cinco.
