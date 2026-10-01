@@ -2282,6 +2282,75 @@ describe('la pantalla de bienvenida (intro) · la enciende el restaurante', () =
 		assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_activo, false);
 		assert.equal('intro_eslogan' in S.ultimaEscritura('restaurantes').atributos, false, 'lo que no se manda no se toca');
 	});
+
+	// El hueco que salió al probar el botón de reseñas: «google.» seguido de cualquier
+	// cosa dejaba pasar un subdominio de otro sitio que empezara por google. La
+	// ubicación usaba el mismo patrón.
+	test('la ubicación tampoco acepta google.evil.com: solo servidores de Google de verdad', async () => {
+		for (const url of ['https://google.evil.com/maps', 'https://maps.google.evil.com/x', 'https://google.co.evil/x']) {
+			const r = await guardar({ intro_mapa_url: url });
+			assert.equal(r.status, 400, url);
+			assert.match(r.body.error, /Google Maps/);
+		}
+		for (const url of ['https://maps.google.com/?q=bonzas', 'https://www.google.com.co/maps/place/x', 'https://maps.app.goo.gl/AbC', 'https://goo.gl/maps/abc', 'https://www.google.es/maps']) {
+			assert.equal((await guardar({ intro_mapa_url: url })).status, 200, url);
+		}
+	});
+
+	// 01/10/2026: TikTok y el botón «Califícanos en Google» en la bienvenida.
+	describe('TikTok y el botón de reseñas de Google', () => {
+		test('el restaurante puede encender TikTok en la bienvenida, y solo con true de verdad', async () => {
+			assert.equal((await guardar({ intro_social_tiktok: true })).status, 200);
+			assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_social_tiktok, true);
+			assert.equal((await guardar({ intro_social_tiktok: 'true' })).status, 200);
+			assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_social_tiktok, false, 'un texto no enciende nada');
+		});
+
+		test('el botón de reseñas se guarda con su enlace y su texto', async () => {
+			const r = await guardar({ intro_resena_activo: true, intro_resena_url: 'https://g.page/r/CabC123/review', intro_resena_texto: '¿Te gustó? Califícanos' });
+			assert.equal(r.status, 200);
+			const g = S.ultimaEscritura('restaurantes').atributos;
+			assert.equal(g.intro_resena_activo, true);
+			assert.equal(g.intro_resena_url, 'https://g.page/r/CabC123/review');
+			assert.equal(g.intro_resena_texto, '¿Te gustó? Califícanos');
+		});
+
+		test('acepta los enlaces que da Google, de cualquiera de sus dominios', async () => {
+			for (const url of ['https://g.page/r/CabC123/review', 'https://search.google.com/local/writereview?placeid=ChIJxyz',
+				'https://maps.app.goo.gl/AbCdEf', 'https://g.co/kgs/abc', 'https://www.google.com.co/maps/place/x', 'https://goo.gl/maps/abc']) {
+				const r = await guardar({ intro_resena_activo: true, intro_resena_url: url });
+				assert.equal(r.status, 200, url);
+			}
+		});
+
+		test('rechaza lo que no es un enlace seguro de Google: sería un botón con tu nombre hacia otro sitio', async () => {
+			for (const url of ['https://example.com/review', 'http://g.page/r/abc/review', 'javascript:alert(1)', 'https://google.evil.com/x',
+				'https://evil.com/?u=https://g.page/r/abc', 'g.page/r/abc', 'ftp://g.page/x']) {
+				const r = await guardar({ intro_resena_activo: true, intro_resena_url: url });
+				assert.equal(r.status, 400, url);
+				assert.match(r.body.error, /enlace seguro de Google/);
+			}
+		});
+
+		test('encender el botón sin enlace no se deja: quedaría un interruptor puesto que no hace nada', async () => {
+			for (const url of ['', '   ']) {
+				const r = await guardar({ intro_resena_activo: true, intro_resena_url: url });
+				assert.equal(r.status, 400, JSON.stringify(url));
+				assert.match(r.body.error, /Agrega el enlace de reseñas/);
+			}
+		});
+
+		test('apagado puede quedarse sin enlace, y guardar el enlace sin encenderlo también', async () => {
+			assert.equal((await guardar({ intro_resena_activo: false, intro_resena_url: '' })).status, 200);
+			assert.equal((await guardar({ intro_resena_activo: false, intro_resena_url: 'https://g.page/r/abc/review' })).status, 200);
+		});
+
+		test('el texto se recorta a 60 y se limpia, no se rechaza', async () => {
+			const r = await guardar({ intro_resena_texto: '  ' + 'x'.repeat(200) + '  ' });
+			assert.equal(r.status, 200);
+			assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_resena_texto, 'x'.repeat(60));
+		});
+	});
 });
 
 // ═══════════════════════════════════════════════════════════════

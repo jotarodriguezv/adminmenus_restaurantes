@@ -219,6 +219,13 @@ Desde esta pestaña controlas cómo se ve tu carta:
 - Estilo de la carta (según el modelo contratado).
 - Mensaje de bienvenida / subtítulo.
 - Dirección del local.
+- **La pantalla de bienvenida**, la que sale antes de la carta: sus textos,
+  colores y fondo, y qué lleva —redes (Instagram, Facebook y TikTok), la
+  ubicación y el botón **«Califícanos en Google»**—. Cada cosa se enciende y
+  apaga por separado. Los enlaces de las redes se guardan en Ajustes; el de las
+  reseñas se pega aquí, y tiene que ser un enlace de Google: lo sacas de tu
+  perfil de Google Business Profile, en «Pedir reseñas». Si el botón está
+  encendido pero sin enlace, no se muestra, y el panel no te deja guardarlo así.
 
 Lo que **no** aparece aquí —tu plan, el modelo de página, el dominio de tu
 carta, la zona horaria— lo administra Verificame directamente, porque son

@@ -9823,6 +9823,48 @@ describe('la tarjeta de la IA se repinta al subir un video', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('bienvenida · TikTok y el botón «Califícanos en Google» (01/10/2026)', () => {
+	const bien = fs.readFileSync(path.join(PUBLIC, 'bienvenida.js'), 'utf8');
+	const panel = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('el panel tiene los controles: TikTok, y el botón de reseñas con su enlace y su texto', () => {
+		for (const id of ['apIntroSocialTiktok', 'apIntroEstadoTiktok', 'apIntroResenaActivo', 'apIntroResenaUrl', 'apIntroResenaTexto', 'apIntroPreviewResena']) {
+			assert.match(panel, new RegExp('id="' + id + '"'), id);
+		}
+		assert.match(panel, /id="apIntroResenaTexto"[^>]*maxlength="60"/);
+	});
+
+	test('lo que se guarda incluye las cuatro claves nuevas, que es lo que mandan Apariencia y la carta', () => {
+		const valores = bien.match(/function valoresBienvenida\(\) \{[\s\S]*?\n\}/)[0];
+		for (const clave of ['intro_social_tiktok', 'intro_resena_activo', 'intro_resena_url', 'intro_resena_texto']) {
+			assert.match(valores, new RegExp(clave + ':'), clave);
+		}
+		const base = bien.match(/const VALORES_BIENVENIDA = \{[\s\S]*?\n\};/)[0];
+		assert.match(base, /intro_social_tiktok: false, intro_resena_activo: false, intro_resena_url: '', intro_resena_texto: ''/,
+			'apagado por defecto: no le cambia la bienvenida a nadie');
+	});
+
+	test('se pintan al abrir la pestaña y la vista previa solo enseña el botón si saldría en la carta', () => {
+		assert.match(bien, /marcar\('apIntroSocialTiktok'/);
+		assert.match(bien, /marcar\('apIntroResenaActivo'/);
+		assert.match(bien, /poner\('apIntroResenaUrl'/);
+		assert.match(bien, /datos\.intro_resena_activo && \/\^https\?:/);
+	});
+
+	test('el aviso de TikTok dice si falta el enlace de Ajustes, como Instagram y Facebook', () => {
+		assert.match(bien, /TikTok · agrega el enlace en Ajustes/);
+	});
+
+	test('el servidor deja escribir las claves nuevas al restaurante', () => {
+		const servidor = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+		const lista = servidor.match(/const ATRIBUTOS_CLIENTE_PERMITIDOS = \[[\s\S]*?\];/)[0];
+		for (const clave of ['intro_social_tiktok', 'intro_resena_activo', 'intro_resena_url', 'intro_resena_texto']) {
+			assert.ok(lista.includes("'" + clave + "'"), clave);
+		}
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('guardar un producto con foto nueva en una carta de video · la ficha se queda para el video', () => {
 	// 30/09/2026, pedido por el usuario. Tras guardar un producto con su foto, lo
 	// natural es ponerle el video, y la ficha se cerraba justo ahí. Acotado: solo

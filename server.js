@@ -883,7 +883,8 @@ const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 's
   'intro_activo', 'intro_eslogan', 'direccion', 'intro_nombre', 'intro_texto_adicional',
   'intro_cta', 'intro_fondo_url', 'intro_fondo_color', 'intro_overlay_activo', 'intro_overlay_color',
   'intro_overlay_opacidad', 'intro_imagen_ajuste', 'intro_textos',
-  'intro_social_instagram', 'intro_social_facebook', 'intro_social_estilo',
+  'intro_social_instagram', 'intro_social_facebook', 'intro_social_tiktok', 'intro_social_estilo',
+  'intro_resena_activo', 'intro_resena_url', 'intro_resena_texto',
   'intro_social_icono_color', 'intro_social_fondo', 'intro_social_borde',
   'intro_social_tamano', 'intro_mapa_activo', 'intro_mapa_url', 'intro_mapa_modo', 'intro_mapa_boton_fondo', 'intro_mapa_boton_color', 'intro_mapa_boton_fuente', 'intro_tarjeta_fondo', 'intro_tarjeta_borde', 'intro_tarjeta_borde_grosor'];
 
@@ -1025,6 +1026,19 @@ const INTRO_FUENTE_MAX = 60;
 const INTRO_AJUSTES_IMAGEN = ['cover', 'contain', 'center'];
 const INTRO_ESTILOS_SOCIAL = ['circular', 'redondeado', 'pildora'];
 const INTRO_MAPA_MODOS = ['mapa', 'boton', 'ambos'];
+const RESENA_TEXTO_MAX = 60;
+
+// ¿Es el nombre de un servidor de Google? Para la ubicación y para el botón de
+// reseñas de la bienvenida. «google.» seguido de CUALQUIER cosa dejaba pasar
+// https://google.evil.com/x —un subdominio de evil.com que empieza por google—,
+// así que después de «google.» solo caben el sufijo de un país (com, co, es…,
+// y com.co, co.uk…) y nada más. Encontrado el 01/10/2026 al escribir las
+// pruebas del botón de reseñas: la ubicación llevaba el mismo hueco.
+function esDominioDeGoogle(host) {
+  const h = String(host || '').toLowerCase();
+  return /(^|\.)google\.(com|co|[a-z]{2})(\.[a-z]{2})?$/.test(h)
+    || /(^|\.)goo\.gl$/.test(h) || /(^|\.)g\.page$/.test(h) || /(^|\.)g\.co$/.test(h);
+}
 const INTRO_TIPOS_TEXTO = ['nombre', 'eslogan', 'adicional', 'cta', 'direccion'];
 const FUENTE_INTRO_SEGURA = /^[\p{L}\p{N} .-]{0,60}$/u;
 
@@ -1082,7 +1096,7 @@ function validarIntro(atributos) {
     try { atributos.intro_textos = limpiarIntroTextos(atributos.intro_textos); }
     catch (error) { return error.message; }
   }
-  for (const clave of ['intro_social_instagram', 'intro_social_facebook', 'intro_mapa_activo']) {
+  for (const clave of ['intro_social_instagram', 'intro_social_facebook', 'intro_social_tiktok', 'intro_mapa_activo', 'intro_resena_activo']) {
     if (clave in atributos) atributos[clave] = atributos[clave] === true;
   }
   if ('intro_social_estilo' in atributos && !INTRO_ESTILOS_SOCIAL.includes(atributos.intro_social_estilo))
@@ -1126,10 +1140,31 @@ function validarIntro(atributos) {
     if (url) {
       let destino;
       try { destino = new URL(url); } catch { destino = null; }
-      if (!destino || destino.protocol !== 'https:' || !/(^|\.)google\.[a-z.]+$/.test(destino.hostname) && !/(^|\.)goo\.gl$/.test(destino.hostname))
+      if (!destino || destino.protocol !== 'https:' || !esDominioDeGoogle(destino.hostname))
         return 'La ubicación debe ser un enlace seguro de Google Maps';
     }
   }
+  // El botón «Califícanos en Google» de la bienvenida (01/10/2026). El enlace lo da
+  // Google Business Profile —g.page/r/…/review, search.google.com/local/writereview,
+  // maps.app.goo.gl, g.co…— y es lo que se le pone en la mano a un desconocido: solo
+  // https y solo dominios de Google, igual que la ubicación. Un enlace cualquiera aquí
+  // sería un botón con el nombre del restaurante que lleva a donde quiera quien lo edite.
+  if ('intro_resena_texto' in atributos)
+    atributos.intro_resena_texto = String(atributos.intro_resena_texto ?? '').trim().slice(0, RESENA_TEXTO_MAX);
+  if ('intro_resena_url' in atributos) {
+    const url = String(atributos.intro_resena_url ?? '').trim();
+    atributos.intro_resena_url = url;
+    if (url) {
+      let destino;
+      try { destino = new URL(url); } catch { destino = null; }
+      if (!destino || destino.protocol !== 'https:' || !esDominioDeGoogle(destino.hostname))
+        return 'El enlace de reseñas debe ser un enlace seguro de Google';
+    }
+  }
+  // Encenderlo sin enlace dejaría un interruptor puesto que no hace nada. Solo se
+  // comprueba cuando llegan los dos juntos, que es como los manda el panel.
+  if (atributos.intro_resena_activo === true && 'intro_resena_url' in atributos && !atributos.intro_resena_url)
+    return 'Agrega el enlace de reseñas de Google para encender el botón';
   if ('intro_mapa_modo' in atributos && !INTRO_MAPA_MODOS.includes(atributos.intro_mapa_modo))
     return 'La forma de mostrar la ubicación no es válida';
   return null;
