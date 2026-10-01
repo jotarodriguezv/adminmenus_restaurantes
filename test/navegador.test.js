@@ -9711,6 +9711,28 @@ describe('guardar con un video elegido · se sube al guardar, y no se pierde', (
 			assert.equal(etiqueta({ elegido: { name: 'a.mov' }, subiendo: true }).ctx.etiquetaGuardarProducto(), 'Guardar cambios');
 		});
 
+		test('repinta también el indicador de «Cambios sin guardar», que cuenta el video elegido', () => {
+			// Tras subir un video, el archivo deja de estar elegido y ya no hay nada
+			// pendiente: si el indicador no se repinta ahí, miente hasta que se toque
+			// un campo.
+			const mapa = { editProductId: { value: 'p1' }, btnSaveProduct: { textContent: '', disabled: false } };
+			let repintados = 0;
+			const ctx = cargar('index.html', 'function etiquetaGuardarProducto', '// ── CATEGORÍAS ──', {
+				state: { subiendoVideo: false },
+				videoElegido: null,
+				document: { getElementById: x => mapa[x] },
+				actualizarIndicadorCambios: () => { repintados++; },
+			});
+			ctx.actualizarEtiquetaGuardar();
+			assert.equal(repintados, 1);
+		});
+
+		test('el final de la subida repinta la etiqueta —y con ella el indicador— después de soltar el archivo', () => {
+			const subir = codigoDelPanel().match(/async function confirmarSubidaVideo\(\) \{[\s\S]*?\n\}/)[0];
+			const suelta = subir.indexOf('videoElegido = null');
+			assert.ok(subir.indexOf('actualizarEtiquetaGuardar()', suelta) > suelta);
+		});
+
 		test('no pisa el «Guardando...» mientras el botón está apagado', () => {
 			const { ctx, mapa } = etiqueta({ elegido: { name: 'a.mov' } });
 			mapa.btnSaveProduct.disabled = true;

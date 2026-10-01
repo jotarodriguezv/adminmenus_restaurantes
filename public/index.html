@@ -6557,6 +6557,12 @@ function etiquetaGuardarProducto() {
 function actualizarEtiquetaGuardar() {
 	const btn = document.getElementById('btnSaveProduct');
 	if (btn && !btn.disabled) btn.textContent = etiquetaGuardarProducto();
+	// El indicador «Cambios sin guardar» cuenta el video elegido (firmaProducto),
+	// y esto se llama justo cuando ese estado cambia: al elegirlo, al empezar la
+	// subida y al acabar. Se repintaba solo con un clic o una tecla en la ficha,
+	// así que tras subir un video quedaba encendido sin nada pendiente hasta que
+	// se tocara un campo (30/09/2026, visto en producción).
+	if (typeof actualizarIndicadorCambios === 'function') actualizarIndicadorCambios();
 }
 
 // ── CATEGORÍAS ────────────────────────────────────────────────
