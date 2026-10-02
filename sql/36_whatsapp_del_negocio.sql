@@ -1,11 +1,16 @@
 -- ═══════════════════════════════════════════════════════════════
--- UN SOLO WHATSAPP PARA EL NEGOCIO — SIN APLICAR
+-- UN SOLO WHATSAPP PARA EL NEGOCIO — APLICADA EL 02/10/2026
 -- ═══════════════════════════════════════════════════════════════
 -- Hasta hoy había dos campos para el mismo número: `whatsapp_pedidos` (la
 -- tarjeta del carrito) y `social_whatsapp` (la barra de redes y la bienvenida).
 -- Cuatro restaurantes los tenían escritos dos veces con el mismo valor y otros
 -- tres, uno solo. Decidido el 01/10/2026: un número, el del negocio, en
 -- Ajustes → Datos del negocio (docs/datos-del-negocio.md).
+--
+-- Aplicada en `menu-restaurantes` el 02/10/2026 y comprobada: escribió en 8
+-- restaurantes —bonzas, lobsterboat, montanarest y perroscriollos con el botón
+-- encendido; aojocerrado, la-leydi, sanjavier y zz-pruebas-ux con el botón
+-- apagado— y en cada uno `whatsapp_negocio` coincide con el número que tenía.
 --
 -- ── QUÉ HACE ──────────────────────────────────────────────────
 -- Copia lo que ya había a las dos claves nuevas:

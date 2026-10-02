@@ -85,7 +85,7 @@ y la carta rechaza el de un cliente.
 - El servidor valida el número igual que antes: de 8 a 15 dígitos, solo dígitos.
   Vacío es válido (es como se quita).
 
-### La migración (`sql/36`)
+### La migración (`sql/36`) — aplicada el 02/10/2026
 
 Copia lo que ya había a las claves nuevas, **sin que ninguna carta cambie de
 aspecto**: `whatsapp_boton` queda verdadero solo donde la barra de redes ya
