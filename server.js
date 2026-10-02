@@ -2469,6 +2469,19 @@ app.delete('/api/promociones/:id', auth, async (req, res) => {
 
   const { error } = await supabase.from('promociones').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
+
+  // Al quitar la ÚLTIMA, se apagan también las columnas viejas del restaurante.
+  // Hasta el 02/10/2026 la carta y el televisor caían a ellas cuando la tabla
+  // venía vacía, y Bonzas siguió enseñando una imagen que el panel ya no veía
+  // ni podía apagar. La carta ya no las lee; esto evita que quede un dato
+  // encendido que nadie ve, por si algo viejo en caché lo sigue usando.
+  const { count } = await supabase.from('promociones')
+    .select('id', { count: 'exact', head: true }).eq('restaurante_id', actual.restaurante_id);
+  if (!count) {
+    const { error: errLimpiar } = await supabase.from('restaurantes')
+      .update({ promo_activa: false, promo_imagen_url: null }).eq('id', actual.restaurante_id);
+    if (errLimpiar) console.warn('no se pudieron apagar las columnas viejas de la promoción:', errLimpiar.message);
+  }
   res.json({ ok: true });
 });
 

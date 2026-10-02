@@ -2193,7 +2193,11 @@ describe('Pantalla TV · qué se guarda y qué se avisa', () => {
 			state: {
 				// Algunos avisos del televisor cambian según quién mira (CL1).
 				rol: opciones.rol || 'cliente',
-				promociones: opciones.promociones || [],
+				// Los casos describen la promoción con las columnas viejas por comodidad;
+				// el panel ya solo lee la tabla (02/10/2026), así que se convierten en su fila.
+				promociones: opciones.promociones || ((opciones.promo && opciones.promo.promo_activa && opciones.promo.promo_imagen_url)
+					? [{ id: 'p1', activa: true, en_tv: opciones.promo.promo_en_tv !== false, imagen_url: opciones.promo.promo_imagen_url, programacion: {}, orden: 0 }]
+					: []),
 				restaurante: Object.assign(
 				{ id: 'r1', slug: 'bonzas', color_primario: opciones.colorPrimario,
 				  atributos: { tv: opciones.guardado || {}, tv_pantallas: opciones.pantallas || {} } },
