@@ -1,8 +1,8 @@
 # Datos del negocio
 
-Estado: **pasos 1 a 4 hechos el 02/10/2026** (el WhatsApp; la dirección, la ubicación
-y las reseñas; las redes sociales; el horario de atención y el correo). Falta el
-paso 5.
+Estado: **los cinco pasos hechos el 02/10/2026** (el WhatsApp; la dirección, la
+ubicación y las reseñas; las redes sociales; el horario de atención y el correo; el
+aviso de qué falta en Inicio).
 
 Hasta ahora cada función de la carta pedía su propio dato: el carrito, su
 WhatsApp; la bienvenida, la dirección, el mapa y las reseñas; las redes, su
@@ -26,7 +26,7 @@ si la tarjeta los enseña es solo para leer.
 | **2** | **Dirección, ubicación (mapa) y enlace de reseñas de Google** | **Hecho 02/10/2026** |
 | **3** | **Las redes sociales** (su tarjeta pasa a ser un bloque de esta; solo pantalla, no datos) | **Hecho 02/10/2026** |
 | **4** | **Horario de atención** (estructurado) y **correo** | **Hecho 02/10/2026** |
-| 5 | Aviso de «datos completos» en Inicio (opcional) | por hacer |
+| **5** | **Aviso de qué falta, en Inicio** | **Hecho 02/10/2026** |
 
 **No entra el teléfono fijo**: casi nadie lo usa, decidido por el usuario.
 
@@ -242,11 +242,31 @@ aceptan lo mismo.
 El editor es `public/horario-atencion.js`: las reglas y la copia de trabajo
 (`franjasEnEdicion`) están en `negocio.js`, sin pantalla, para poder probarlas.
 
-## Pasos que vienen
+## Paso 5: qué falta, en Inicio
 
-- **Paso 5 (opcional): el aviso de «datos completos» en Inicio.** Una línea que
-  diga «te falta la dirección y el enlace de reseñas», que es lo que de verdad
-  convence a un restaurante de llenarlo.
+Una fila nueva en la lista **«Tu carta a punto»** de Inicio: **«Datos del negocio»**.
+Dice qué falta («Te faltan el enlace de reseñas, el horario y el correo») o que
+está todo, y su botón, **«Completarlos»**, abre Ajustes y deja el cursor en el
+**primer dato que falta**. Es lo que de verdad convence a un restaurante de
+llenarlos: ve la lista, no tiene que acordarse de que existe la tarjeta.
+
+- **Es opcional, y por eso no cuenta como pendiente.** Inicio ya separa lo que pide
+  acción (el carrito sin número, los platos sin foto) de los pasos útiles. Esta
+  fila es de los segundos (`lista: false`), como el logo o la pantalla de TV: sale,
+  se ve, pero no suma al número del aviso ni a «pendientes». Lo grave —un carrito que
+  no puede enviar pedidos— sigue siendo otra fila y no cambió.
+- **Qué mira:** el WhatsApp, la dirección, la ubicación, el enlace de reseñas, el
+  horario y el correo. **No las redes sociales** (es muy común no tener alguna, y
+  una fila que nunca se puede completar acaba ignorada) **ni el nombre** (es del
+  superadmin).
+- **Cuenta lo que la carta de verdad lee.** Un enlace guardado con el nombre viejo
+  (`intro_mapa_url`) cuenta como puesto; un dato borrado (`''`), no, aunque la
+  clave vieja tuviera valor; un horario sin días o un correo que no parece una
+  dirección, tampoco.
+- La regla es `datosDelNegocioFaltantes()` en `public/negocio.js`; la fila,
+  `datosDelNegocioEnInicio()` en `public/inicio.js`.
+
+## Pasos que vienen
 - **«Abierto ahora»**, cuando alguna función quiera usar el horario más allá de
   decirlo. Hay que decidir qué hace con un cierre pasada la medianoche, que hoy se
   acepta y solo se dice.

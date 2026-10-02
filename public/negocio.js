@@ -191,6 +191,35 @@ function errorDeCorreoNegocio(valor) {
   return null;
 }
 
+// ── ¿QUÉ FALTA DE LOS DATOS DEL NEGOCIO? (paso 5) ─────────────
+// Inicio lo usa para decirle al restaurante qué le falta por rellenar. Cuenta lo
+// que de verdad se lee, con las mismas reglas que la carta: un enlace guardado
+// con el nombre viejo (`intro_mapa_url`) cuenta como puesto, y uno vacío, no.
+//
+// No entran las redes sociales: es muy común no tener alguna, y una fila que
+// nunca se puede completar acaba ignorada. Tampoco el nombre, que es del
+// superadmin. Son datos OPCIONALES: Inicio los enseña aparte de lo pendiente y no
+// los cuenta en su aviso (docs/datos-del-negocio.md, paso 5).
+const DATOS_DEL_NEGOCIO = [
+  { clave: 'whatsapp', nombre: 'el WhatsApp', campo: 'ajNegocioWhatsapp', hay: at => !!whatsappDelNegocio(at) },
+  { clave: 'direccion', nombre: 'la dirección', campo: 'ajNegocioDireccion', hay: at => !!direccionDelNegocio(at) },
+  { clave: 'mapa', nombre: 'la ubicación', campo: 'ajNegocioMapa', hay: at => !!mapaDelNegocio(at) },
+  { clave: 'resena', nombre: 'el enlace de reseñas', campo: 'ajNegocioResena', hay: at => !!resenaDelNegocio(at) },
+  { clave: 'horario', nombre: 'el horario', campo: 'ajHorarioBloque', hay: at => !!textoHorarioAtencion(franjasDelNegocio(at)) },
+  // El panel guarda el correo tal cual se escribe; aquí solo cuenta uno que la carta enseñaría.
+  { clave: 'correo', nombre: 'el correo', campo: 'ajNegocioCorreo', hay: at => !!correoDelNegocio(at) && !errorDeCorreoNegocio(correoDelNegocio(at)) },
+];
+
+// Los que todavía no están, en el orden de la tarjeta.
+function datosDelNegocioFaltantes(at) {
+  return DATOS_DEL_NEGOCIO.filter(d => !d.hay(at));
+}
+
+// «a», «a y b», «a, b y c».
+function enLista(nombres) {
+  return nombres.length <= 1 ? (nombres[0] || '') : `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`;
+}
+
 // ── LA TARJETA «DATOS DEL NEGOCIO» ────────────────────────────
 function renderDatosNegocio() {
   const at = state.restaurante?.atributos || {};

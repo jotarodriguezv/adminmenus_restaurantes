@@ -80,7 +80,9 @@ corregir el documento en la misma tarea.
   Google (`resena_url`), que la bienvenida ya no pide; las redes sociales son un bloque
   de la misma tarjeta (solo cambió de sitio), y el horario de atención
   (`horario_atencion`, lista de franjas) y el correo (`correo`), que la bienvenida
-  enseña en una línea cada uno. El editor del horario es `public/horario-atencion.js`.
+  enseña en una línea cada uno. El editor del horario es `public/horario-atencion.js`. Inicio lleva una fila «Datos del
+  negocio» con lo que falta (`datosDelNegocioFaltantes()`); es opcional y no cuenta
+  como pendiente.
   Dos copias
   de la misma regla, más la de `vmenus-app/core/negocio.js`; el juego de casos es
   `test/casos-negocio.json`, **duplicado en los dos repositorios**. Las claves
