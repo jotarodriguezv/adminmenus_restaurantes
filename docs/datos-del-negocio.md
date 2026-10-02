@@ -1,7 +1,7 @@
 # Datos del negocio
 
-Estado: **pasos 1 y 2 hechos el 02/10/2026** (el WhatsApp; la dirección, la ubicación
-y las reseñas). Pasos 3 a 5 por hacer.
+Estado: **pasos 1 a 3 hechos el 02/10/2026** (el WhatsApp; la dirección, la ubicación
+y las reseñas; las redes sociales). Pasos 4 y 5 por hacer.
 
 Hasta ahora cada función de la carta pedía su propio dato: el carrito, su
 WhatsApp; la bienvenida, la dirección, el mapa y las reseñas; las redes, su
@@ -23,7 +23,7 @@ si la tarjeta los enseña es solo para leer.
 |---|---|---|
 | **1** | **El WhatsApp único**, con su interruptor «Mostrar el botón en la carta» | **Hecho 02/10/2026** |
 | **2** | **Dirección, ubicación (mapa) y enlace de reseñas de Google** | **Hecho 02/10/2026** |
-| 3 | Las redes sociales (mover su tarjeta dentro de esta; solo pantalla, no datos) | por hacer |
+| **3** | **Las redes sociales** (su tarjeta pasa a ser un bloque de esta; solo pantalla, no datos) | **Hecho 02/10/2026** |
 | 4 | **Horario de atención** (estructurado) y **correo** | por hacer |
 | 5 | Aviso de «datos completos» en Inicio (opcional) | por hacer |
 
@@ -160,6 +160,22 @@ habría visto aparecer un mapa que nunca encendió. Ahora la ubicación sale sol
 con el interruptor **encendido** y con enlace, como ya enseña la vista previa del
 panel. En producción solo `la-leydi` tiene enlace y lo tiene encendido: no cambia
 nada para nadie.
+
+## Paso 3: las redes sociales, dentro de la tarjeta
+
+Eran una tarjeta aparte al final de Ajustes. Son datos del negocio como el
+WhatsApp o la dirección, así que pasan a ser **un bloque dentro de «Datos del
+negocio»**, debajo de las reseñas: el interruptor de la barra, y los enlaces de
+Instagram, Facebook y TikTok.
+
+**Es solo pantalla.** Los ids (`ajSocialBar`, `ajSocialInstagram`…), las claves
+(`social_bar`, `social_instagram`, `social_facebook`, `social_tiktok`), lo que se
+recoge y lo que valida el servidor **no cambian**: no hay migración ni cambio en
+la carta. Una prueba comprueba que el bloque está dentro de la tarjeta y que ya no
+queda una tarjeta propia.
+
+El WhatsApp sigue sin ser una red más: tiene su interruptor aparte, arriba, y la
+barra lo enseña si está encendido (`whatsapp_boton`). El texto del bloque lo dice.
 
 ## Pasos que vienen
 

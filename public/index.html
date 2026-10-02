@@ -1184,6 +1184,33 @@
 							<input type="url" class="form-input" id="ajNegocioResena" placeholder="https://g.page/r/…/review" autocomplete="off">
 							<small class="bienvenida-ayuda">Lo sacas de tu perfil de Google Business Profile, en «Pedir reseñas»: copia el enlace tal cual. Tiene que ser un enlace de Google.</small>
 						</div>
+						<!-- LAS REDES: eran una tarjeta aparte al final de Ajustes. Son datos del
+						     negocio como el WhatsApp o la dirección, así que van dentro (paso 3,
+						     docs/datos-del-negocio.md). Mismos ids: solo cambió el sitio. -->
+						<div class="aj-bloque" id="ajRedesBloque">
+							<div class="section-header">
+								<div class="aj-subtitulo">Redes sociales</div>
+								<label class="toggle" title="Enseñar la barra de redes en la carta">
+									<input type="checkbox" id="ajSocialBar" aria-label="Enseñar la barra de redes en la carta"><span class="toggle-slider"></span>
+								</label>
+							</div>
+							<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
+								Con el interruptor encendido, tu carta enseña una barra con botones a estas redes y,
+								si lo tienes encendido arriba, a tu WhatsApp. Las que dejes vacías no salen.
+							</p>
+						<div class="form-group">
+							<label for="ajSocialInstagram" class="form-label">Instagram <span style="color:var(--text-dim)">(dirección completa)</span></label>
+							<input type="url" class="form-input" id="ajSocialInstagram" placeholder="https://instagram.com/tu_restaurante" autocomplete="off">
+						</div>
+						<div class="form-group">
+							<label for="ajSocialFacebook" class="form-label">Facebook <span style="color:var(--text-dim)">(dirección completa)</span></label>
+							<input type="url" class="form-input" id="ajSocialFacebook" placeholder="https://facebook.com/tu_restaurante" autocomplete="off">
+						</div>
+						<div class="form-group" style="margin-bottom:0">
+							<label for="ajSocialTiktok" class="form-label">TikTok <span style="color:var(--text-dim)">(dirección completa)</span></label>
+							<input type="url" class="form-input" id="ajSocialTiktok" placeholder="https://tiktok.com/@tu_restaurante" autocomplete="off">
+						</div>
+						</div>
 					</div>
 
 					<div class="section-card" id="ajCarritoCard">
@@ -1397,30 +1424,6 @@
 							</div>
 						</div>
 						<p id="ajFiltrosNota" style="font-size:13px;margin:14px 0 0;line-height:1.5"></p>
-					</div>
-					<div class="section-card">
-						<div class="section-header">
-							<div class="section-title">Redes sociales</div>
-							<label class="toggle" title="Enseñar la barra de redes en la carta">
-								<input type="checkbox" id="ajSocialBar" aria-label="Enseñar la barra de redes en la carta"><span class="toggle-slider"></span>
-							</label>
-						</div>
-						<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
-							Con el interruptor encendido, tu carta enseña botones a estas redes. Las que dejes vacías no salen.
-							El WhatsApp está arriba, en «Datos del negocio».
-						</p>
-						<div class="form-group">
-							<label for="ajSocialInstagram" class="form-label">Instagram <span style="color:var(--text-dim)">(dirección completa)</span></label>
-							<input type="url" class="form-input" id="ajSocialInstagram" placeholder="https://instagram.com/tu_restaurante" autocomplete="off">
-						</div>
-						<div class="form-group">
-							<label for="ajSocialFacebook" class="form-label">Facebook <span style="color:var(--text-dim)">(dirección completa)</span></label>
-							<input type="url" class="form-input" id="ajSocialFacebook" placeholder="https://facebook.com/tu_restaurante" autocomplete="off">
-						</div>
-						<div class="form-group" style="margin-bottom:0">
-							<label for="ajSocialTiktok" class="form-label">TikTok <span style="color:var(--text-dim)">(dirección completa)</span></label>
-							<input type="url" class="form-input" id="ajSocialTiktok" placeholder="https://tiktok.com/@tu_restaurante" autocomplete="off">
-						</div>
 					</div>
 
 					<div style="text-align:right;">
