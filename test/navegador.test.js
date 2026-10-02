@@ -7260,6 +7260,35 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 		assert.doesNotMatch($('ajustesStatus').textContent, /pestaña/, 'el campo está ahí mismo');
 	});
 
+	test('un horario con una franja sin días no deja guardar nada, y dice qué pasa', async () => {
+		// El horario y el correo se comprueban antes de mandar nada (paso 4): no se
+		// guarda a medias lo que sí estaba bien.
+		const { ctx, $, peticiones, avisos } = montar();
+		vm.runInContext('franjasEnEdicion = [{ dias: [], desde: "", hasta: "" }]', ctx);
+		await ctx.saveAjustes();
+		assert.equal(peticiones.length, 0);
+		assert.match($('ajustesStatus').textContent, /no tiene días/);
+		assert.equal(avisos.at(-1).t, 'error');
+	});
+
+	test('un correo mal escrito tampoco deja guardar', async () => {
+		const { ctx, $, peticiones } = montar();
+		$('ajNegocioCorreo').value = 'hola@';
+		await ctx.saveAjustes();
+		assert.equal(peticiones.length, 0);
+		assert.match($('ajustesStatus').textContent, /correo/);
+	});
+
+	test('un horario y un correo bien puestos viajan con lo demás', async () => {
+		const { ctx, $, peticiones } = montar();
+		vm.runInContext('franjasEnEdicion = [{ dias: [5, 1], desde: "11:00", hasta: "22:00" }]', ctx);
+		$('ajNegocioCorreo').value = '  hola@turestaurante.com ';
+		await ctx.saveAjustes();
+		const at = peticiones[0].cuerpo.atributos;
+		assert.equal(at.correo, 'hola@turestaurante.com');
+		assert.equal(JSON.stringify(at.horario_atencion), '[{"dias":[1,5],"desde":"11:00","hasta":"22:00"}]');
+	});
+
 	test('el número se guarda solo con dígitos', async () => {
 		const { ctx, peticiones } = montar({ whatsapp: '+57 300 123 4567' });
 		await ctx.saveAjustes();
@@ -8157,7 +8186,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		// Sin colores, modelo ni tipografía: se mudaron a Apariencia el
 		// 27/09/2026 (public/aspecto.js, recolectarAspecto()).
 		assert.deepEqual(Object.keys(r).sort(),
-			['buscador', 'direccion', 'filtros_activos', 'filtros_disponibles', 'mapa_url', 'resena_url', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'whatsapp_boton', 'whatsapp_negocio']);
+			['buscador', 'correo', 'direccion', 'filtros_activos', 'filtros_disponibles', 'horario_atencion', 'mapa_url', 'resena_url', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'whatsapp_boton', 'whatsapp_negocio']);
 	});
 
 	test('guardar manda solo lo de Ajustes y deja el estado al día', async () => {
@@ -8176,7 +8205,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['atributos'], 'nada fuera de atributos');
 		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k =>
-			k.startsWith('social_') || k.startsWith('filtros_') || k.startsWith('whatsapp_') || ['buscador', 'direccion', 'mapa_url', 'resena_url'].includes(k)),
+			k.startsWith('social_') || k.startsWith('filtros_') || k.startsWith('whatsapp_') || ['buscador', 'correo', 'direccion', 'horario_atencion', 'mapa_url', 'resena_url'].includes(k)),
 			'solo las claves de Ajustes');
 		assert.equal(ctx.state.restaurante.atributos.social_instagram, 'https://instagram.com/bonzas');
 		assert.equal(campos('ajustesStatus').textContent, '✓ Guardado');
@@ -8273,8 +8302,8 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 		// que los probó propuso separarlos.
 		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabAspecto"'));
 		const orden = [...tab.matchAll(/<div class="(?:section-title|aj-subtitulo)">([^<]+)</g)].map(m => m[1].trim());
-		assert.equal(JSON.stringify(orden.slice(0, 5)),
-			'["Datos del negocio","Redes sociales","Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
+		assert.equal(JSON.stringify(orden.slice(0, 6)),
+			'["Datos del negocio","Horario de atención","Redes sociales","Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
 			'los datos del negocio, primero, con las redes dentro; luego el carrito y lo suyo');
 		// Las redes dejaron de ser una tarjeta al final (paso 3 de docs/datos-del-negocio.md,
 		// 02/10/2026): son datos del negocio, como el WhatsApp o la dirección.

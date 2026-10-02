@@ -877,7 +877,7 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // imagen de encabezado del modelo Explorar (portada_url/portada_activa)—, ni
 // 'mostrar_hero' —ese es el mensaje de bienvenida dentro de sidebar/topnav—.
 // Se llama 'intro' a propósito para no chocar con ninguno de los dos.
-const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'whatsapp_negocio', 'whatsapp_boton', 'mapa_url', 'resena_url', 'metodos_pago', 'qr', 'orden_productos', 'tv', 'tv_pantallas',
+const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'whatsapp_negocio', 'whatsapp_boton', 'mapa_url', 'resena_url', 'horario_atencion', 'correo', 'metodos_pago', 'qr', 'orden_productos', 'tv', 'tv_pantallas',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
   'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador',
   'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
@@ -886,7 +886,7 @@ const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 's
   'intro_cta', 'intro_fondo_url', 'intro_fondo_color', 'intro_overlay_activo', 'intro_overlay_color',
   'intro_overlay_opacidad', 'intro_imagen_ajuste', 'intro_textos',
   'intro_social_instagram', 'intro_social_facebook', 'intro_social_tiktok', 'intro_social_estilo',
-  'intro_resena_activo', 'intro_resena_url', 'intro_resena_texto',
+  'intro_resena_activo', 'intro_resena_url', 'intro_resena_texto', 'intro_horario_activo', 'intro_correo_activo',
   'intro_reservas_activo', 'intro_reservas_texto',
   'intro_social_icono_color', 'intro_social_fondo', 'intro_social_borde',
   'intro_social_tamano', 'intro_mapa_activo', 'intro_mapa_url', 'intro_mapa_modo', 'intro_mapa_boton_fondo', 'intro_mapa_boton_color', 'intro_mapa_boton_fuente', 'intro_tarjeta_fondo', 'intro_tarjeta_borde', 'intro_tarjeta_borde_grosor'];
@@ -1099,7 +1099,7 @@ function validarIntro(atributos) {
     try { atributos.intro_textos = limpiarIntroTextos(atributos.intro_textos); }
     catch (error) { return error.message; }
   }
-  for (const clave of ['intro_social_instagram', 'intro_social_facebook', 'intro_social_tiktok', 'intro_mapa_activo', 'intro_resena_activo', 'intro_reservas_activo']) {
+  for (const clave of ['intro_social_instagram', 'intro_social_facebook', 'intro_social_tiktok', 'intro_mapa_activo', 'intro_resena_activo', 'intro_reservas_activo', 'intro_horario_activo', 'intro_correo_activo']) {
     if (clave in atributos) atributos[clave] = atributos[clave] === true;
   }
   if ('intro_social_estilo' in atributos && !INTRO_ESTILOS_SOCIAL.includes(atributos.intro_social_estilo))

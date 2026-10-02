@@ -1184,6 +1184,25 @@
 							<input type="url" class="form-input" id="ajNegocioResena" placeholder="https://g.page/r/…/review" autocomplete="off">
 							<small class="bienvenida-ayuda">Lo sacas de tu perfil de Google Business Profile, en «Pedir reseñas»: copia el enlace tal cual. Tiene que ser un enlace de Google.</small>
 						</div>
+						<div class="form-group">
+							<label for="ajNegocioCorreo" class="form-label">Correo electrónico <span style="color:var(--text-dim)">(opcional)</span></label>
+							<input type="email" class="form-input" id="ajNegocioCorreo" maxlength="120" placeholder="hola@turestaurante.com" autocomplete="off">
+						</div>
+
+						<!-- EL HORARIO DE ATENCIÓN (paso 4, docs/datos-del-negocio.md): una fila por
+						     franja, con las fichas de los días y las horas, como en las promociones
+						     y la televisión. Lo dibuja horario-atencion.js. -->
+						<div class="aj-bloque" id="ajHorarioBloque">
+							<div class="aj-subtitulo">Horario de atención</div>
+							<p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;line-height:1.5">
+								Elige los días y las horas. Si abres distinto el fin de semana, añade otro horario.
+								Los días que no marques en ninguno se entienden cerrados.
+							</p>
+							<div id="ajHorarioFranjas"></div>
+							<button type="button" class="btn-sm" id="ajHorarioAgregar" onclick="agregarFranjaDeAtencion()">＋ Añadir un horario</button>
+							<div id="ajHorarioResumen" style="margin-top:10px;font-family:var(--mono);font-size:12px;line-height:1.5"></div>
+						</div>
+
 						<!-- LAS REDES: eran una tarjeta aparte al final de Ajustes. Son datos del
 						     negocio como el WhatsApp o la dirección, así que van dentro (paso 3,
 						     docs/datos-del-negocio.md). Mismos ids: solo cambió el sitio. -->
@@ -1728,7 +1747,7 @@
 								<div class="bienvenida-preview-logo" id="apIntroPreviewLogo">VM</div>
 								<div id="apIntroPreviewNombre">Tu restaurante</div><div id="apIntroPreviewEslogan">Hecho con cariño</div>
 								<div id="apIntroPreviewExtra"></div><button type="button" id="apIntroPreviewCta">Ver carta</button><div class="bienvenida-preview-resena" id="apIntroPreviewResena" hidden>★ Califícanos en Google</div><div class="bienvenida-preview-resena" id="apIntroPreviewReservas" hidden>Reservar mesa</div>
-								<div class="bienvenida-preview-social" id="apIntroPreviewSocial">◎ &nbsp; f</div><div id="apIntroPreviewDireccion"></div><div class="bienvenida-preview-map" id="apIntroPreviewMapa">Ubicación</div>
+								<div class="bienvenida-preview-social" id="apIntroPreviewSocial">◎ &nbsp; f</div><div id="apIntroPreviewDireccion"></div><div id="apIntroPreviewHorario"></div><div id="apIntroPreviewCorreo"></div><div class="bienvenida-preview-map" id="apIntroPreviewMapa">Ubicación</div>
 							</div>
 						</div>
 						<details class="bienvenida-details" open><summary>Fondo e imagen</summary><div class="bienvenida-details-body">
@@ -1765,6 +1784,13 @@
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroResenaActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Mostrar el botón de reseñas</span></div>
 							<div class="form-group"><span class="form-label">Enlace para dejar la reseña</span><div class="bienvenida-dato-negocio"><strong id="apIntroResenaUrlTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajNegocioResena'); return false;">Cambiarlo en Datos del negocio</a></div></div>
 							<div class="form-group"><label for="apIntroResenaTexto" class="form-label">Texto del botón <span>(opcional)</span></label><input type="text" class="form-input" id="apIntroResenaTexto" maxlength="60" placeholder="Califícanos en Google" oninput="actualizarVistaPreviaBienvenida()"></div>
+						</div></details>
+						<details class="bienvenida-details"><summary>Horario y correo</summary><div class="bienvenida-details-body">
+							<p class="bienvenida-ayuda">Una línea con tu horario de atención y otra con tu correo, debajo de la dirección. Los datos se escriben una sola vez, en Ajustes.</p>
+							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroHorarioActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Mostrar el horario</span></div>
+							<div class="form-group"><span class="form-label">Horario de atención</span><div class="bienvenida-dato-negocio"><strong id="apHorarioTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajHorarioBloque'); return false;">Cambiarlo en Datos del negocio</a></div></div>
+							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroCorreoActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Mostrar el correo</span></div>
+							<div class="form-group"><span class="form-label">Correo</span><div class="bienvenida-dato-negocio"><strong id="apCorreoTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajNegocioCorreo'); return false;">Cambiarlo en Datos del negocio</a></div></div>
 						</div></details>
 						<details class="bienvenida-details"><summary>Botón «Reservar mesa»</summary><div class="bienvenida-details-body">
 							<p class="bienvenida-ayuda">Un botón en la bienvenida que abre un formulario: nombre, celular, fecha, hora y para cuántas personas. Las reservas te llegan a la pestaña <strong>Reservas</strong>, donde las confirmas o cancelas y le escribes al cliente por WhatsApp. No se avisa sola: revisa el contador de la pestaña.</p>
@@ -2973,6 +2999,7 @@
 <script src="reservas.js"></script>
 <script src="sesion.js"></script>
 <script src="negocio.js"></script>
+<script src="horario-atencion.js"></script>
 <script src="ajustes.js"></script>
 <script src="aspecto.js"></script>
 <script src="bienvenida.js"></script>

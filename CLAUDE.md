@@ -78,7 +78,10 @@ corregir el documento en la misma tarea.
   (`whatsapp_negocio`) y si la carta enseña su botón (`whatsapp_boton`), y, desde el
   02/10/2026, la dirección (`direccion`), la ubicación (`mapa_url`) y las reseñas de
   Google (`resena_url`), que la bienvenida ya no pide; las redes sociales son un bloque
-  de la misma tarjeta (solo cambió de sitio). Dos copias
+  de la misma tarjeta (solo cambió de sitio), y el horario de atención
+  (`horario_atencion`, lista de franjas) y el correo (`correo`), que la bienvenida
+  enseña en una línea cada uno. El editor del horario es `public/horario-atencion.js`.
+  Dos copias
   de la misma regla, más la de `vmenus-app/core/negocio.js`; el juego de casos es
   `test/casos-negocio.json`, **duplicado en los dos repositorios**. Las claves
   viejas (`whatsapp_pedidos`, `social_whatsapp`) solo se leen si la nueva no

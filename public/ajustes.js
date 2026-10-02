@@ -119,6 +119,14 @@ async function saveAjustes() {
   // Antes de nada, lo que no se puede guardar a medias. Vive aquí y no en el
   // servidor por lo mismo que las demás comprobaciones de esta pantalla: es
   // para que el aviso sea inmediato y diga qué método es.
+  // El horario y el correo, antes que nada: el aviso sale en su sitio, y no se
+  // manda a medias lo que sí estaba bien.
+  const errorNegocio = errorDeHorarioAtencion(franjasEnEdicion) || errorDeCorreoNegocio(document.getElementById('ajNegocioCorreo').value);
+  if (errorNegocio) {
+    st.textContent = errorNegocio; st.style.color = 'var(--danger)';
+    showToast(errorNegocio, 'error');
+    return;
+  }
   if (carritoEnPantalla()) {
     const errores = erroresDeMetodosPago(recolectarMetodosPago());
     if (errores.length) {

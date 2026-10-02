@@ -75,7 +75,10 @@ function resenaDelNegocio(at) {
 // lo que está a medio teclear allí con esta vista sería adivinar.
 function datosDelNegocioParaLaVista() {
   const at = state.restaurante?.atributos || {};
-  return { direccion: direccionDelNegocio(at), intro_mapa_url: mapaDelNegocio(at), intro_resena_url: resenaDelNegocio(at) };
+  return {
+    direccion: direccionDelNegocio(at), intro_mapa_url: mapaDelNegocio(at), intro_resena_url: resenaDelNegocio(at),
+    horario_texto: textoHorarioAtencion(franjasDelNegocio(at)), correo: correoDelNegocio(at),
+  };
 }
 
 // En el formulario de la bienvenida ya no se escriben: se dice cuál es cada uno
@@ -89,6 +92,8 @@ function pintarDatosEnBienvenida() {
   poner('apDireccionTexto', direccionDelNegocio(at), 'Todavía no hay dirección');
   poner('apIntroMapaUrlTexto', mapaDelNegocio(at), 'Todavía no hay enlace: sin él no se muestra la ubicación');
   poner('apIntroResenaUrlTexto', resenaDelNegocio(at), 'Todavía no hay enlace: sin él no sale el botón');
+  poner('apHorarioTexto', textoHorarioAtencion(franjasDelNegocio(at)), 'Todavía no hay horario');
+  poner('apCorreoTexto', correoDelNegocio(at), 'Todavía no hay correo');
 }
 
 // Desde la bienvenida, a la tarjeta del negocio. Si hay cambios sin guardar,
@@ -102,6 +107,90 @@ function irADatosDelNegocio(idCampo) {
   campo.focus({ preventScroll: true });
 }
 
+// ── HORARIO DE ATENCIÓN Y CORREO (paso 4) ─────────────────────
+// `horario_atencion` es una LISTA DE FRANJAS, cada una con los días a los que vale
+// y sus horas: la forma de los horarios de las promociones y de la televisión
+// (`dias` de 0 —domingo— a 6, `desde` y `hasta` en 'HH:MM'). Un día que no sale en
+// ninguna franja es un día cerrado; sin horas, la franja es «todo el día»; y un
+// `hasta` menor que `desde` es un cierre pasado la medianoche. `correo` es una
+// dirección. Ninguno tiene clave vieja: no se pedían en ningún sitio.
+//
+// Las dos reglas —describir y validar— están también en el servidor
+// (negocio.js, la validación) y en la carta (vmenus-app/core/negocio.js, la
+// descripción). La descripción corre contra test/casos-negocio.json.
+const MAX_FRANJAS_ATENCION = 7;
+const HORA_ATENCION = /^([01]\d|2[0-3]):[0-5]\d$/;
+const CORREO_NEGOCIO = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]{2,}$/;
+const DIAS_ATENCION_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const ORDEN_DIAS_ATENCION = [1, 2, 3, 4, 5, 6, 0];   // de lunes a domingo, como se lee
+
+// La copia de trabajo del editor, como `filtrosDisponibles` con los filtros: los
+// clics la cambian y hasta guardar no es de verdad. La dibuja horario-atencion.js.
+let franjasEnEdicion = [];
+
+function franjasNormalizadas(lista) {
+  return (Array.isArray(lista) ? lista : []).map(f => ({
+    dias: [...new Set((Array.isArray(f?.dias) ? f.dias : []).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b),
+    desde: typeof f?.desde === 'string' ? f.desde.trim() : '',
+    hasta: typeof f?.hasta === 'string' ? f.hasta.trim() : '',
+  }));
+}
+
+function franjasDelNegocio(at) { return franjasNormalizadas(at?.horario_atencion); }
+function correoDelNegocio(at) { return textoDelNegocio(at?.correo); }
+
+// «Lun a Vie», «Sáb y Dom», «Lun, Mié y Vie», «Todos los días». Los tramos de tres
+// días o más se dicen con «a»; los de uno o dos, nombrando cada día.
+function textoDiasDeAtencion(dias) {
+  const orden = ORDEN_DIAS_ATENCION.filter(d => dias.includes(d));
+  if (orden.length === 7) return 'Todos los días';
+  const tramos = [];
+  let actual = [];
+  for (const d of orden) {
+    const ultimo = actual[actual.length - 1];
+    if (actual.length && ORDEN_DIAS_ATENCION.indexOf(d) === ORDEN_DIAS_ATENCION.indexOf(ultimo) + 1) actual.push(d);
+    else { if (actual.length) tramos.push(actual); actual = [d]; }
+  }
+  if (actual.length) tramos.push(actual);
+  const partes = [];
+  for (const t of tramos) {
+    if (t.length >= 3) partes.push(`${DIAS_ATENCION_CORTOS[t[0]]} a ${DIAS_ATENCION_CORTOS[t[t.length - 1]]}`);
+    else for (const d of t) partes.push(DIAS_ATENCION_CORTOS[d]);
+  }
+  return partes.length <= 1 ? (partes[0] || '') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`;
+}
+
+// «Lun a Vie 11:00–22:00 · Sáb y Dom 12:00–23:00». Una franja sin días no cuenta.
+function textoHorarioAtencion(franjas) {
+  const partes = [];
+  for (const f of franjasNormalizadas(franjas)) {
+    const dias = textoDiasDeAtencion(f.dias);
+    if (!dias) continue;
+    partes.push(`${dias} ${HORA_ATENCION.test(f.desde) && HORA_ATENCION.test(f.hasta) ? `${f.desde}–${f.hasta}` : 'todo el día'}`);
+  }
+  return partes.join(' · ');
+}
+
+// Lo mismo que comprueba el servidor, con el mensaje donde se mira.
+function errorDeHorarioAtencion(franjas) {
+  const lista = Array.isArray(franjas) ? franjas : [];
+  if (lista.length > MAX_FRANJAS_ATENCION) return `El horario puede tener hasta ${MAX_FRANJAS_ATENCION} franjas.`;
+  for (const f of franjasNormalizadas(lista)) {
+    if (!f.dias.length) return 'Un horario no tiene días: elige alguno o quita ese horario.';
+    if (!!f.desde !== !!f.hasta) return 'Pon la hora de apertura y la de cierre, o marca «Todo el día».';
+    if (f.desde && (!HORA_ATENCION.test(f.desde) || !HORA_ATENCION.test(f.hasta))) return 'Las horas del horario tienen que ser como 11:00 o 22:30.';
+    if (f.desde && f.desde === f.hasta) return 'La hora de cierre tiene que ser distinta de la de apertura.';
+  }
+  return null;
+}
+
+function errorDeCorreoNegocio(valor) {
+  const correo = textoDelNegocio(valor);
+  if (correo.length > 120) return 'El correo es demasiado largo.';
+  if (correo && !CORREO_NEGOCIO.test(correo)) return 'El correo no parece válido, por ejemplo hola@turestaurante.com.';
+  return null;
+}
+
 // ── LA TARJETA «DATOS DEL NEGOCIO» ────────────────────────────
 function renderDatosNegocio() {
   const at = state.restaurante?.atributos || {};
@@ -110,6 +199,10 @@ function renderDatosNegocio() {
   document.getElementById('ajNegocioDireccion').value = direccionDelNegocio(at);
   document.getElementById('ajNegocioMapa').value = mapaDelNegocio(at);
   document.getElementById('ajNegocioResena').value = resenaDelNegocio(at);
+  document.getElementById('ajNegocioCorreo').value = correoDelNegocio(at);
+  // Una copia: las fichas de días la cambian, y hasta guardar no es de verdad.
+  franjasEnEdicion = franjasDelNegocio(at);
+  if (typeof renderHorarioAtencion === 'function') renderHorarioAtencion();
   pintarWhatsappEnPedidos();
 }
 
@@ -132,6 +225,8 @@ function recolectarDatosNegocio() {
     direccion: textoDelNegocio(document.getElementById('ajNegocioDireccion').value),
     mapa_url: textoDelNegocio(document.getElementById('ajNegocioMapa').value),
     resena_url: textoDelNegocio(document.getElementById('ajNegocioResena').value),
+    correo: textoDelNegocio(document.getElementById('ajNegocioCorreo').value),
+    horario_atencion: franjasNormalizadas(franjasEnEdicion),
   };
 }
 
