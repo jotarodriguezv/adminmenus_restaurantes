@@ -877,7 +877,7 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // imagen de encabezado del modelo Explorar (portada_url/portada_activa)—, ni
 // 'mostrar_hero' —ese es el mensaje de bienvenida dentro de sidebar/topnav—.
 // Se llama 'intro' a propósito para no chocar con ninguno de los dos.
-const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'whatsapp_negocio', 'whatsapp_boton', 'metodos_pago', 'qr', 'orden_productos', 'tv', 'tv_pantallas',
+const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'whatsapp_negocio', 'whatsapp_boton', 'mapa_url', 'resena_url', 'metodos_pago', 'qr', 'orden_productos', 'tv', 'tv_pantallas',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
   'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador',
   'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
@@ -1146,6 +1146,22 @@ function validarIntro(atributos) {
       if (!destino || destino.protocol !== 'https:' || !esDominioDeGoogle(destino.hostname))
         return 'La ubicación debe ser un enlace seguro de Google Maps';
     }
+  }
+  // La ubicación y el enlace de reseñas del NEGOCIO (02/10/2026): son los mismos
+  // dos enlaces que la bienvenida pedía como intro_mapa_url e intro_resena_url,
+  // ahora en Ajustes → Datos del negocio. Misma regla: solo https y solo
+  // dominios de Google, porque es lo que se le pone en la mano a un desconocido.
+  for (const [clave, mensaje] of [
+    ['mapa_url', 'La ubicación debe ser un enlace seguro de Google Maps'],
+    ['resena_url', 'El enlace de reseñas debe ser un enlace seguro de Google'],
+  ]) {
+    if (!(clave in atributos)) continue;
+    const url = String(atributos[clave] ?? '').trim();
+    atributos[clave] = url;
+    if (!url) continue;
+    let destino;
+    try { destino = new URL(url); } catch { destino = null; }
+    if (!destino || destino.protocol !== 'https:' || !esDominioDeGoogle(destino.hostname)) return mensaje;
   }
   // El botón «Califícanos en Google» de la bienvenida (01/10/2026). El enlace lo da
   // Google Business Profile —g.page/r/…/review, search.google.com/local/writereview,

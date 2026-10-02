@@ -1169,6 +1169,21 @@
 						<p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;line-height:1.5">
 							Sale en la barra de redes y en la bienvenida. Apagado, el número se usa igual para los pedidos, pero tus clientes no ven el botón.
 						</p>
+						<div style="height:14px"></div>
+						<div class="form-group">
+							<label for="ajNegocioDireccion" class="form-label">Dirección <span style="color:var(--text-dim)">(opcional)</span></label>
+							<input type="text" class="form-input" id="ajNegocioDireccion" maxlength="120" placeholder="Cra 7 # 12-34, Bogotá" autocomplete="off">
+						</div>
+						<div class="form-group">
+							<label for="ajNegocioMapa" class="form-label">Ubicación en Google Maps <span style="color:var(--text-dim)">(enlace)</span></label>
+							<input type="url" class="form-input" id="ajNegocioMapa" placeholder="https://maps.google.com/..." autocomplete="off">
+							<small class="bienvenida-ayuda">Pega el enlace copiado desde Google Maps. Se usa para abrir la ubicación y, cuando es compatible, para mostrar el mini mapa en la bienvenida.</small>
+						</div>
+						<div class="form-group">
+							<label for="ajNegocioResena" class="form-label">Reseñas de Google <span style="color:var(--text-dim)">(enlace)</span></label>
+							<input type="url" class="form-input" id="ajNegocioResena" placeholder="https://g.page/r/…/review" autocomplete="off">
+							<small class="bienvenida-ayuda">Lo sacas de tu perfil de Google Business Profile, en «Pedir reseñas»: copia el enlace tal cual. Tiene que ser un enlace de Google.</small>
+						</div>
 					</div>
 
 					<div class="section-card" id="ajCarritoCard">
@@ -1738,14 +1753,14 @@
 						</div></details>
 						<details class="bienvenida-details"><summary>Ubicación en el menú</summary><div class="bienvenida-details-body">
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroMapaActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Mostrar ubicación</span></div>
-							<div class="form-group"><label for="apIntroMapaUrl" class="form-label">Enlace de Google Maps</label><input type="url" class="form-input" id="apIntroMapaUrl" placeholder="https://maps.google.com/..." oninput="actualizarVistaPreviaBienvenida()"><small class="bienvenida-ayuda">Pega el enlace copiado desde Google Maps. Se usará para abrir la ubicación y, cuando sea compatible, mostrar el mini mapa.</small></div>
+							<div class="form-group"><span class="form-label">Enlace de Google Maps</span><div class="bienvenida-dato-negocio"><strong id="apIntroMapaUrlTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajNegocioMapa'); return false;">Cambiarlo en Datos del negocio</a></div></div>
 							<label for="apIntroMapaModo" class="form-label">Mostrar como</label><select class="form-input" id="apIntroMapaModo" onchange="actualizarVistaPreviaBienvenida()"><option value="mapa">Mini mapa</option><option value="boton">Botón Ver ubicación</option><option value="ambos">Mini mapa y botón</option></select>
 							<div id="apIntroMapaBotonControles" class="bienvenida-mapa-boton-controles" hidden><p class="bienvenida-ayuda">Personaliza el botón que abre la ubicación.</p><div class="form-row"><div class="form-group"><label for="apIntroMapaBotonFondo" class="form-label">Color del botón</label><input type="color" id="apIntroMapaBotonFondo" value="#17120b" oninput="actualizarVistaPreviaBienvenida()"></div><div class="form-group"><label for="apIntroMapaBotonColor" class="form-label">Color del texto</label><input type="color" id="apIntroMapaBotonColor" value="#ffffff" oninput="actualizarVistaPreviaBienvenida()"></div><div class="form-group"><label for="apIntroMapaBotonFuente" class="form-label">Fuente</label><select class="form-input" id="apIntroMapaBotonFuente" onchange="actualizarVistaPreviaBienvenida()"></select></div></div></div>
 						</div></details>
 						<details class="bienvenida-details"><summary>Botón «Califícanos en Google»</summary><div class="bienvenida-details-body">
 							<p class="bienvenida-ayuda">Un botón con estrella, debajo del botón principal, que lleva al comensal a dejar su reseña en Google. Solo sale si está encendido y tiene su enlace.</p>
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroResenaActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Mostrar el botón de reseñas</span></div>
-							<div class="form-group"><label for="apIntroResenaUrl" class="form-label">Enlace para dejar la reseña</label><input type="url" class="form-input" id="apIntroResenaUrl" placeholder="https://g.page/r/…/review" oninput="actualizarVistaPreviaBienvenida()"><small class="bienvenida-ayuda">Lo sacas de tu perfil de Google Business Profile, en «Pedir reseñas»: copia el enlace tal cual. Tiene que ser un enlace de Google.</small></div>
+							<div class="form-group"><span class="form-label">Enlace para dejar la reseña</span><div class="bienvenida-dato-negocio"><strong id="apIntroResenaUrlTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajNegocioResena'); return false;">Cambiarlo en Datos del negocio</a></div></div>
 							<div class="form-group"><label for="apIntroResenaTexto" class="form-label">Texto del botón <span>(opcional)</span></label><input type="text" class="form-input" id="apIntroResenaTexto" maxlength="60" placeholder="Califícanos en Google" oninput="actualizarVistaPreviaBienvenida()"></div>
 						</div></details>
 						<details class="bienvenida-details"><summary>Botón «Reservar mesa»</summary><div class="bienvenida-details-body">
@@ -1753,7 +1768,7 @@
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroReservasActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Recibir reservas desde la bienvenida</span></div>
 							<div class="form-group"><label for="apIntroReservasTexto" class="form-label">Texto del botón <span>(opcional)</span></label><input type="text" class="form-input" id="apIntroReservasTexto" maxlength="40" placeholder="Reservar mesa" oninput="actualizarVistaPreviaBienvenida()"></div>
 						</div></details>
-						<div class="form-group" style="margin:14px 0 0"><label for="apDireccion" class="form-label">Dirección <span>(opcional)</span></label><input type="text" class="form-input" id="apDireccion" maxlength="120" placeholder="Cra 7 # 12-34, Bogotá" oninput="actualizarVistaPreviaBienvenida()"></div>
+						<div class="form-group" style="margin:14px 0 0"><span class="form-label">Dirección</span><div class="bienvenida-dato-negocio"><strong id="apDireccionTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajNegocioDireccion'); return false;">Cambiarlo en Datos del negocio</a></div></div>
 						<button type="button" class="btn-sm bienvenida-reset" onclick="restaurarBienvenida()">Restaurar valores predeterminados</button>
 					</div>
 

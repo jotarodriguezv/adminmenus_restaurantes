@@ -8157,7 +8157,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		// Sin colores, modelo ni tipografía: se mudaron a Apariencia el
 		// 27/09/2026 (public/aspecto.js, recolectarAspecto()).
 		assert.deepEqual(Object.keys(r).sort(),
-			['buscador', 'filtros_activos', 'filtros_disponibles', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'whatsapp_boton', 'whatsapp_negocio']);
+			['buscador', 'direccion', 'filtros_activos', 'filtros_disponibles', 'mapa_url', 'resena_url', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'whatsapp_boton', 'whatsapp_negocio']);
 	});
 
 	test('guardar manda solo lo de Ajustes y deja el estado al día', async () => {
@@ -8176,7 +8176,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['atributos'], 'nada fuera de atributos');
 		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k =>
-			k.startsWith('social_') || k.startsWith('filtros_') || k.startsWith('whatsapp_') || k === 'buscador'),
+			k.startsWith('social_') || k.startsWith('filtros_') || k.startsWith('whatsapp_') || ['buscador', 'direccion', 'mapa_url', 'resena_url'].includes(k)),
 			'solo las claves de Ajustes');
 		assert.equal(ctx.state.restaurante.atributos.social_instagram, 'https://instagram.com/bonzas');
 		assert.equal(campos('ajustesStatus').textContent, '✓ Guardado');
@@ -8341,7 +8341,9 @@ describe('la pestaña Apariencia (del restaurante), separada de Ajustes', () => 
 		const { ctx, campos } = montar({ direccion: 'Cra 7 # 12-34, Bogotá' });
 		ctx.renderAspecto();
 		assert.equal(campos('apIntroActivo').checked, false, 'ausente es apagada, no como el buscador');
-		assert.equal(campos('apDireccion').value, 'Cra 7 # 12-34, Bogotá');
+		// La dirección es del negocio (Ajustes → Datos del negocio): Apariencia ya no
+		// la pinta ni la guarda.
+		assert.equal(campos('apDireccion').value, '');
 
 		const { ctx: ctx2, campos: campos2 } = montar({ intro_activo: true, intro_eslogan: 'Hecho con cariño' });
 		ctx2.renderAspecto();
@@ -8360,7 +8362,7 @@ describe('la pestaña Apariencia (del restaurante), separada de Ajustes', () => 
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo).sort(), ['atributos', 'color_primario', 'color_secundario']);
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo.atributos).sort(),
-			['color_card', 'color_surface', 'direccion', 'estilo', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
+			['color_card', 'color_surface', 'estilo', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
 			 'fuente_cuerpo', 'fuente_titulo', 'intro_activo', 'intro_eslogan', 'mostrar_hero', 'nav', 'subtitulo']);
 	});
 
@@ -9847,26 +9849,33 @@ describe('bienvenida · TikTok y el botón «Califícanos en Google» (01/10/202
 	const panel = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 
 	test('el panel tiene los controles: TikTok, y el botón de reseñas con su enlace y su texto', () => {
-		for (const id of ['apIntroSocialTiktok', 'apIntroEstadoTiktok', 'apIntroResenaActivo', 'apIntroResenaUrl', 'apIntroResenaTexto', 'apIntroPreviewResena']) {
+		for (const id of ['apIntroSocialTiktok', 'apIntroEstadoTiktok', 'apIntroResenaActivo', 'apIntroResenaUrlTexto', 'apIntroResenaTexto', 'apIntroPreviewResena']) {
 			assert.match(panel, new RegExp('id="' + id + '"'), id);
 		}
 		assert.match(panel, /id="apIntroResenaTexto"[^>]*maxlength="60"/);
 	});
 
-	test('lo que se guarda incluye las cuatro claves nuevas, que es lo que mandan Apariencia y la carta', () => {
+	test('lo que se guarda incluye las claves de TikTok y del botón de reseñas, que es lo que mandan Apariencia y la carta', () => {
 		const valores = bien.match(/function valoresBienvenida\(\) \{[\s\S]*?\n\}/)[0];
-		for (const clave of ['intro_social_tiktok', 'intro_resena_activo', 'intro_resena_url', 'intro_resena_texto']) {
+		for (const clave of ['intro_social_tiktok', 'intro_resena_activo', 'intro_resena_texto']) {
 			assert.match(valores, new RegExp(clave + ':'), clave);
 		}
+		// El ENLACE de las reseñas, el del mapa y la dirección ya no se guardan desde
+		// aquí: son del negocio (Ajustes). Guardarlos desde dos pestañas sería volver
+		// a tener dos dueños del mismo dato.
+		for (const clave of ['intro_resena_url', 'intro_mapa_url', 'direccion'])
+			assert.doesNotMatch(valores, new RegExp('\\b' + clave + ':'), clave);
 		const base = bien.match(/const VALORES_BIENVENIDA = \{[\s\S]*?\n\};/)[0];
-		assert.match(base, /intro_social_tiktok: false, intro_resena_activo: false, intro_resena_url: '', intro_resena_texto: ''/,
+		assert.match(base, /intro_social_tiktok: false, intro_resena_activo: false, intro_resena_texto: ''/,
 			'apagado por defecto: no le cambia la bienvenida a nadie');
+		assert.doesNotMatch(base, /intro_resena_url|intro_mapa_url|direccion:/,
+			'«Restaurar valores» no puede vaciar los datos del negocio');
 	});
 
 	test('se pintan al abrir la pestaña y la vista previa solo enseña el botón si saldría en la carta', () => {
 		assert.match(bien, /marcar\('apIntroSocialTiktok'/);
 		assert.match(bien, /marcar\('apIntroResenaActivo'/);
-		assert.match(bien, /poner\('apIntroResenaUrl'/);
+		assert.match(bien, /pintarDatosEnBienvenida\(\)/);
 		assert.match(bien, /datos\.intro_resena_activo && \/\^https\?:/);
 	});
 
