@@ -562,9 +562,9 @@ function tvDestacadosVisibles() {
   const todas = state.promociones || [];
   const vivas = todas.filter(p =>
     p && p.activa && p.en_tv && p.imagen_url && vigenteAhora(programacionDe(p), zona));
-  // Respaldo para una cartelera guardada antes de la tabla de destacados.
-  if (!todas.length && state.restaurante?.promo_activa && state.restaurante?.promo_imagen_url)
-    return [{ imagen_url: state.restaurante.promo_imagen_url }];
+  // Sin respaldo en las columnas viejas (promo_activa / promo_imagen_url,
+  // quitado el 02/10/2026): la pared ya solo lee la tabla, y contar una imagen
+  // que no sale prometería una vuelta más larga de la que se ve.
   const programadas = vivas.filter(p => tieneProgramacion(programacionDe(p)));
   return programadas.length ? programadas : vivas.filter(p => !tieneProgramacion(programacionDe(p)));
 }

@@ -1868,6 +1868,32 @@ describe('/api/promociones · varias promociones por restaurante', () => {
 		assert.equal(r.status, 403);
 	});
 
+	test('al borrar la última se apagan las columnas viejas del restaurante', async () => {
+		// Bonzas: sin filas en la tabla pero con promo_activa encendido, la carta
+		// seguía enseñando la imagen vieja.
+		conPlan('pedidos', { fila: { id: 'p1', restaurante_id: IDS.restaurante } });
+		const r = await S.pedir('DELETE', '/api/promociones/p1', null, tokenCliente);
+		assert.equal(r.status, 200);
+		const limpieza = S.llamadas.find(l => l.tabla === 'restaurantes' && l.op === 'update'
+			&& l.payload && l.payload.promo_activa === false);
+		assert.ok(limpieza, 'no apagó promo_activa');
+		assert.equal(limpieza.payload.promo_imagen_url, null);
+		assert.equal(limpieza.filtros.id, IDS.restaurante);
+	});
+
+	test('si quedan otras promociones, las columnas viejas no se tocan', async () => {
+		S.conTabla(st => {
+			if (st.tabla === 'promociones' && st.opciones && st.opciones.head)
+				return { data: null, count: 2, error: null };
+			if (st.tabla === 'promociones')
+				return { data: { id: 'p1', restaurante_id: IDS.restaurante }, error: null };
+			return { data: null, error: null };
+		});
+		const r = await S.pedir('DELETE', '/api/promociones/p1', null, tokenCliente);
+		assert.equal(r.status, 200);
+		assert.equal(S.llamadas.some(l => l.tabla === 'restaurantes' && l.op === 'update'), false);
+	});
+
 	test('borrar la promoción no borra su imagen', async () => {
 		// Un archivo de uploads/ puede estar referenciado desde otra fila. Quien
 		// sabe si sobra es el limpiador, que mira las tablas enteras.
