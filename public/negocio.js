@@ -210,6 +210,12 @@ const DATOS_DEL_NEGOCIO = [
   { clave: 'correo', nombre: 'el correo', campo: 'ajNegocioCorreo', hay: at => !!correoDelNegocio(at) && !errorDeCorreoNegocio(correoDelNegocio(at)) },
 ];
 
+// ¿Está este dato? Lo usan los interruptores de la bienvenida para no dejarse
+// encender sin nada detrás.
+function hayDatoDelNegocio(clave, at) {
+  return !!DATOS_DEL_NEGOCIO.find(d => d.clave === clave)?.hay(at);
+}
+
 // Los que todavía no están, en el orden de la tarjeta.
 function datosDelNegocioFaltantes(at) {
   return DATOS_DEL_NEGOCIO.filter(d => !d.hay(at));
@@ -241,6 +247,9 @@ function renderDatosNegocio() {
 function pintarWhatsappEnPedidos() {
   const campo = document.getElementById('ajNegocioWhatsapp');
   const numero = campo ? soloDigitosNegocio(campo.value) : '';
+  // El botón de WhatsApp no se puede encender sin número: no habría adónde llevarlo.
+  const boton = document.getElementById('ajWhatsappBoton');
+  if (boton) { boton.disabled = !numero; if (!numero) boton.checked = false; }
   const texto = document.getElementById('pedidosWhatsappTexto');
   if (texto) texto.textContent = numero || 'Todavía no hay número';
 }

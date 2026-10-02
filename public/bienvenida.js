@@ -119,11 +119,48 @@ function recolectarTextosBienvenida() {
   return salida;
 }
 
+// El campo del nombre empieza con el nombre del restaurante, que es lo que se
+// vería de todas formas. Pero si se GUARDARA copiado, la bienvenida dejaría de
+// seguirlo: el día que el superadmin cambie el nombre, la bienvenida seguiría
+// diciendo el viejo. Por eso, dejado igual, se guarda vacío («sigue al nombre»);
+// solo un nombre distinto se guarda como nombre propio de la bienvenida.
+function nombreDeBienvenidaParaGuardar() {
+  const escrito = valorBienvenida('apIntroNombre').trim();
+  return escrito === String(state.restaurante?.nombre ?? '').trim() ? '' : escrito;
+}
+
+// Un interruptor sin dato detrás no se puede encender: «mostrar TikTok» sin enlace
+// de TikTok no muestra nada, y dejarlo encendido sería prometer algo que la carta
+// no hace. Se apaga y se desactiva; el texto de al lado dice qué falta y dónde se
+// pone. Al volver a tener el dato se puede volver a encender: queda apagado, no
+// recordado, porque encenderlo es una decisión de quien lo enciende.
+//
+// Lee lo GUARDADO del negocio (se escribe en Ajustes), como la vista previa.
+function ajustarInterruptoresBienvenida() {
+  const at = state.restaurante?.atributos || {};
+  const hay = {
+    apIntroSocialInstagram: !!textoDelNegocio(at.social_instagram),
+    apIntroSocialFacebook: !!textoDelNegocio(at.social_facebook),
+    apIntroSocialTiktok: !!textoDelNegocio(at.social_tiktok),
+    apIntroMapaActivo: hayDatoDelNegocio('mapa', at),
+    apIntroResenaActivo: hayDatoDelNegocio('resena', at),
+    apIntroHorarioActivo: hayDatoDelNegocio('horario', at),
+    apIntroCorreoActivo: hayDatoDelNegocio('correo', at),
+  };
+  for (const [id, hayDato] of Object.entries(hay)) {
+    const caja = campoBienvenida(id);
+    if (!caja) continue;
+    caja.disabled = !hayDato;
+    if (!hayDato) caja.checked = false;
+    caja.closest?.('.form-check')?.classList.toggle('sin-dato', !hayDato);
+  }
+}
+
 function valoresBienvenida() {
   const imagen = campoBienvenida('apIntroImagenPreview');
   return {
     intro_activo: campoBienvenida('apIntroActivo').checked,
-    intro_nombre: valorBienvenida('apIntroNombre').trim(), intro_eslogan: valorBienvenida('apIntroEslogan').trim(),
+    intro_nombre: nombreDeBienvenidaParaGuardar(), intro_eslogan: valorBienvenida('apIntroEslogan').trim(),
     intro_texto_adicional: valorBienvenida('apIntroTextoAdicional').trim(), intro_cta: valorBienvenida('apIntroCta').trim() || 'Ver carta',
     intro_fondo_url: imagen?.dataset.url || '',
     intro_fondo_color: valorBienvenida('apIntroFondoColor'), intro_overlay_activo: campoBienvenida('apIntroOverlayActivo').checked,
@@ -213,7 +250,7 @@ function renderBienvenida(at = {}) {
   const datos = { ...VALORES_BIENVENIDA, ...at }; pintarControlesTextoBienvenida(datos.intro_textos || {});
   const poner = (id, valor) => { const el = campoBienvenida(id); if (el) el.value = valor ?? ''; };
   const marcar = (id, valor) => { const el = campoBienvenida(id); if (el) el.checked = !!valor; };
-  marcar('apIntroActivo', datos.intro_activo); poner('apIntroNombre', datos.intro_nombre); poner('apIntroEslogan', datos.intro_eslogan); poner('apIntroTextoAdicional', datos.intro_texto_adicional); poner('apIntroCta', datos.intro_cta);
+  marcar('apIntroActivo', datos.intro_activo); poner('apIntroNombre', datos.intro_nombre || state.restaurante?.nombre); poner('apIntroEslogan', datos.intro_eslogan); poner('apIntroTextoAdicional', datos.intro_texto_adicional); poner('apIntroCta', datos.intro_cta);
   poner('apIntroFondoColor', datos.intro_fondo_color); poner('apIntroFondoColorHex', datos.intro_fondo_color); marcar('apIntroOverlayActivo', datos.intro_overlay_activo); poner('apIntroOverlayColor', datos.intro_overlay_color); poner('apIntroOverlayColorHex', datos.intro_overlay_color); poner('apIntroOverlayOpacidad', datos.intro_overlay_opacidad); poner('apIntroImagenAjuste', datos.intro_imagen_ajuste);
   poner('apIntroTarjetaFondo', datos.intro_tarjeta_fondo); poner('apIntroTarjetaBorde', datos.intro_tarjeta_borde); poner('apIntroTarjetaBordeGrosor', datos.intro_tarjeta_borde_grosor);
   marcar('apIntroSocialInstagram', datos.intro_social_instagram); marcar('apIntroSocialFacebook', datos.intro_social_facebook); marcar('apIntroSocialTiktok', datos.intro_social_tiktok);
@@ -226,7 +263,7 @@ function renderBienvenida(at = {}) {
   campoBienvenida('apIntroImagenVacia').hidden = !!datos.intro_fondo_url; campoBienvenida('apIntroImagenEliminar').hidden = !datos.intro_fondo_url;
   const redes = state.restaurante?.atributos || {}; campoBienvenida('apIntroEstadoInstagram').textContent = redes.social_instagram ? 'Instagram · enlace configurado' : 'Instagram · agrega el enlace en Ajustes';
   campoBienvenida('apIntroEstadoFacebook').textContent = redes.social_facebook ? 'Facebook · enlace configurado' : 'Facebook · agrega el enlace en Ajustes';
-  campoBienvenida('apIntroEstadoTiktok').textContent = redes.social_tiktok ? 'TikTok · enlace configurado' : 'TikTok · agrega el enlace en Ajustes'; pintarDatosEnBienvenida(); actualizarVistaPreviaBienvenida();
+  campoBienvenida('apIntroEstadoTiktok').textContent = redes.social_tiktok ? 'TikTok · enlace configurado' : 'TikTok · agrega el enlace en Ajustes'; pintarDatosEnBienvenida(); ajustarInterruptoresBienvenida(); actualizarVistaPreviaBienvenida();
 }
 
 async function subirFondoBienvenida(input) {

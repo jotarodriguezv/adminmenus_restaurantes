@@ -234,6 +234,10 @@ a,button,input,select,textarea{font-family:inherit;}
 .horario-hora-campo{display:flex;align-items:center;gap:6px;}
 .horario-hora{width:auto;min-width:92px;padding:7px 8px;font-size:12px;}
 .horario-quitar{margin-left:auto;}
+/* Un interruptor sin dato detrás: se ve apagado y no se puede pulsar. */
+.form-check.sin-dato{opacity:.6;}
+.toggle input:disabled + .toggle-slider{cursor:not-allowed;}
+.toggle:has(input:disabled){cursor:not-allowed;}
 .bienvenida-dato-negocio{font-size:13px;color:var(--text-muted);line-height:1.6;}
 .bienvenida-dato-negocio strong{color:var(--text);word-break:break-all;}
 .bienvenida-dato-negocio a{color:var(--accent);}

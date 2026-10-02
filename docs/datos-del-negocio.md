@@ -266,6 +266,33 @@ llenarlos: ve la lista, no tiene que acordarse de que existe la tarjeta.
 - La regla es `datosDelNegocioFaltantes()` en `public/negocio.js`; la fila,
   `datosDelNegocioEnInicio()` en `public/inicio.js`.
 
+## Ajustes tras las primeras pruebas del usuario (02/10/2026)
+
+Salieron de usar el panel con un restaurante real. Son de la bienvenida y de Ajustes;
+la carta no cambió.
+
+- **El nombre del restaurante, por defecto.** El campo «Nombre del restaurante» de la
+  bienvenida decía «vacío = nombre actual» y se veía vacío. Ahora **se rellena con el
+  nombre del restaurante**. Pero si se guardara copiado, la bienvenida dejaría de
+  seguirlo: el día que el superadmin lo cambie, seguiría diciendo el viejo. Por eso,
+  **dejado igual, se guarda vacío** («sigue al nombre»), y solo un nombre distinto se
+  guarda como nombre propio de la bienvenida. «Restaurar valores» también lo deja con
+  el nombre del restaurante.
+- **Un interruptor sin dato detrás no se deja encender.** «Mostrar TikTok» sin enlace de
+  TikTok no mostraba nada, y dejarlo encendido prometía algo que la carta no hace. Ahora,
+  sin dato, el interruptor **se apaga y se desactiva** (y la fila se ve atenuada); el
+  texto de al lado ya dice qué falta y dónde se pone. Vale para **Instagram, Facebook,
+  TikTok, la ubicación, el botón de reseñas, el horario y el correo**, y para **el botón
+  de WhatsApp** de Ajustes (que se reevalúa mientras se escribe el número). Cuenta lo que
+  la carta de verdad lee, igual que la fila de Inicio. **Queda apagado, no recordado**:
+  si luego se pone el dato, hay que volver a encenderlo; encenderlo es una decisión de
+  quien lo enciende. Las reservas no dependen de ningún dato y no cambian. El interruptor
+  de la barra de redes tampoco: se puede encender con una sola red puesta.
+- **La dirección, junto a la ubicación.** Estaba suelta al final del formulario, entre
+  «Reservar mesa» y «Restaurar valores», sin nada que la explicara. Ahora va **arriba de
+  la sección de ubicación, que se llama «Dirección y ubicación»**: son lo mismo, dónde
+  está el local. Sigue sin interruptor (se enseña si hay dirección), como antes.
+
 ## Pasos que vienen
 - **«Abierto ahora»**, cuando alguna función quiera usar el horario más allá de
   decirlo. Hay que decidir qué hace con un cierre pasada la medianoche, que hoy se
