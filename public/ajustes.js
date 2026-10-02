@@ -38,11 +38,12 @@ const REDES_CAMPOS = {
   social_instagram: 'ajSocialInstagram',
   social_facebook:  'ajSocialFacebook',
   social_tiktok:    'ajSocialTiktok',
-  social_whatsapp:  'ajSocialWhatsapp',
 };
 
 function renderAjustes() {
   const at = state.restaurante?.atributos || {};
+  // Antes que los pedidos: la tarjeta del carrito lee de aquí el número.
+  renderDatosNegocio();
   document.getElementById('ajSocialBar').checked = !!at.social_bar;
   for (const [clave, id] of Object.entries(REDES_CAMPOS))
     document.getElementById(id).value = at[clave] || '';
@@ -85,7 +86,6 @@ function recolectarAjustes() {
   // siempre metería un metodos_pago entero en restaurantes que no reciben
   // pedidos, con los campos vacíos que tiene la pantalla escondida.
   const pedidos = carritoEnPantalla() ? {
-    whatsapp_pedidos: document.getElementById('pedidosWhatsapp').value.trim().replace(/[^0-9]/g, ''),
     metodos_pago: recolectarMetodosPago(),
   } : {};
   // Los toppings viajan mientras se estén enseñando. El catálogo lo lleva
@@ -96,6 +96,9 @@ function recolectarAjustes() {
     salsas:           toppingState.salsas,
   } : {};
   return {
+    // El número del negocio viaja SIEMPRE: ya no es de los pedidos, y lo usan
+    // también la barra de redes y la bienvenida.
+    ...recolectarDatosNegocio(),
     ...carrito,
     ...pedidos,
     ...toppings,
@@ -108,9 +111,6 @@ function recolectarAjustes() {
     social_instagram: valor('ajSocialInstagram'),
     social_facebook: valor('ajSocialFacebook'),
     social_tiktok: valor('ajSocialTiktok'),
-    // Solo dígitos: wa.me no acepta otra cosa, y un «+57 300 123 4567» —que es
-    // como lo teclea cualquiera— arma un enlace que no abre ningún chat.
-    social_whatsapp: valor('ajSocialWhatsapp').replace(/[^0-9]/g, ''),
   };
 }
 
@@ -169,10 +169,10 @@ async function saveAjustes() {
     // repintarlas habría que recargar para llegar a poner el número.
     ajustarPestanasAlModelo();
     const faltaNumero = cartaTieneCarrito(data.atributos, planActual()) && !recibePedidos(data.atributos);
-    st.textContent = faltaNumero ? '✓ Guardado · falta el número de WhatsApp para recibir los pedidos' : '✓ Guardado';
+    st.textContent = faltaNumero ? '✓ Guardado · falta el WhatsApp del negocio para recibir los pedidos' : '✓ Guardado';
     st.style.color = faltaNumero ? 'var(--warn)' : 'var(--success)';
     // Si falta el número, lo que toca es ponerlo, no ir a mirar la carta.
-    if (faltaNumero) showToast('Guardado. Ahora pon el número de WhatsApp al que llegan los pedidos', 'info');
+    if (faltaNumero) showToast('Guardado. Ahora pon el WhatsApp del negocio, al que llegan los pedidos', 'info');
     else avisarGuardadoConCarta('Ajustes guardados');
   } catch (e) {
     // El motivo lo escribe el servidor para quien lo lee: «El enlace de
