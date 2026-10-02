@@ -77,7 +77,8 @@ corregir el documento en la misma tarea.
 - `negocio.js` y `public/negocio.js` — los datos del negocio: hoy el WhatsApp único
   (`whatsapp_negocio`) y si la carta enseña su botón (`whatsapp_boton`), y, desde el
   02/10/2026, la dirección (`direccion`), la ubicación (`mapa_url`) y las reseñas de
-  Google (`resena_url`), que la bienvenida ya no pide. Dos copias
+  Google (`resena_url`), que la bienvenida ya no pide; las redes sociales son un bloque
+  de la misma tarjeta (solo cambió de sitio). Dos copias
   de la misma regla, más la de `vmenus-app/core/negocio.js`; el juego de casos es
   `test/casos-negocio.json`, **duplicado en los dos repositorios**. Las claves
   viejas (`whatsapp_pedidos`, `social_whatsapp`) solo se leen si la nueva no

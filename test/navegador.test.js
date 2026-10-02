@@ -8266,17 +8266,23 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 		assert.match(botones[1][0], /display:\s*none/, 'el restaurante no la ve');
 	});
 
-	test('dentro de Ajustes: carrito, filtros y las redes al final', () => {
+	test('dentro de Ajustes: los datos del negocio primero, con las redes dentro; luego el carrito y los filtros', () => {
 		// El logo, los colores, el modelo y la tipografía vivieron aquí un tiempo
 		// (26-27/09/2026) y se mudaron a su propia pestaña, Apariencia, el mismo
 		// 27/09/2026: al verlos junto al carrito y las redes, la propia clienta
 		// que los probó propuso separarlos.
 		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabAspecto"'));
 		const orden = [...tab.matchAll(/<div class="(?:section-title|aj-subtitulo)">([^<]+)</g)].map(m => m[1].trim());
-		assert.equal(JSON.stringify(orden.slice(0, 4)),
-			'["Datos del negocio","Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
-			'los datos del negocio, primero; luego el carrito y lo suyo');
-		assert.equal(orden.at(-1), 'Redes sociales', 'las redes, al final');
+		assert.equal(JSON.stringify(orden.slice(0, 5)),
+			'["Datos del negocio","Redes sociales","Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
+			'los datos del negocio, primero, con las redes dentro; luego el carrito y lo suyo');
+		// Las redes dejaron de ser una tarjeta al final (paso 3 de docs/datos-del-negocio.md,
+		// 02/10/2026): son datos del negocio, como el WhatsApp o la dirección.
+		const negocio = tab.slice(tab.indexOf('id="ajNegocioCard"'), tab.indexOf('id="ajCarritoCard"'));
+		assert.ok(negocio.includes('id="ajRedesBloque"'), 'el bloque de redes está dentro de Datos del negocio');
+		for (const id of ['ajSocialBar', 'ajSocialInstagram', 'ajSocialFacebook', 'ajSocialTiktok'])
+			assert.ok(negocio.includes(`id="${id}"`), `${id} sigue en la pantalla, ahora dentro del negocio`);
+		assert.equal((tab.match(/<div class="section-title">Redes sociales<\/div>/g) || []).length, 0, 'ya no hay tarjeta propia');
 		assert.equal((tab.match(/class="btn-save"/g) || []).length, 1, 'un solo botón de guardar');
 		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('Redes sociales'), 'el botón de guardar, después de todas');
 	});
