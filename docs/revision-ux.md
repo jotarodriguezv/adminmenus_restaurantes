@@ -69,6 +69,7 @@ correcciones así (B1 y P4), marcadas dentro del propio hallazgo.
 | Importar carta | revisada — sin hallazgos |
 | QR | revisada — sin hallazgos de fondo |
 | Estadísticas | revisada |
+| Pantalla de bienvenida | revisada el 02/10/2026 → BV1–BV10 |
 
 Revisadas primero sobre **A Ojo Cerrado** (restaurante de prueba) y después,
 por sugerencia del usuario, sobre **Bonzas Burger Grill** (97 productos, 59
@@ -3339,4 +3340,157 @@ confirmó que es lo previsto.
 - **Sin desbordamiento horizontal** en 375 px.
 
 ---
+---
+
+# Pantalla de bienvenida
+
+Revisada el **02/10/2026**, a petición del usuario y de su equipo, antes de
+decidir si el formulario se muda de Apariencia a Ajustes. Es la primera
+impresión de la carta, y tres restaurantes reales la tienen encendida
+(`lobsterboat`, `la-leydi`, `aojocerrado`); otros tres la guardaron alguna vez
+y la dejaron apagada.
+
+**Método, y lo que NO se hizo.** Lectura del fuente de `origin/main`
+(`public/bienvenida.js`, el bloque de `public/index.html`, `panel.css`,
+`docs/datos-del-negocio.md`) y la carta de **La Leydi** en producción, en un
+móvil de 375 px, solo lectura. **No se abrió el panel en pantalla**: los
+hallazgos BV1–BV8 salen de leer el código y conviene mirarlos en el navegador
+antes de arreglarlos. Tampoco se probó en escritorio ni se guardó nada.
+
+## BV1 · Un formulario de ~60 controles en una sola tarjeta · **Media**
+
+- [ ] Pendiente · se resuelve junto con el traslado a Ajustes
+
+Fijos hay unos 35 (31 `input` y 4 `select`) repartidos en ocho secciones
+plegables, y «Textos y tipografía» genera otros ~25 (cinco textos × color,
+fuente, grosor, tamaño y alineación). Solo «Fondo e imagen» viene abierta. La
+tarjeta está **después** de Logo, Colores, Fondos, Modelo de página y
+Tipografía, así que se llega tras mucho scroll y sin saber cuánto falta.
+
+## BV2 · Dos cosas llamadas «bienvenida» en la misma pestaña · **Media**
+
+- [ ] Pendiente
+
+«Mostrar mensaje de bienvenida» (el logo, el nombre y el subtítulo bajo la
+cabecera, en *Modelo de página*) y «Pantalla de bienvenida» (la que sale antes
+de la carta) están a un centenar de líneas una de otra en `tabAspecto`. El
+comentario del propio HTML ya lo reconoce: «son tres cosas distintas, con
+nombres a propósito distintos» —la tercera es la «Portada» de Explorar—, pero
+para quien administra, «bienvenida» es «bienvenida». Pista para el arreglo:
+nombrar a la primera por lo que es («Encabezado de la carta») y no dejar las
+dos en la misma pestaña.
+
+## BV3 · Se guarda con «Guardar apariencia» · **Media**
+
+- [ ] Pendiente · lo resuelve el traslado (botón propio)
+
+Es la razón que dio el equipo para mudarla, y el código la confirma:
+`saveAspecto()` escribe en una sola petición los colores y la tipografía de la
+carta **y** todas las claves `intro_*`. Quien solo quería cambiar la frase de
+bienvenida guarda también lo demás, y quien tocó un color de la carta sin
+querer queda guardado junto con la bienvenida.
+
+**Cuidado al mudarla:** `saveAspecto` y `saveAjustes` escriben las dos en
+`restaurantes.atributos`. Cada clave tiene que quedar en **un solo** guardado,
+o una pantalla con datos viejos pisa lo que la otra acaba de guardar.
+
+## BV4 · El interruptor principal no dice su estado · **Media**
+
+- [ ] Pendiente
+
+`apIntroActivo` está en la cabecera de la tarjeta y su única explicación es un
+`title` («Mostrarla antes de la carta»), que en un móvil no se ve. Apagada, la
+vista previa se ve exactamente igual que encendida y los ~60 controles siguen
+editables: nada dice «esto ahora mismo no se está mostrando». Pistas: texto al
+lado del interruptor («Encendida» / «Apagada») y una nota bajo el título cuando
+está apagada.
+
+## BV5 · La vista previa no acompaña a lo que se edita · **Media**
+
+- [ ] Pendiente
+
+La vista previa va arriba de la tarjeta con `position: relative`. Para tocar
+«Redes sociales», «Reseñas» o «Horario y correo» hay que bajar, y el efecto del
+cambio queda fuera de pantalla: se edita a ciegas. Es el mismo problema que TV8
+en la cartelera. Además mide 280 px, y la bienvenida real ocupa la pantalla
+entera del teléfono, así que no se ve si algo queda abajo o se corta.
+
+## BV6 · El estilo de «Dirección» también manda sobre el horario y el correo · **Baja**
+
+- [ ] Pendiente
+
+En `aplicarTextoPrevisualizacion`, el horario y el correo se pintan con el
+estilo de la dirección («son la misma clase de línea»). Está bien como
+decisión, pero ningún texto del formulario lo dice: quien cambie el color de
+«Dirección opcional» verá cambiar tres líneas. Pista: renombrar el bloque
+(«Dirección, horario y correo») o decirlo en una frase.
+
+## BV7 · Nada avisa si el contraste es ilegible · **Media**
+
+- [ ] Pendiente
+
+El panel tiene `REGLAS_COLOR` para la paleta de la carta, pero en la bienvenida
+no encontré ninguna comprobación equivalente: se puede dejar el texto casi del
+color del recuadro, o el texto del botón sobre un botón del mismo tono, y el
+panel guarda sin decir nada. Es la pantalla que ve **todo el que escanea el QR**.
+
+## BV8 · Detalles de acabado · **Baja**
+
+- [ ] Pendiente
+
+- Dos colores (fondo y superposición) llevan además un campo hexadecimal; los
+  demás (recuadro, borde, redes, botón del mapa) solo el selector.
+- «Restaurar valores predeterminados» no pregunta. No guarda hasta pulsar
+  guardar, pero quita la imagen de fondo y los textos propios de golpe; el resto
+  del panel usa `preguntar()` para eso.
+- «Fondo e imagen» se parece a «Imagen de fondo» y «Color de fondo» de la carta,
+  que están unas pantallas más arriba.
+- Los enlaces «Cambiarlo en Datos del negocio» salen del formulario sin avisar
+  si hay cambios sin guardar.
+
+## BV9 · ¿Un hueco en blanco donde debería ir el mini mapa? · **Sin confirmar**
+
+- [ ] Pendiente · mirar en un móvil real
+
+En la carta de La Leydi, entre la dirección y «Ver ubicación» hay un hueco de
+unos 145 px. El `<iframe>` del mini mapa existe (`maps.google.com/maps?output=embed`
+con coordenadas) y no hay errores de consola, pero **no se pintó** en el
+navegador de pruebas; puede ser solo el entorno. Si en un teléfono tampoco
+carga, el comensal ve un espacio vacío en la parte más vistosa de la tarjeta.
+Pista si se confirma: no reservar la altura del mapa hasta que el iframe cargue
+(`load`), o caer a solo el botón.
+
+## BV10 · Lo que el traslado a Ajustes obliga a decidir · **Nota**
+
+- [ ] Pendiente · sin decidir
+
+Ajustes hoy es un solo scroll (Datos del negocio, Carrito, Buscador, Filtros) y
+un botón «Guardar ajustes». Sumarle ~60 controles lo triplica. Propuesta a
+discutir, no acordada:
+
+1. **Subnavegación** dentro de Ajustes, una sección a la vez («Mi negocio»,
+   «Pedidos», «Carta», «Bienvenida»).
+2. **Botón de guardar propio** para la bienvenida y su interruptor siempre
+   visible (BV3, BV4).
+3. **Mover sin rediseñar**, como se hizo con el CSS y los archivos: un PR que
+   solo cambie de sitio, y los arreglos BV4–BV8 en otros.
+4. **Repartir las claves `intro_*`** de modo que las escriba un solo guardado
+   (BV3).
+
+## Lo que está bien
+
+- **Cada dato del negocio vive en un solo sitio.** La dirección, el mapa, las
+  reseñas, el horario y el correo se escriben en Ajustes y la bienvenida los
+  toma de ahí, con un enlace «Cambiarlo en Datos del negocio».
+- **Un interruptor sin dato detrás se apaga y se desactiva**, y dice qué falta
+  y dónde ponerlo (`ajustarInterruptoresBienvenida`). Nadie promete algo que la
+  carta no va a enseñar.
+- **El nombre sigue al del restaurante** mientras no se cambie
+  (`nombreDeBienvenidaParaGuardar`): el día que se renombre, la bienvenida no
+  se queda con el viejo.
+- **El aviso de las reservas es honesto**: dice que no se avisa sola y que hay
+  que mirar el contador de la pestaña.
+- **La carta de La Leydi se ve cuidada**: logo, nombre, frase, un solo botón
+  principal claro y las redes debajo.
+
 ---
