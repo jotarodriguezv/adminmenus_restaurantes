@@ -302,6 +302,10 @@ function configuracionDeInicio({ productos = [], categorias = [], atributos = {}
     { titulo: 'Identidad del restaurante', lista: false, listo: !!restaurante.logo_url,
       detalle: restaurante.logo_url ? 'Tu logo ya aparece en la carta.' : 'Añade un logo para que tu carta se reconozca mejor.',
       accion: restaurante.logo_url ? 'Ver ajustes' : 'Añadir logo', tab: 'ajustes' },
+    // Los datos que se dicen una vez y usan el carrito, la bienvenida y las redes
+    // (negocio.js). Opcionales —`lista: false`—: no cuentan en el aviso de la
+    // pestaña, pero salen aquí con lo que falta, que es lo que convence de llenarlos.
+    datosDelNegocioEnInicio(atributos),
     { titulo: 'Pedidos por WhatsApp', lista: requiereWhatsApp, listo: !requiereWhatsApp || recibePedidos(atributos),
       detalle: !requiereWhatsApp ? 'Opcional: actívalo cuando quieras recibir pedidos.'
         : recibePedidos(atributos) ? 'El carrito ya puede enviar pedidos.' : 'Falta el número que recibe los pedidos.',
@@ -313,6 +317,20 @@ function configuracionDeInicio({ productos = [], categorias = [], atributos = {}
       detalle: atributos.tv?.activa ? 'Tu cartelera está encendida.' : 'Opcional: muestra tus productos en una pantalla.',
       accion: atributos.tv?.activa ? 'Ver pantalla' : 'Configurar TV', tab: 'tv' },
   ];
+}
+
+// La fila de «Datos del negocio»: qué falta, o que está todo. El botón lleva a la
+// tarjeta y deja el cursor en el primer dato que falta.
+function datosDelNegocioEnInicio(atributos) {
+  const faltan = datosDelNegocioFaltantes(atributos);
+  return {
+    titulo: 'Datos del negocio', lista: false, listo: !faltan.length,
+    detalle: faltan.length
+      ? `${faltan.length === 1 ? 'Te falta' : 'Te faltan'} ${enLista(faltan.map(f => f.nombre))}. Los escribes una vez y tu carta los usa donde hacen falta.`
+      : 'Tienes el WhatsApp, la dirección, la ubicación, las reseñas, el horario y el correo.',
+    accion: faltan.length ? 'Completarlos' : 'Ver datos', tab: 'ajustes',
+    campo: faltan.length ? faltan[0].campo : 'ajNegocioCard',
+  };
 }
 
 function pintarConfiguracion(items) {
@@ -328,7 +346,8 @@ function pintarConfiguracion(items) {
     texto.append(el('div', 'inicio-configuracion-titulo', item.titulo), el('div', 'inicio-configuracion-detalle', item.detalle));
     const boton = el('button', 'btn-sm' + (item.listo ? '' : ' accent'), item.accion);
     boton.type = 'button';
-    boton.onclick = () => abrirDesdeInicio(item.tab);
+    // Con `campo`, a ese campo; sin él, a la pestaña a secas.
+    boton.onclick = () => (item.campo ? irADatosDelNegocio(item.campo) : abrirDesdeInicio(item.tab));
     fila.append(el('span', 'inicio-configuracion-marca', item.listo ? '✓' : '○'), texto, boton);
     caja.appendChild(fila);
   }

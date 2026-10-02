@@ -486,6 +486,109 @@ describe('Ajustes y la bienvenida con el horario y el correo (paso 4)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('Inicio · los datos del negocio que faltan (paso 5)', () => {
+	// Es una fila de la lista de configuración, aparte de lo pendiente: son datos
+	// opcionales y no tienen que contar en el aviso de la pestaña.
+	const inicio = fs.readFileSync(path.join(PUBLIC, 'inicio.js'), 'utf8');
+	const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	const fila = (atributos = {}) => {
+		const ctx = vm.createContext({ String, Array, Set, Number, cartaTieneCarrito: () => false, recibePedidos: () => true });
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
+		const i = inicio.indexOf('function configuracionDeInicio'), f = inicio.indexOf('function pintarConfiguracion');
+		assert.ok(i > -1 && f > i, 'no se encontró configuracionDeInicio en inicio.js');
+		vm.runInContext(inicio.slice(i, f), ctx);
+		const items = ctx.configuracionDeInicio({ productos: [], categorias: [], atributos, plan: {}, restaurante: {} });
+		return items.find(x => x.titulo === 'Datos del negocio');
+	};
+	const COMPLETO = {
+		whatsapp_negocio: '573185267015', direccion: 'Cra 7 # 12-34', mapa_url: 'https://maps.app.goo.gl/abc',
+		resena_url: 'https://g.page/r/abc/review', correo: 'hola@bonzas.co',
+		horario_atencion: [{ dias: [1, 2, 3], desde: '11:00', hasta: '22:00' }],
+	};
+
+	test('la fila existe en la lista de configuración', () => assert.ok(fila()));
+
+	test('sin nada guardado dice los seis que faltan, en el orden de la tarjeta', () => {
+		const f = fila({});
+		assert.equal(f.listo, false);
+		assert.equal(f.detalle, 'Te faltan el WhatsApp, la dirección, la ubicación, el enlace de reseñas, el horario y el correo. Los escribes una vez y tu carta los usa donde hacen falta.');
+		assert.equal(f.accion, 'Completarlos');
+	});
+
+	test('con todo, está lista y lo dice', () => {
+		const f = fila(COMPLETO);
+		assert.equal(f.listo, true);
+		assert.match(f.detalle, /^Tienes el WhatsApp, la dirección/);
+		assert.equal(f.accion, 'Ver datos');
+	});
+
+	test('si falta uno solo, lo dice en singular', () => {
+		const { correo, ...sinCorreo } = COMPLETO;
+		const f = fila(sinCorreo);
+		assert.match(f.detalle, /^Te falta el correo\./);
+		assert.equal(f.listo, false);
+	});
+
+	test('es opcional: NO cuenta en el aviso de la pestaña', () => {
+		// pintarConfiguracion cuenta solo lo que es `lista && !listo`.
+		assert.equal(fila({}).lista, false);
+	});
+
+	test('el botón lleva al primer dato que falta', () => {
+		assert.equal(fila({}).campo, 'ajNegocioWhatsapp');
+		assert.equal(fila({ ...COMPLETO, direccion: '' }).campo, 'ajNegocioDireccion');
+		assert.equal(fila({ ...COMPLETO, mapa_url: '' }).campo, 'ajNegocioMapa');
+		assert.equal(fila({ ...COMPLETO, resena_url: '' }).campo, 'ajNegocioResena');
+		assert.equal(fila({ ...COMPLETO, horario_atencion: [] }).campo, 'ajHorarioBloque');
+		assert.equal(fila({ ...COMPLETO, correo: '' }).campo, 'ajNegocioCorreo');
+		assert.equal(fila(COMPLETO).campo, 'ajNegocioCard', 'con todo, a la tarjeta entera');
+	});
+
+	test('cuenta lo que la carta de verdad lee: las claves viejas valen', () => {
+		const viejos = { whatsapp_pedidos: '573185267015', direccion: 'Cra 7', intro_mapa_url: 'https://maps.app.goo.gl/v', intro_resena_url: 'https://g.page/r/v/review', correo: 'a@b.co', horario_atencion: COMPLETO.horario_atencion };
+		assert.equal(fila(viejos).listo, true);
+	});
+
+	test('un dato borrado (vacío) cuenta como falta, aunque la clave vieja tuviera valor', () => {
+		const f = fila({ ...COMPLETO, whatsapp_negocio: '', whatsapp_pedidos: '573185267015', mapa_url: '', intro_mapa_url: 'https://maps.app.goo.gl/v' });
+		assert.match(f.detalle, /^Te faltan el WhatsApp y la ubicación\./);
+	});
+
+	test('un horario sin días, o un correo que no lo parece, no cuentan', () => {
+		assert.match(fila({ ...COMPLETO, horario_atencion: [{ dias: [], desde: '', hasta: '' }] }).detalle, /^Te falta el horario\./);
+		assert.match(fila({ ...COMPLETO, correo: 'hola' }).detalle, /^Te falta el correo\./);
+	});
+
+	test('las redes y el nombre no entran: son opcionales de verdad, o del superadmin', () => {
+		const ctx = vm.createContext({ String, Array, Set, Number });
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
+		const claves = vm.runInContext('DATOS_DEL_NEGOCIO.map(d => d.clave).join(",")', ctx);
+		assert.equal(claves, 'whatsapp,direccion,mapa,resena,horario,correo');
+	});
+
+	test('cada campo al que lleva existe en la pantalla', () => {
+		const ctx = vm.createContext({ String, Array, Set, Number });
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
+		const campos = JSON.parse(vm.runInContext('JSON.stringify(DATOS_DEL_NEGOCIO.map(d => d.campo))', ctx));
+		for (const c of [...campos, 'ajNegocioCard']) assert.ok(html.includes(`id="${c}"`), c);
+	});
+
+	test('el botón de la fila abre la tarjeta y el campo, y los demás siguen yendo a su pestaña', () => {
+		const pintar = inicio.match(/function pintarConfiguracion\(items\) \{[\s\S]*?\n\}/)[0];
+		assert.match(pintar, /item\.campo \? irADatosDelNegocio\(item\.campo\) : abrirDesdeInicio\(item\.tab\)/);
+	});
+
+	test('las otras filas no cambiaron: ninguna lleva `campo`', () => {
+		const ctx = vm.createContext({ String, Array, Set, Number, cartaTieneCarrito: () => false, recibePedidos: () => true });
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
+		vm.runInContext(inicio.slice(inicio.indexOf('function configuracionDeInicio'), inicio.indexOf('function pintarConfiguracion')), ctx);
+		const items = ctx.configuracionDeInicio({ productos: [], categorias: [], atributos: {}, plan: {}, restaurante: {} });
+		assert.deepEqual(JSON.parse(JSON.stringify(items.filter(i => i.campo).map(i => i.titulo))), ['Datos del negocio']);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('PATCH /api/restaurantes · el WhatsApp del negocio', () => {
 	const guardar = (atributos, token = tokenCliente) => {
 		S.reiniciar();
