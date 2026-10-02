@@ -9,6 +9,7 @@ const VALORES_BIENVENIDA = {
   intro_fondo_color: '#111827', intro_overlay_activo: true, intro_overlay_color: '#0a0a0f',
   intro_overlay_opacidad: 50, intro_imagen_ajuste: 'cover', intro_cta: 'Ver carta',
   intro_social_tiktok: false, intro_resena_activo: false, intro_resena_texto: '',
+  intro_horario_activo: true, intro_correo_activo: true,
   intro_reservas_activo: false, intro_reservas_texto: '',
   intro_social_estilo: 'circular', intro_social_icono_color: '#ffffff',
   intro_social_fondo: '#ef7a00', intro_social_borde: '#ffffff', intro_social_tamano: 48,
@@ -134,6 +135,7 @@ function valoresBienvenida() {
     intro_social_tiktok: campoBienvenida('apIntroSocialTiktok').checked,
     intro_resena_activo: campoBienvenida('apIntroResenaActivo').checked,
     intro_resena_texto: valorBienvenida('apIntroResenaTexto').trim(),
+    intro_horario_activo: campoBienvenida('apIntroHorarioActivo').checked, intro_correo_activo: campoBienvenida('apIntroCorreoActivo').checked,
     intro_reservas_activo: campoBienvenida('apIntroReservasActivo').checked, intro_reservas_texto: valorBienvenida('apIntroReservasTexto').trim(),
     intro_social_icono_color: valorBienvenida('apIntroSocialIconoColor'), intro_social_fondo: valorBienvenida('apIntroSocialFondo'),
     intro_social_borde: valorBienvenida('apIntroSocialBorde'), intro_social_tamano: Number(valorBienvenida('apIntroSocialTamano')),
@@ -143,8 +145,10 @@ function valoresBienvenida() {
 }
 
 function aplicarTextoPrevisualizacion(tipo, contenido) {
-  const nombres = { nombre: 'apIntroPreviewNombre', eslogan: 'apIntroPreviewEslogan', adicional: 'apIntroPreviewExtra', cta: 'apIntroPreviewCta', direccion: 'apIntroPreviewDireccion' };
-  const el = campoBienvenida(nombres[tipo]); const datos = recolectarTextosBienvenida()[tipo] || {};
+  const nombres = { nombre: 'apIntroPreviewNombre', eslogan: 'apIntroPreviewEslogan', adicional: 'apIntroPreviewExtra', cta: 'apIntroPreviewCta', direccion: 'apIntroPreviewDireccion', horario: 'apIntroPreviewHorario', correo: 'apIntroPreviewCorreo' };
+  // El horario y el correo se leen con el estilo de texto de la dirección: son la misma clase de línea.
+  const estilo = tipo === 'horario' || tipo === 'correo' ? 'direccion' : tipo;
+  const el = campoBienvenida(nombres[tipo]); const datos = recolectarTextosBienvenida()[estilo] || {};
   if (!el) return;
   if (tipo === 'cta') el.textContent = contenido || 'Ver carta'; else el.textContent = contenido;
   el.style.color = datos.color || '#ffffff'; el.style.fontFamily = datos.fuente ? `'${datos.fuente}', Montserrat, sans-serif` : 'Montserrat, sans-serif';
@@ -169,7 +173,9 @@ function actualizarVistaPreviaBienvenida() {
   campoBienvenida('apIntroSocialTamanoValor').textContent = `${datos.intro_social_tamano} px`;
   const r = state.restaurante || {}; aplicarTextoPrevisualizacion('nombre', datos.intro_nombre || r.nombre || 'Tu restaurante');
   aplicarTextoPrevisualizacion('eslogan', datos.intro_eslogan || 'Hecho con cariño'); aplicarTextoPrevisualizacion('adicional', datos.intro_texto_adicional);
-  aplicarTextoPrevisualizacion('cta', datos.intro_cta); aplicarTextoPrevisualizacion('direccion', datos.direccion); const logo = campoBienvenida('apIntroPreviewLogo');
+  aplicarTextoPrevisualizacion('cta', datos.intro_cta); aplicarTextoPrevisualizacion('direccion', datos.direccion);
+  aplicarTextoPrevisualizacion('horario', datos.intro_horario_activo ? datos.horario_texto : '');
+  aplicarTextoPrevisualizacion('correo', datos.intro_correo_activo && datos.correo ? `✉ ${datos.correo}` : ''); const logo = campoBienvenida('apIntroPreviewLogo');
   logo.replaceChildren();
   if (r.logo_url) {
     const imagenLogo = document.createElement('img');
@@ -211,6 +217,7 @@ function renderBienvenida(at = {}) {
   poner('apIntroFondoColor', datos.intro_fondo_color); poner('apIntroFondoColorHex', datos.intro_fondo_color); marcar('apIntroOverlayActivo', datos.intro_overlay_activo); poner('apIntroOverlayColor', datos.intro_overlay_color); poner('apIntroOverlayColorHex', datos.intro_overlay_color); poner('apIntroOverlayOpacidad', datos.intro_overlay_opacidad); poner('apIntroImagenAjuste', datos.intro_imagen_ajuste);
   poner('apIntroTarjetaFondo', datos.intro_tarjeta_fondo); poner('apIntroTarjetaBorde', datos.intro_tarjeta_borde); poner('apIntroTarjetaBordeGrosor', datos.intro_tarjeta_borde_grosor);
   marcar('apIntroSocialInstagram', datos.intro_social_instagram); marcar('apIntroSocialFacebook', datos.intro_social_facebook); marcar('apIntroSocialTiktok', datos.intro_social_tiktok);
+  marcar('apIntroHorarioActivo', datos.intro_horario_activo !== false); marcar('apIntroCorreoActivo', datos.intro_correo_activo !== false);
   marcar('apIntroReservasActivo', datos.intro_reservas_activo); poner('apIntroReservasTexto', datos.intro_reservas_texto);
   marcar('apIntroResenaActivo', datos.intro_resena_activo); poner('apIntroResenaTexto', datos.intro_resena_texto); poner('apIntroSocialEstilo', datos.intro_social_estilo); poner('apIntroSocialIconoColor', datos.intro_social_icono_color); poner('apIntroSocialFondo', datos.intro_social_fondo); poner('apIntroSocialBorde', datos.intro_social_borde); poner('apIntroSocialTamano', datos.intro_social_tamano);
   marcar('apIntroMapaActivo', datos.intro_mapa_activo); poner('apIntroMapaModo', datos.intro_mapa_modo); poner('apIntroMapaBotonFondo', datos.intro_mapa_boton_fondo); poner('apIntroMapaBotonColor', datos.intro_mapa_boton_color); poner('apIntroMapaBotonFuente', datos.intro_mapa_boton_fuente);

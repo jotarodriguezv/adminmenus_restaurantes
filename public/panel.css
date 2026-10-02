@@ -226,6 +226,14 @@ a,button,input,select,textarea{font-family:inherit;}
    tarjeta por parte, el hueco entre el número de WhatsApp y los métodos de pago
    era el mismo que entre los toppings y los filtros, y nada decía qué iba con
    qué. Una línea dentro de la tarjeta separa sin sacarlo del bloque. */
+/* El editor del horario de atención (horario-atencion.js). */
+.horario-franja{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--card);}
+.horario-dias{display:flex;flex-wrap:wrap;gap:6px;}
+.horario-horas{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-size:12px;color:var(--text-muted);}
+.horario-todo{display:flex;align-items:center;gap:6px;cursor:pointer;}
+.horario-hora-campo{display:flex;align-items:center;gap:6px;}
+.horario-hora{width:auto;min-width:92px;padding:7px 8px;font-size:12px;}
+.horario-quitar{margin-left:auto;}
 .bienvenida-dato-negocio{font-size:13px;color:var(--text-muted);line-height:1.6;}
 .bienvenida-dato-negocio strong{color:var(--text);word-break:break-all;}
 .bienvenida-dato-negocio a{color:var(--accent);}

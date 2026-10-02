@@ -1,5 +1,5 @@
 {
-  "descripcion": "Casos de la regla «¿cuál es el WhatsApp del negocio y se enseña su botón?». DUPLICADO a propósito en adminmenus_restaurantes y vmenus-app: la regla vive en el servidor, en el panel (public/negocio.js) y en la carta (core/negocio.js), y este archivo es lo único que impide que se separen. 'numero' es el WhatsApp del negocio (solo dígitos, o ''); 'boton' es si el restaurante quiere el botón; 'visible' es lo que de verdad ve el comensal: hace falta el número Y el botón. Las claves viejas (whatsapp_pedidos, social_whatsapp) solo se miran cuando la nueva NO EXISTE. Segunda lista, 'enlaces' (paso 2, 02/10/2026): la dirección, la ubicación y el enlace de reseñas. La dirección no tiene clave vieja; el mapa y las reseñas leían intro_mapa_url e intro_resena_url, que solo se miran si la nueva (mapa_url, resena_url) NO EXISTE. '' es «no hay enlace», no «no está».",
+  "descripcion": "Casos de la regla «¿cuál es el WhatsApp del negocio y se enseña su botón?». DUPLICADO a propósito en adminmenus_restaurantes y vmenus-app: la regla vive en el servidor, en el panel (public/negocio.js) y en la carta (core/negocio.js), y este archivo es lo único que impide que se separen. 'numero' es el WhatsApp del negocio (solo dígitos, o ''); 'boton' es si el restaurante quiere el botón; 'visible' es lo que de verdad ve el comensal: hace falta el número Y el botón. Las claves viejas (whatsapp_pedidos, social_whatsapp) solo se miran cuando la nueva NO EXISTE. Segunda lista, 'enlaces' (paso 2, 02/10/2026): la dirección, la ubicación y el enlace de reseñas. La dirección no tiene clave vieja; el mapa y las reseñas leían intro_mapa_url e intro_resena_url, que solo se miran si la nueva (mapa_url, resena_url) NO EXISTE. '' es «no hay enlace», no «no está». Tercera lista, 'horario' (paso 4, 02/10/2026): cómo se DICE el horario de atención a partir de sus franjas ({dias 0=domingo…6, desde, hasta}). La semana va de lunes a domingo; tres días seguidos o más se dicen con «a», y de uno o dos se nombra cada día.",
   "casos": [
     { "nombre": "sin nada", "at": {}, "numero": "", "boton": false, "visible": false },
     { "nombre": "solo el número de pedidos de antes: sirve para pedir, el botón no sale", "at": { "whatsapp_pedidos": "573001234567" }, "numero": "573001234567", "boton": false, "visible": false },
@@ -26,5 +26,22 @@
     {"nombre": "se recortan los espacios", "at": {"mapa_url": "  https://maps.app.goo.gl/abc ", "resena_url": " https://g.page/r/CabC123/review  ", "direccion": "  Cra 7 # 12-34, Bogotá  "}, "direccion": "Cra 7 # 12-34, Bogotá", "mapa": "https://maps.app.goo.gl/abc", "resena": "https://g.page/r/CabC123/review"},
     {"nombre": "la dirección es la de siempre, sin clave nueva", "at": {"direccion": "ENVIGADO"}, "direccion": "ENVIGADO", "mapa": "", "resena": ""},
     {"nombre": "solo espacios es vacío", "at": {"direccion": "   ", "mapa_url": "  "}, "direccion": "", "mapa": "", "resena": ""}
+  ],
+  "horario": [
+    {"nombre": "sin horario", "franjas": [], "texto": ""},
+    {"nombre": "de lunes a viernes", "franjas": [{"dias": [1, 2, 3, 4, 5], "desde": "11:00", "hasta": "22:00"}], "texto": "Lun a Vie 11:00–22:00"},
+    {"nombre": "todos los días y todo el día", "franjas": [{"dias": [0, 1, 2, 3, 4, 5, 6], "desde": "", "hasta": ""}], "texto": "Todos los días todo el día"},
+    {"nombre": "entre semana y fin de semana: dos franjas", "franjas": [{"dias": [1, 2, 3, 4, 5], "desde": "11:00", "hasta": "22:00"}, {"dias": [6, 0], "desde": "12:00", "hasta": "23:00"}], "texto": "Lun a Vie 11:00–22:00 · Sáb y Dom 12:00–23:00"},
+    {"nombre": "días sueltos: se nombran uno a uno", "franjas": [{"dias": [1, 3, 5], "desde": "10:00", "hasta": "18:00"}], "texto": "Lun, Mié y Vie 10:00–18:00"},
+    {"nombre": "un solo día", "franjas": [{"dias": [0], "desde": "12:00", "hasta": "16:00"}], "texto": "Dom 12:00–16:00"},
+    {"nombre": "cierra pasada la medianoche: se dice tal cual", "franjas": [{"dias": [5, 6], "desde": "18:00", "hasta": "02:00"}], "texto": "Vie y Sáb 18:00–02:00"},
+    {"nombre": "un tramo y un día suelto", "franjas": [{"dias": [1, 2, 3, 5], "desde": "09:00", "hasta": "17:00"}], "texto": "Lun a Mié y Vie 09:00–17:00"},
+    {"nombre": "un tramo y dos días sueltos", "franjas": [{"dias": [1, 2, 3, 5, 6], "desde": "09:00", "hasta": "17:00"}], "texto": "Lun a Mié, Vie y Sáb 09:00–17:00"},
+    {"nombre": "jueves a sábado", "franjas": [{"dias": [4, 5, 6], "desde": "17:00", "hasta": "23:00"}], "texto": "Jue a Sáb 17:00–23:00"},
+    {"nombre": "domingo y lunes no son seguidos: la semana va de lunes a domingo", "franjas": [{"dias": [0, 1], "desde": "10:00", "hasta": "14:00"}], "texto": "Lun y Dom 10:00–14:00"},
+    {"nombre": "almuerzo y cena, mismos días", "franjas": [{"dias": [1, 2, 3, 4, 5], "desde": "12:00", "hasta": "15:00"}, {"dias": [1, 2, 3, 4, 5], "desde": "18:00", "hasta": "22:00"}], "texto": "Lun a Vie 12:00–15:00 · Lun a Vie 18:00–22:00"},
+    {"nombre": "días repetidos y desordenados", "franjas": [{"dias": [5, 1, 1, 3, 2, 4], "desde": "08:00", "hasta": "20:00"}], "texto": "Lun a Vie 08:00–20:00"},
+    {"nombre": "una franja sin días no cuenta", "franjas": [{"dias": [], "desde": "11:00", "hasta": "22:00"}], "texto": ""},
+    {"nombre": "con una sola hora puesta se lee como todo el día", "franjas": [{"dias": [1], "desde": "11:00", "hasta": ""}], "texto": "Lun todo el día"}
   ]
 }

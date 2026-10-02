@@ -1,7 +1,8 @@
 # Datos del negocio
 
-Estado: **pasos 1 a 3 hechos el 02/10/2026** (el WhatsApp; la dirección, la ubicación
-y las reseñas; las redes sociales). Pasos 4 y 5 por hacer.
+Estado: **pasos 1 a 4 hechos el 02/10/2026** (el WhatsApp; la dirección, la ubicación
+y las reseñas; las redes sociales; el horario de atención y el correo). Falta el
+paso 5.
 
 Hasta ahora cada función de la carta pedía su propio dato: el carrito, su
 WhatsApp; la bienvenida, la dirección, el mapa y las reseñas; las redes, su
@@ -24,7 +25,7 @@ si la tarjeta los enseña es solo para leer.
 | **1** | **El WhatsApp único**, con su interruptor «Mostrar el botón en la carta» | **Hecho 02/10/2026** |
 | **2** | **Dirección, ubicación (mapa) y enlace de reseñas de Google** | **Hecho 02/10/2026** |
 | **3** | **Las redes sociales** (su tarjeta pasa a ser un bloque de esta; solo pantalla, no datos) | **Hecho 02/10/2026** |
-| 4 | **Horario de atención** (estructurado) y **correo** | por hacer |
+| **4** | **Horario de atención** (estructurado) y **correo** | **Hecho 02/10/2026** |
 | 5 | Aviso de «datos completos» en Inicio (opcional) | por hacer |
 
 **No entra el teléfono fijo**: casi nadie lo usa, decidido por el usuario.
@@ -177,13 +178,75 @@ queda una tarjeta propia.
 El WhatsApp sigue sin ser una red más: tiene su interruptor aparte, arriba, y la
 barra lo enseña si está encendido (`whatsapp_boton`). El texto del bloque lo dice.
 
+## Paso 4: horario de atención y correo
+
+Dos datos nuevos, sin clave vieja (no se pedían en ningún sitio), en la tarjeta de
+Datos del negocio. La bienvenida enseña **una línea de horario y una línea con el
+correo**, debajo de la dirección.
+
+| dato | clave | forma |
+|---|---|---|
+| Horario de atención | `horario_atencion` | lista de franjas `{ dias, desde, hasta }` |
+| Correo | `correo` | una dirección |
+| ¿Se enseña el horario en la bienvenida? | `intro_horario_activo` | booleano; **ausente es encendido** |
+| ¿Se enseña el correo en la bienvenida? | `intro_correo_activo` | booleano; **ausente es encendido** |
+
+### El horario es una lista de franjas, no una casilla por día
+
+Se pidió «una casilla para lunes, para martes…, como en la televisión y en las
+promociones». Esa pantalla son **fichas de días** (L M X J V S D) más una hora de
+apertura y otra de cierre, y es lo que se hizo. Con una sola franja no se puede
+decir «lunes a viernes de 11 a 22 y fin de semana de 12 a 23», así que el editor
+tiene **una fila por franja** y un botón «Añadir un horario». Cada fila reusa la
+forma de `core/horarios.js` (`dias` de 0 —domingo— a 6, `desde`, `hasta`), la misma
+que las promociones: dos formas de un horario es el error caro de este proyecto.
+
+- **Un día que no sale en ninguna franja es un día cerrado.**
+- **«Todo el día»** es una casilla de la franja, no una opción de cada hora: así no
+  puede quedar una hora puesta y la otra no (el servidor también lo rechaza).
+- **Cierre pasada la medianoche**: `hasta` menor que `desde` (18:00–02:00) se
+  acepta. Es el horario de un bar. Por ahora solo se dice; cuando haya «abierto
+  ahora» habrá que decidir qué hace con él.
+- **Hasta siete franjas.** Un almuerzo y una cena para los mismos días son dos.
+- Las horas son selectores de 24 h de media en media hora (`opcionesDeHora()`),
+  porque `<input type="time">` enseña a.m./p.m. según el sistema del visitante.
+
+La bienvenida lo dice con **tres letras por día y tramos**: «Lun a Vie
+11:00–22:00 · Sáb y Dom 12:00–23:00» (no con las fichas L M X, que el visitante no
+entiende: nadie lee «X» como miércoles). Los tramos de tres días o más se dicen con
+«a»; de uno o dos, nombrando cada día; la semana va de lunes a domingo.
+
+### El correo
+
+Va a un enlace `mailto:` en la bienvenida, así que **se rechaza todo lo que no
+parezca una dirección**: sin espacios ni comillas, comas, `<` o `>`; hasta 120
+caracteres. La carta lo vuelve a comprobar antes de enseñarlo, por si el dato llegó
+por otro camino.
+
+### Los interruptores de la bienvenida
+
+El horario y el correo son del negocio, pero **enseñarlos en la bienvenida es de la
+bienvenida**: un restaurante puede guardar su horario para otras cosas sin
+publicarlo ahí. Cada uno tiene su interruptor en el formulario de la bienvenida
+(«Horario y correo»), y **ausente es encendido**: quien rellena el dato lo ve
+salir. Las dos líneas usan el estilo de texto de la dirección.
+
+### La regla
+
+Describir el horario vive en dos sitios, el panel (`public/negocio.js`) y la carta
+(`vmenus-app/core/negocio.js`), y las dos corren contra la lista `horario` de
+`test/casos-negocio.json` (**duplicada a propósito**). Validar vive en el
+servidor (`negocio.js`) y en el panel, y una prueba comprueba que rechazan y
+aceptan lo mismo.
+
+El editor es `public/horario-atencion.js`: las reglas y la copia de trabajo
+(`franjasEnEdicion`) están en `negocio.js`, sin pantalla, para poder probarlas.
+
 ## Pasos que vienen
 
-- **Horario de atención (paso 4): estructurado**, decidido el 02/10/2026: una
-  fila por día de la semana (lunes, martes…) con sus horas, como los horarios del
-  panel de la televisión y de las promociones. Se reusa la forma de
-  `core/horarios.js`, no se inventa una segunda: dos formas de un horario es el
-  error caro de este proyecto (`docs/promociones.md` §5.2).
-- **Dónde se muestran el horario y el correo**: **una línea de horario y una
-  línea de enlace de correo en la pantalla de bienvenida**, decidido el
-  02/10/2026.
+- **Paso 5 (opcional): el aviso de «datos completos» en Inicio.** Una línea que
+  diga «te falta la dirección y el enlace de reseñas», que es lo que de verdad
+  convence a un restaurante de llenarlo.
+- **«Abierto ahora»**, cuando alguna función quiera usar el horario más allá de
+  decirlo. Hay que decidir qué hace con un cierre pasada la medianoche, que hoy se
+  acepta y solo se dice.

@@ -133,7 +133,8 @@ describe('la bienvenida toma lo del negocio (paso 2)', () => {
 			assert.ok(!html.includes(`id="${id}"`), `${id} no debería seguir en la bienvenida`);
 		for (const id of ['apDireccionTexto', 'apIntroMapaUrlTexto', 'apIntroResenaUrlTexto'])
 			assert.ok(html.includes(`id="${id}"`), id);
-		assert.equal((html.match(/irADatosDelNegocio\('/g) || []).length, 3, 'un enlace por dato');
+		// Los tres de siempre (dirección, mapa, reseñas) y, desde el paso 4, el horario y el correo.
+		assert.equal((html.match(/irADatosDelNegocio\('/g) || []).length, 5, 'un enlace por dato');
 	});
 
 	test('los enlaces de «Cambiarlo» apuntan a campos que existen', () => {
@@ -154,7 +155,7 @@ describe('la bienvenida toma lo del negocio (paso 2)', () => {
 		const ctx = vm.createContext({ String, state: { restaurante: { atributos: { direccion: 'ENVIGADO', intro_mapa_url: 'https://maps.app.goo.gl/v', resena_url: 'https://g.page/r/a/review' } } } });
 		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
 		assert.deepEqual(JSON.parse(JSON.stringify(ctx.datosDelNegocioParaLaVista())),
-			{ direccion: 'ENVIGADO', intro_mapa_url: 'https://maps.app.goo.gl/v', intro_resena_url: 'https://g.page/r/a/review' });
+			{ direccion: 'ENVIGADO', intro_mapa_url: 'https://maps.app.goo.gl/v', intro_resena_url: 'https://g.page/r/a/review', horario_texto: '', correo: '' });
 	});
 
 	test('«Restaurar valores predeterminados» no puede vaciar los datos del negocio', () => {
@@ -164,6 +165,323 @@ describe('la bienvenida toma lo del negocio (paso 2)', () => {
 
 	test('al abrir la pestaña se pintan los tres', () => {
 		assert.match(bien, /pintarDatosEnBienvenida\(\)/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('el horario de atención · cómo se dice (paso 4)', () => {
+	// La carta lo dice con la misma función en otro repositorio.
+	const ctxPanel = () => {
+		const ctx = vm.createContext({ String });
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
+		return ctx;
+	};
+
+	test('hay casos que correr', () => assert.ok(CASOS.horario.length >= 10));
+
+	for (const c of CASOS.horario) {
+		test(c.nombre, () => {
+			assert.equal(ctxPanel().textoHorarioAtencion(c.franjas), c.texto);
+		});
+	}
+});
+
+describe('el horario de atención y el correo · lo que comprueba el panel es lo que comprueba el servidor', () => {
+	const ctxPanel = () => {
+		const ctx = vm.createContext({ String });
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
+		return ctx;
+	};
+	const MALOS = [
+		[{ dias: [], desde: '11:00', hasta: '22:00' }],
+		[{ dias: [7], desde: '11:00', hasta: '22:00' }],
+		[{ dias: [1.5], desde: '', hasta: '' }],
+		[{ dias: [1], desde: '11:00', hasta: '' }],
+		[{ dias: [1], desde: '', hasta: '22:00' }],
+		[{ dias: [1], desde: '25:00', hasta: '22:00' }],
+		[{ dias: [1], desde: '11:00', hasta: '11:00' }],
+		Array.from({ length: 8 }, () => ({ dias: [1], desde: '', hasta: '' })),
+	];
+	const BUENOS = [
+		[],
+		[{ dias: [1, 2, 3], desde: '11:00', hasta: '22:00' }],
+		[{ dias: [0], desde: '', hasta: '' }],
+		[{ dias: [5, 6], desde: '18:00', hasta: '02:00' }],
+		Array.from({ length: 7 }, () => ({ dias: [1], desde: '', hasta: '' })),
+	];
+
+	test('lo malo lo rechazan los dos', () => {
+		const p = ctxPanel();
+		for (const lista of MALOS) {
+			assert.ok(p.errorDeHorarioAtencion(lista), 'panel: ' + JSON.stringify(lista));
+			assert.ok(negocio.validarFranjas(lista).error, 'servidor: ' + JSON.stringify(lista));
+		}
+	});
+
+	test('lo bueno lo aceptan los dos', () => {
+		const p = ctxPanel();
+		for (const lista of BUENOS) {
+			assert.equal(p.errorDeHorarioAtencion(lista), null, 'panel: ' + JSON.stringify(lista));
+			assert.ok(!negocio.validarFranjas(lista).error, 'servidor: ' + JSON.stringify(lista));
+		}
+	});
+
+	test('el correo: lo mismo en los dos', () => {
+		const p = ctxPanel();
+		for (const c of ['hola@turestaurante.com', 'a.b+c@mi-sitio.co', '', '  hola@x.co  ']) {
+			assert.equal(p.errorDeCorreoNegocio(c), null, c);
+			assert.equal(negocio.CORREO.test(c.trim()) || c.trim() === '', true, c);
+		}
+		for (const c of ['hola', 'hola@', '@x.com', 'a b@x.com', 'a@x', 'a@x.c', 'a"b@x.com', '<a>@x.com', 'a@x.com,b@y.com', 'a'.repeat(121) + '@x.com']) {
+			assert.ok(p.errorDeCorreoNegocio(c), 'panel: ' + c);
+			assert.equal(negocio.CORREO.test(c) && c.length <= 120, false, 'servidor: ' + c);
+		}
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('PATCH /api/restaurantes · el horario de atención y el correo', () => {
+	const guardar = (atributos, token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { nav: 'topnav' } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos }, token);
+	};
+
+	test('el restaurante guarda su horario, con los días únicos y ordenados', async () => {
+		const r = await guardar({ horario_atencion: [
+			{ dias: [5, 1, 1, 3], desde: '11:00', hasta: '22:00' },
+			{ dias: [0, 6], desde: '', hasta: '' },
+		] });
+		assert.equal(r.status, 200);
+		const g = S.ultimaEscritura('restaurantes').atributos;
+		assert.deepEqual(g.horario_atencion, [
+			{ dias: [1, 3, 5], desde: '11:00', hasta: '22:00' },
+			{ dias: [0, 6], desde: '', hasta: '' },
+		]);
+		assert.equal(g.nav, 'topnav', 'lo demás de atributos se conserva');
+	});
+
+	test('solo se guardan las claves de una franja: lo demás se descarta', async () => {
+		await guardar({ horario_atencion: [{ dias: [1], desde: '', hasta: '', url: 'https://x', __proto__: { a: 1 } }] });
+		assert.deepEqual(Object.keys(S.ultimaEscritura('restaurantes').atributos.horario_atencion[0]).sort(), ['desde', 'dias', 'hasta']);
+	});
+
+	test('el superadmin también', async () => {
+		assert.equal((await guardar({ horario_atencion: [{ dias: [1], desde: '', hasta: '' }] }, tokenAdmin)).status, 200);
+	});
+
+	test('vacío o nulo es «sin horario»: es como se quita', async () => {
+		for (const v of [[], null, '']) {
+			const r = await guardar({ horario_atencion: v });
+			assert.equal(r.status, 200);
+			assert.deepEqual(S.ultimaEscritura('restaurantes').atributos.horario_atencion, []);
+		}
+	});
+
+	test('lo que no es un horario se rechaza, diciendo qué falta', async () => {
+		for (const [v, msg] of [
+			['lunes a viernes', /no es válido/],
+			[[{ dias: [] }], /al menos un día/],
+			[[{ dias: [8], desde: '', hasta: '' }], /día.*no es válido/],
+			[[{ dias: [1], desde: '11:00', hasta: '' }], /apertura y la de cierre/],
+			[[{ dias: [1], desde: '9:00', hasta: '22:00' }], /como 11:00/],
+			[[{ dias: [1], desde: '11:00', hasta: '11:00' }], /distinta/],
+			[Array.from({ length: 8 }, () => ({ dias: [1] })), /hasta 7/],
+		]) {
+			const r = await guardar({ horario_atencion: v });
+			assert.equal(r.status, 400, JSON.stringify(v));
+			assert.match(r.body?.error || '', msg, JSON.stringify(v));
+		}
+	});
+
+	test('el correo se guarda recortado', async () => {
+		assert.equal((await guardar({ correo: '  hola@turestaurante.com ' })).status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.correo, 'hola@turestaurante.com');
+	});
+
+	test('un correo que no lo parece, o que podría romper un enlace, se rechaza', async () => {
+		for (const c of ['hola', 'a b@x.com', 'a"b@x.com', '<a>@x.com', 'javascript:alert(1)', 'a@x.com,b@y.com']) {
+			const r = await guardar({ correo: c });
+			assert.equal(r.status, 400, c);
+			assert.match(r.body?.error || '', /correo/);
+		}
+	});
+
+	test('vacío es válido: es como se quita el correo', async () => {
+		assert.equal((await guardar({ correo: '' })).status, 200);
+	});
+
+	test('los interruptores de la bienvenida se guardan como booleano de verdad', async () => {
+		await guardar({ intro_horario_activo: 'false', intro_correo_activo: true });
+		const g = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(g.intro_horario_activo, false, 'el texto «false» es verdadero para cualquier if');
+		assert.equal(g.intro_correo_activo, true);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('el editor del horario (horario-atencion.js)', () => {
+	// Un DOM de juguete: solo lo que el editor toca.
+	function nodo(etiqueta) {
+		const n = {
+			etiqueta, hijos: [], className: '', textContent: '', style: {}, value: '', checked: false, disabled: false, type: '',
+			title: '', onclick: null, atributos: {}, escuchas: {},
+			setAttribute(k, v) { this.atributos[k] = v; },
+			addEventListener(ev, f) { this.escuchas[ev] = f; },
+			appendChild(h) { this.hijos.push(h); return h; },
+			append(...xs) { for (const x of xs) this.hijos.push(x); },
+			replaceChildren() { this.hijos = []; },
+		};
+		return n;
+	}
+	function montar(franjas = []) {
+		const ids = {};
+		const $ = id => (ids[id] ||= nodo('#' + id));
+		const ctx = vm.createContext({
+			document: { getElementById: $, createElement: nodo },
+			DIAS_CORTOS: ['D', 'L', 'M', 'X', 'J', 'V', 'S'], DIAS_LARGOS: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'],
+			opcionesDeHora: () => { const o = []; for (let m = 0; m < 1440; m += 30) o.push(String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0')); return o; },
+			String, Set, Array, Number,
+		});
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'horario-atencion.js'), 'utf8'), ctx);
+		vm.runInContext('franjasEnEdicion = ' + JSON.stringify(franjas), ctx);
+		return { ctx, $ };
+	}
+	const todos = (n, sal = []) => { sal.push(n); for (const h of n.hijos || []) if (h && typeof h === 'object') todos(h, sal); return sal; };
+	const fichas = (n) => todos(n).filter(x => x.className?.startsWith('cat-chip'));
+	const dias = (ctx) => vm.runInContext('JSON.stringify(franjasEnEdicion.map(f => f.dias))', ctx);
+
+	test('dibuja una fila por franja, con siete fichas de días', () => {
+		const { ctx, $ } = montar([{ dias: [1, 2], desde: '11:00', hasta: '22:00' }, { dias: [0], desde: '', hasta: '' }]);
+		ctx.renderHorarioAtencion();
+		const filas = $('ajHorarioFranjas').hijos;
+		assert.equal(filas.length, 2);
+		assert.equal(fichas(filas[0]).length, 7);
+		assert.equal(fichas(filas[0]).filter(f => f.className.includes('active')).length, 2, 'lunes y martes marcados');
+		assert.deepEqual(fichas(filas[0]).map(f => f.textContent), ['L', 'M', 'X', 'J', 'V', 'S', 'D'], 'de lunes a domingo');
+	});
+
+	test('pulsar una ficha marca o desmarca el día', () => {
+		const { ctx, $ } = montar([{ dias: [1], desde: '11:00', hasta: '22:00' }]);
+		ctx.renderHorarioAtencion();
+		fichas($('ajHorarioFranjas').hijos[0]).find(f => f.title === 'martes').onclick();
+		assert.equal(dias(ctx), '[[1,2]]');
+		fichas($('ajHorarioFranjas').hijos[0]).find(f => f.title === 'lunes').onclick();
+		assert.equal(dias(ctx), '[[2]]');
+	});
+
+	test('«Añadir un horario»: la primera franja es de lunes a viernes; las siguientes, los días que faltan', () => {
+		const { ctx } = montar([]);
+		ctx.renderHorarioAtencion();
+		ctx.agregarFranjaDeAtencion();
+		assert.equal(dias(ctx), '[[1,2,3,4,5]]');
+		ctx.agregarFranjaDeAtencion();
+		assert.equal(dias(ctx), '[[1,2,3,4,5],[6,0]]');
+	});
+
+	test('no deja pasar de siete franjas', () => {
+		const { ctx, $ } = montar([]);
+		for (let i = 0; i < 12; i++) ctx.agregarFranjaDeAtencion();
+		assert.equal(vm.runInContext('franjasEnEdicion.length', ctx), 7);
+		assert.equal($('ajHorarioAgregar').disabled, true);
+	});
+
+	test('«Todo el día» borra las horas, y quitarlo ofrece una franja corriente', () => {
+		const { ctx, $ } = montar([{ dias: [1], desde: '11:00', hasta: '22:00' }]);
+		ctx.renderHorarioAtencion();
+		const caja = () => todos($('ajHorarioFranjas').hijos[0]).find(x => x.type === 'checkbox');
+		caja().checked = true; caja().escuchas.change();
+		assert.equal(vm.runInContext('JSON.stringify(franjasEnEdicion[0])', ctx), '{"dias":[1],"desde":"","hasta":""}');
+		assert.equal(todos($('ajHorarioFranjas').hijos[0]).filter(x => x.etiqueta === 'select').length, 0, 'sin selectores de hora');
+		caja().checked = false; caja().escuchas.change();
+		assert.equal(vm.runInContext('JSON.stringify(franjasEnEdicion[0])', ctx), '{"dias":[1],"desde":"11:00","hasta":"22:00"}');
+		assert.equal(todos($('ajHorarioFranjas').hijos[0]).filter(x => x.etiqueta === 'select').length, 2);
+	});
+
+	test('cambiar una hora la guarda en la copia de trabajo', () => {
+		const { ctx, $ } = montar([{ dias: [1], desde: '11:00', hasta: '22:00' }]);
+		ctx.renderHorarioAtencion();
+		const sel = todos($('ajHorarioFranjas').hijos[0]).filter(x => x.etiqueta === 'select');
+		sel[1].value = '23:30'; sel[1].escuchas.change();
+		assert.equal(vm.runInContext('franjasEnEdicion[0].hasta', ctx), '23:30');
+	});
+
+	test('una hora guardada fuera de la rejilla no desaparece del selector', () => {
+		// De otra versión o escrita a mano: abrir y guardar sin tocar nada no puede cambiar el horario.
+		const { ctx, $ } = montar([{ dias: [1], desde: '11:15', hasta: '22:00' }]);
+		ctx.renderHorarioAtencion();
+		const abre = todos($('ajHorarioFranjas').hijos[0]).filter(x => x.etiqueta === 'select')[0];
+		assert.ok(abre.hijos.some(o => o.value === '11:15'));
+		assert.equal(abre.value, '11:15');
+	});
+
+	test('«Quitar» saca la franja', () => {
+		const { ctx, $ } = montar([{ dias: [1], desde: '', hasta: '' }, { dias: [2], desde: '', hasta: '' }]);
+		ctx.renderHorarioAtencion();
+		todos($('ajHorarioFranjas').hijos[0]).find(x => x.className?.includes('horario-quitar')).onclick();
+		assert.equal(dias(ctx), '[[2]]');
+	});
+
+	test('el resumen dice cómo lo leerá el cliente, o qué falta', () => {
+		const { ctx, $ } = montar([{ dias: [1, 2, 3, 4, 5], desde: '11:00', hasta: '22:00' }]);
+		ctx.renderHorarioAtencion();
+		assert.equal($('ajHorarioResumen').textContent, 'Tus clientes leen: Lun a Vie 11:00–22:00');
+		vm.runInContext('franjasEnEdicion = []', ctx); ctx.renderHorarioAtencion();
+		assert.match($('ajHorarioResumen').textContent, /Sin horario/);
+		vm.runInContext('franjasEnEdicion = [{ dias: [], desde: "", hasta: "" }]', ctx); ctx.renderHorarioAtencion();
+		assert.match($('ajHorarioResumen').textContent, /no tiene días/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Ajustes y la bienvenida con el horario y el correo (paso 4)', () => {
+	const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const bien = fs.readFileSync(path.join(PUBLIC, 'bienvenida.js'), 'utf8');
+
+	test('la pantalla tiene todo lo que usa', () => {
+		for (const id of ['ajNegocioCorreo', 'ajHorarioBloque', 'ajHorarioFranjas', 'ajHorarioAgregar', 'ajHorarioResumen',
+			'apIntroHorarioActivo', 'apIntroCorreoActivo', 'apHorarioTexto', 'apCorreoTexto', 'apIntroPreviewHorario', 'apIntroPreviewCorreo'])
+			assert.ok(html.includes(`id="${id}"`), id);
+		assert.match(html, /id="ajNegocioCorreo"[^>]*type="email"|type="email"[^>]*id="ajNegocioCorreo"/);
+	});
+
+	test('horario-atencion.js se carga después de negocio.js y antes que el script principal', () => {
+		const a = html.indexOf('<script src="negocio.js">'), b = html.indexOf('<script src="horario-atencion.js">');
+		assert.ok(a > -1 && b > a);
+		assert.ok(b < html.indexOf('<script src="ajustes.js">'));
+	});
+
+	test('el correo y el horario viajan con lo demás de Ajustes', () => {
+		const neg = fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8');
+		const recoger = neg.match(/function recolectarDatosNegocio\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(recoger, /correo:/);
+		assert.match(recoger, /horario_atencion: franjasNormalizadas\(franjasEnEdicion\)/);
+	});
+
+	test('la bienvenida guarda SOLO los interruptores, no el horario ni el correo', () => {
+		const valores = bien.match(/function valoresBienvenida\(\) \{[\s\S]*?\n\}/)[0].replace(/^\s*\/\/.*$/gm, '');
+		assert.match(valores, /intro_horario_activo:/);
+		assert.match(valores, /intro_correo_activo:/);
+		assert.doesNotMatch(valores, /horario_atencion|\bcorreo:/);
+	});
+
+	test('los dos interruptores nacen encendidos: ausente es encendido', () => {
+		const base = bien.match(/const VALORES_BIENVENIDA = \{[\s\S]*?\n\};/)[0];
+		assert.match(base, /intro_horario_activo: true, intro_correo_activo: true/);
+		assert.match(bien, /marcar\('apIntroHorarioActivo', datos\.intro_horario_activo !== false\)/);
+	});
+
+	test('la vista previa de la bienvenida enseña las dos líneas con el estilo de la dirección', () => {
+		assert.match(bien, /horario: 'apIntroPreviewHorario', correo: 'apIntroPreviewCorreo'/);
+		assert.match(bien, /tipo === 'horario' \|\| tipo === 'correo' \? 'direccion' : tipo/);
+	});
+
+	test('el servidor deja escribir las claves nuevas al restaurante', () => {
+		const servidor = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+		const lista = servidor.match(/const ATRIBUTOS_CLIENTE_PERMITIDOS = \[[\s\S]*?\];/)[0];
+		for (const clave of ['horario_atencion', 'correo', 'intro_horario_activo', 'intro_correo_activo'])
+			assert.ok(lista.includes("'" + clave + "'"), clave);
 	});
 });
 
