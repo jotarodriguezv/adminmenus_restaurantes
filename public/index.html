@@ -1147,6 +1147,30 @@
 				<div id="tabAjustes" class="hidden">
 					<!-- El carrito, desde el 15/09/2026. Solo se ofrece donde la carta sabe
 					     pintarlo y el plan lo incluye; en el resto, la tarjeta explica por qué no. -->
+					<!-- DATOS DEL NEGOCIO: lo que se dice una vez y varias funciones de la
+					     carta usan. Hoy el WhatsApp; irán entrando la dirección, el mapa, las
+					     reseñas, el horario y el correo (docs/datos-del-negocio.md). -->
+					<div class="section-card" id="ajNegocioCard">
+						<div class="section-header">
+							<div class="section-title">Datos del negocio</div>
+						</div>
+						<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
+							Lo pones una sola vez y tu carta lo usa donde hace falta: el carrito manda
+							los pedidos a tu WhatsApp, y la bienvenida y la barra de redes lo enseñan si quieres.
+						</p>
+						<div class="form-group">
+							<label for="ajNegocioWhatsapp" class="form-label">WhatsApp <span style="color:var(--text-dim)">(solo dígitos, con código de país, sin +)</span></label>
+							<input type="tel" class="form-input" id="ajNegocioWhatsapp" placeholder="573001234567" autocomplete="off" oninput="pintarWhatsappEnPedidos()">
+						</div>
+						<div class="form-check" style="padding-bottom:0">
+							<label class="toggle"><input type="checkbox" id="ajWhatsappBoton" aria-labelledby="ajWhatsappBotonLabel"><span class="toggle-slider"></span></label>
+							<span id="ajWhatsappBotonLabel">Mostrar el botón de WhatsApp en la carta</span>
+						</div>
+						<p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;line-height:1.5">
+							Sale en la barra de redes y en la bienvenida. Apagado, el número se usa igual para los pedidos, pero tus clientes no ven el botón.
+						</p>
+					</div>
+
 					<div class="section-card" id="ajCarritoCard">
 						<div class="section-header">
 							<div class="section-title">Carrito de compras</div>
@@ -1164,15 +1188,15 @@
 					<div id="ajPedidosCuerpo" style="display:none">
 						<div class="aj-bloque">
 							<div class="aj-subtitulo">WhatsApp para recibir pedidos</div>
-							<div class="form-group" style="margin-bottom:0">
-								<label for="pedidosWhatsapp" class="form-label">Número <span style="color:var(--text-dim)">(solo dígitos, con código de país, sin +)</span></label>
-								<input type="text" class="form-input" id="pedidosWhatsapp" placeholder="573001234567">
-							</div>
+							<p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.6">
+								Los pedidos llegan al WhatsApp de tu negocio: <strong id="pedidosWhatsappTexto" style="color:var(--text)"></strong>.
+								<a href="#" onclick="irAlWhatsappDelNegocio(); return false;" style="color:var(--accent)">Cambiarlo en Datos del negocio</a>
+							</p>
 							<div id="pedidosSinNumero" style="display:none;margin-top:12px;padding:10px 12px;border-radius:var(--radius);
 								background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger);font-size:12px;line-height:1.6;">
-								<strong>Tu carta no puede recibir pedidos.</strong> Sin este número, tus clientes llenan el
+								<strong>Tu carta no puede recibir pedidos.</strong> Sin el WhatsApp del negocio, tus clientes llenan el
 								carrito y en vez del botón de pedir les sale un aviso de que aquí no se reciben pedidos.
-								Pon el número y guarda.
+								Ponlo en «Datos del negocio» y guarda.
 							</div>
 						</div>
 
@@ -1368,6 +1392,7 @@
 						</div>
 						<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">
 							Con el interruptor encendido, tu carta enseña botones a estas redes. Las que dejes vacías no salen.
+							El WhatsApp está arriba, en «Datos del negocio».
 						</p>
 						<div class="form-group">
 							<label for="ajSocialInstagram" class="form-label">Instagram <span style="color:var(--text-dim)">(dirección completa)</span></label>
@@ -1377,13 +1402,9 @@
 							<label for="ajSocialFacebook" class="form-label">Facebook <span style="color:var(--text-dim)">(dirección completa)</span></label>
 							<input type="url" class="form-input" id="ajSocialFacebook" placeholder="https://facebook.com/tu_restaurante" autocomplete="off">
 						</div>
-						<div class="form-group">
+						<div class="form-group" style="margin-bottom:0">
 							<label for="ajSocialTiktok" class="form-label">TikTok <span style="color:var(--text-dim)">(dirección completa)</span></label>
 							<input type="url" class="form-input" id="ajSocialTiktok" placeholder="https://tiktok.com/@tu_restaurante" autocomplete="off">
-						</div>
-						<div class="form-group" style="margin-bottom:0">
-							<label for="ajSocialWhatsapp" class="form-label">WhatsApp <span style="color:var(--text-dim)">(número con código de país)</span></label>
-							<input type="tel" class="form-input" id="ajSocialWhatsapp" placeholder="573001234567" autocomplete="off">
 						</div>
 					</div>
 
@@ -2933,6 +2954,7 @@
 <script src="ordenes.js"></script>
 <script src="reservas.js"></script>
 <script src="sesion.js"></script>
+<script src="negocio.js"></script>
 <script src="ajustes.js"></script>
 <script src="aspecto.js"></script>
 <script src="bienvenida.js"></script>
@@ -3288,7 +3310,7 @@ function pintarAyudaSegunQuienMira(esAdmin) {
 // Mismo criterio que la carta (soloDigitos): «+57 300…» cuenta como número, y
 // un campo de espacios o guiones cuenta como vacío.
 function recibePedidos(atributos) {
-  return !!String(atributos?.whatsapp_pedidos || '').replace(/\D/g, '');
+  return !!whatsappDelNegocio(atributos);
 }
 
 // En qué proporción se recorta el video de esta carta. Espejo de formatoDe()

@@ -15,6 +15,7 @@ const cupo     = require('./cupo');
 const colaia   = require('./colaia');
 const { pararOrdenadamente } = require('./parada');
 const precios  = require('./precios');
+const negocio  = require('./negocio');
 const lectorpdf   = require('./lectorpdf');
 const lectorcarta = require('./lectorcarta');
 const importacion = require('./importacion');
@@ -876,7 +877,7 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // imagen de encabezado del modelo Explorar (portada_url/portada_activa)—, ni
 // 'mostrar_hero' —ese es el mensaje de bienvenida dentro de sidebar/topnav—.
 // Se llama 'intro' a propósito para no chocar con ninguno de los dos.
-const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'metodos_pago', 'qr', 'orden_productos', 'tv', 'tv_pantallas',
+const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'whatsapp_negocio', 'whatsapp_boton', 'metodos_pago', 'qr', 'orden_productos', 'tv', 'tv_pantallas',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
   'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador',
   'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
@@ -1433,7 +1434,7 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     // 27/09/2026, misma regla.
     for (const k of ['carrito', 'filtros_activos', 'buscador', 'mostrar_hero'])
       if (k in entrantes) entrantes[k] = entrantes[k] === true;
-    const errorAjustes = validarRedes(entrantes) || validarFiltros(entrantes) || validarColores(entrantes) || validarTipografiaYEstilo(entrantes) || validarIntro(entrantes);
+    const errorAjustes = validarRedes(entrantes) || negocio.validarNegocio(entrantes) || validarFiltros(entrantes) || validarColores(entrantes) || validarTipografiaYEstilo(entrantes) || validarIntro(entrantes);
     if (errorAjustes) return res.status(400).json({ error: errorAjustes });
 
     body.atributos = { ...(actual?.atributos || {}), ...entrantes };
@@ -3080,7 +3081,7 @@ app.post('/api/pedidos-publicos', async (req, res) => {
   const total = Number.isInteger(b.total_reportado) && b.total_reportado >= 0 ? b.total_reportado : -1;
   if (total < 0) return res.status(400).json({ error: 'Total inválido' });
   const { data: resto } = await supabase.from('restaurantes').select('id, activo, atributos').eq('id', b.restaurante_id).maybeSingle();
-  if (!resto || resto.activo === false || !resto.atributos?.carrito || !String(resto.atributos?.whatsapp_pedidos || '').replace(/[^0-9]/g, ''))
+  if (!resto || resto.activo === false || !resto.atributos?.carrito || !negocio.whatsappDelNegocio(resto.atributos))
     return res.status(400).json({ error: 'El restaurante no recibe pedidos' });
   const { error } = await supabase.from('pedidos_carta').insert([{
     restaurante_id: resto.id, cliente_nombre: nombre, cliente_telefono: telefono,

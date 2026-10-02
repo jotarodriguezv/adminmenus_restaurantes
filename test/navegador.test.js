@@ -4980,7 +4980,7 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 	// PE1 en docs/revision-ux.md. El estado roto no nace de borrar el número
 	// —savePedidos() no deja guardarlo vacío— sino de no ponerlo nunca al pasar
 	// un restaurante a un modelo con carrito. Así estaba A Ojo Cerrado.
-	const reglas = [['const MODELO_POR_DEFECTO', '// En qué proporción se recorta el video']];
+	const reglas = [['const MODELO_POR_DEFECTO', '// En qué proporción se recorta el video'], ['negocio.js', 'const soloDigitosNegocio', null]];
 	const regla = () => cargar('index.html', reglas, { String });
 	const aviso = () => cargar('index.html',
 		[...reglas, ['function avisoPedidosHtml', 'function fichaPlanHtml']],
@@ -5029,9 +5029,13 @@ describe('una carta con carrito y sin WhatsApp se ve desde el panel', () => {
 
 	test('recibePedidos limpia el número igual que la carta', () => {
 		const r = regla();
-		assert.equal(r.recibePedidos({ whatsapp_pedidos: '+57 300 123 4567' }), true);
-		assert.equal(r.recibePedidos({ whatsapp_pedidos: '  - + ' }), false);
+		assert.equal(r.recibePedidos({ whatsapp_negocio: '+57 300 123 4567' }), true);
+		assert.equal(r.recibePedidos({ whatsapp_negocio: '  - + ' }), false);
 		assert.equal(r.recibePedidos({}), false);
+		// Y mientras no exista la clave nueva, la de siempre (negocio.js).
+		assert.equal(r.recibePedidos({ whatsapp_pedidos: '+57 300 123 4567' }), true);
+		// Pero una vez borrado el número NO resucita el viejo.
+		assert.equal(r.recibePedidos({ whatsapp_negocio: '', whatsapp_pedidos: '573001234567' }), false);
 	});
 
 	test('la lista marca a quien tiene carrito y no tiene número', () => {
@@ -7057,6 +7061,7 @@ describe('los toppings se guardan con el botón de Ajustes', () => {
 		const ctx = cargar('index.html', [
 			['index.html', '// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
 			['ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS'],
+			['negocio.js', 'const soloDigitosNegocio', null],
 			['ajustes.js', '// ¿La carta que se está configurando va a tener carrito?', 'function pintarNotaCarrito'],
 		], {
 			document: { getElementById: $ },
@@ -7151,7 +7156,7 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 	                  carrito = true, plan = { carrito: true }, nav = 'topnav', recibe = true } = {}) {
 		const campos = {};
 		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
-		$('pedidosWhatsapp').value = whatsapp;
+		$('ajNegocioWhatsapp').value = whatsapp;
 		$('mpEfectivo').checked = true;
 		$('mpNequiActivo').checked = nequi.activo;
 		$('mpNequiTelefono').value = nequi.telefono;
@@ -7164,6 +7169,7 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 		const ctx = cargar('index.html', [
 			['index.html', '// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
 			['ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS'],
+			['negocio.js', 'const soloDigitosNegocio', null],
 			['ajustes.js', '// ¿La carta que se está configurando va a tener carrito?', 'function pintarNotaCarrito'],
 			['pedidos.js', '// ── PEDIDOS (WhatsApp', null],
 		], {
@@ -7193,15 +7199,17 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 		assert.doesNotMatch(src, /id="tabPedidos"|id="tabBtnPedidos"|savePedidos/);
 		// Y el marcado está donde ahora vive: dentro de Ajustes.
 		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabQr"'));
-		assert.ok(tab.includes('id="pedidosWhatsapp"') && tab.includes('id="mpNequiActivo"'));
+		assert.ok(tab.includes('id="ajNegocioWhatsapp"') && tab.includes('id="mpNequiActivo"'));
+		// El carrito ya no pide el número: dice cuál es y lleva a donde se cambia.
+		assert.ok(!tab.includes('id="pedidosWhatsapp"') && tab.includes('id="pedidosWhatsappTexto"'));
 	});
 
-	test('el número y los métodos viajan con lo demás, en una sola petición', async () => {
+	test('el WhatsApp y los métodos viajan con lo demás, en una sola petición', async () => {
 		const { ctx, peticiones } = montar();
 		await ctx.saveAjustes();
 		assert.equal(peticiones.length, 1);
 		const at = peticiones[0].cuerpo.atributos;
-		assert.equal(at.whatsapp_pedidos, '573001234567');
+		assert.equal(at.whatsapp_negocio, '573001234567');
 		assert.equal(at.metodos_pago.efectivo.activo, true);
 		assert.ok('social_bar' in at && 'filtros_activos' in at, 'y sin dejarse lo que ya guardaba');
 	});
@@ -7247,24 +7255,26 @@ describe('Ajustes guarda también los pedidos, en la misma petición', () => {
 		const { ctx, $, peticiones } = montar({ whatsapp: '', recibe: false });
 		await ctx.saveAjustes();
 		assert.equal(peticiones.length, 1);
-		assert.equal(peticiones[0].cuerpo.atributos.whatsapp_pedidos, '');
-		assert.match($('ajustesStatus').textContent, /falta el número de WhatsApp/);
+		assert.equal(peticiones[0].cuerpo.atributos.whatsapp_negocio, '');
+		assert.match($('ajustesStatus').textContent, /falta el WhatsApp del negocio/);
 		assert.doesNotMatch($('ajustesStatus').textContent, /pestaña/, 'el campo está ahí mismo');
 	});
 
 	test('el número se guarda solo con dígitos', async () => {
 		const { ctx, peticiones } = montar({ whatsapp: '+57 300 123 4567' });
 		await ctx.saveAjustes();
-		assert.equal(peticiones[0].cuerpo.atributos.whatsapp_pedidos, '573001234567');
+		assert.equal(peticiones[0].cuerpo.atributos.whatsapp_negocio, '573001234567');
 	});
 
-	test('sin carrito no viaja ni el número ni los métodos', async () => {
+	test('sin carrito no viajan los métodos de pago, y el WhatsApp sí', async () => {
 		// Si no, un restaurante sin pedidos acabaría con un metodos_pago entero
 		// de campos vacíos que nunca ha visto.
 		const { ctx, peticiones } = montar({ carrito: false });
 		await ctx.saveAjustes();
 		const at = peticiones[0].cuerpo.atributos;
-		assert.ok(!('whatsapp_pedidos' in at) && !('metodos_pago' in at));
+		assert.ok(!('metodos_pago' in at), 'los pagos no viajan sin carrito');
+		assert.equal(at.whatsapp_negocio, '573001234567', 'pero el WhatsApp sí: ya no es de los pedidos');
+		assert.ok(!('whatsapp_pedidos' in at), 'y la clave vieja ya no se escribe');
 	});
 
 	test('cada método incompleto se nombra por el suyo', () => {
@@ -8103,7 +8113,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		const campos = {};
 		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
 		const avisos = [];
-		const ctx = cargar('ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS', {
+		const ctx = cargar('ajustes.js', [['ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS'], ['negocio.js', 'const soloDigitosNegocio', null]], {
 			document: { getElementById: $ },
 			renderFiltrosCatalogo: () => {},
 			pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
@@ -8127,21 +8137,27 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 	}
 
 	test('pinta lo guardado y recoge limpio', () => {
-		const { ctx, campos } = montar({ social_bar: true, social_instagram: 'https://instagram.com/x', social_whatsapp: '573001234567' });
+		const { ctx, campos } = montar({ social_bar: true, social_instagram: 'https://instagram.com/x', whatsapp_negocio: '573001234567', whatsapp_boton: true });
 		ctx.renderAjustes();
 		assert.equal(campos('ajSocialBar').checked, true);
 		assert.equal(campos('ajSocialInstagram').value, 'https://instagram.com/x');
 		assert.equal(campos('ajSocialFacebook').value, '');
 
 		campos('ajSocialTiktok').value = '  https://tiktok.com/@x  ';
-		campos('ajSocialWhatsapp').value = '+57 300 123 4567';
+		// El WhatsApp ya no es de las redes: es del negocio (negocio.js), y la
+		// tarjeta de redes no lo pide.
+		assert.equal(campos('ajNegocioWhatsapp').value, '573001234567');
+		assert.equal(campos('ajWhatsappBoton').checked, true);
+		campos('ajNegocioWhatsapp').value = '+57 300 123 4567';
 		const r = ctx.recolectarAjustes();
 		assert.equal(r.social_tiktok, 'https://tiktok.com/@x');
-		assert.equal(r.social_whatsapp, '573001234567');
+		assert.equal(r.whatsapp_negocio, '573001234567');
+		assert.equal(r.whatsapp_boton, true);
+		assert.ok(!('social_whatsapp' in r), 'la clave vieja ya no se escribe');
 		// Sin colores, modelo ni tipografía: se mudaron a Apariencia el
 		// 27/09/2026 (public/aspecto.js, recolectarAspecto()).
 		assert.deepEqual(Object.keys(r).sort(),
-			['buscador', 'filtros_activos', 'filtros_disponibles', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp']);
+			['buscador', 'filtros_activos', 'filtros_disponibles', 'social_bar', 'social_facebook', 'social_instagram', 'social_tiktok', 'whatsapp_boton', 'whatsapp_negocio']);
 	});
 
 	test('guardar manda solo lo de Ajustes y deja el estado al día', async () => {
@@ -8160,7 +8176,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['atributos'], 'nada fuera de atributos');
 		assert.ok(Object.keys(peticiones[0].cuerpo.atributos).every(k =>
-			k.startsWith('social_') || k.startsWith('filtros_') || k === 'buscador'),
+			k.startsWith('social_') || k.startsWith('filtros_') || k.startsWith('whatsapp_') || k === 'buscador'),
 			'solo las claves de Ajustes');
 		assert.equal(ctx.state.restaurante.atributos.social_instagram, 'https://instagram.com/bonzas');
 		assert.equal(campos('ajustesStatus').textContent, '✓ Guardado');
@@ -8257,9 +8273,9 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 		// que los probó propuso separarlos.
 		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabAspecto"'));
 		const orden = [...tab.matchAll(/<div class="(?:section-title|aj-subtitulo)">([^<]+)</g)].map(m => m[1].trim());
-		assert.equal(JSON.stringify(orden.slice(0, 3)),
-			'["Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
-			'el carrito y lo suyo, primero');
+		assert.equal(JSON.stringify(orden.slice(0, 4)),
+			'["Datos del negocio","Carrito de compras","WhatsApp para recibir pedidos","Métodos de pago"]',
+			'los datos del negocio, primero; luego el carrito y lo suyo');
 		assert.equal(orden.at(-1), 'Redes sociales', 'las redes, al final');
 		assert.equal((tab.match(/class="btn-save"/g) || []).length, 1, 'un solo botón de guardar');
 		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('Redes sociales'), 'el botón de guardar, después de todas');
@@ -8450,7 +8466,7 @@ describe('el interruptor de filtros y la nota que explica lo que se ve', () => {
 	function montarPintado(atributos) {
 		const campos = {};
 		const $ = id => (campos[id] ||= { value: '', checked: false, textContent: '', style: {} });
-		const ctx = cargar('ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS', {
+		const ctx = cargar('ajustes.js', [['ajustes.js', '// ── PINTAR, RECOGER Y GUARDAR', '// ── FILTROS Y ETIQUETAS'], ['negocio.js', 'const soloDigitosNegocio', null]], {
 			document: { getElementById: $ },
 			renderFiltrosCatalogo: () => {}, pintarNotaCarrito: () => {}, puedeElegirCarrito: () => false,
 			renderPedidos: () => {}, renderMetodosPago: () => {}, cartaTieneCarrito: () => false,
@@ -8575,6 +8591,7 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 				// Hasta pasado cartaTieneCarrito: carritoEnPantalla() la usa.
 				['const MODELOS_CARRITO_OPCIONAL', '// Mismo criterio que la carta'],
 				['ajustes.js', 'function recolectarAjustes', 'async function saveAjustes'],
+				['negocio.js', 'const soloDigitosNegocio', null],
 				['ajustes.js', 'function puedeElegirCarrito', 'function pintarNotaCarrito'],
 			], {
 				document: { getElementById: $ }, state: { restaurante: { atributos }, filtrosDisponibles: [] },
@@ -8599,7 +8616,7 @@ describe('el carrito lo enciende el restaurante, en Ajustes', () => {
 	test('al guardar se repintan las pestañas, para que aparezca Pedidos', () => {
 		const guardar = src.match(/async function saveAjustes\(\) \{[\s\S]*?\n\}/)[0];
 		assert.match(guardar, /ajustarPestanasAlModelo\(\);/);
-		assert.match(guardar, /falta el número de WhatsApp/);
+		assert.match(guardar, /falta el WhatsApp del negocio/);
 	});
 });
 
@@ -9276,6 +9293,7 @@ describe('Inicio: qué pide una acción y qué tiene encendido la carta', () => 
 	const reglas = () => cargar('inicio.js', [
 		['index.html', '// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
 		['index.html', 'function recibePedidos', 'function formatoDeLaCarta'],
+		['negocio.js', 'const soloDigitosNegocio', null],
 		['inicio.js', 'function productoGratis', '// ── PINTAR'],
 	], {
 		MODELO_POR_DEFECTO: 'topnav',
@@ -9411,6 +9429,7 @@ describe('un plato que no lleva foto a propósito', () => {
 	const reglas = () => cargar('inicio.js', [
 		['index.html', '// ── ¿LA CARTA TIENE CARRITO DE VERDAD?', '// Mismo criterio que la carta'],
 		['index.html', 'function recibePedidos', 'function formatoDeLaCarta'],
+		['negocio.js', 'const soloDigitosNegocio', null],
 		['inicio.js', 'function productoGratis', '// ── PINTAR'],
 	], {
 		MODELO_POR_DEFECTO: 'topnav', MODELOS_CARRITO_OPCIONAL: [],

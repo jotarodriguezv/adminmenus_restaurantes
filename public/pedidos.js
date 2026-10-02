@@ -15,7 +15,9 @@
 
 // ── PEDIDOS (WhatsApp, cartas con carrito) ─────────────────────
 function renderPedidos() {
-  document.getElementById('pedidosWhatsapp').value = state.restaurante.atributos?.whatsapp_pedidos || '';
+  // El número ya no se escribe aquí: es el WhatsApp del negocio, de Ajustes
+  // → Datos del negocio (negocio.js). Esto solo dice cuál es.
+  pintarWhatsappEnPedidos();
   actualizarAvisoPedidos();
 }
 

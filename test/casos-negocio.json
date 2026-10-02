@@ -1,0 +1,20 @@
+{
+  "descripcion": "Casos de la regla «¿cuál es el WhatsApp del negocio y se enseña su botón?». DUPLICADO a propósito en adminmenus_restaurantes y vmenus-app: la regla vive en el servidor, en el panel (public/negocio.js) y en la carta (core/negocio.js), y este archivo es lo único que impide que se separen. 'numero' es el WhatsApp del negocio (solo dígitos, o ''); 'boton' es si el restaurante quiere el botón; 'visible' es lo que de verdad ve el comensal: hace falta el número Y el botón. Las claves viejas (whatsapp_pedidos, social_whatsapp) solo se miran cuando la nueva NO EXISTE.",
+  "casos": [
+    { "nombre": "sin nada", "at": {}, "numero": "", "boton": false, "visible": false },
+    { "nombre": "solo el número de pedidos de antes: sirve para pedir, el botón no sale", "at": { "whatsapp_pedidos": "573001234567" }, "numero": "573001234567", "boton": false, "visible": false },
+    { "nombre": "solo el de la barra de redes de antes: sirve y el botón sale (como antes)", "at": { "social_whatsapp": "573001234567" }, "numero": "573001234567", "boton": true, "visible": true },
+    { "nombre": "los dos viejos con el mismo valor", "at": { "whatsapp_pedidos": "573001234567", "social_whatsapp": "573001234567" }, "numero": "573001234567", "boton": true, "visible": true },
+    { "nombre": "los dos viejos distintos: gana el de pedidos, que es el que cobraba", "at": { "whatsapp_pedidos": "573001111111", "social_whatsapp": "573002222222" }, "numero": "573001111111", "boton": true, "visible": true },
+    { "nombre": "la clave nueva gana a las viejas", "at": { "whatsapp_negocio": "573009999999", "whatsapp_pedidos": "573001111111", "social_whatsapp": "573002222222" }, "numero": "573009999999", "boton": true, "visible": true },
+    { "nombre": "con la clave nueva y el botón apagado, el número sirve y el botón no sale", "at": { "whatsapp_negocio": "573009999999", "whatsapp_boton": false }, "numero": "573009999999", "boton": false, "visible": false },
+    { "nombre": "con la clave nueva y el botón encendido, sale", "at": { "whatsapp_negocio": "573009999999", "whatsapp_boton": true }, "numero": "573009999999", "boton": true, "visible": true },
+    { "nombre": "el botón apagado manda aunque la barra de redes vieja tuviera número", "at": { "whatsapp_negocio": "573009999999", "whatsapp_boton": false, "social_whatsapp": "573002222222" }, "numero": "573009999999", "boton": false, "visible": false },
+    { "nombre": "borrar el número NO resucita el viejo", "at": { "whatsapp_negocio": "", "whatsapp_pedidos": "573001111111", "social_whatsapp": "573002222222" }, "numero": "", "boton": true, "visible": false },
+    { "nombre": "botón encendido sin número: no hay nada que enseñar", "at": { "whatsapp_negocio": "", "whatsapp_boton": true }, "numero": "", "boton": true, "visible": false },
+    { "nombre": "null cuenta como ausente: se miran las viejas", "at": { "whatsapp_negocio": null, "whatsapp_boton": null, "whatsapp_pedidos": "573001111111" }, "numero": "573001111111", "boton": false, "visible": false },
+    { "nombre": "se quedan los dígitos de lo que se teclea", "at": { "whatsapp_negocio": "+57 300 123 4567", "whatsapp_boton": true }, "numero": "573001234567", "boton": true, "visible": true },
+    { "nombre": "solo espacios y guiones es vacío", "at": { "whatsapp_negocio": "  - + " }, "numero": "", "boton": false, "visible": false },
+    { "nombre": "un 'true' de texto no enciende el botón", "at": { "whatsapp_negocio": "573009999999", "whatsapp_boton": "true" }, "numero": "573009999999", "boton": false, "visible": false }
+  ]
+}
