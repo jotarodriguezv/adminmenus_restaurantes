@@ -226,6 +226,9 @@ a,button,input,select,textarea{font-family:inherit;}
    tarjeta por parte, el hueco entre el número de WhatsApp y los métodos de pago
    era el mismo que entre los toppings y los filtros, y nada decía qué iba con
    qué. Una línea dentro de la tarjeta separa sin sacarlo del bloque. */
+.bienvenida-dato-negocio{font-size:13px;color:var(--text-muted);line-height:1.6;}
+.bienvenida-dato-negocio strong{color:var(--text);word-break:break-all;}
+.bienvenida-dato-negocio a{color:var(--accent);}
 .aj-bloque{border-top:1px solid var(--border);margin-top:18px;padding-top:18px;}
 .aj-subtitulo{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;}
 .section-header .aj-subtitulo{margin-bottom:0;}

@@ -1,9 +1,9 @@
 // Los datos del negocio: lo que el restaurante dice UNA vez y que varias
 // funciones de la carta usan por su cuenta.
 //
-// Hoy son el WhatsApp y si la carta enseña su botón. Irán entrando la
-// dirección, el mapa, el enlace de reseñas de Google, el horario y el correo,
-// que ahora se piden dentro de la pantalla de bienvenida (docs/datos-del-negocio.md).
+// Hoy son el WhatsApp y si la carta enseña su botón (paso 1), y la dirección, la
+// ubicación y el enlace de reseñas de Google (paso 2). Irán entrando el horario y
+// el correo (docs/datos-del-negocio.md).
 //
 // ── POR QUÉ UN SOLO WHATSAPP ──────────────────────────────────
 // Había dos campos para el mismo número: el de «recibir pedidos», en la tarjeta
@@ -48,11 +48,68 @@ function botonWhatsappActivo(at) {
   return !!soloDigitosNegocio(at?.social_whatsapp);
 }
 
+// ── DIRECCIÓN, UBICACIÓN Y RESEÑAS (paso 2) ───────────────────
+// Se pedían dentro del formulario de la bienvenida. Ahora son del negocio y la
+// bienvenida los toma de aquí; solo conserva sus interruptores y su estilo.
+//
+// `direccion` no cambia de nombre: ya era la clave y la usaba solo la bienvenida.
+// El mapa y las reseñas tienen clave nueva (`mapa_url`, `resena_url`) porque las
+// de antes llevaban el prefijo de la pantalla que las pedía (`intro_mapa_url`,
+// `intro_resena_url`) y ya no son de ella. Las viejas se leen SOLO si la nueva no
+// existe, con la misma razón que el WhatsApp: borrar el enlace deja '' y eso es
+// «no hay enlace», no «no está».
+const textoDelNegocio = v => String(v ?? '').trim();
+
+function direccionDelNegocio(at) { return textoDelNegocio(at?.direccion); }
+
+function mapaDelNegocio(at) {
+  return existeClave(at?.mapa_url) ? textoDelNegocio(at.mapa_url) : textoDelNegocio(at?.intro_mapa_url);
+}
+
+function resenaDelNegocio(at) {
+  return existeClave(at?.resena_url) ? textoDelNegocio(at.resena_url) : textoDelNegocio(at?.intro_resena_url);
+}
+
+// Lo que la vista previa de la bienvenida necesita del negocio, con las claves
+// que ella ya conoce. Sale de lo GUARDADO: se escribe en otra pestaña, y mezclar
+// lo que está a medio teclear allí con esta vista sería adivinar.
+function datosDelNegocioParaLaVista() {
+  const at = state.restaurante?.atributos || {};
+  return { direccion: direccionDelNegocio(at), intro_mapa_url: mapaDelNegocio(at), intro_resena_url: resenaDelNegocio(at) };
+}
+
+// En el formulario de la bienvenida ya no se escriben: se dice cuál es cada uno
+// y se lleva a donde se cambia.
+function pintarDatosEnBienvenida() {
+  const at = state.restaurante?.atributos || {};
+  const poner = (id, valor, vacio) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = valor || vacio;
+  };
+  poner('apDireccionTexto', direccionDelNegocio(at), 'Todavía no hay dirección');
+  poner('apIntroMapaUrlTexto', mapaDelNegocio(at), 'Todavía no hay enlace: sin él no se muestra la ubicación');
+  poner('apIntroResenaUrlTexto', resenaDelNegocio(at), 'Todavía no hay enlace: sin él no sale el botón');
+}
+
+// Desde la bienvenida, a la tarjeta del negocio. Si hay cambios sin guardar,
+// switchTab pregunta y puede no cambiar de pestaña: el foco solo se pone si llegó.
+function irADatosDelNegocio(idCampo) {
+  switchTab('ajustes', document.getElementById('tabBtnAjustes'));
+  if (pestanaActual !== 'ajustes') return;
+  const campo = document.getElementById(idCampo);
+  if (!campo) return;
+  campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  campo.focus({ preventScroll: true });
+}
+
 // ── LA TARJETA «DATOS DEL NEGOCIO» ────────────────────────────
 function renderDatosNegocio() {
   const at = state.restaurante?.atributos || {};
   document.getElementById('ajNegocioWhatsapp').value = whatsappDelNegocio(at);
   document.getElementById('ajWhatsappBoton').checked = botonWhatsappActivo(at);
+  document.getElementById('ajNegocioDireccion').value = direccionDelNegocio(at);
+  document.getElementById('ajNegocioMapa').value = mapaDelNegocio(at);
+  document.getElementById('ajNegocioResena').value = resenaDelNegocio(at);
   pintarWhatsappEnPedidos();
 }
 
@@ -72,6 +129,9 @@ function recolectarDatosNegocio() {
   return {
     whatsapp_negocio: soloDigitosNegocio(document.getElementById('ajNegocioWhatsapp').value),
     whatsapp_boton: document.getElementById('ajWhatsappBoton').checked,
+    direccion: textoDelNegocio(document.getElementById('ajNegocioDireccion').value),
+    mapa_url: textoDelNegocio(document.getElementById('ajNegocioMapa').value),
+    resena_url: textoDelNegocio(document.getElementById('ajNegocioResena').value),
   };
 }
 

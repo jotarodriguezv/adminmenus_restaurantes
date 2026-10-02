@@ -40,6 +40,134 @@ describe('la regla · el mismo juego de casos en el servidor, el panel y la cart
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('los enlaces y la dirección · el mismo juego de casos (paso 2)', () => {
+	// El panel y la carta leen el mapa y las reseñas con la misma regla. La
+	// dirección no tiene clave vieja, pero se recorta igual en los dos.
+	const ctxPanel = () => {
+		const ctx = vm.createContext({ String });
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
+		return ctx;
+	};
+
+	test('hay casos que correr', () => assert.ok(CASOS.enlaces.length >= 6));
+
+	for (const c of CASOS.enlaces) {
+		test(`panel · ${c.nombre}`, () => {
+			const p = ctxPanel();
+			assert.equal(p.direccionDelNegocio(c.at), c.direccion);
+			assert.equal(p.mapaDelNegocio(c.at), c.mapa);
+			assert.equal(p.resenaDelNegocio(c.at), c.resena);
+		});
+	}
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('PATCH /api/restaurantes · la ubicación y las reseñas del negocio', () => {
+	const guardar = (atributos, token = tokenCliente) => {
+		S.reiniciar();
+		S.conTabla(() => ({ data: { id: IDS.restaurante, atributos: { nav: 'topnav' } }, error: null }));
+		return S.pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos }, token);
+	};
+
+	test('el restaurante guarda dirección, ubicación y reseñas, recortadas', async () => {
+		const r = await guardar({
+			direccion: '  Cra 7 # 12-34, Bogotá ',
+			mapa_url: ' https://maps.app.goo.gl/abc ',
+			resena_url: 'https://g.page/r/CabC123/review',
+		});
+		assert.equal(r.status, 200);
+		const g = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(g.direccion, 'Cra 7 # 12-34, Bogotá');
+		assert.equal(g.mapa_url, 'https://maps.app.goo.gl/abc');
+		assert.equal(g.resena_url, 'https://g.page/r/CabC123/review');
+		assert.equal(g.nav, 'topnav', 'lo demás de atributos se conserva');
+	});
+
+	test('el superadmin también', async () => {
+		assert.equal((await guardar({ mapa_url: 'https://maps.app.goo.gl/abc' }, tokenAdmin)).status, 200);
+	});
+
+	test('vacío es válido: es como se quita', async () => {
+		const r = await guardar({ mapa_url: '', resena_url: '', direccion: '' });
+		assert.equal(r.status, 200);
+		const g = S.ultimaEscritura('restaurantes').atributos;
+		assert.equal(g.mapa_url, '');
+		assert.equal(g.resena_url, '');
+	});
+
+	test('solo https y solo dominios de Google, igual que antes en la bienvenida', async () => {
+		// Es lo que se le pone en la mano a un desconocido: un enlace cualquiera
+		// sería un botón con el nombre del restaurante que lleva adonde quiera quien lo edite.
+		for (const clave of ['mapa_url', 'resena_url']) {
+			for (const url of ['http://maps.app.goo.gl/abc', 'https://evil.example.com/maps', 'javascript:alert(1)', 'maps.google.com', 'https://google.com.evil.com/x']) {
+				const r = await guardar({ [clave]: url });
+				assert.equal(r.status, 400, `${clave}: ${url}`);
+			}
+		}
+	});
+
+	test('el mensaje dice de qué enlace se trata', async () => {
+		assert.match((await guardar({ mapa_url: 'https://evil.example.com/' })).body?.error || '', /ubicación.*Google Maps/);
+		assert.match((await guardar({ resena_url: 'https://evil.example.com/' })).body?.error || '', /reseñas.*Google/);
+	});
+
+	test('los nombres viejos siguen aceptándose mientras haya paneles con la página vieja', async () => {
+		assert.equal((await guardar({ intro_mapa_url: 'https://maps.app.goo.gl/abc', intro_resena_url: 'https://g.page/r/abc/review' })).status, 200);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('la bienvenida toma lo del negocio (paso 2)', () => {
+	const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const bien = fs.readFileSync(path.join(PUBLIC, 'bienvenida.js'), 'utf8');
+	const sinComentarios = t => t.replace(/^\s*\/\/.*$/gm, '');
+
+	test('la tarjeta de Datos del negocio pide dirección, ubicación y reseñas', () => {
+		for (const id of ['ajNegocioDireccion', 'ajNegocioMapa', 'ajNegocioResena'])
+			assert.ok(html.includes(`id="${id}"`), id);
+		assert.match(html, /id="ajNegocioDireccion"[^>]*maxlength="120"/);
+	});
+
+	test('el formulario de la bienvenida ya NO los pide: dice cuál es cada uno y lleva a donde se cambia', () => {
+		for (const id of ['apDireccion', 'apIntroMapaUrl', 'apIntroResenaUrl'])
+			assert.ok(!html.includes(`id="${id}"`), `${id} no debería seguir en la bienvenida`);
+		for (const id of ['apDireccionTexto', 'apIntroMapaUrlTexto', 'apIntroResenaUrlTexto'])
+			assert.ok(html.includes(`id="${id}"`), id);
+		assert.equal((html.match(/irADatosDelNegocio\('/g) || []).length, 3, 'un enlace por dato');
+	});
+
+	test('los enlaces de «Cambiarlo» apuntan a campos que existen', () => {
+		for (const m of html.matchAll(/irADatosDelNegocio\('(\w+)'\)/g))
+			assert.ok(html.includes(`id="${m[1]}"`), `falta id="${m[1]}"`);
+	});
+
+	test('la bienvenida no escribe los datos del negocio al guardar', () => {
+		// Si los dos formularios escribieran `direccion`, el último en guardar
+		// pisaría al otro: justo lo que el servidor resolvió al fundir atributos.
+		const valores = sinComentarios(bien.match(/function valoresBienvenida\(\) \{[\s\S]*?\n\}/)[0]);
+		assert.doesNotMatch(valores, /direccion|intro_mapa_url|intro_resena_url/);
+		const aspecto = sinComentarios(fs.readFileSync(path.join(PUBLIC, 'aspecto.js'), 'utf8'));
+		assert.doesNotMatch(aspecto, /apDireccion/);
+	});
+
+	test('su vista previa lee lo guardado del negocio', () => {
+		const ctx = vm.createContext({ String, state: { restaurante: { atributos: { direccion: 'ENVIGADO', intro_mapa_url: 'https://maps.app.goo.gl/v', resena_url: 'https://g.page/r/a/review' } } } });
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
+		assert.deepEqual(JSON.parse(JSON.stringify(ctx.datosDelNegocioParaLaVista())),
+			{ direccion: 'ENVIGADO', intro_mapa_url: 'https://maps.app.goo.gl/v', intro_resena_url: 'https://g.page/r/a/review' });
+	});
+
+	test('«Restaurar valores predeterminados» no puede vaciar los datos del negocio', () => {
+		const base = sinComentarios(bien.match(/const VALORES_BIENVENIDA = \{[\s\S]*?\n\};/)[0]);
+		assert.doesNotMatch(base, /direccion|intro_mapa_url|intro_resena_url/);
+	});
+
+	test('al abrir la pestaña se pintan los tres', () => {
+		assert.match(bien, /pintarDatosEnBienvenida\(\)/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('PATCH /api/restaurantes · el WhatsApp del negocio', () => {
 	const guardar = (atributos, token = tokenCliente) => {
 		S.reiniciar();

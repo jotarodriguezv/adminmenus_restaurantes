@@ -1,5 +1,5 @@
 {
-  "descripcion": "Casos de la regla «¿cuál es el WhatsApp del negocio y se enseña su botón?». DUPLICADO a propósito en adminmenus_restaurantes y vmenus-app: la regla vive en el servidor, en el panel (public/negocio.js) y en la carta (core/negocio.js), y este archivo es lo único que impide que se separen. 'numero' es el WhatsApp del negocio (solo dígitos, o ''); 'boton' es si el restaurante quiere el botón; 'visible' es lo que de verdad ve el comensal: hace falta el número Y el botón. Las claves viejas (whatsapp_pedidos, social_whatsapp) solo se miran cuando la nueva NO EXISTE.",
+  "descripcion": "Casos de la regla «¿cuál es el WhatsApp del negocio y se enseña su botón?». DUPLICADO a propósito en adminmenus_restaurantes y vmenus-app: la regla vive en el servidor, en el panel (public/negocio.js) y en la carta (core/negocio.js), y este archivo es lo único que impide que se separen. 'numero' es el WhatsApp del negocio (solo dígitos, o ''); 'boton' es si el restaurante quiere el botón; 'visible' es lo que de verdad ve el comensal: hace falta el número Y el botón. Las claves viejas (whatsapp_pedidos, social_whatsapp) solo se miran cuando la nueva NO EXISTE. Segunda lista, 'enlaces' (paso 2, 02/10/2026): la dirección, la ubicación y el enlace de reseñas. La dirección no tiene clave vieja; el mapa y las reseñas leían intro_mapa_url e intro_resena_url, que solo se miran si la nueva (mapa_url, resena_url) NO EXISTE. '' es «no hay enlace», no «no está».",
   "casos": [
     { "nombre": "sin nada", "at": {}, "numero": "", "boton": false, "visible": false },
     { "nombre": "solo el número de pedidos de antes: sirve para pedir, el botón no sale", "at": { "whatsapp_pedidos": "573001234567" }, "numero": "573001234567", "boton": false, "visible": false },
@@ -16,5 +16,15 @@
     { "nombre": "se quedan los dígitos de lo que se teclea", "at": { "whatsapp_negocio": "+57 300 123 4567", "whatsapp_boton": true }, "numero": "573001234567", "boton": true, "visible": true },
     { "nombre": "solo espacios y guiones es vacío", "at": { "whatsapp_negocio": "  - + " }, "numero": "", "boton": false, "visible": false },
     { "nombre": "un 'true' de texto no enciende el botón", "at": { "whatsapp_negocio": "573009999999", "whatsapp_boton": "true" }, "numero": "573009999999", "boton": false, "visible": false }
+  ],
+  "enlaces": [
+    {"nombre": "sin nada", "at": {}, "direccion": "", "mapa": "", "resena": ""},
+    {"nombre": "solo las claves viejas de la bienvenida", "at": {"intro_mapa_url": "https://maps.app.goo.gl/vieja", "intro_resena_url": "https://g.page/r/CabC123/review"}, "direccion": "", "mapa": "https://maps.app.goo.gl/vieja", "resena": "https://g.page/r/CabC123/review"},
+    {"nombre": "la clave nueva gana a la vieja", "at": {"mapa_url": "https://maps.app.goo.gl/abc", "intro_mapa_url": "https://maps.app.goo.gl/vieja", "resena_url": "https://g.page/r/CabC123/review", "intro_resena_url": "https://g.page/r/vieja/review"}, "direccion": "", "mapa": "https://maps.app.goo.gl/abc", "resena": "https://g.page/r/CabC123/review"},
+    {"nombre": "borrar el enlace NO resucita el viejo", "at": {"mapa_url": "", "intro_mapa_url": "https://maps.app.goo.gl/vieja", "resena_url": "", "intro_resena_url": "https://g.page/r/CabC123/review"}, "direccion": "", "mapa": "", "resena": ""},
+    {"nombre": "null cuenta como ausente: se mira la vieja", "at": {"mapa_url": null, "intro_mapa_url": "https://maps.app.goo.gl/vieja"}, "direccion": "", "mapa": "https://maps.app.goo.gl/vieja", "resena": ""},
+    {"nombre": "se recortan los espacios", "at": {"mapa_url": "  https://maps.app.goo.gl/abc ", "resena_url": " https://g.page/r/CabC123/review  ", "direccion": "  Cra 7 # 12-34, Bogotá  "}, "direccion": "Cra 7 # 12-34, Bogotá", "mapa": "https://maps.app.goo.gl/abc", "resena": "https://g.page/r/CabC123/review"},
+    {"nombre": "la dirección es la de siempre, sin clave nueva", "at": {"direccion": "ENVIGADO"}, "direccion": "ENVIGADO", "mapa": "", "resena": ""},
+    {"nombre": "solo espacios es vacío", "at": {"direccion": "   ", "mapa_url": "  "}, "direccion": "", "mapa": "", "resena": ""}
   ]
 }

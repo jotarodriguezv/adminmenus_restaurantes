@@ -75,11 +75,14 @@ corregir el documento en la misma tarea.
   **Un precio se guarda dos veces** (`precio` y `precio_numerico`) y separarlos
   hace que la carta muestre uno y el carrito cobre otro. Ya pasó.
 - `negocio.js` y `public/negocio.js` — los datos del negocio: hoy el WhatsApp único
-  (`whatsapp_negocio`) y si la carta enseña su botón (`whatsapp_boton`). Dos copias
+  (`whatsapp_negocio`) y si la carta enseña su botón (`whatsapp_boton`), y, desde el
+  02/10/2026, la dirección (`direccion`), la ubicación (`mapa_url`) y las reseñas de
+  Google (`resena_url`), que la bienvenida ya no pide. Dos copias
   de la misma regla, más la de `vmenus-app/core/negocio.js`; el juego de casos es
   `test/casos-negocio.json`, **duplicado en los dos repositorios**. Las claves
   viejas (`whatsapp_pedidos`, `social_whatsapp`) solo se leen si la nueva no
-  existe: `''` es «no hay número», no «no está». Ver `docs/datos-del-negocio.md`.
+  existe (también `intro_mapa_url` e `intro_resena_url`): `''` es «no hay número»,
+  no «no está». Ver `docs/datos-del-negocio.md`.
 - `public/oferta.js` — la oferta de precio de un plato: el bloque de la ficha y la
   marca de la lista. Es el espejo en el panel de la regla de la carta; el juego
   de casos es `test/casos-oferta.json`, **duplicado en `vmenus-app`**. La

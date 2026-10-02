@@ -1,6 +1,7 @@
 # Datos del negocio
 
-Estado: **paso 1 hecho el 02/10/2026** (el WhatsApp). Pasos 2 a 5 por hacer.
+Estado: **pasos 1 y 2 hechos el 02/10/2026** (el WhatsApp; la dirección, la ubicación
+y las reseñas). Pasos 3 a 5 por hacer.
 
 Hasta ahora cada función de la carta pedía su propio dato: el carrito, su
 WhatsApp; la bienvenida, la dirección, el mapa y las reseñas; las redes, su
@@ -21,7 +22,7 @@ si la tarjeta los enseña es solo para leer.
 | Paso | Qué | Estado |
 |---|---|---|
 | **1** | **El WhatsApp único**, con su interruptor «Mostrar el botón en la carta» | **Hecho 02/10/2026** |
-| 2 | Dirección, ubicación (mapa) y enlace de reseñas de Google | por hacer |
+| **2** | **Dirección, ubicación (mapa) y enlace de reseñas de Google** | **Hecho 02/10/2026** |
 | 3 | Las redes sociales (mover su tarjeta dentro de esta; solo pantalla, no datos) | por hacer |
 | 4 | **Horario de atención** (estructurado) y **correo** | por hacer |
 | 5 | Aviso de «datos completos» en Inicio (opcional) | por hacer |
@@ -102,12 +103,66 @@ En una migración posterior, cuando nada las lea: `whatsapp_pedidos` y
 `social_whatsapp` de `atributos`, las lecturas de respaldo de las tres copias y
 las dos claves de `ATRIBUTOS_CLIENTE_PERMITIDOS`.
 
+## Paso 2: dirección, ubicación y reseñas
+
+Se pedían dentro del formulario de la bienvenida, así que un restaurante que no
+la activa nunca guardaba su dirección. Ahora son del negocio, en la misma
+tarjeta del WhatsApp, y **la bienvenida los toma de ahí**.
+
+| dato | clave | nota |
+|---|---|---|
+| Dirección | `direccion` | **No cambia de nombre**: ya era la clave y solo la usaba la bienvenida |
+| Ubicación | `mapa_url` | antes `intro_mapa_url` |
+| Reseñas de Google | `resena_url` | antes `intro_resena_url` |
+
+El mapa y las reseñas tienen clave nueva porque las de antes llevaban el prefijo
+de la pantalla que las pedía y ya no son de ella.
+
+### Qué se queda en la bienvenida y qué se va
+
+- **Se queda**: los interruptores (`intro_mapa_activo`, `intro_resena_activo`) y
+  todo el estilo (modo del mapa, colores y fuente del botón, texto del botón de
+  reseñas). Son de CÓMO se ve la bienvenida.
+- **Se va**: los tres campos de texto. El formulario dice cuál es cada dato y
+  lleva a donde se cambia («Cambiarlo en Datos del negocio»).
+- **La bienvenida ya no los guarda.** Si los dos formularios escribieran
+  `direccion`, el último en guardar pisaría al otro. Una prueba lo vigila, y
+  otra comprueba que «Restaurar valores predeterminados» no puede vaciarlos.
+- La vista previa de la bienvenida lee lo **guardado** del negocio, no lo que
+  está a medio teclear en Ajustes.
+
+### Las claves viejas, igual que el WhatsApp
+
+`intro_mapa_url` e `intro_resena_url` se leen **solo si la nueva no existe**, y
+`''` es «no hay enlace»: si el restaurante borra el suyo, el viejo no resucita.
+El servidor sigue aceptando los nombres viejos mientras haya paneles con la
+página vieja. La regla es la de `public/negocio.js` y `vmenus-app/core/negocio.js`,
+y las dos corren contra la lista `enlaces` de `test/casos-negocio.json`
+(**duplicado en los dos repositorios**).
+
+**No hizo falta migración SQL**: como las viejas se siguen leyendo, el único
+restaurante con enlace de mapa (`la-leydi`) sigue igual y pasa a la clave nueva
+solo la primera vez que guarde Ajustes. Antes de **retirar** las claves viejas
+sí hará falta copiarlas.
+
+### El servidor
+
+`mapa_url` y `resena_url` se validan como antes en la bienvenida: **solo https y
+solo dominios de Google**, porque es lo que se le pone en la mano a un
+desconocido. La dirección se recorta a 120 caracteres.
+
+### Un fallo que salió de aquí: la carta no miraba el interruptor del mapa
+
+`core/intro.js` enseñaba la ubicación **si había enlace**, sin mirar
+`intro_mapa_activo`. No se notaba porque el enlace solo se escribía dentro de la
+bienvenida, junto a su interruptor. Con el enlace en Ajustes, quien lo rellenara
+habría visto aparecer un mapa que nunca encendió. Ahora la ubicación sale solo
+con el interruptor **encendido** y con enlace, como ya enseña la vista previa del
+panel. En producción solo `la-leydi` tiene enlace y lo tiene encendido: no cambia
+nada para nadie.
+
 ## Pasos que vienen
 
-- **Dirección, mapa y reseñas (paso 2).** Hoy `direccion`, `intro_mapa_url` e
-  `intro_resena_url` se escriben en el formulario de la bienvenida. La tarjeta
-  pasará a ser su dueña y la bienvenida **tomará de ahí** por defecto, con la
-  misma regla de respaldo que el WhatsApp.
 - **Horario de atención (paso 4): estructurado**, decidido el 02/10/2026: una
   fila por día de la semana (lunes, martes…) con sus horas, como los horarios del
   panel de la televisión y de las promociones. Se reusa la forma de
