@@ -1465,7 +1465,7 @@
 
 					</div><!-- /ajSeccionCarta -->
 
-					<div id="ajSeccionBienvenida" class="hidden" data-aj-seccion="bienvenida" role="tabpanel" aria-labelledby="ajTabBienvenida" oninput="ajustesMarcarPendientes()" onchange="ajustesMarcarPendientes()">
+					<div id="ajSeccionBienvenida" class="hidden" data-aj-seccion="bienvenida" role="tabpanel" aria-labelledby="ajTabBienvenida" oninput="ajustesMarcarPendientes()" onchange="ajustesMarcarPendientes()" onfocusin="llevarPreviaAlCampo(event)">
 					<!-- Pantalla de bienvenida (intro), desde el 27/09/2026 (en Apariencia hasta el
 					     02/10/2026, ahora en Ajustes): opcional y
 					     apagada por defecto, visto en una carta de otra empresa. Se
@@ -1478,11 +1478,19 @@
 					<div class="section-card bienvenida-config">
 						<div class="section-header">
 							<div class="section-title">Pantalla de bienvenida</div>
-							<label class="toggle" title="Mostrarla antes de la carta">
-								<input type="checkbox" id="apIntroActivo"><span class="toggle-slider"></span>
-							</label>
+							<div class="bienvenida-interruptor">
+								<span class="bienvenida-estado" id="apIntroEstado" role="status"></span>
+								<label class="toggle" title="Mostrarla antes de la carta">
+									<input type="checkbox" id="apIntroActivo" aria-label="Mostrar la pantalla de bienvenida antes de la carta" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span>
+								</label>
+							</div>
 						</div>
+						<p class="bienvenida-nota-apagada" id="apIntroNotaApagada" hidden>Está <strong>apagada</strong>: tus clientes entran directo a la carta. Puedes prepararla con calma; solo se muestra cuando la enciendas y guardes.</p>
 						<p class="bienvenida-ayuda">Personaliza la primera impresión de tu carta. La dirección, el horario, el correo y los enlaces sociales se escriben una sola vez en <strong>Mi negocio</strong>; aquí solo decides cómo se ven. Esta sección se guarda con su propio botón, al final.</p>
+						<!-- La vista previa se queda fija arriba mientras se baja por el formulario
+						     (BV5): editar «Redes» o «Reseñas» sin verla era hacerlo a ciegas. Ver
+						     .bienvenida-preview-fijo en panel.css para cuándo se fija y cuánto ocupa. -->
+						<div class="bienvenida-preview-fijo" id="apIntroPreviewFijo">
 						<div class="bienvenida-preview" id="apIntroPreview" aria-label="Vista previa de la pantalla de bienvenida">
 							<div class="bienvenida-preview-overlay" id="apIntroPreviewOverlay"></div>
 							<div class="bienvenida-preview-content" id="apIntroPreviewContent">
@@ -1492,7 +1500,8 @@
 								<div class="bienvenida-preview-social" id="apIntroPreviewSocial">◎ &nbsp; f</div><div id="apIntroPreviewDireccion"></div><div id="apIntroPreviewHorario"></div><div id="apIntroPreviewCorreo"></div><div class="bienvenida-preview-map" id="apIntroPreviewMapa">Ubicación</div>
 							</div>
 						</div>
-						<details class="bienvenida-details" open><summary>Fondo e imagen</summary><div class="bienvenida-details-body">
+						</div><!-- /apIntroPreviewFijo -->
+						<details class="bienvenida-details" open data-previa="arriba"><summary>Fondo e imagen</summary><div class="bienvenida-details-body">
 							<div class="form-row"><div class="form-group"><label for="apIntroFondoColor" class="form-label">Color de fondo</label><div class="bienvenida-color-field"><input type="color" id="apIntroFondoColor" value="#111827" oninput="sincronizarColorBienvenida('apIntroFondoColor')"><input type="text" id="apIntroFondoColorHex" value="#111827" maxlength="7" aria-label="Valor hexadecimal del fondo" oninput="sincronizarHexBienvenida('apIntroFondoColor')"></div></div></div>
 							<div class="form-check bienvenida-overlay-switch"><label class="toggle"><input type="checkbox" id="apIntroOverlayActivo" checked onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span><strong>Activar superposición de color</strong><small>Añade una capa de color sobre el fondo o la imagen para mejorar la legibilidad de los textos.</small></span></div>
 							<div class="form-row bienvenida-overlay-controls" id="apIntroOverlayControles"><div class="form-group"><label for="apIntroOverlayColor" class="form-label">Color de superposición</label><div class="bienvenida-color-field"><input type="color" id="apIntroOverlayColor" value="#0a0a0f" oninput="sincronizarColorBienvenida('apIntroOverlayColor')"><input type="text" id="apIntroOverlayColorHex" value="#0a0a0f" maxlength="7" aria-label="Valor hexadecimal de la superposición" oninput="sincronizarHexBienvenida('apIntroOverlayColor')"></div></div><div class="form-group"><label for="apIntroOverlayOpacidad" class="form-label">Opacidad <span id="apIntroOverlayOpacidadValor">50%</span></label><input type="range" id="apIntroOverlayOpacidad" min="0" max="100" value="50" oninput="actualizarVistaPreviaBienvenida()"></div></div>
@@ -1500,8 +1509,8 @@
 							<div class="bienvenida-image-row"><img id="apIntroImagenPreview" alt="Vista previa del fondo de bienvenida" hidden><span id="apIntroImagenVacia">Sin imagen: se usará el color de fondo.</span><button type="button" class="btn-danger" id="apIntroImagenEliminar" onclick="quitarFondoBienvenida()" hidden>Quitar imagen</button></div>
 							<div class="form-group" style="margin:10px 0 0"><label for="apIntroImagenAjuste" class="form-label">Ajuste de imagen</label><select id="apIntroImagenAjuste" class="form-input" onchange="actualizarVistaPreviaBienvenida()"><option value="cover">Cubrir</option><option value="contain">Contener</option><option value="center">Centrada</option></select></div>
 						</div></details>
-						<details class="bienvenida-details"><summary>Recuadro de bienvenida</summary><div class="bienvenida-details-body"><p class="bienvenida-ayuda">Personaliza la tarjeta central que agrupa el logo, los textos, redes y ubicación.</p><div class="form-row"><div class="form-group"><label for="apIntroTarjetaFondo" class="form-label">Color de fondo</label><input type="color" id="apIntroTarjetaFondo" value="#17120b" oninput="actualizarVistaPreviaBienvenida()"></div><div class="form-group"><label for="apIntroTarjetaBorde" class="form-label">Color del borde</label><input type="color" id="apIntroTarjetaBorde" value="#ffffff" oninput="actualizarVistaPreviaBienvenida()"></div><div class="form-group"><label for="apIntroTarjetaBordeGrosor" class="form-label">Grosor del borde <span id="apIntroTarjetaBordeGrosorValor">1 px</span></label><input type="range" id="apIntroTarjetaBordeGrosor" min="0" max="5" value="1" oninput="actualizarVistaPreviaBienvenida()"></div></div></div></details>
-						<details class="bienvenida-details"><summary>Textos y tipografía</summary><div class="bienvenida-details-body">
+						<details class="bienvenida-details" data-previa="arriba"><summary>Recuadro de bienvenida</summary><div class="bienvenida-details-body"><p class="bienvenida-ayuda">Personaliza la tarjeta central que agrupa el logo, los textos, redes y ubicación.</p><div class="form-row"><div class="form-group"><label for="apIntroTarjetaFondo" class="form-label">Color de fondo</label><input type="color" id="apIntroTarjetaFondo" value="#17120b" oninput="actualizarVistaPreviaBienvenida()"></div><div class="form-group"><label for="apIntroTarjetaBorde" class="form-label">Color del borde</label><input type="color" id="apIntroTarjetaBorde" value="#ffffff" oninput="actualizarVistaPreviaBienvenida()"></div><div class="form-group"><label for="apIntroTarjetaBordeGrosor" class="form-label">Grosor del borde <span id="apIntroTarjetaBordeGrosorValor">1 px</span></label><input type="range" id="apIntroTarjetaBordeGrosor" min="0" max="5" value="1" oninput="actualizarVistaPreviaBienvenida()"></div></div></div></details>
+						<details class="bienvenida-details" data-previa="apIntroPreviewNombre"><summary>Textos y tipografía</summary><div class="bienvenida-details-body">
 							<div class="form-group"><label for="apIntroNombre" class="form-label">Nombre del restaurante <span>(si lo dejas igual, sigue al nombre del restaurante)</span></label><input type="text" class="form-input" id="apIntroNombre" maxlength="120" oninput="actualizarVistaPreviaBienvenida()"></div>
 							<div class="form-group"><label for="apIntroEslogan" class="form-label">Frase de bienvenida</label><input type="text" class="form-input" id="apIntroEslogan" maxlength="80" placeholder="Hecho con cariño" oninput="actualizarVistaPreviaBienvenida()"></div>
 							<div class="form-group"><label for="apIntroTextoAdicional" class="form-label">Texto adicional <span>(opcional)</span></label><input type="text" class="form-input" id="apIntroTextoAdicional" maxlength="120" oninput="actualizarVistaPreviaBienvenida()"></div>
@@ -1509,33 +1518,33 @@
 							<div class="bienvenida-textos-intro"><h4>Personaliza cada elemento</h4><p>Despliega cada sección para ajustar el contenido, la tipografía, los colores y la apariencia de cada elemento de tu pantalla de bienvenida.</p></div>
 							<div id="apIntroTextosControles" class="bienvenida-textos-controles"></div>
 						</div></details>
-						<details class="bienvenida-details"><summary>Redes sociales en bienvenida</summary><div class="bienvenida-details-body">
+						<details class="bienvenida-details" data-previa="apIntroPreviewSocial"><summary>Redes sociales en bienvenida</summary><div class="bienvenida-details-body">
 							<p class="bienvenida-ayuda">Instagram, Facebook y TikTok usan los enlaces que guardaste en Ajustes. Si falta uno, aparecerá aquí antes de activarlo.</p>
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroSocialInstagram" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span id="apIntroEstadoInstagram">Instagram</span></div><div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroSocialFacebook" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span id="apIntroEstadoFacebook">Facebook</span></div><div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroSocialTiktok" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span id="apIntroEstadoTiktok">TikTok</span></div>
 							<div class="form-row"><div class="form-group"><label class="form-label" for="apIntroSocialEstilo">Estilo</label><select class="form-input" id="apIntroSocialEstilo" onchange="actualizarVistaPreviaBienvenida()"><option value="circular">Circular</option><option value="redondeado">Redondeado</option><option value="pildora">Píldora</option></select></div><div class="form-group"><label class="form-label" for="apIntroSocialTamano">Tamaño <span id="apIntroSocialTamanoValor">48 px</span></label><input type="range" id="apIntroSocialTamano" min="36" max="72" value="48" oninput="actualizarVistaPreviaBienvenida()"></div></div>
 							<div class="form-row"><div class="form-group"><label class="form-label">Color del ícono</label><input type="color" id="apIntroSocialIconoColor" value="#ffffff" oninput="actualizarVistaPreviaBienvenida()"></div><div class="form-group"><label class="form-label">Fondo</label><input type="color" id="apIntroSocialFondo" value="#ef7a00" oninput="actualizarVistaPreviaBienvenida()"></div><div class="form-group"><label class="form-label">Borde</label><input type="color" id="apIntroSocialBorde" value="#ffffff" oninput="actualizarVistaPreviaBienvenida()"></div></div>
 						</div></details>
-						<details class="bienvenida-details"><summary>Dirección y ubicación</summary><div class="bienvenida-details-body">
+						<details class="bienvenida-details" data-previa="apIntroPreviewDireccion"><summary>Dirección y ubicación</summary><div class="bienvenida-details-body">
 							<div class="form-group"><span class="form-label">Dirección</span><div class="bienvenida-dato-negocio"><strong id="apDireccionTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajNegocioDireccion'); return false;">Cambiarla en Datos del negocio</a></div></div>
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroMapaActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Mostrar ubicación</span></div>
 							<div class="form-group"><span class="form-label">Enlace de Google Maps</span><div class="bienvenida-dato-negocio"><strong id="apIntroMapaUrlTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajNegocioMapa'); return false;">Cambiarlo en Datos del negocio</a></div></div>
 							<label for="apIntroMapaModo" class="form-label">Mostrar como</label><select class="form-input" id="apIntroMapaModo" onchange="actualizarVistaPreviaBienvenida()"><option value="mapa">Mini mapa</option><option value="boton">Botón Ver ubicación</option><option value="ambos">Mini mapa y botón</option></select>
 							<div id="apIntroMapaBotonControles" class="bienvenida-mapa-boton-controles" hidden><p class="bienvenida-ayuda">Personaliza el botón que abre la ubicación.</p><div class="form-row"><div class="form-group"><label for="apIntroMapaBotonFondo" class="form-label">Color del botón</label><input type="color" id="apIntroMapaBotonFondo" value="#17120b" oninput="actualizarVistaPreviaBienvenida()"></div><div class="form-group"><label for="apIntroMapaBotonColor" class="form-label">Color del texto</label><input type="color" id="apIntroMapaBotonColor" value="#ffffff" oninput="actualizarVistaPreviaBienvenida()"></div><div class="form-group"><label for="apIntroMapaBotonFuente" class="form-label">Fuente</label><select class="form-input" id="apIntroMapaBotonFuente" onchange="actualizarVistaPreviaBienvenida()"></select></div></div></div>
 						</div></details>
-						<details class="bienvenida-details"><summary>Botón «Califícanos en Google»</summary><div class="bienvenida-details-body">
+						<details class="bienvenida-details" data-previa="apIntroPreviewResena"><summary>Botón «Califícanos en Google»</summary><div class="bienvenida-details-body">
 							<p class="bienvenida-ayuda">Un botón con estrella, debajo del botón principal, que lleva al comensal a dejar su reseña en Google. Solo sale si está encendido y tiene su enlace.</p>
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroResenaActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Mostrar el botón de reseñas</span></div>
 							<div class="form-group"><span class="form-label">Enlace para dejar la reseña</span><div class="bienvenida-dato-negocio"><strong id="apIntroResenaUrlTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajNegocioResena'); return false;">Cambiarlo en Datos del negocio</a></div></div>
 							<div class="form-group"><label for="apIntroResenaTexto" class="form-label">Texto del botón <span>(opcional)</span></label><input type="text" class="form-input" id="apIntroResenaTexto" maxlength="60" placeholder="Califícanos en Google" oninput="actualizarVistaPreviaBienvenida()"></div>
 						</div></details>
-						<details class="bienvenida-details"><summary>Horario y correo</summary><div class="bienvenida-details-body">
+						<details class="bienvenida-details" data-previa="apIntroPreviewHorario"><summary>Horario y correo</summary><div class="bienvenida-details-body">
 							<p class="bienvenida-ayuda">Una línea con tu horario de atención y otra con tu correo, debajo de la dirección. Los datos se escriben una sola vez, en Ajustes.</p>
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroHorarioActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Mostrar el horario</span></div>
 							<div class="form-group"><span class="form-label">Horario de atención</span><div class="bienvenida-dato-negocio"><strong id="apHorarioTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajHorarioBloque'); return false;">Cambiarlo en Datos del negocio</a></div></div>
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroCorreoActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Mostrar el correo</span></div>
 							<div class="form-group"><span class="form-label">Correo</span><div class="bienvenida-dato-negocio"><strong id="apCorreoTexto"></strong> <a href="#" onclick="irADatosDelNegocio('ajNegocioCorreo'); return false;">Cambiarlo en Datos del negocio</a></div></div>
 						</div></details>
-						<details class="bienvenida-details"><summary>Botón «Reservar mesa»</summary><div class="bienvenida-details-body">
+						<details class="bienvenida-details" data-previa="apIntroPreviewReservas"><summary>Botón «Reservar mesa»</summary><div class="bienvenida-details-body">
 							<p class="bienvenida-ayuda">Un botón en la bienvenida que abre un formulario: nombre, celular, fecha, hora y para cuántas personas. Las reservas te llegan a la pestaña <strong>Reservas</strong>, donde las confirmas o cancelas y le escribes al cliente por WhatsApp. No se avisa sola: revisa el contador de la pestaña.</p>
 							<div class="form-check"><label class="toggle"><input type="checkbox" id="apIntroReservasActivo" onchange="actualizarVistaPreviaBienvenida()"><span class="toggle-slider"></span></label><span>Recibir reservas desde la bienvenida</span></div>
 							<div class="form-group"><label for="apIntroReservasTexto" class="form-label">Texto del botón <span>(opcional)</span></label><input type="text" class="form-input" id="apIntroReservasTexto" maxlength="40" placeholder="Reservar mesa" oninput="actualizarVistaPreviaBienvenida()"></div>

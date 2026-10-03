@@ -313,3 +313,138 @@ describe('guardar «Mi negocio» y lo que la bienvenida dice de las redes', () =
 		assert.equal($('apIntroEstadoFacebook').textContent, 'Facebook · enlace configurado');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('el interruptor de la bienvenida dice su estado (BV4)', () => {
+	function estadoDe(activa) {
+		const { ctx, $ } = montar();
+		ctx.pintarEstadoDeBienvenida(activa);
+		return { $, e: $('apIntroEstado'), nota: $('apIntroNotaApagada'), fijo: $('apIntroPreviewFijo') };
+	}
+
+	test('encendida: lo dice, sin nota y con la vista previa normal', () => {
+		const { e, nota, fijo } = estadoDe(true);
+		assert.equal(e.textContent, 'Encendida');
+		assert.equal(e._clases.has('apagada'), false);
+		assert.equal(nota.hidden, true);
+		assert.equal(fijo._clases.has('bienvenida-preview-apagada'), false);
+	});
+
+	test('apagada: lo dice, explica qué pasa con los clientes y atenúa la vista previa', () => {
+		const { e, nota, fijo } = estadoDe(false);
+		assert.equal(e.textContent, 'Apagada');
+		assert.equal(e._clases.has('apagada'), true);
+		assert.equal(nota.hidden, false);
+		assert.equal(fijo._clases.has('bienvenida-preview-apagada'), true);
+	});
+
+	test('la vista previa lo repinta con cada cambio, y el interruptor la dispara al cambiar', () => {
+		const bien = leer('bienvenida.js');
+		const vista = bien.match(/function actualizarVistaPreviaBienvenida\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(vista, /pintarEstadoDeBienvenida\(!!datos\.intro_activo\)/);
+		const html = leer('index.html');
+		assert.match(html.match(/<input[^>]*id="apIntroActivo"[^>]*>/)[0], /onchange="actualizarVistaPreviaBienvenida\(\)"/);
+	});
+
+	test('el interruptor tiene nombre accesible, no solo un `title` que en móvil no se ve', () => {
+		const html = leer('index.html');
+		assert.match(html.match(/<input[^>]*id="apIntroActivo"[^>]*>/)[0], /aria-label="[^"]+"/);
+		assert.match(html.match(/<span[^>]*id="apIntroEstado"[^>]*>/)[0], /role="status"/);
+	});
+});
+
+describe('la vista previa de la bienvenida se queda a la vista (BV5)', () => {
+	const html = leer('index.html');
+	const css = leer('panel.css');
+
+	test('la vista previa va dentro de un contenedor fijo, y el formulario queda fuera', () => {
+		const ini = html.indexOf('id="apIntroPreviewFijo"');
+		const fin = html.indexOf('/apIntroPreviewFijo');
+		assert.ok(ini !== -1 && fin > ini);
+		const dentro = html.slice(ini, fin);
+		assert.ok(dentro.includes('id="apIntroPreview"'));
+		assert.ok(!dentro.includes('class="bienvenida-details"'), 'el formulario no puede quedar dentro de lo fijo');
+	});
+
+	test('se fija solo con altura de sobra, bajo la barra superior y con tope de altura', () => {
+		const regla = css.match(/@media\s*\(min-height:\s*640px\)\s*\{\s*\.bienvenida-preview-fijo\{[^}]*\}/)[0];
+		assert.match(regla, /position:sticky/);
+		assert.match(regla, /top:64px/, 'debajo de la barra superior (52 px), no encima');
+		assert.match(regla, /max-height:\d+vh/, 'con tope: la bienvenida con todo encendido mide más que la pantalla');
+		assert.match(regla, /overflow-y:auto/);
+		assert.match(regla, /z-index:5/, 'por debajo de la barra superior, que es 100');
+	});
+
+	test('cada sección del formulario dice qué parte de la vista previa cambia', () => {
+		const secciones = [...html.matchAll(/<details class="bienvenida-details"[^>]*?data-previa="([^"]+)"[^>]*><summary>([^<]+)<\/summary>/g)];
+		assert.equal(secciones.length, 8, 'las ocho secciones');
+		for (const [, destino] of secciones) {
+			if (destino !== 'arriba') assert.ok(html.includes(`id="${destino}"`), `${destino} no existe en la vista previa`);
+		}
+	});
+
+	test('el panel escucha el foco de sus campos', () => {
+		assert.match(html.match(/<div id="ajSeccionBienvenida"[^>]*>/)[0], /onfocusin="llevarPreviaAlCampo\(event\)"/);
+	});
+
+	// Una caja de juguete con rectángulos a mano: lo que se prueba es la cuenta.
+	function caja(altoCaja, elementos) {
+		const { ctx, $ } = montar();
+		const c = $('apIntroPreviewFijo');
+		c.scrollTop = 0;
+		c.getBoundingClientRect = () => ({ top: 100, bottom: 100 + altoCaja });
+		for (const [id, top, alto, extra] of elementos) {
+			const el = $(id);
+			el.offsetParent = {};
+			Object.assign(el, extra || {});
+			// el elemento se mueve con el scroll de la caja, como en el navegador
+			el.getBoundingClientRect = () => ({ top: 100 + top - c.scrollTop, bottom: 100 + top + alto - c.scrollTop });
+		}
+		return { ctx, c, $ };
+	}
+
+	test('lleva la vista previa hasta lo que está fuera de la ventana', () => {
+		const { ctx, c } = caja(276, [['apIntroPreviewSocial', 400, 40]]);
+		ctx.llevarPreviaA('apIntroPreviewSocial');
+		assert.ok(c.scrollTop > 0);
+		const r = { top: 100 + 400 - c.scrollTop, bottom: 100 + 440 - c.scrollTop };
+		assert.ok(r.top >= 100 && r.bottom <= 376, 'queda dentro de la ventana');
+	});
+
+	test('si ya se ve, no la mueve', () => {
+		const { ctx, c } = caja(276, [['apIntroPreviewNombre', 60, 40]]);
+		ctx.llevarPreviaA('apIntroPreviewNombre');
+		assert.equal(c.scrollTop, 0);
+	});
+
+	test('«arriba» la devuelve al principio (fondo y recuadro)', () => {
+		const { ctx, c } = caja(276, []);
+		c.scrollTop = 300;
+		ctx.llevarPreviaA('arriba');
+		assert.equal(c.scrollTop, 0);
+	});
+
+	test('un elemento escondido o que no existe no hace nada ni rompe', () => {
+		const { ctx, c } = caja(276, [['apIntroPreviewResena', 500, 30, { hidden: true }], ['apIntroPreviewMapa', 500, 30, { offsetParent: null }]]);
+		c.scrollTop = 50;
+		ctx.llevarPreviaA('apIntroPreviewResena');
+		ctx.llevarPreviaA('apIntroPreviewMapa');
+		assert.doesNotThrow(() => ctx.llevarPreviaA('noExiste'));
+		assert.equal(c.scrollTop, 50);
+	});
+
+	test('no usa scrollIntoView: arrastraría la página y el formulario saltaría', () => {
+		const src = leer('bienvenida.js');
+		const fn = src.match(/function llevarPreviaA\(destino\) \{[\s\S]*?\n\}/)[0];
+		assert.doesNotMatch(fn, /scrollIntoView/);
+	});
+
+	test('llevarPreviaAlCampo toma el destino de la sección que contiene al campo', () => {
+		const { ctx, c } = caja(276, [['apIntroPreviewSocial', 400, 40]]);
+		const campo = { closest: sel => (sel === '[data-previa]' ? { dataset: { previa: 'apIntroPreviewSocial' } } : null) };
+		ctx.llevarPreviaAlCampo({ target: campo });
+		assert.ok(c.scrollTop > 0);
+		assert.doesNotThrow(() => ctx.llevarPreviaAlCampo({ target: { closest: () => null } }));
+		assert.doesNotThrow(() => ctx.llevarPreviaAlCampo({}));
+	});
+});

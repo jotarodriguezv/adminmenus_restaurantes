@@ -1533,3 +1533,21 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 /* Punto de «tiene cambios sin guardar» en una ficha de Ajustes. */
 .aj-sin-guardar{display:inline-block;width:8px;height:8px;margin-left:8px;border-radius:50%;background:var(--warn);vertical-align:middle;}
 .aj-sin-guardar[hidden]{display:none;}
+
+/* ── BIENVENIDA: estado del interruptor y vista previa fija (BV4, BV5) ── */
+.bienvenida-interruptor{display:flex;align-items:center;gap:10px;}
+.bienvenida-estado{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--success);}
+.bienvenida-estado.apagada{color:var(--text-muted);}
+.bienvenida-nota-apagada{margin:-3px 0 12px;padding:10px 12px;border-left:3px solid var(--warn);border-radius:0 10px 10px 0;background:var(--warn-dim);color:var(--text-muted);font-size:12px;line-height:1.55;}
+.bienvenida-nota-apagada[hidden]{display:none;}
+.bienvenida-nota-apagada strong{color:var(--text);}
+.bienvenida-preview-fijo{position:relative;}
+.bienvenida-preview-apagada .bienvenida-preview{opacity:.45;filter:grayscale(.65);}
+.bienvenida-preview-apagada::after{content:'Apagada · no se muestra';position:absolute;top:22px;right:12px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--border2);color:var(--text-muted);font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;pointer-events:none;}
+/* Fija solo si hay altura de sobra: en un móvil apaisado o una ventana baja
+   taparía el formulario. Debajo de la barra superior (que también es fija), y
+   con tope de altura: con todos los elementos encendidos la bienvenida mide más
+   que la pantalla, y se desplaza por dentro en vez de comerse el formulario. */
+@media (min-height:640px){
+.bienvenida-preview-fijo{position:sticky;top:64px;z-index:5;max-height:34vh;overflow-y:auto;background:var(--panel);}
+}
