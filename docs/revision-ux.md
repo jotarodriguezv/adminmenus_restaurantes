@@ -3359,7 +3359,7 @@ antes de arreglarlos. Tampoco se probó en escritorio ni se guardó nada.
 
 ## BV1 · Un formulario de ~60 controles en una sola tarjeta · **Media**
 
-- [ ] Pendiente · se resuelve junto con el traslado a Ajustes
+- [~] Parcial · 2026-10-02 · PR #339 y #340: ya está en su propia sección y deja de ir detrás de Logo, Colores y Tipografía. Los ~60 controles siguen siendo muchos; si se quiere reducirlos, es un cambio de diseño aparte
 
 Fijos hay unos 35 (31 `input` y 4 `select`) repartidos en ocho secciones
 plegables, y «Textos y tipografía» genera otros ~25 (cinco textos × color,
@@ -3382,7 +3382,7 @@ dos en la misma pestaña.
 
 ## BV3 · Se guarda con «Guardar apariencia» · **Media**
 
-- [ ] Pendiente · lo resuelve el traslado (botón propio)
+- [x] Hecho · 2026-10-02 · PR #340 (la bienvenida se mudó a Ajustes → Bienvenida, con `saveBienvenida` y solo las claves `intro_*`)
 
 Es la razón que dio el equipo para mudarla, y el código la confirma:
 `saveAspecto()` escribe en una sola petición los colores y la tipografía de la
@@ -3462,7 +3462,7 @@ Pista si se confirma: no reservar la altura del mapa hasta que el iframe cargue
 
 ## BV10 · Lo que el traslado a Ajustes obliga a decidir · **Nota**
 
-- [ ] Pendiente · sin decidir
+- [~] En marcha · 2026-10-02 · acordadas las cuatro secciones (Mi negocio, Pedidos, Carta, Bienvenida): PR #339 (las tres primeras) y #340 (Bienvenida, con guardado propio y dos fotos para el aviso de cambios)
 
 Ajustes hoy es un solo scroll (Datos del negocio, Carrito, Buscador, Filtros) y
 un botón «Guardar ajustes». Sumarle ~60 controles lo triplica. Propuesta a
