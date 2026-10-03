@@ -91,16 +91,6 @@
 			</div>
 			
 			<div class="admin-content">
-				<section class="section-card" id="cobranzaEmpresaPanel">
-					<div class="section-title">Contacto para reportar pagos</div>
-					<p class="form-help">Lo verá un restaurante suspendido para avisar que ya pagó.</p>
-					<div class="form-row">
-						<div class="form-group"><label class="form-label" for="cobroNombreEmpresa">Nombre de la empresa</label><input class="form-input" id="cobroNombreEmpresa" maxlength="80" placeholder="VMenús"></div>
-						<div class="form-group"><label class="form-label" for="cobroWhatsapp">WhatsApp de cobros</label><input class="form-input" id="cobroWhatsapp" inputmode="numeric" placeholder="573001234567"></div>
-					</div>
-					<div style="text-align:right"><button type="button" class="btn-save" onclick="guardarContactoCobranza()">Guardar contacto</button></div>
-					<div id="cobroContactoStatus" class="form-status"></div>
-				</section>
 				<!-- Solicitudes de alta (18-19/09/2026): lo primero que se ve al entrar,
 				     porque un lead que espera se enfría. Ver public/bandeja-solicitudes.js. -->
 				<div class="section-card" id="solicitudesPanel">
@@ -197,6 +187,16 @@
 					<div class="resto-filtros" id="adminRestoFiltros"></div>
 					<div id="adminRestoList"><div class="empty-state">Cargando...</div></div>
 				</div>
+				<section class="section-card" id="cobranzaEmpresaPanel">
+					<div class="section-title">Contacto para reportar pagos</div>
+					<p class="form-help">Lo verá un restaurante suspendido para avisar que ya pagó.</p>
+					<div class="form-row">
+						<div class="form-group"><label class="form-label" for="cobroNombreEmpresa">Nombre de la empresa</label><input class="form-input" id="cobroNombreEmpresa" maxlength="80" placeholder="VMenús"></div>
+						<div class="form-group"><label class="form-label" for="cobroWhatsapp">WhatsApp de cobros</label><input class="form-input" id="cobroWhatsapp" inputmode="numeric" placeholder="573001234567"></div>
+					</div>
+					<div style="text-align:right"><button type="button" class="btn-save" onclick="guardarContactoCobranza()">Guardar contacto</button></div>
+					<div id="cobroContactoStatus" class="form-status"></div>
+				</section>
 			</div>
 		</div>
 
