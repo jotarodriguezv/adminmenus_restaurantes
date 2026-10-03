@@ -193,11 +193,53 @@ function aplicarTextoPrevisualizacion(tipo, contenido) {
   if (tipo === 'cta') { el.style.background = datos.color || '#ffffff'; el.style.color = datos.color_texto || '#15100b'; }
 }
 
+// La vista previa fija tiene tope de altura (ver .bienvenida-preview-fijo) y con
+// todos los elementos encendidos la bienvenida mide más: editar las redes con
+// las redes fuera de la ventana sería hacerlo a ciegas otra vez. Al tocar un
+// campo, la vista previa se desplaza SOLA hasta lo que esa sección cambia
+// (data-previa en cada <details>; 'arriba' para el fondo y el recuadro).
+//
+// Mueve el scroll de la propia caja y no usa scrollIntoView: este arrastraría
+// también la página y el formulario saltaría bajo el dedo.
+function llevarPreviaA(destino) {
+  const caja = campoBienvenida('apIntroPreviewFijo');
+  if (!caja) return;
+  if (destino === 'arriba') { caja.scrollTop = 0; return; }
+  const el = campoBienvenida(destino);
+  // Un elemento escondido (reseñas apagadas, sin mapa) no tiene dónde enseñarse.
+  if (!el || el.hidden || !el.offsetParent) return;
+  const c = caja.getBoundingClientRect(), r = el.getBoundingClientRect();
+  if (r.top < c.top + 8 || r.bottom > c.bottom - 8) caja.scrollTop += r.top - c.top - 12;
+}
+
+function llevarPreviaAlCampo(evento) {
+  const destino = evento?.target?.closest?.('[data-previa]')?.dataset?.previa;
+  if (destino) llevarPreviaA(destino);
+}
+
+// Dice si la bienvenida se está mostrando o no (BV4). Antes el interruptor solo
+// tenía un `title`, que en un móvil no se ve, y la vista previa se veía igual
+// apagada que encendida: con los ~60 controles editables parecía que se estaba
+// publicando algo. Apagada, la vista previa se atenúa y una nota dice qué
+// pasa con los clientes. Mira el interruptor, no lo guardado: lo que cuenta es
+// lo que se va a guardar.
+function pintarEstadoDeBienvenida(activa) {
+  const texto = campoBienvenida('apIntroEstado');
+  if (texto) {
+    texto.textContent = activa ? 'Encendida' : 'Apagada';
+    texto.classList.toggle('apagada', !activa);
+  }
+  const nota = campoBienvenida('apIntroNotaApagada');
+  if (nota) nota.hidden = !!activa;
+  campoBienvenida('apIntroPreviewFijo')?.classList.toggle('bienvenida-preview-apagada', !activa);
+}
+
 function actualizarVistaPreviaBienvenida() {
   // Lo del negocio (dirección, mapa, reseñas) se escribe en Ajustes: esta vista lo toma de lo guardado.
   const datos = { ...valoresBienvenida(), ...datosDelNegocioParaLaVista() }; const preview = campoBienvenida('apIntroPreview');
   const overlay = campoBienvenida('apIntroPreviewOverlay'); const content = campoBienvenida('apIntroPreviewContent');
   if (!preview || !overlay || !content) return;
+  pintarEstadoDeBienvenida(!!datos.intro_activo);
   preview.style.backgroundColor = datos.intro_fondo_color; preview.style.backgroundImage = datos.intro_fondo_url ? `url("${datos.intro_fondo_url}")` : 'none';
   preview.style.backgroundSize = datos.intro_imagen_ajuste === 'contain' ? 'contain' : datos.intro_imagen_ajuste === 'center' ? 'auto' : 'cover';
   preview.style.backgroundPosition = 'center'; preview.style.backgroundRepeat = datos.intro_imagen_ajuste === 'center' ? 'no-repeat' : 'no-repeat';

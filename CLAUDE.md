@@ -120,6 +120,19 @@ corregir el documento en la misma tarea.
   bienvenida enseña (redes, dirección) **sin repintar su formulario**, que
   tiraría lo que se esté escribiendo. Los ids de sus campos siguen siendo
   `apIntro*`.
+
+  **El interruptor dice su estado y la vista previa se queda a la vista**
+  (BV4 y BV5, 03/10/2026). «Encendida»/«Apagada» va escrito al lado
+  (`pintarEstadoDeBienvenida`); apagada, sale una nota y la vista previa se
+  atenúa. La vista previa va en `.bienvenida-preview-fijo`, que se fija
+  (`position: sticky; top: 64px`, bajo la barra superior de 52 px) **solo con
+  `min-height: 640px`** y con tope de altura (34vh): con todo encendido la
+  bienvenida mide ~590 px y se desplaza por dentro. Como lo que se está
+  editando puede quedar fuera de esa ventana, cada `<details>` lleva
+  `data-previa` con el elemento de la vista previa que cambia, y
+  `llevarPreviaAlCampo` (en `onfocusin` del panel) desplaza **la caja**, no la
+  página: con `scrollIntoView` el formulario saltaría bajo el dedo. Una sección
+  nueva necesita su `data-previa`; una prueba cuenta las ocho.
 - `public/imprimir.js` — «🖨 Imprimir carta», en Inicio: una vista previa en A4
   para imprimir o guardar en PDF con el cuadro de impresión del navegador. Sin
   librería de PDF. Si el navegador bloquea la pestaña nueva, se abre dentro del
