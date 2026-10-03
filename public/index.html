@@ -1471,9 +1471,9 @@
 					     apagada por defecto, visto en una carta de otra empresa. Se
 					     antepone a la carta, sin cambiar el tema de nav ni su diseño.
 					     No es "Portada" (la imagen de cabecera de Explorar, arriba en
-					     Superadmin) ni "Mostrar mensaje de bienvenida" (el de Modelo de
-					     página): son tres cosas distintas, con nombres a propósito
-					     distintos. El teléfono y las redes que enseña son los mismos de
+					     Superadmin) ni "Mostrar el encabezado de la carta" (el de Modelo de
+					     página, que se llamó «mensaje de bienvenida» hasta el 03/10/2026):
+					     son tres cosas distintas, con nombres a propósito distintos. El teléfono y las redes que enseña son los mismos de
 					     "Redes sociales", en Ajustes — no hay un teléfono aparte. -->
 					<div class="section-card bienvenida-config">
 						<div class="section-header">
@@ -1749,11 +1749,15 @@
 							<label for="apSubtitulo" class="form-label">Subtítulo del encabezado <span style="color:var(--text-dim)">(frase debajo del nombre)</span></label>
 							<input type="text" class="form-input" id="apSubtitulo" placeholder="Carta Digital · 2026">
 						</div>
-						<!-- Solo sidebar y carrito lo leen (A4); en topnav sale siempre. -->
+						<!-- Solo sidebar lo lee (A4); en topnav sale siempre. Se llamó «Mostrar
+						     mensaje de bienvenida» hasta el 03/10/2026 (BV2): con la pantalla de
+						     bienvenida de verdad en Ajustes, dos cosas distintas se llamaban
+						     igual. La clave guardada sigue siendo 'mostrar_hero'. -->
 						<div class="form-group" id="apHeroFila" style="margin-top:14px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-							<label for="apMostrarHero" class="form-label" style="margin-bottom:0">Mostrar mensaje de bienvenida <span style="color:var(--text-dim)">(logo, nombre y subtítulo bajo la cabecera)</span></label>
+							<label for="apMostrarHero" class="form-label" style="margin-bottom:0">Mostrar el encabezado de la carta <span style="color:var(--text-dim)">(logo, nombre y subtítulo, arriba de los platos)</span></label>
 							<label class="toggle"><input type="checkbox" id="apMostrarHero"><span class="toggle-slider"></span></label>
 						</div>
+						<p class="modelo-pagina-ayuda" id="apPunteroBienvenida" style="margin:14px 0 0">¿Buscas la pantalla que sale <strong>antes</strong> de la carta? Ahora está en <a href="#" onclick="irALaBienvenida(); return false;">Ajustes → Bienvenida</a>.</p>
 					</div>
 
 					<!-- ── AÑADIR UNA FUENTE NUEVA ──────────────────────────
@@ -8148,7 +8152,7 @@ function renderApariencia() {
   document.getElementById('apZonaHoraria').value = at.zona_horaria || 'America/Bogota';
   renderUrlPublicaPreview();
 
-  // Tipografía, navegación, estilo, subtítulo y el mensaje de bienvenida
+  // Tipografía, navegación, estilo, subtítulo y el encabezado de la carta
   // viven en la pestaña Apariencia (del restaurante). Ver public/aspecto.js.
   //
   // 'apNavModelo' SÍ se sincroniza aquí, sin pintar nada: renderPlanResumen()

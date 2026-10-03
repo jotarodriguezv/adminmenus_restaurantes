@@ -133,6 +133,16 @@ corregir el documento en la misma tarea.
   `llevarPreviaAlCampo` (en `onfocusin` del panel) desplaza **la caja**, no la
   página: con `scrollIntoView` el formulario saltaría bajo el dedo. Una sección
   nueva necesita su `data-previa`; una prueba cuenta las ocho.
+
+  **No confundir tres cosas que suenan igual** (BV2, 03/10/2026): la **pantalla
+  de bienvenida** (`intro_*`, Ajustes → Bienvenida, sale antes de la carta); el
+  **encabezado de la carta** —«Mostrar el encabezado de la carta» en Apariencia,
+  clave `mostrar_hero`, que solo Sidebar lee y en Topnav sale siempre—, que
+  hasta ese día se llamaba «mensaje de bienvenida» en el panel; y la **portada**
+  de Explorar (`portada_*`). La clave `mostrar_hero` no se renombró: habría
+  tocado la carta, el servidor y los datos guardados. Apariencia lleva un
+  aviso con enlace (`irALaBienvenida`) para quien busque allí la pantalla que
+  se mudó.
 - `public/imprimir.js` — «🖨 Imprimir carta», en Inicio: una vista previa en A4
   para imprimir o guardar en PDF con el cuadro de impresión del navegador. Sin
   librería de PDF. Si el navegador bloquea la pestaña nueva, se abre dentro del

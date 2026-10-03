@@ -52,7 +52,7 @@ Al iniciar sesión ves varias pestañas. El orden y lo que hace cada una:
 | **Productos** | Agregar, editar y ordenar los platos de tu carta. |
 | **Categorías** | Agrupar tus platos (Entradas, Postres, Bebidas...) y su orden. |
 | **Ajustes** | En cuatro secciones: **Mi negocio** (WhatsApp, dirección, horario, redes), **Pedidos** (carrito, métodos de pago, adicionales), **Carta** (buscador y filtros) y **Bienvenida** (la pantalla que sale antes de la carta; se guarda con su propio botón). |
-| **Apariencia** | Logo, colores, tipografía, fondo y el mensaje de bienvenida bajo la cabecera. |
+| **Apariencia** | Logo, colores, tipografía, fondo y el encabezado de la carta (logo, nombre y subtítulo arriba de los platos). |
 | **Destacados** | Promociones o avisos con imagen que aparecen al abrir la carta. |
 | **Pantalla TV** | Si tu plan la incluye: una vista pensada para dejar abierta en un televisor del local. |
 | **QR** | El código QR que lleva directo a tu carta. |
@@ -217,7 +217,7 @@ Desde esta pestaña controlas cómo se ve tu carta:
 - Tipografía de títulos y de cuerpo.
 - Fondo (imagen, color e intensidad).
 - Estilo de la carta (según el modelo contratado).
-- Mensaje de bienvenida / subtítulo.
+- Encabezado de la carta (logo, nombre y subtítulo, arriba de los platos).
 - Dirección del local.
 - **La pantalla de bienvenida**, la que sale antes de la carta: sus textos,
   colores y fondo, y qué lleva —redes (Instagram, Facebook y TikTok), la

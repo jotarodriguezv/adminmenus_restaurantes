@@ -95,7 +95,7 @@ con los dedos, en el despliegue de verdad, que es lo que ninguna prueba hace.
 
 - [ ] Cambiar un color **sin guardar**, subir una imagen de fondo o de logo: el color cambiado **sigue ahí**. [A1 + A2 · #80]
 - [ ] Salir de Apariencia con cambios sin guardar sigue avisando («Seguir editando» / «Salir sin guardar»). [A1 + A2 · #80]
-- [ ] Cambiar el modelo de página: la **Portada** solo aparece con Explorar; **Mostrar mensaje de bienvenida**, solo con Sidebar y Carrito; **Filtros y etiquetas**, siempre. [A4 · #118]
+- [ ] Cambiar el modelo de página: la **Portada** solo aparece con Explorar; **Mostrar el encabezado de la carta** (antes «mensaje de bienvenida»), solo con Sidebar y Carrito; **Filtros y etiquetas**, siempre. [A4 · #118]
 - [ ] Los avisos de la dirección de la carta no se contradicen, y la dirección es un enlace que abre la carta para comprobarla. [A5 · #107]
 
 ## 7. Toppings (desde el 16/09/2026, dentro de Ajustes)

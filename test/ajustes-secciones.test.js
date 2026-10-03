@@ -224,3 +224,65 @@ describe('Ajustes · los enlaces a un campo abren su sección', () => {
 		assert.match(html, /if \(tab === 'ajustes'\) \{ ajustesRecordarSeccion\(\); renderAjustes\(\); renderBienvenidaEnAjustes\(\); \}/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('Apariencia · «Mostrar el encabezado de la carta» (BV2, 03/10/2026)', () => {
+	// Se llamaba «Mostrar mensaje de bienvenida» y, con la pantalla de
+	// bienvenida de verdad en Ajustes, dos cosas distintas se llamaban igual.
+	const html = leer('index.html');
+	const apariencia = html.slice(html.indexOf('<div id="tabAspecto"'), html.indexOf('<div id="tabQr"'));
+
+	test('el interruptor se llama por lo que es y ya no dice «bienvenida»', () => {
+		const etiqueta = apariencia.match(/<label for="apMostrarHero"[^>]*>([\s\S]*?)<\/label>/)[1];
+		assert.match(etiqueta, /Mostrar el encabezado de la carta/);
+		assert.match(etiqueta, /logo, nombre y subtítulo/);
+		assert.doesNotMatch(etiqueta, /bienvenida/i);
+	});
+
+	test('el campo hermano habla de «encabezado», que es de lo que habla ahora el interruptor', () => {
+		assert.match(apariencia, /Subtítulo del encabezado/);
+	});
+
+	test('la clave guardada no cambia: renombrar el dato sería tocar la carta y el servidor', () => {
+		assert.match(apariencia, /id="apMostrarHero"/);
+		assert.match(leer('aspecto.js'), /mostrar_hero: document\.getElementById\('apMostrarHero'\)\.checked/);
+	});
+
+	test('Apariencia dice dónde está la pantalla de bienvenida, y el aviso se ve con cualquier modelo', () => {
+		const puntero = apariencia.match(/<p[^>]*id="apPunteroBienvenida"[^>]*>[\s\S]*?<\/p>/)[0];
+		assert.match(puntero, /Ajustes → Bienvenida/);
+		assert.match(puntero, /onclick="irALaBienvenida\(\)/);
+		// Fuera de apHeroFila, que se esconde con topnav: allí es donde más hace falta.
+		const fila = apariencia.match(/<div class="form-group" id="apHeroFila"[\s\S]*?<\/div>/)[0];
+		assert.ok(!fila.includes('apPunteroBienvenida'));
+	});
+
+	test('el enlace tiene el color de los demás: el azul del navegador no se lee sobre el fondo oscuro', () => {
+		assert.match(leer('panel.css'), /\.modelo-pagina-ayuda a\{[^}]*color:var\(--accent\)/);
+	});
+
+	test('en la pantalla no queda ningún «mensaje de bienvenida» de cara al restaurante', () => {
+		const visible = html.replace(/<!--[\s\S]*?-->/g, '');
+		assert.doesNotMatch(visible, /mensaje de bienvenida/i);
+	});
+
+	test('irALaBienvenida abre Ajustes y la ficha Bienvenida, y solo si llegó a Ajustes', () => {
+		const ajustes = leer('ajustes.js');
+		const cuerpo = ajustes.match(/function irALaBienvenida\(\) \{[\s\S]*?\r?\n\}/)[0];
+		const ctxDe = (pestana) => {
+			const llamadas = [];
+			const ctx = vm.createContext({
+				switchTab: (t) => llamadas.push(['switchTab', t]),
+				ajustesCambiarSeccion: (s) => llamadas.push(['seccion', s]),
+				document: { getElementById: (id) => ({ id }) },
+				pestanaActual: pestana,
+			});
+			vm.runInContext(cuerpo, ctx);
+			ctx.irALaBienvenida();
+			return llamadas;
+		};
+		assert.deepEqual(ctxDe('ajustes'), [['switchTab', 'ajustes'], ['seccion', 'bienvenida']]);
+		// Con cambios sin guardar, switchTab pregunta y no cambia de pestaña.
+		assert.deepEqual(ctxDe('aspecto'), [['switchTab', 'ajustes']]);
+	});
+});

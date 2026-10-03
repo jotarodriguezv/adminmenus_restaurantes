@@ -875,7 +875,8 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // pantalla de bienvenida antes de la carta (opcional, apagada por defecto),
 // visto en una carta de otra empresa. NO es 'portada' —ese nombre ya es la
 // imagen de encabezado del modelo Explorar (portada_url/portada_activa)—, ni
-// 'mostrar_hero' —ese es el mensaje de bienvenida dentro de sidebar/topnav—.
+// 'mostrar_hero' —ese es el encabezado de la carta (logo, nombre y subtítulo),
+// que hasta el 03/10/2026 se llamaba «mensaje de bienvenida» en el panel—.
 // Se llama 'intro' a propósito para no chocar con ninguno de los dos.
 const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'whatsapp_negocio', 'whatsapp_boton', 'mapa_url', 'resena_url', 'horario_atencion', 'correo', 'metodos_pago', 'qr', 'orden_productos', 'tv', 'tv_pantallas',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',

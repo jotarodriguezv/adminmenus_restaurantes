@@ -7872,7 +7872,7 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 			assert.equal(conModelo(nav).apPortadaCard.style.display, 'none', nav);
 	});
 
-	test('el mensaje de bienvenida solo con sidebar', () => {
+	test('el encabezado de la carta (antes «mensaje de bienvenida») solo con sidebar', () => {
 		// Y con Carrito hasta que se retiró el 17/09/2026.
 		assert.equal(conModelo('sidebar').apHeroFila.style.display, 'flex');
 		for (const nav of ['topnav', 'explorar', 'video', 'vertical'])
