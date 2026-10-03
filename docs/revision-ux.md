@@ -3417,7 +3417,7 @@ entera del teléfono, así que no se ve si algo queda abajo o se corta.
 
 ## BV6 · El estilo de «Dirección» también manda sobre el horario y el correo · **Baja**
 
-- [x] Hecho · 2026-10-03 · PR del pulido de la bienvenida (el bloque se llama «Dirección, horario y correo» y la sección «Horario y correo» dice dónde se cambia su estilo)
+- [x] Hecho · 2026-10-03 · PR #344 (el bloque se llama «Dirección, horario y correo» y la sección «Horario y correo» dice dónde se cambia su estilo)
 
 En `aplicarTextoPrevisualizacion`, el horario y el correo se pintan con el
 estilo de la dirección («son la misma clase de línea»). Está bien como
@@ -3436,7 +3436,7 @@ panel guarda sin decir nada. Es la pantalla que ve **todo el que escanea el QR**
 
 ## BV8 · Detalles de acabado · **Baja**
 
-- [x] Hecho · 2026-10-03 · PR del pulido de la bienvenida (los cuatro puntos; ver abajo)
+- [x] Hecho · 2026-10-03 · PR #344 (los cuatro puntos; ver abajo)
 
 - Dos colores (fondo y superposición) llevan además un campo hexadecimal; los
   demás (recuadro, borde, redes, botón del mapa) solo el selector.
