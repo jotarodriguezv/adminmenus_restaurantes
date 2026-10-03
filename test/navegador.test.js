@@ -9904,6 +9904,10 @@ describe('la tarjeta de la IA se repinta al subir un video', () => {
 	// video que elegiste»— hasta cerrar y reabrir la ficha. Reabierta salía bien
 	// («Regenerar con IA», con su nota): solo faltaba repintarla.
 	const fuente = codigoDelPanel();
+	// Las expresiones de abajo cortan una función por su llave de cierre, y con
+	// core.autocrlf=true una copia limpia en Windows trae los archivos en CRLF:
+	// entre la llave y el salto hay un \r. Por eso \r?\n y no \n a secas (la
+	// prueba fallaba solo en copias limpias, y en CI pasaba).
 
 	test('al empezar la subida: el archivo deja de estar «elegido» y se repinta', () => {
 		const subir = fuente.match(/async function confirmarSubidaVideo\(\) \{[\s\S]*?\n\}/)[0];
@@ -9914,7 +9918,7 @@ describe('la tarjeta de la IA se repinta al subir un video', () => {
 	});
 
 	test('al terminar la conversión se repinta: «Regenerar» y encendida', () => {
-		const vigilar = fuente.match(/function vigilarVideo\(trabajoId, productoId\) \{[\s\S]*?\n\}\n/)[0];
+		const vigilar = fuente.match(/function vigilarVideo\(trabajoId, productoId\) \{[\s\S]*?\r?\n\}\r?\n/)[0];
 		const permitir = vigilar.match(/const permitirSubir = \(\) => \{[\s\S]*?\n\t\};/)[0];
 		assert.match(permitir, /refrescarCupoIA\(\)/);
 		// Y permitirSubir corre en los dos finales de la conversión, no solo en el bueno.
@@ -9922,7 +9926,7 @@ describe('la tarjeta de la IA se repinta al subir un video', () => {
 	});
 
 	test('solo se repinta si la ficha sigue siendo la de ese plato', () => {
-		const vigilar = fuente.match(/function vigilarVideo\(trabajoId, productoId\) \{[\s\S]*?\n\}\n/)[0];
+		const vigilar = fuente.match(/function vigilarVideo\(trabajoId, productoId\) \{[\s\S]*?\r?\n\}\r?\n/)[0];
 		const permitir = vigilar.match(/const permitirSubir = \(\) => \{[\s\S]*?\n\t\};/)[0];
 		assert.ok(permitir.indexOf('if (!enPantalla()) return;') < permitir.indexOf('refrescarCupoIA()'),
 			'si el usuario se fue a otro plato, su tarjeta no es la nuestra');
