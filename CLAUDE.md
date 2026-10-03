@@ -143,6 +143,19 @@ corregir el documento en la misma tarea.
   tocado la carta, el servidor y los datos guardados. Apariencia lleva un
   aviso con enlace (`irALaBienvenida`) para quien busque allí la pantalla que
   se mudó.
+
+  **Avisos de legibilidad** (BV7, 03/10/2026). `avisosDeLegibilidadBienvenida`
+  compara, con la misma cuenta que la paleta de la carta (`contrasteColores`, en
+  `paletas.js`), cada texto contra el fondo del recuadro, el texto del botón
+  contra su botón, y los iconos y el botón de ubicación contra sus fondos. **Solo
+  avisa, no impide guardar** (quien lo eligió a propósito puede dejarlo, y el
+  panel no ve lo que hay detrás de una imagen de fondo); marca con ⚠ las
+  secciones (`data-aviso`) y al guardar cuenta los avisos que quedan. Solo mira
+  lo que **saldría** en la carta: un texto vacío o una red sin enlace no avisan.
+  Mínimos: 4,5 para texto normal, 3 para texto grande; **los iconos de redes,
+  2,5 y no 3**, porque los colores de fábrica (blanco sobre `#ef7a00`) miden 2,8
+  y con 3 el panel avisaría de lo que él mismo ofrece. Si se oscurece ese
+  naranja, `MINIMO_ICONO_BIENVENIDA` vuelve a 3.
 - `public/imprimir.js` — «🖨 Imprimir carta», en Inicio: una vista previa en A4
   para imprimir o guardar en PDF con el cuadro de impresión del navegador. Sin
   librería de PDF. Si el navegador bloquea la pestaña nueva, se abre dentro del
