@@ -97,6 +97,17 @@ corregir el documento en la misma tarea.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.
 - `public/ajustes.js` — la pestaña Ajustes: lo que el restaurante configura de
   su carta. Hoy, el carrito, las redes sociales y los filtros y etiquetas.
+  Desde el 02/10/2026 se divide en **secciones que se ven de una en una**
+  —Mi negocio, Pedidos y Carta— con una fila de fichas arriba
+  (`ajustesCambiarSeccion`). **Es solo presentación**: los paneles se esconden
+  con `hidden` sin vaciarse, así que sigue habiendo un formulario y un solo
+  «Guardar ajustes», y cambiar de sección no pierde nada. Un campo al que
+  apunta un enlace (`irADatosDelNegocio`, `irAlWhatsappDelNegocio`) abre antes
+  su sección con `ajustesMostrarSeccionDe`; **un enlace nuevo a un campo de
+  Ajustes tiene que hacer lo mismo**, o enfocará algo escondido. Cuando la
+  bienvenida se mude aquí con su propio guardado (BV3, BV10 en
+  `docs/revision-ux.md`) esto cambia: cada sección guardará lo suyo y habrá que
+  preguntar al salir de una con cambios.
 - `public/imprimir.js` — «🖨 Imprimir carta», en Inicio: una vista previa en A4
   para imprimir o guardar en PDF con el cuadro de impresión del navegador. Sin
   librería de PDF. Si el navegador bloquea la pestaña nueva, se abre dentro del
