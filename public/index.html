@@ -1145,6 +1145,17 @@
 				     Apariencia; ahí irán también los filtros y el interruptor del
 				     carrito (CLAUDE.md, «Decisión: abrir partes de Apariencia»). -->
 				<div id="tabAjustes" class="hidden">
+					<!-- Secciones internas, desde el 02/10/2026. Ajustes era un solo scroll y
+					     iba a recibir la pantalla de bienvenida. Es solo de presentación: los
+					     campos de las tres secciones siguen siendo UN formulario y «Guardar
+					     ajustes» sigue guardándolos todos, también los de la sección que no
+					     está a la vista. Ver ajustesCambiarSeccion() en ajustes.js. -->
+					<div class="aj-secciones" role="tablist" aria-label="Secciones de Ajustes">
+						<button type="button" class="aj-seccion-tab active" id="ajTabNegocio" role="tab" aria-selected="true" aria-controls="ajSeccionNegocio" onclick="ajustesCambiarSeccion('negocio')">Mi negocio</button>
+						<button type="button" class="aj-seccion-tab" id="ajTabPedidos" role="tab" aria-selected="false" aria-controls="ajSeccionPedidos" tabindex="-1" onclick="ajustesCambiarSeccion('pedidos')">Pedidos</button>
+						<button type="button" class="aj-seccion-tab" id="ajTabCarta" role="tab" aria-selected="false" aria-controls="ajSeccionCarta" tabindex="-1" onclick="ajustesCambiarSeccion('carta')">Carta</button>
+					</div>
+					<div id="ajSeccionNegocio" data-aj-seccion="negocio" role="tabpanel" aria-labelledby="ajTabNegocio">
 					<!-- El carrito, desde el 15/09/2026. Solo se ofrece donde la carta sabe
 					     pintarlo y el plan lo incluye; en el resto, la tarjeta explica por qué no. -->
 					<!-- DATOS DEL NEGOCIO: lo que se dice una vez y varias funciones de la
@@ -1232,6 +1243,9 @@
 						</div>
 					</div>
 
+					</div><!-- /ajSeccionNegocio -->
+
+					<div id="ajSeccionPedidos" class="hidden" data-aj-seccion="pedidos" role="tabpanel" aria-labelledby="ajTabPedidos">
 					<div class="section-card" id="ajCarritoCard">
 						<div class="section-header">
 							<div class="section-title">Carrito de compras</div>
@@ -1396,6 +1410,9 @@
 						</div>
 					</div>
 					</div>
+					</div><!-- /ajSeccionPedidos -->
+
+					<div id="ajSeccionCarta" class="hidden" data-aj-seccion="carta" role="tabpanel" aria-labelledby="ajTabCarta">
 					<!-- El buscador lo pintan los cinco modelos desde vmenus-app#36
 					     (core/buscador.js). Va antes que los filtros porque es lo primero
 					     que hace quien ya sabe qué plato quiere. -->
@@ -1444,6 +1461,8 @@
 						</div>
 						<p id="ajFiltrosNota" style="font-size:13px;margin:14px 0 0;line-height:1.5"></p>
 					</div>
+
+					</div><!-- /ajSeccionCarta -->
 
 					<div style="text-align:right;">
 						<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveAjustes()">Guardar ajustes</button>
@@ -3403,7 +3422,7 @@ function switchTab(tab, btn) {
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
   if (tab === 'ordenes' && !ordenesCargadas) cargarOrdenes();
   if (tab === 'reservas') cargarReservas();
-  if (tab === 'ajustes') renderAjustes();
+  if (tab === 'ajustes') { ajustesRecordarSeccion(); renderAjustes(); }
   if (tab === 'aspecto') renderAspecto();
   if (tab === 'inicio') renderInicio();
   fijarFotoDePestana(tab);

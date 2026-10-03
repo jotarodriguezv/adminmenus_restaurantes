@@ -8138,7 +8138,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.doesNotMatch(boton, /display:\s*none/, 'no puede nacer escondida: es del restaurante');
 		const cambiar = src.match(/function switchTab\(tab, btn\) \{[\s\S]*?\n\}/)[0];
 		assert.match(cambiar, /'tabAjustes'/);
-		assert.match(cambiar, /if \(tab === 'ajustes'\) renderAjustes\(\);/);
+		assert.match(cambiar, /if \(tab === 'ajustes'\) \{ ajustesRecordarSeccion\(\); renderAjustes\(\); \}/);
 		assert.doesNotMatch(cambiar.split('\n')[1], /ajustes/, 'no se corta para el restaurante como Apariencia');
 	});
 
@@ -8678,6 +8678,7 @@ describe('cambiar de pestaña con cambios sin guardar pregunta antes', () => {
 			},
 			openModal: id => abiertos.push(id), closeModal: () => {},
 			renderAjustes: () => { form.valor = 'guardado'; pintadas.push('ajustes'); },
+			ajustesRecordarSeccion() {},
 			recolectarAjustes: () => ({ valor: form.valor }),
 			renderInicio: () => pintadas.push('inicio'),
 			renderToppings() {}, renderTV() {}, renderImportar() {},

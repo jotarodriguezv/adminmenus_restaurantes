@@ -103,6 +103,7 @@ function irADatosDelNegocio(idCampo) {
   if (pestanaActual !== 'ajustes') return;
   const campo = document.getElementById(idCampo);
   if (!campo) return;
+  ajustesMostrarSeccionDe(campo);
   campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
   campo.focus({ preventScroll: true });
 }
@@ -271,6 +272,8 @@ function recolectarDatosNegocio() {
 // «Cámbialo en Datos del negocio»: lleva a la tarjeta y deja el cursor en el campo.
 function irAlWhatsappDelNegocio() {
   const campo = document.getElementById('ajNegocioWhatsapp');
+  // Se llama desde Pedidos y el número vive en Mi negocio.
+  ajustesMostrarSeccionDe(campo);
   campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
   campo.focus({ preventScroll: true });
 }

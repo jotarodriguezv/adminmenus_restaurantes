@@ -40,6 +40,56 @@ const REDES_CAMPOS = {
   social_tiktok:    'ajSocialTiktok',
 };
 
+// ── SECCIONES ─────────────────────────────────────────────────
+// Ajustes se divide en secciones que se ven de una en una (Mi negocio, Pedidos,
+// Carta), por lo largo que se hacía el scroll y por lo que iba a sumarle la
+// bienvenida. Es SOLO presentación: los paneles se esconden con la clase
+// 'hidden', no se vacían, así que sus campos siguen en el documento, siguen
+// teniendo lo escrito y 'saveAjustes' los recoge todos. Por eso cambiar de
+// sección no puede perder nada ni necesita preguntar por cambios sin guardar.
+//
+// Si un día cada sección guarda por su cuenta, eso cambia: ahí sí habrá que
+// preguntar al salir de una con cambios, como hace la cartelera.
+const SECCIONES_AJUSTES = ['negocio', 'pedidos', 'carta'];
+let seccionAjustesActual = 'negocio';
+let restauranteDeLaSeccion = null;
+
+function ajustesCambiarSeccion(nombre) {
+  if (!SECCIONES_AJUSTES.includes(nombre)) return;
+  seccionAjustesActual = nombre;
+  for (const seccion of SECCIONES_AJUSTES) {
+    const activa = seccion === nombre;
+    const mayuscula = seccion[0].toUpperCase() + seccion.slice(1);
+    document.getElementById(`ajSeccion${mayuscula}`)?.classList.toggle('hidden', !activa);
+    const tab = document.getElementById(`ajTab${mayuscula}`);
+    if (!tab) continue;
+    tab.classList.toggle('active', activa);
+    tab.setAttribute('aria-selected', String(activa));
+    tab.tabIndex = activa ? 0 : -1;
+    // En un móvil la fila hace scroll: si la elegida queda a medias, se trae.
+    if (activa) tab.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }
+}
+
+// Para los enlaces que apuntan a un campo concreto («Cambiarlo en Datos del
+// negocio», «Pon aquí el número…»): un campo en una sección escondida no se
+// puede enfocar ni traer a la vista, así que primero se abre la suya.
+function ajustesMostrarSeccionDe(campo) {
+  const seccion = campo?.closest?.('[data-aj-seccion]')?.dataset.ajSeccion;
+  if (seccion && seccion !== seccionAjustesActual) ajustesCambiarSeccion(seccion);
+}
+
+// Al cambiar de restaurante se vuelve a la primera. Sin esto se abría en la
+// sección que se había dejado en OTRO restaurante, como pasaba con la
+// cartelera (TV4). Dentro del mismo restaurante se respeta la que se dejó.
+function ajustesRecordarSeccion() {
+  const id = state.restaurante?.id ?? null;
+  if (id !== restauranteDeLaSeccion) {
+    restauranteDeLaSeccion = id;
+    ajustesCambiarSeccion('negocio');
+  }
+}
+
 function renderAjustes() {
   const at = state.restaurante?.atributos || {};
   // Antes que los pedidos: la tarjeta del carrito lee de aquí el número.
