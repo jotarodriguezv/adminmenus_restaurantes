@@ -322,9 +322,10 @@ function pintarAvisosDeLegibilidad(avisos) {
   document.querySelectorAll?.('#ajSeccionBienvenida [data-aviso]').forEach(d => d.classList.toggle('con-aviso', con.has(d.dataset.aviso)));
 }
 
-// La vista previa fija tiene tope de altura (ver .bienvenida-preview-fijo) y con
-// todos los elementos encendidos la bienvenida mide más: editar las redes con
-// las redes fuera de la ventana sería hacerlo a ciegas otra vez. Al tocar un
+// En pantalla ancha la vista previa va en su columna, fija y con tope de altura
+// (ver .bienvenida-columnas), y con todos los elementos encendidos la bienvenida
+// mide más que esa ventana: editar las redes con las redes fuera de ella sería
+// hacerlo a ciegas. (En un móvil no hay tope ni caja que desplazar, y esto no hace nada.) Al tocar un
 // campo, la vista previa se desplaza SOLA hasta lo que esa sección cambia
 // (data-previa en cada <details>; 'arriba' para el fondo y el recuadro).
 //
