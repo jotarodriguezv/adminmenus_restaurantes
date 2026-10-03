@@ -1037,6 +1037,8 @@ Las pruebas corren en GitHub Actions en cada push a `main` y en cada PR, con
 Node 22 — la misma versión que la imagen de producción (`node:22-alpine`).
 Correrlas antes de dar una tarea por terminada.
 
+**Las pruebas que cortan una función del código por su llave de cierre** (`/function x\(\) \{[\s\S]*?\n\}\n/`) **tienen que escribir `\r?\n`, no `\n`.** Con `core.autocrlf=true` una copia limpia en Windows trae los archivos en CRLF, hay un `\r` entre la llave y el salto y la expresión da `null`: la prueba revienta con «Cannot read properties of null». En CI (Linux) pasa, y en cuanto una herramienta edita el archivo se normaliza a LF, así que **parecía intermitente y no lo era**. Visto con «la tarjeta de la IA se repinta al subir un video» (arreglado el 03/10/2026).
+
 **En CI solo se clona ESTE repositorio.** Una prueba que lea `../vmenus-app`
 —para comparar algo que vive en los dos, como el mínimo de platos del
 buscador— pasa en local, donde están los dos clones al lado, y **falla en CI**
