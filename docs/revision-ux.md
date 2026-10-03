@@ -3427,12 +3427,22 @@ decisión, pero ningún texto del formulario lo dice: quien cambie el color de
 
 ## BV7 · Nada avisa si el contraste es ilegible · **Media**
 
-- [x] Hecho · 2026-10-03 · PR #343 (avisa sin impedir guardar, con la misma cuenta que la paleta de la carta; los iconos de redes llevan 2,5 y no 3 porque el color de fábrica mide 2,8: pendiente decidir si se oscurece el naranja)
+- [x] Hecho · 2026-10-03 · PR #343 (avisa sin impedir guardar, con la misma cuenta que la paleta de la carta; los iconos de redes llevan 2,5 y no 3 porque el color de fábrica mide 2,8; **decidido el 03/10/2026 dejarlo así**, ver abajo)
 
 El panel tiene `REGLAS_COLOR` para la paleta de la carta, pero en la bienvenida
 no encontré ninguna comprobación equivalente: se puede dejar el texto casi del
 color del recuadro, o el texto del botón sobre un botón del mismo tono, y el
 panel guarda sin decir nada. Es la pantalla que ve **todo el que escanea el QR**.
+
+**Decisión sobre el naranja de los iconos (03/10/2026).** Los colores de fábrica de
+los iconos de redes —blanco sobre `#ef7a00`— miden 2,8, por debajo del 3 de WCAG.
+Se valoró oscurecerlo (por ejemplo `#d96b00`, ~3,5) y volver el mínimo a 3, y el
+usuario decidió **dejarlo como está**: los iconos son grandes (~48 px) y de forma
+reconocible, el naranja es parte de la imagen de VMenus, y cambiarlo habría
+tocado el aspecto de todo restaurante que no personalizó ese color, en el panel
+y en la carta. El mínimo de iconos se queda en 2,5 (`MINIMO_ICONO_BIENVENIDA`).
+**No volver a proponerlo** sin un motivo nuevo; si algún día se oscurece el
+naranja de fábrica en las dos aplicaciones, ahí sí el mínimo vuelve a 3.
 
 ## BV8 · Detalles de acabado · **Baja**
 
@@ -3459,9 +3469,9 @@ panel guarda sin decir nada. Es la pantalla que ve **todo el que escanea el QR**
   enlace cambia de sección dentro de la misma pestaña, y con cambios pendientes
   `switchTab` ni siquiera repinta. Una prueba lo vigila.
 
-## BV9 · ¿Un hueco en blanco donde debería ir el mini mapa? · **Sin confirmar**
+## BV9 · ¿Un hueco en blanco donde debería ir el mini mapa? · **Descartado**
 
-- [ ] Pendiente · mirar en un móvil real
+- [~] Descartado · 2026-10-03 · no es un fallo: el usuario abrió la carta de La Leydi en su celular y el mapa carga entre la dirección y «Ver ubicación». El hueco solo salía en el navegador de pruebas, que no pinta el iframe de Google Maps
 
 En la carta de La Leydi, entre la dirección y «Ver ubicación» hay un hueco de
 unos 145 px. El `<iframe>` del mini mapa existe (`maps.google.com/maps?output=embed`

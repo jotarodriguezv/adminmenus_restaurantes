@@ -155,7 +155,10 @@ corregir el documento en la misma tarea.
   Mínimos: 4,5 para texto normal, 3 para texto grande; **los iconos de redes,
   2,5 y no 3**, porque los colores de fábrica (blanco sobre `#ef7a00`) miden 2,8
   y con 3 el panel avisaría de lo que él mismo ofrece. Si se oscurece ese
-  naranja, `MINIMO_ICONO_BIENVENIDA` vuelve a 3.
+  naranja, `MINIMO_ICONO_BIENVENIDA` vuelve a 3. **Decidido el 03/10/2026: se
+  deja el naranja y el 2,5** (iconos grandes, es del color de la marca y
+  cambiarlo tocaba el aspecto de todos los que no lo personalizaron); ver la
+  decisión en `docs/revision-ux.md`, BV7.
 
   **Dos detalles que no se ven en el código** (BV6 y BV8, 03/10/2026). El
   horario y el correo se pintan con el estilo de texto de la **dirección**
