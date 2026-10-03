@@ -626,3 +626,197 @@ describe('avisos de legibilidad de la bienvenida (BV7)', () => {
 		assert.equal(secciones.some(s => s._clases.has('con-aviso')), false, 'sin avisos no queda ninguna marca');
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('pulido de la bienvenida (BV6 y BV8)', () => {
+	const html = leer('index.html');
+
+	// ── BV6 ──
+	test('BV6: el estilo de la dirección se llama por lo que manda: dirección, horario y correo', () => {
+		const src = leer('bienvenida.js');
+		assert.match(src, /\['direccion', 'Dirección, horario y correo'\]/);
+		assert.doesNotMatch(src, /Dirección opcional/);
+		// Y la sección «Horario y correo» dice dónde se cambia su estilo.
+		const seccion = html.match(/<summary>Horario y correo<\/summary>[\s\S]*?<\/p>/)[0];
+		assert.match(seccion, /mismo estilo que la dirección/);
+		assert.match(seccion, /Textos y tipografía/);
+		assert.match(seccion, /Dirección, horario y correo/);
+	});
+
+	test('BV6: lo que dice la ayuda es lo que hace el código (horario y correo usan el estilo de la dirección)', () => {
+		const src = leer('bienvenida.js');
+		assert.match(src, /const estilo = tipo === 'horario' \|\| tipo === 'correo' \? 'direccion' : tipo;/);
+	});
+
+	// ── BV8: nombre de la sección ──
+	test('BV8: la sección de fondo no se parece a «Imagen de fondo» / «Color de fondo» de la carta', () => {
+		assert.ok(!html.includes('<summary>Fondo e imagen</summary>'));
+		assert.match(html, /<details class="bienvenida-details" open data-previa="arriba"[^>]*><summary>Fondo de la bienvenida<\/summary>/);
+	});
+
+	// ── BV8: restaurar pregunta ──
+	function conRestaurar(respuesta) {
+		const { ctx, $ } = montar();
+		const llamadas = { preguntas: [], renders: [], marcas: 0, toasts: [] };
+		$('apIntroActivo').checked = true;
+		Object.assign(ctx, {
+			preguntar: async (p) => { llamadas.preguntas.push(p); return respuesta; },
+			renderBienvenida: (d) => llamadas.renders.push(d),
+			ajustesMarcarPendientes: () => { llamadas.marcas++; },
+			showToast: (m, t) => llamadas.toasts.push([m, t]),
+		});
+		return { ctx, llamadas };
+	}
+
+	test('BV8: «Restaurar» pregunta antes, con «Cancelar» como salida y en rojo', async () => {
+		const { ctx, llamadas } = conRestaurar(false);
+		await ctx.restaurarBienvenida();
+		assert.equal(llamadas.preguntas.length, 1);
+		const p = llamadas.preguntas[0];
+		assert.equal(p.peligro, true);
+		assert.equal(p.si, 'Restaurar');
+		assert.match(p.texto, /imagen de fondo/);
+		assert.match(p.texto, /«Mi negocio» no se toca/);
+		assert.match(p.nota, /Guardar bienvenida/);
+	});
+
+	test('BV8: si dice que no, no se toca nada', async () => {
+		const { ctx, llamadas } = conRestaurar(false);
+		await ctx.restaurarBienvenida();
+		assert.deepEqual(llamadas.renders, []);
+		assert.equal(llamadas.marcas, 0);
+		assert.deepEqual(llamadas.toasts, []);
+	});
+
+	test('BV8: si dice que sí, restaura conservando el interruptor, y marca pendiente', async () => {
+		const { ctx, llamadas } = conRestaurar(true);
+		await ctx.restaurarBienvenida();
+		assert.equal(llamadas.renders.length, 1);
+		assert.equal(llamadas.renders[0].intro_activo, true, 'el interruptor se queda como estaba');
+		assert.equal(llamadas.renders[0].intro_fondo_color, '#111827');
+		assert.equal(llamadas.marcas, 1, 'repintar por código no dispara los eventos que marcan pendiente');
+		assert.equal(llamadas.toasts.length, 1);
+	});
+
+	test('BV8: el botón sigue llamando a la función, que ahora es asíncrona', () => {
+		assert.match(html, /onclick="restaurarBienvenida\(\)"/);
+		assert.match(leer('bienvenida.js'), /async function restaurarBienvenida\(\)/);
+	});
+
+	// ── BV8: hexadecimal en todos los colores ──
+	test('BV8: el código acepta «#» o no, y solo cuando está completo', () => {
+		const { ctx } = montar();
+		assert.equal(ctx.normalizarHexBienvenida('#C0392B'), '#c0392b');
+		assert.equal(ctx.normalizarHexBienvenida('c0392b'), '#c0392b', 'se copia de una web sin «#»');
+		assert.equal(ctx.normalizarHexBienvenida('  #fff000 '), '#fff000');
+		for (const mal of ['', '#c03', '#c0392', '#c0392bb', 'rojo', '#gggggg', null, undefined])
+			assert.equal(ctx.normalizarHexBienvenida(mal), '', String(mal));
+	});
+
+	// Un DOM de juguete con lo justo: elementos que se pueden crear, mover y escuchar.
+	function dom(colores) {
+		const nodos = [];
+		const el = (tag) => {
+			const n = { tag, value: '', children: [], escuchas: {}, atributos: {}, eventos: [] };
+			n.addEventListener = (tipo, f) => { (n.escuchas[tipo] ||= []).push(f); };
+			n.dispatchEvent = (e) => { n.eventos.push(e.type); (n.escuchas[e.type] || []).forEach(f => f(e)); return true; };
+			n.setAttribute = (k, v) => { n.atributos[k] = v; };
+			n.append = (...h) => { n.children.push(...h); h.forEach(x => { x.padre = n; }); };
+			n.replaceWith = (otro) => { n.reemplazadoPor = otro; };
+			nodos.push(n);
+			return n;
+		};
+		const entradas = colores.map(c => { const n = el('input'); n.type = 'color'; n.value = c.value; if (c.id) n.id = c.id; return n; });
+		const extra = {};
+		const raiz = { querySelectorAll: (sel) => (sel === 'input[type="color"]' ? entradas : []) };
+		const document = {
+			getElementById: (id) => (id === 'ajSeccionBienvenida' ? raiz : (extra[id] || null)),
+			createElement: el,
+		};
+		return { document, entradas, extra, el };
+	}
+
+	function conDom(colores, hexExistentes = {}) {
+		const d = dom(colores);
+		for (const [id, valor] of Object.entries(hexExistentes)) { const h = d.el('input'); h.value = valor; d.extra[id] = h; }
+		const { ctx } = montar();
+		Object.assign(ctx, { document: { ...d.document, getElementById: (id) => d.document.getElementById(id) ?? null } });
+		ctx.Event = class { constructor(tipo, o) { this.type = tipo; this.bubbles = !!(o && o.bubbles); } };
+		return { ctx, ...d };
+	}
+
+	test('BV8: cada selector sin código recibe su campo, y los dos que ya lo traían no se duplican', () => {
+		const { ctx, entradas } = conDom(
+			[{ id: 'apIntroFondoColor', value: '#111827' }, { id: 'apIntroTarjetaFondo', value: '#17120b' }, { value: '#ffffff' }],
+			{ apIntroFondoColorHex: '#111827' });
+		ctx.decorarCamposHexBienvenida();
+		const [conId, sinCampo, sinId] = entradas;
+		assert.ok(conId._hex && !conId.reemplazadoPor, 'el que ya traía su campo no se vuelve a envolver');
+		assert.ok(sinCampo.reemplazadoPor, 'el recuadro se envuelve en la caja del color');
+		assert.equal(sinCampo.reemplazadoPor.className, 'bienvenida-color-field');
+		assert.equal(sinCampo._hex.value, '#17120B');
+		assert.equal(sinCampo._hex.maxLength, 7);
+		assert.match(sinCampo._hex.atributos['aria-label'], /hexadecimal/i);
+		assert.ok(sinId._hex, 'también los de los textos, que no tienen id');
+		assert.equal(sinId._hex.value, '#FFFFFF');
+	});
+
+	test('BV8: es idempotente: pintar otra vez no añade otro campo', () => {
+		const { ctx, entradas } = conDom([{ id: 'apIntroTarjetaBorde', value: '#ffffff' }]);
+		ctx.decorarCamposHexBienvenida();
+		const primero = entradas[0]._hex;
+		ctx.decorarCamposHexBienvenida();
+		assert.equal(entradas[0]._hex, primero);
+		assert.equal(entradas[0].reemplazadoPor.children.length, 2, 'selector y código, y nada más');
+	});
+
+	test('BV8: al escribir un código completo, mueve el selector y avisa como si se hubiera elegido', () => {
+		const { ctx, entradas } = conDom([{ id: 'apIntroSocialFondo', value: '#ef7a00' }]);
+		ctx.decorarCamposHexBienvenida();
+		const [color] = entradas, hex = color._hex;
+		hex.value = 'c0392b';
+		hex.escuchas.input.forEach(f => f());
+		assert.equal(color.value, '#c0392b');
+		assert.deepEqual(color.eventos, ['input'], 'repinta la vista previa y marca pendiente');
+	});
+
+	test('BV8: a medio escribir no mueve nada', () => {
+		const { ctx, entradas } = conDom([{ id: 'apIntroSocialFondo', value: '#ef7a00' }]);
+		ctx.decorarCamposHexBienvenida();
+		const [color] = entradas, hex = color._hex;
+		for (const parcial of ['#c', '#c03', '#c0392']) { hex.value = parcial; hex.escuchas.input.forEach(f => f()); }
+		assert.equal(color.value, '#ef7a00');
+		assert.deepEqual(color.eventos, []);
+	});
+
+	test('BV8: elegir con el selector actualiza el código, y al salir del campo se normaliza', () => {
+		const { ctx, entradas } = conDom([{ id: 'apIntroSocialBorde', value: '#ffffff' }]);
+		ctx.decorarCamposHexBienvenida();
+		const [color] = entradas, hex = color._hex;
+		color.value = '#123abc'; color.escuchas.input.forEach(f => f());
+		assert.equal(hex.value, '#123ABC');
+		hex.value = 'c0392'; hex.escuchas.blur.forEach(f => f());
+		assert.equal(hex.value, '#123ABC', 'un código roto vuelve al del selector');
+	});
+
+	test('BV8: se aplica al terminar de pintar, cuando los valores ya están puestos', () => {
+		const src = leer('bienvenida.js');
+		const i = src.indexOf('decorarCamposHexBienvenida(); pintarEstadoDeRedesEnBienvenida();');
+		assert.notEqual(i, -1);
+		assert.ok(i > src.indexOf("poner('apIntroTarjetaFondo'"), 'después de poner los valores, o el código saldría vacío');
+	});
+
+	// ── BV8: lo que ya estaba resuelto ──
+	test('BV8: los enlaces «Cambiarlo en Datos del negocio» ya no sacan de la bienvenida', () => {
+		// Desde que la bienvenida vive en Ajustes (#340) el enlace cambia de SECCIÓN
+		// dentro de la misma pestaña: nada se pierde, y con cambios pendientes
+		// switchTab ni siquiera repinta. Se vigila que siga así.
+		const neg = leer('negocio.js');
+		const cuerpo = neg.match(/function irADatosDelNegocio\(idCampo\) \{[\s\S]*?\r?\n\}/)[0];
+		assert.match(cuerpo, /switchTab\('ajustes'/);
+		assert.match(cuerpo, /ajustesMostrarSeccionDe\(campo\)/);
+		const indice = leer('index.html');
+		const cambiar = indice.match(/function switchTab\(tab, btn\) \{[\s\S]*?\r?\n\}/)[0];
+		assert.match(cambiar, /if \(tab !== pestanaActual\) \{ pestanaPedida/, 'misma pestaña con cambios: no pregunta ni repinta');
+	});
+});

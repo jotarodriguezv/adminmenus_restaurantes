@@ -3,7 +3,7 @@
 
 const TIPOS_TEXTO_BIENVENIDA = [
   ['nombre', 'Nombre'], ['eslogan', 'Frase de bienvenida'],
-  ['adicional', 'Texto adicional'], ['cta', 'Botón principal'], ['direccion', 'Dirección opcional']
+  ['adicional', 'Texto adicional'], ['cta', 'Botón principal'], ['direccion', 'Dirección, horario y correo']
 ];
 const VALORES_BIENVENIDA = {
   intro_fondo_color: '#111827', intro_overlay_activo: true, intro_overlay_color: '#0a0a0f',
@@ -76,6 +76,48 @@ function sincronizarHexBienvenida(id) {
   const hex = campoBienvenida(`${id}Hex`);
   if (color && hex && /^#[0-9a-f]{6}$/i.test(hex.value.trim())) color.value = hex.value.trim();
   actualizarVistaPreviaBienvenida();
+}
+
+// ── CAMPO HEXADECIMAL EN TODOS LOS COLORES (BV8) ─────────────
+// Solo el fondo y la superposición tenían el campo con el código del color, y
+// pegar el color de la marca (#c0392b) solo se podía en esos dos. Todos los
+// demás selectores lo reciben ahora, sin repetir el marcado en cada uno: se
+// añade por código a todo `input[type=color]` del formulario, también a los de
+// los textos, que se generan al pintar. Idempotente.
+//
+// Acepta el código con o sin «#» (se suele copiar de una web sin él) y solo
+// mueve el selector cuando es completo: a medio escribir no pasa nada.
+function normalizarHexBienvenida(texto) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(texto ?? '').trim());
+  return m ? `#${m[1].toLowerCase()}` : '';
+}
+
+function decorarCamposHexBienvenida() {
+  const raiz = document.getElementById('ajSeccionBienvenida');
+  raiz?.querySelectorAll?.('input[type="color"]').forEach(color => {
+    if (!color._hex) {
+      // Los dos primeros ya traen el suyo en el marcado, con su propio manejador.
+      let hex = color.id ? campoBienvenida(`${color.id}Hex`) : null;
+      if (!hex) {
+        const caja = document.createElement('div'); caja.className = 'bienvenida-color-field';
+        hex = document.createElement('input');
+        hex.type = 'text'; hex.maxLength = 7; hex.spellcheck = false; hex.autocomplete = 'off';
+        hex.setAttribute('aria-label', 'Código hexadecimal del color');
+        color.replaceWith(caja); caja.append(color, hex);
+        hex.addEventListener('input', () => {
+          const valido = normalizarHexBienvenida(hex.value);
+          if (!valido) return;
+          color.value = valido;
+          // Como si se hubiera elegido con el selector: repinta la vista previa y marca pendiente.
+          color.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        hex.addEventListener('blur', () => { hex.value = color.value.toUpperCase(); });
+        color.addEventListener('input', () => { hex.value = color.value.toUpperCase(); });
+      }
+      color._hex = hex;
+    }
+    color._hex.value = color.value.toUpperCase();
+  });
 }
 
 function consultaMapaBienvenida(url) {
@@ -409,7 +451,7 @@ function renderBienvenida(at = {}) {
   const fuentesMapa = campoBienvenida('apIntroMapaBotonFuente'); if (fuentesMapa && !fuentesMapa.options.length) fuentesMapa.innerHTML = (typeof FUENTES_TEXTO_MENU !== 'undefined' ? FUENTES_TEXTO_MENU : ['', 'Montserrat', 'Inter', 'Poppins']).map(f => `<option value="${f}">${f || 'Montserrat (predeterminada)'}</option>`).join(''); poner('apIntroMapaBotonFuente', datos.intro_mapa_boton_fuente);
   const imagen = campoBienvenida('apIntroImagenPreview'); imagen.dataset.url = datos.intro_fondo_url || ''; imagen.hidden = !datos.intro_fondo_url; if (datos.intro_fondo_url) imagen.src = datos.intro_fondo_url;
   campoBienvenida('apIntroImagenVacia').hidden = !!datos.intro_fondo_url; campoBienvenida('apIntroImagenEliminar').hidden = !datos.intro_fondo_url;
-  pintarEstadoDeRedesEnBienvenida(); pintarDatosEnBienvenida(); ajustarInterruptoresBienvenida(); actualizarVistaPreviaBienvenida();
+  decorarCamposHexBienvenida(); pintarEstadoDeRedesEnBienvenida(); pintarDatosEnBienvenida(); ajustarInterruptoresBienvenida(); actualizarVistaPreviaBienvenida();
 }
 
 async function subirFondoBienvenida(input) {
@@ -421,7 +463,23 @@ async function subirFondoBienvenida(input) {
 
 function quitarFondoBienvenida() { const imagen = campoBienvenida('apIntroImagenPreview'); imagen.dataset.url = ''; imagen.removeAttribute('src'); imagen.hidden = true; campoBienvenida('apIntroImagenVacia').hidden = false; campoBienvenida('apIntroImagenEliminar').hidden = true; actualizarVistaPreviaBienvenida(); }
 
-function restaurarBienvenida() { renderBienvenida({ ...VALORES_BIENVENIDA, intro_activo: campoBienvenida('apIntroActivo').checked }); showToast('Restauramos los valores de bienvenida; guarda para aplicarlos', 'success'); }
+// Pregunta antes: quita la imagen de fondo, los colores y los textos propios de
+// golpe, y el resto del panel pide confirmación para eso (preguntar.js). No
+// guarda nada hasta pulsar «Guardar bienvenida», pero perder lo escrito sin
+// avisar es justo lo que esa ventana evita. «Cancelar» es lo que no hace nada.
+async function restaurarBienvenida() {
+  if (!await preguntar({
+    titulo: '¿Restaurar los valores de fábrica?',
+    texto: 'Se quitan la imagen de fondo, los colores y los textos que personalizaste en la bienvenida. Lo que escribiste en «Mi negocio» no se toca.',
+    nota: 'Tus clientes siguen viendo la bienvenida de ahora hasta que pulses «Guardar bienvenida».',
+    si: 'Restaurar', no: 'Cancelar', peligro: true,
+  })) return;
+  renderBienvenida({ ...VALORES_BIENVENIDA, intro_activo: campoBienvenida('apIntroActivo').checked });
+  // El panel avisa de cambios sin guardar mirando los eventos de sus campos, y
+  // repintar por código no dispara ninguno.
+  ajustesMarcarPendientes();
+  showToast('Restauramos los valores de bienvenida; guarda para aplicarlos', 'success');
+}
 
 // ── GUARDAR ───────────────────────────────────────────────────
 // Vive en Ajustes → Bienvenida y guarda SOLO sus claves (intro_*): el servidor

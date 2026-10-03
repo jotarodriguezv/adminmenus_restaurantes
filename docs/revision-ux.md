@@ -3417,7 +3417,7 @@ entera del teléfono, así que no se ve si algo queda abajo o se corta.
 
 ## BV6 · El estilo de «Dirección» también manda sobre el horario y el correo · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-10-03 · PR #344 (el bloque se llama «Dirección, horario y correo» y la sección «Horario y correo» dice dónde se cambia su estilo)
 
 En `aplicarTextoPrevisualizacion`, el horario y el correo se pintan con el
 estilo de la dirección («son la misma clase de línea»). Está bien como
@@ -3436,7 +3436,7 @@ panel guarda sin decir nada. Es la pantalla que ve **todo el que escanea el QR**
 
 ## BV8 · Detalles de acabado · **Baja**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-10-03 · PR #344 (los cuatro puntos; ver abajo)
 
 - Dos colores (fondo y superposición) llevan además un campo hexadecimal; los
   demás (recuadro, borde, redes, botón del mapa) solo el selector.
@@ -3447,6 +3447,17 @@ panel guarda sin decir nada. Es la pantalla que ve **todo el que escanea el QR**
   que están unas pantallas más arriba.
 - Los enlaces «Cambiarlo en Datos del negocio» salen del formulario sin avisar
   si hay cambios sin guardar.
+
+**Cómo se resolvió cada punto** (03/10/2026):
+- *Hexadecimal solo en dos colores* → todos los selectores lo llevan, añadido por
+  código (`decorarCamposHexBienvenida`); acepta el código con o sin «#».
+- *«Restaurar» no pregunta* → usa `preguntar()`, con «Cancelar» como salida.
+- *«Fondo e imagen» se parece a «Imagen de fondo»* → ahora es «Fondo de la
+  bienvenida».
+- *Los enlaces «Cambiarlo en Datos del negocio» salen del formulario* → **ya no
+  hacía falta nada**: desde que la bienvenida vive en Ajustes (PR #340) el
+  enlace cambia de sección dentro de la misma pestaña, y con cambios pendientes
+  `switchTab` ni siquiera repinta. Una prueba lo vigila.
 
 ## BV9 · ¿Un hueco en blanco donde debería ir el mini mapa? · **Sin confirmar**
 
