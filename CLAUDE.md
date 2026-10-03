@@ -124,11 +124,17 @@ corregir el documento en la misma tarea.
   **El interruptor dice su estado y la vista previa se queda a la vista**
   (BV4 y BV5, 03/10/2026). «Encendida»/«Apagada» va escrito al lado
   (`pintarEstadoDeBienvenida`); apagada, sale una nota y la vista previa se
-  atenúa. La vista previa va en `.bienvenida-preview-fijo`, que se fija
-  (`position: sticky; top: 64px`, bajo la barra superior de 52 px) **solo con
-  `min-height: 640px`** y con tope de altura (34vh): con todo encendido la
-  bienvenida mide ~590 px y se desplaza por dentro. Como lo que se está
-  editando puede quedar fuera de esa ventana, cada `<details>` lleva
+  atenúa. **La vista previa va en una columna aparte** (`.bienvenida-columnas`):
+  con 980 px o más de ancho, el formulario a la izquierda y, a la derecha, una
+  vista previa de 340 px con forma de teléfono (9:16) que se queda a la vista al
+  bajar (`position: sticky; top: 76px`) **sin tapar el formulario**, con tope de
+  altura de la pantalla. Con menos de 980 px es una sola columna, la vista
+  previa va arriba, de 360 px como mucho, y **no se fija**. La primera versión
+  (03/10/2026) la fijaba encima del formulario por altura de pantalla: en
+  escritorio era una franja de ~900 px pegada arriba, y en el móvil se comía un
+  tercio de la pantalla; el usuario la vio fea y se cambió. **No volver a fijar
+  una vista previa sobre el contenido que se edita.** Como lo que se está
+  editando puede quedar fuera de la ventana de la columna, cada `<details>` lleva
   `data-previa` con el elemento de la vista previa que cambia, y
   `llevarPreviaAlCampo` (en `onfocusin` del panel) desplaza **la caja**, no la
   página: con `scrollIntoView` el formulario saltaría bajo el dedo. Una sección

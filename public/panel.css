@@ -1549,8 +1549,18 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
    taparía el formulario. Debajo de la barra superior (que también es fija), y
    con tope de altura: con todos los elementos encendidos la bienvenida mide más
    que la pantalla, y se desplaza por dentro en vez de comerse el formulario. */
-@media (min-height:640px){
-.bienvenida-preview-fijo{position:sticky;top:64px;z-index:5;max-height:34vh;overflow-y:auto;background:var(--panel);}
+/* Un teléfono, no una franja. En un móvil la vista previa va arriba, con el ancho
+   de un teléfono y SIN fijarse: fija se comía media pantalla (03/10/2026). En
+   pantalla ancha va en su propia columna, a la derecha, y esa columna sí se
+   queda a la vista al bajar: no hay nada debajo que tapar. */
+.bienvenida-lateral{max-width:360px;margin:0 auto;}
+@media (min-width:980px){
+.bienvenida-columnas{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start;}
+.bienvenida-formulario{grid-column:1;grid-row:1;min-width:0;}
+.bienvenida-lateral{grid-column:2;grid-row:1;position:sticky;top:76px;z-index:5;max-width:none;margin:0;}
+/* Con tope de altura: si la pantalla es baja o la bienvenida lleva todo, se desplaza por dentro. */
+.bienvenida-preview-fijo{max-height:calc(100vh - 100px);overflow-y:auto;border-radius:20px;}
+.bienvenida-preview-fijo .bienvenida-preview{aspect-ratio:9/16;margin:0;}
 }
 
 /* ── BIENVENIDA: avisos de legibilidad (BV7) ── */

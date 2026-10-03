@@ -366,13 +366,54 @@ describe('la vista previa de la bienvenida se queda a la vista (BV5)', () => {
 		assert.ok(!dentro.includes('class="bienvenida-details"'), 'el formulario no puede quedar dentro de lo fijo');
 	});
 
-	test('se fija solo con altura de sobra, bajo la barra superior y con tope de altura', () => {
-		const regla = css.match(/@media\s*\(min-height:\s*640px\)\s*\{\s*\.bienvenida-preview-fijo\{[^}]*\}/)[0];
-		assert.match(regla, /position:sticky/);
-		assert.match(regla, /top:64px/, 'debajo de la barra superior (52 px), no encima');
-		assert.match(regla, /max-height:\d+vh/, 'con tope: la bienvenida con todo encendido mide más que la pantalla');
-		assert.match(regla, /overflow-y:auto/);
-		assert.match(regla, /z-index:5/, 'por debajo de la barra superior, que es 100');
+	// 03/10/2026: la vista previa fija sobre el formulario (franja de ~900 px que
+	// se pegaba arriba y lo tapaba) se vio fea y se cambió por dos columnas.
+	const mediaAncha = css.match(/@media \(min-width:980px\)\{[\s\S]*?\r?\n\}/)[0];
+
+	test('la vista previa solo se fija en pantalla ancha, y en su PROPIA columna (no tapa el formulario)', () => {
+		assert.match(mediaAncha, /\.bienvenida-columnas\{display:grid;grid-template-columns:minmax\(0,1fr\) 340px/);
+		const lateral = mediaAncha.match(/\.bienvenida-lateral\{[^}]*\}/)[0];
+		assert.match(lateral, /position:sticky/);
+		assert.match(lateral, /top:76px/, 'debajo de la barra superior (52 px), con aire');
+		assert.match(lateral, /z-index:5/, 'por debajo de la barra superior, que es 100');
+		assert.match(lateral, /grid-column:2/, 'a la derecha, no encima del formulario');
+		assert.match(mediaAncha, /\.bienvenida-formulario\{grid-column:1/);
+	});
+
+	test('fuera de pantalla ancha no hay nada fijo: ni en el móvil ni en la tableta', () => {
+		// Las únicas reglas con `sticky` de la vista previa están dentro del @media ancho.
+		const sinMedia = css.replace(mediaAncha, '');
+		assert.doesNotMatch(sinMedia, /\.bienvenida-(lateral|preview-fijo)\{[^}]*position:sticky/);
+		// Y el rastro de la regla vieja, que se fijaba por ALTURA, no queda.
+		assert.doesNotMatch(css, /min-height:\s*640px\)\s*\{[^}]*bienvenida-preview-fijo/);
+		assert.doesNotMatch(css, /\.bienvenida-preview-fijo\{[^}]*max-height:34vh/);
+	});
+
+	test('es del tamaño de un teléfono: 360 px como mucho en una columna, 340 px en la columna lateral', () => {
+		assert.match(css, /\.bienvenida-lateral\{max-width:360px;margin:0 auto;\}/, 'centrada y acotada fuera de pantalla ancha');
+		assert.match(mediaAncha, /grid-template-columns:minmax\(0,1fr\) 340px/);
+		assert.match(mediaAncha, /\.bienvenida-preview-fijo \.bienvenida-preview\{aspect-ratio:9\/16/, 'con la forma de la pantalla de un teléfono');
+	});
+
+	test('con tope de altura de la pantalla: si lleva todo encendido, se desplaza por dentro', () => {
+		const caja = mediaAncha.match(/\.bienvenida-preview-fijo\{[^}]*\}/)[0];
+		assert.match(caja, /max-height:calc\(100vh - 100px\)/);
+		assert.match(caja, /overflow-y:auto/);
+	});
+
+	test('el marcado: la vista previa en una columna y el formulario —con sus avisos y botones— en la otra', () => {
+		const ini = html.indexOf('class="bienvenida-columnas"');
+		const fin = html.indexOf('/bienvenida-columnas');
+		assert.ok(ini !== -1 && fin > ini);
+		const dentro = html.slice(ini, fin);
+		const lateral = dentro.slice(dentro.indexOf('class="bienvenida-lateral"'), dentro.indexOf('/bienvenida-lateral'));
+		const formulario = dentro.slice(dentro.indexOf('class="bienvenida-formulario"'));
+		assert.ok(lateral.includes('id="apIntroPreviewFijo"') && lateral.includes('id="apIntroPreview"'));
+		assert.ok(!lateral.includes('bienvenida-details'), 'ni un solo control en la columna de la vista previa');
+		for (const marca of ['id="apIntroAvisos"', 'class="bienvenida-details"', 'saveBienvenida()', 'restaurarBienvenida()', 'id="bienvenidaStatus"'])
+			assert.ok(formulario.includes(marca), `${marca} va con el formulario`);
+		// En el documento la vista previa va ANTES: en un móvil, una sola columna, queda arriba.
+		assert.ok(dentro.indexOf('class="bienvenida-lateral"') < dentro.indexOf('class="bienvenida-formulario"'));
 	});
 
 	test('cada sección del formulario dice qué parte de la vista previa cambia', () => {

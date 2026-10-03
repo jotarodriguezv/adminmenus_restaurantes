@@ -1487,9 +1487,13 @@
 						</div>
 						<p class="bienvenida-nota-apagada" id="apIntroNotaApagada" hidden>Está <strong>apagada</strong>: tus clientes entran directo a la carta. Puedes prepararla con calma; solo se muestra cuando la enciendas y guardes.</p>
 						<p class="bienvenida-ayuda">Personaliza la primera impresión de tu carta. La dirección, el horario, el correo y los enlaces sociales se escriben una sola vez en <strong>Mi negocio</strong>; aquí solo decides cómo se ven. Esta sección se guarda con su propio botón, al final.</p>
-						<!-- La vista previa se queda fija arriba mientras se baja por el formulario
-						     (BV5): editar «Redes» o «Reseñas» sin verla era hacerlo a ciegas. Ver
-						     .bienvenida-preview-fijo en panel.css para cuándo se fija y cuánto ocupa. -->
+						<!-- Dos columnas en pantalla ancha: el formulario a la izquierda y, a la
+						     derecha, una vista previa del tamaño de un teléfono que se queda a la vista
+						     al bajar (BV5) SIN tapar el formulario. En un móvil es una sola columna y la
+						     vista previa va arriba, sin fijarse: fija se comía media pantalla (03/10/2026).
+						     Ver .bienvenida-columnas en panel.css. -->
+						<div class="bienvenida-columnas">
+						<div class="bienvenida-lateral">
 						<div class="bienvenida-preview-fijo" id="apIntroPreviewFijo">
 						<div class="bienvenida-preview" id="apIntroPreview" aria-label="Vista previa de la pantalla de bienvenida">
 							<div class="bienvenida-preview-overlay" id="apIntroPreviewOverlay"></div>
@@ -1501,6 +1505,8 @@
 							</div>
 						</div>
 						</div><!-- /apIntroPreviewFijo -->
+						</div><!-- /bienvenida-lateral -->
+						<div class="bienvenida-formulario">
 						<!-- Avisos de legibilidad (BV7): no impiden guardar, solo dicen lo que se
 						     vería mal. Los llena avisosDeLegibilidadBienvenida() en bienvenida.js. -->
 						<div class="bienvenida-avisos" id="apIntroAvisos" role="status" hidden></div>
@@ -1557,6 +1563,8 @@
 							<button class="btn-save" style="width:auto;padding:11px 28px;" onclick="saveBienvenida()">Guardar bienvenida</button>
 						</div>
 						<div id="bienvenidaStatus" style="margin-top:10px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-muted)"></div>
+						</div><!-- /bienvenida-formulario -->
+						</div><!-- /bienvenida-columnas -->
 					</div>
 					</div><!-- /ajSeccionBienvenida -->
 

@@ -3407,7 +3407,7 @@ está apagada.
 
 ## BV5 · La vista previa no acompaña a lo que se edita · **Media**
 
-- [x] Hecho · 2026-10-03 · PR #341 (fija bajo la barra con `min-height: 640px` y tope de 34vh; y se desplaza sola hasta el elemento de la sección que se toca)
+- [x] Hecho · 2026-10-03 · PR #341, y **rehecho** en el PR de las dos columnas: la primera versión fijaba la vista previa ENCIMA del formulario y se vio fea (en escritorio, una franja de ~900 px pegada arriba; en el móvil, un tercio de la pantalla). Ahora, con 980 px o más, va en su propia columna a la derecha, de 340 px con forma de teléfono, y se queda a la vista sin tapar nada; en un móvil o una tableta es una sola columna, con la vista previa arriba (360 px como mucho) y sin fijarse
 
 La vista previa va arriba de la tarjeta con `position: relative`. Para tocar
 «Redes sociales», «Reseñas» o «Horario y correo» hay que bajar, y el efecto del
