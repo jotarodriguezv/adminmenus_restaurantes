@@ -104,10 +104,22 @@ corregir el documento en la misma tarea.
   «Guardar ajustes», y cambiar de sección no pierde nada. Un campo al que
   apunta un enlace (`irADatosDelNegocio`, `irAlWhatsappDelNegocio`) abre antes
   su sección con `ajustesMostrarSeccionDe`; **un enlace nuevo a un campo de
-  Ajustes tiene que hacer lo mismo**, o enfocará algo escondido. Cuando la
-  bienvenida se mude aquí con su propio guardado (BV3, BV10 en
-  `docs/revision-ux.md`) esto cambia: cada sección guardará lo suyo y habrá que
-  preguntar al salir de una con cambios.
+  Ajustes tiene que hacer lo mismo**, o enfocará algo escondido.
+
+  **Bienvenida es la cuarta sección** (mudada de Apariencia el 02/10/2026) y la
+  excepción al «un solo guardado»: tiene su propio botón (`saveBienvenida`, en
+  `bienvenida.js`) y manda **solo las claves `intro_*`**. Apariencia ya no las
+  manda: si las dos pantallas mandaran las mismas claves, la que se guardara la
+  última pisaría a la otra. Cada formulario tiene **su propia foto** para el
+  aviso de cambios sin guardar (`ajustes` y `bienvenida` en
+  `LECTURAS_DE_PESTANA`): guardar uno no debe dar por guardado el otro, y salir
+  de la pestaña pregunta por cualquiera de los dos. La ficha lleva un punto
+  mientras tiene cambios (`ajustesMarcarPendientes`), y el pie «Guardar
+  ajustes» se esconde mientras se está en ella. Al guardar «Mi negocio»,
+  «Pedidos» o «Carta», `refrescarDatosDeBienvenida` actualiza lo que la
+  bienvenida enseña (redes, dirección) **sin repintar su formulario**, que
+  tiraría lo que se esté escribiendo. Los ids de sus campos siguen siendo
+  `apIntro*`.
 - `public/imprimir.js` — «🖨 Imprimir carta», en Inicio: una vista previa en A4
   para imprimir o guardar en PDF con el cuadro de impresión del navegador. Sin
   librería de PDF. Si el navegador bloquea la pestaña nueva, se abre dentro del

@@ -48,9 +48,13 @@ const REDES_CAMPOS = {
 // teniendo lo escrito y 'saveAjustes' los recoge todos. Por eso cambiar de
 // sección no puede perder nada ni necesita preguntar por cambios sin guardar.
 //
-// Si un día cada sección guarda por su cuenta, eso cambia: ahí sí habrá que
-// preguntar al salir de una con cambios, como hace la cartelera.
-const SECCIONES_AJUSTES = ['negocio', 'pedidos', 'carta'];
+// Bienvenida es la excepción, desde el 02/10/2026: tiene su propio botón y su
+// propio guardado (saveBienvenida), y el pie «Guardar ajustes» se esconde
+// mientras se está en ella. Sus campos tampoco se vacían al cambiar de sección,
+// así que moverse entre fichas sigue sin perder nada; lo que sí pregunta es
+// salir de la PESTAÑA con cualquiera de los dos pendiente (hayCambiosEnPestana),
+// y la ficha Bienvenida lleva un punto cuando tiene cambios sin guardar.
+const SECCIONES_AJUSTES = ['negocio', 'pedidos', 'carta', 'bienvenida'];
 let seccionAjustesActual = 'negocio';
 let restauranteDeLaSeccion = null;
 
@@ -69,6 +73,17 @@ function ajustesCambiarSeccion(nombre) {
     // En un móvil la fila hace scroll: si la elegida queda a medias, se trae.
     if (activa) tab.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }
+  // El pie de «Guardar ajustes» es de las tres primeras; Bienvenida trae el suyo.
+  document.getElementById('ajPieAjustes')?.classList.toggle('hidden', nombre === 'bienvenida');
+}
+
+// Punto en la ficha Bienvenida mientras tiene cambios sin guardar. Se llama al
+// editar cualquier campo de su panel (oninput y onchange en el propio panel) y
+// al pintar o guardar. Sin esto, quien edita la bienvenida, pasa a otra ficha y
+// vuelve, no sabría si lo que ve está guardado.
+function ajustesMarcarPendientes() {
+  const punto = document.getElementById('ajPuntoBienvenida');
+  if (punto) punto.hidden = !cambioDeFoto('bienvenida');
 }
 
 // Para los enlaces que apuntan a un campo concreto («Cambiarlo en Datos del
@@ -223,6 +238,8 @@ async function saveAjustes() {
     state.restaurante = data;
     renderAjustes();
     fijarFotoDePestana('ajustes');
+    // Lo que la bienvenida enseña sale de aquí (redes, dirección…).
+    if (typeof refrescarDatosDeBienvenida === 'function') refrescarDatosDeBienvenida();
     // Encender el carrito hace aparecer las pestañas Pedidos y Toppings, y sin
     // repintarlas habría que recargar para llegar a poner el número.
     ajustarPestanasAlModelo();

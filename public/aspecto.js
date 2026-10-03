@@ -34,11 +34,8 @@ function renderAspecto() {
   pintarFondo();
   pintarColores(r, at);
   pintarModeloYTipografia(at);
-  // Las pruebas unitarias de Apariencia cargan este archivo solo; en el panel
-  // real bienvenida.js completa los controles y la vista previa.
-  document.getElementById('apIntroActivo').checked = !!at.intro_activo;
-  document.getElementById('apIntroEslogan').value = at.intro_eslogan || '';
-  if (typeof renderBienvenida === 'function') renderBienvenida(at);
+  // La pantalla de bienvenida se pintaba aquí hasta el 02/10/2026; ahora es de
+  // Ajustes → Bienvenida y la pinta bienvenida.js.
   const st = document.getElementById('aspectoStatus');
   st.textContent = ''; st.style.color = 'var(--text-muted)';
 }
@@ -64,10 +61,9 @@ function recolectarAspecto() {
     estilo: estiloElegido(),
     subtitulo: valor('apSubtitulo'),
     mostrar_hero: document.getElementById('apMostrarHero').checked,
-    ...(typeof valoresBienvenida === 'function' ? valoresBienvenida() : {
-      intro_activo: document.getElementById('apIntroActivo').checked,
-      intro_eslogan: valor('apIntroEslogan'),
-    }),
+    // Las claves intro_* ya NO viajan aquí: la bienvenida guarda por su cuenta
+    // (saveBienvenida). Si las dos pantallas mandaran las mismas claves, la que
+    // se guardara la última pisaría lo que la otra acababa de cambiar.
   };
 }
 
@@ -89,8 +85,7 @@ async function saveAspecto() {
     // Si el modelo cambió, refresca qué opciones quedan deshabilitadas y su
     // etiqueta — la misma llamada que hace saveApariencia() al guardar.
     aplicarPlanAlPanel();
-    // Las reservas (01/10/2026) tienen pestaña según el interruptor de la bienvenida,
-    // que se guarda aquí: sin esto la pestaña no aparecía hasta recargar el panel.
+    // Las pestañas que dependen del modelo (el carrito y lo que cuelga de él).
     ajustarPestanasAlModelo();
     st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
     avisarGuardadoConCarta('Apariencia guardada');

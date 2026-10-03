@@ -24,7 +24,7 @@ function pestanaAjustes() {
 // Qué ids caen dentro de cada panel: del comienzo de su <div> al del siguiente.
 function panelesDeAjustes() {
 	const t = pestanaAjustes();
-	const marcas = ['ajSeccionNegocio', 'ajSeccionPedidos', 'ajSeccionCarta']
+	const marcas = ['ajSeccionNegocio', 'ajSeccionPedidos', 'ajSeccionCarta', 'ajSeccionBienvenida']
 		.map(id => ({ id, pos: t.indexOf(`id="${id}"`) }));
 	marcas.forEach(m => assert.notEqual(m.pos, -1, `falta el panel ${m.id}`));
 	const botonGuardar = t.indexOf('onclick="saveAjustes()"');
@@ -60,17 +60,38 @@ describe('Ajustes · qué tarjeta va en qué sección', () => {
 
 	test('ningún campo de un panel aparece también en otro', () => {
 		const ids = p => new Set([...p.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
-		const [a, b, c] = Object.values(cuerpo).map(ids);
-		for (const id of a) assert.ok(!b.has(id) && !c.has(id), `${id} repetido entre secciones`);
-		for (const id of b) assert.ok(!c.has(id), `${id} repetido entre secciones`);
+		const todos = Object.values(cuerpo).map(ids);
+		todos.forEach((a, i) => todos.slice(i + 1).forEach(b => {
+			for (const id of a) assert.ok(!b.has(id), `${id} repetido entre secciones`);
+		}));
 	});
 
-	test('el botón de guardar y su estado están FUERA de los paneles: valen para todos', () => {
+	test('Bienvenida: el formulario entero, con su propio guardado', () => {
+		const p = cuerpo.ajSeccionBienvenida;
+		for (const id of ['apIntroActivo', 'apIntroPreview', 'apIntroFondoColor', 'apIntroEslogan', 'apIntroSocialInstagram',
+			'apIntroMapaActivo', 'apIntroResenaActivo', 'apIntroHorarioActivo', 'apIntroReservasActivo', 'bienvenidaStatus'])
+			assert.ok(p.includes(`id="${id}"`), `${id} debería estar en Bienvenida`);
+		assert.ok(p.includes('onclick="saveBienvenida()"'), 'trae su propio botón de guardar');
+		assert.ok(!p.includes('saveAjustes()'));
+	});
+
+	test('Apariencia ya no tiene la bienvenida, ni su interruptor', () => {
+		const html = leer('index.html');
+		const apariencia = html.slice(html.indexOf('<div id="tabAspecto"'), html.indexOf('<div id="tabQr"'));
+		assert.doesNotMatch(apariencia, /id="apIntro/);
+		assert.doesNotMatch(apariencia, /saveBienvenida|bienvenida-config/);
+	});
+
+	test('el botón de guardar Ajustes y su estado están FUERA de los paneles: valen para los tres primeros', () => {
 		const { t, botonGuardar, marcas } = panelesDeAjustes();
 		assert.ok(botonGuardar > marcas[marcas.length - 1].pos);
-		assert.ok(!cuerpo.ajSeccionCarta.includes('saveAjustes()'));
+		for (const p of Object.values(cuerpo)) {
+			assert.ok(!p.includes('saveAjustes()'));
+			assert.ok(!p.includes('id="ajustesStatus"'));
+		}
 		assert.ok(t.includes('id="ajustesStatus"'));
-		assert.ok(!cuerpo.ajSeccionCarta.includes('id="ajustesStatus"'));
+		// Y se esconde con Bienvenida: va dentro de un contenedor con su id.
+		assert.match(t, /<div id="ajPieAjustes">[\s\S]*saveAjustes\(\)[\s\S]*ajustesStatus[\s\S]*\/ajPieAjustes/);
 	});
 
 	test('solo el primer panel nace a la vista, y las tres fichas existen con su rol', () => {
@@ -78,7 +99,8 @@ describe('Ajustes · qué tarjeta va en qué sección', () => {
 		assert.doesNotMatch(t.match(/<div id="ajSeccionNegocio"[^>]*>/)[0], /hidden/);
 		assert.match(t.match(/<div id="ajSeccionPedidos"[^>]*>/)[0], /class="hidden"/);
 		assert.match(t.match(/<div id="ajSeccionCarta"[^>]*>/)[0], /class="hidden"/);
-		for (const n of ['Negocio', 'Pedidos', 'Carta']) {
+		assert.match(t.match(/<div id="ajSeccionBienvenida"[^>]*>/)[0], /class="hidden"/);
+		for (const n of ['Negocio', 'Pedidos', 'Carta', 'Bienvenida']) {
 			const tab = t.match(new RegExp(`<button[^>]*id="ajTab${n}"[^>]*>`))[0];
 			assert.match(tab, /role="tab"/);
 			assert.match(tab, new RegExp(`aria-controls="ajSeccion${n}"`));
@@ -103,7 +125,8 @@ describe('Ajustes · cambiar de sección', () => {
 				scrollIntoView() {},
 			};
 		};
-		const ctx = vm.createContext({ state: estado, document: { getElementById: id => (nodos[id] ||= nodo()) }, String });
+		const ctx = vm.createContext({ state: estado, document: { getElementById: id => (nodos[id] ||= nodo()) }, String,
+			cambioDeFoto: clave => !!estado.pendientes?.[clave] });
 		const src = leer('ajustes.js');
 		const i = src.indexOf('const SECCIONES_AJUSTES');
 		const f = src.indexOf('function renderAjustes', i);
@@ -122,6 +145,26 @@ describe('Ajustes · cambiar de sección', () => {
 		assert.equal(nodos.ajTabNegocio.atributos['aria-selected'], 'false');
 		assert.equal(nodos.ajTabPedidos.tabIndex, 0);
 		assert.equal(nodos.ajTabCarta.tabIndex, -1);
+	});
+
+	test('el pie «Guardar ajustes» se esconde en Bienvenida y vuelve en las demás', () => {
+		const { ctx, nodos } = montar();
+		ctx.ajustesCambiarSeccion('bienvenida');
+		assert.equal(nodos.ajPieAjustes.clases.has('hidden'), true);
+		assert.equal(nodos.ajSeccionBienvenida.clases.has('hidden'), false);
+		ctx.ajustesCambiarSeccion('carta');
+		assert.equal(nodos.ajPieAjustes.clases.has('hidden'), false);
+	});
+
+	test('el punto de «sin guardar» sale en la ficha Bienvenida solo con cambios', () => {
+		const estado = { restaurante: { id: 'r1' }, pendientes: {} };
+		const { ctx, nodos } = montar(estado);
+		nodos.ajPuntoBienvenida = { hidden: true };
+		ctx.ajustesMarcarPendientes();
+		assert.equal(nodos.ajPuntoBienvenida.hidden, true);
+		estado.pendientes.bienvenida = true;
+		ctx.ajustesMarcarPendientes();
+		assert.equal(nodos.ajPuntoBienvenida.hidden, false);
 	});
 
 	test('un nombre que no existe no cambia nada', () => {
@@ -178,6 +221,6 @@ describe('Ajustes · los enlaces a un campo abren su sección', () => {
 
 	test('abrir la pestaña Ajustes recuerda la sección antes de pintarla', () => {
 		const html = leer('index.html');
-		assert.match(html, /if \(tab === 'ajustes'\) \{ ajustesRecordarSeccion\(\); renderAjustes\(\); \}/);
+		assert.match(html, /if \(tab === 'ajustes'\) \{ ajustesRecordarSeccion\(\); renderAjustes\(\); renderBienvenidaEnAjustes\(\); \}/);
 	});
 });
