@@ -8796,7 +8796,7 @@ describe('los filtros de la lista de restaurantes', () => {
 	], { Object, Array, Boolean });
 	// Un `const` de nivel superior no aparece como propiedad del contexto —solo
 	// las funciones—, así que el filtro vacío se escribe aquí.
-	const VACIO = { tipo: 'todos', modelo: 'todos', funciones: [], entorno: 'todos' };
+	const VACIO = { tipo: 'todos', modelo: 'todos', funciones: [], entorno: 'todos', pago: 'todos' };
 
 	const resto = (atributos, plan) => ({ atributos: { ...atributos, plan } });
 
@@ -8858,6 +8858,22 @@ describe('los filtros de la lista de restaurantes', () => {
 		assert.equal(ctx.pasaFiltroRestos(real, { ...f, entorno: 'reales' }), true);
 		assert.equal(ctx.pasaFiltroRestos(real, { ...f, entorno: 'prueba' }), false);
 		assert.equal(ctx.pasaFiltroRestos({ ...real, prueba: true }, { ...f, entorno: 'reales' }), false);
+	});
+
+	test('el pago mira el ciclo vigente, no solo si alguna vez se registró un pago', () => {
+		const ctx = reglas();
+		const hoy = new Date('2026-10-03T12:00:00');
+		assert.equal(ctx.estadoPagoParaFiltro({ dia_pago: 1, ultimo_pago: '2026-10-01' }, hoy), 'pagado');
+		assert.equal(ctx.estadoPagoParaFiltro({ dia_pago: 1, ultimo_pago: '2026-09-30' }, hoy), 'pendiente');
+		assert.equal(ctx.estadoPagoParaFiltro({ ultimo_pago: '2026-10-01' }, hoy), 'sin_configurar');
+	});
+
+	test('el filtro de pago se puede combinar con los demás', () => {
+		const ctx = reglas();
+		const rasgos = { tipo: 'fotos', modelo: 'topnav', funciones: [], prueba: false, pago: 'pendiente' };
+		assert.equal(ctx.pasaFiltroRestos(rasgos, { ...VACIO, pago: 'pendiente' }), true);
+		assert.equal(ctx.pasaFiltroRestos(rasgos, { ...VACIO, pago: 'pagado' }), false);
+		assert.equal(ctx.pasaFiltroRestos(rasgos, { ...VACIO, pago: 'pendiente', entorno: 'prueba' }), false);
 	});
 
 	test('el buscador cuenta cuando el comensal lo ve, no cuando está encendido', () => {

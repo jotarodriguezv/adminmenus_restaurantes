@@ -27,7 +27,7 @@ const FUNCIONES_RESTO = [
   ['filtros', '🏷️ Filtros'], ['toppings', '🧀 Adicionales'], ['redes', '🔗 Redes'],
   ['ia', '✨ IA'],
 ];
-const FILTRO_RESTOS_VACIO = { tipo: 'todos', modelo: 'todos', funciones: [], entorno: 'todos' };
+const FILTRO_RESTOS_VACIO = { tipo: 'todos', modelo: 'todos', funciones: [], entorno: 'todos', pago: 'todos' };
 // Fuera de 'state' a propósito: logout() lo reemplaza entero, y esto es de quien
 // mira la lista, no del restaurante abierto. Así entrar a una carta y volver a
 // la lista no pierde lo que se estaba mirando.
@@ -46,6 +46,23 @@ let filtroRestos = { ...FILTRO_RESTOS_VACIO };
 function enseñaBuscador(atributos, platos) {
   if (atributos?.buscador === false) return false;
   return platos == null || platos >= MINIMO_PLATOS_BUSCADOR;
+}
+
+// "Pagó" no significa simplemente que haya alguna fecha: un pago de un ciclo
+// anterior no cubre el actual. Esta es la misma regla de la insignia de la
+// ficha; se mantiene aquí para que el filtro siga funcionando aunque la lista
+// se pinte antes de que el resto del panel haya terminado de cargar.
+function estadoPagoParaFiltro(fact, hoy = new Date()) {
+  const diaPago = fact?.dia_pago;
+  if (!diaPago) return 'sin_configurar';
+  const fecha = new Date(hoy); fecha.setHours(0, 0, 0, 0);
+  let inicio = new Date(fecha.getFullYear(), fecha.getMonth(), Math.min(diaPago, new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0).getDate()));
+  if (inicio > fecha) {
+    inicio = new Date(fecha.getFullYear(), fecha.getMonth() - 1,
+      Math.min(diaPago, new Date(fecha.getFullYear(), fecha.getMonth(), 0).getDate()));
+  }
+  const ultimoPago = fact?.ultimo_pago ? new Date(`${fact.ultimo_pago}T00:00:00`) : null;
+  return ultimoPago && ultimoPago >= inicio ? 'pagado' : 'pendiente';
 }
 
 function rasgosDeResto(r, fact, resumenVideo, platos) {
@@ -74,6 +91,7 @@ function rasgosDeResto(r, fact, resumenVideo, platos) {
     modelo: at.nav || MODELO_POR_DEFECTO,
     funciones,
     prueba: !!fact?.es_prueba,
+    pago: estadoPagoParaFiltro(fact),
   };
 }
 
@@ -85,11 +103,12 @@ function pasaFiltroRestos(rasgos, f) {
   if (f.modelo !== 'todos' && rasgos.modelo !== f.modelo) return false;
   if (f.entorno === 'reales' && rasgos.prueba) return false;
   if (f.entorno === 'prueba' && !rasgos.prueba) return false;
+  if (f.pago !== 'todos' && rasgos.pago !== f.pago) return false;
   return f.funciones.every(fn => rasgos.funciones.includes(fn));
 }
 
 function hayFiltroRestos(f = filtroRestos) {
-  return f.tipo !== 'todos' || f.modelo !== 'todos' || f.entorno !== 'todos' || !!f.funciones.length;
+  return f.tipo !== 'todos' || f.modelo !== 'todos' || f.entorno !== 'todos' || f.pago !== 'todos' || !!f.funciones.length;
 }
 
 // Los modelos que se ofrecen. Con un tipo elegido, solo los suyos: los del otro
@@ -186,6 +205,17 @@ function pintarFiltrosRestos() {
          () => cambiarFiltroRestos({ entorno: 'reales' })),
     chip('De prueba', filtroRestos.entorno === 'prueba', cuantos({ entorno: 'prueba' }),
          () => cambiarFiltroRestos({ entorno: 'prueba' })),
+  ]);
+
+  fila('Pago', [
+    chip('Todos', filtroRestos.pago === 'todos', cuantos({ pago: 'todos' }),
+         () => cambiarFiltroRestos({ pago: 'todos' })),
+    chip('Ya pagaron', filtroRestos.pago === 'pagado', cuantos({ pago: 'pagado' }),
+         () => cambiarFiltroRestos({ pago: 'pagado' })),
+    chip('Pendientes', filtroRestos.pago === 'pendiente', cuantos({ pago: 'pendiente' }),
+         () => cambiarFiltroRestos({ pago: 'pendiente' })),
+    chip('Sin fecha de cobro', filtroRestos.pago === 'sin_configurar', cuantos({ pago: 'sin_configurar' }),
+         () => cambiarFiltroRestos({ pago: 'sin_configurar' })),
   ]);
 
   aplicarFiltroRestos(lista);
