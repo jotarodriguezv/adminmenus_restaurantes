@@ -3396,7 +3396,7 @@ o una pantalla con datos viejos pisa lo que la otra acaba de guardar.
 
 ## BV4 · El interruptor principal no dice su estado · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-10-03 · PR #341 («Encendida»/«Apagada» al lado, nota y vista previa atenuada cuando está apagada)
 
 `apIntroActivo` está en la cabecera de la tarjeta y su única explicación es un
 `title` («Mostrarla antes de la carta»), que en un móvil no se ve. Apagada, la
@@ -3407,7 +3407,7 @@ está apagada.
 
 ## BV5 · La vista previa no acompaña a lo que se edita · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-10-03 · PR #341 (fija bajo la barra con `min-height: 640px` y tope de 34vh; y se desplaza sola hasta el elemento de la sección que se toca)
 
 La vista previa va arriba de la tarjeta con `position: relative`. Para tocar
 «Redes sociales», «Reseñas» o «Horario y correo» hay que bajar, y el efecto del
