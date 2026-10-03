@@ -1552,3 +1552,12 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 @media (min-height:640px){
 .bienvenida-preview-fijo{position:sticky;top:64px;z-index:5;max-height:34vh;overflow-y:auto;background:var(--panel);}
 }
+
+/* ── BIENVENIDA: avisos de legibilidad (BV7) ── */
+.bienvenida-avisos{margin:0 0 12px;padding:10px 12px;border-left:3px solid var(--warn);border-radius:0 10px 10px 0;background:var(--warn-dim);color:var(--text-muted);font-size:12px;line-height:1.55;}
+.bienvenida-avisos[hidden]{display:none;}
+.bienvenida-avisos strong{color:var(--text);}
+.bienvenida-avisos ul{margin:6px 0 6px 18px;padding:0;}
+.bienvenida-avisos li{margin:3px 0;}
+.bienvenida-avisos p{margin:0;font-size:11px;}
+.bienvenida-details.con-aviso>summary::before{content:'⚠';margin-right:8px;color:var(--warn);}

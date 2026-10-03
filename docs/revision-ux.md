@@ -3427,7 +3427,7 @@ decisión, pero ningún texto del formulario lo dice: quien cambie el color de
 
 ## BV7 · Nada avisa si el contraste es ilegible · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-10-03 · PR #343 (avisa sin impedir guardar, con la misma cuenta que la paleta de la carta; los iconos de redes llevan 2,5 y no 3 porque el color de fábrica mide 2,8: pendiente decidir si se oscurece el naranja)
 
 El panel tiene `REGLAS_COLOR` para la paleta de la carta, pero en la bienvenida
 no encontré ninguna comprobación equivalente: se puede dejar el texto casi del

@@ -193,6 +193,93 @@ function aplicarTextoPrevisualizacion(tipo, contenido) {
   if (tipo === 'cta') { el.style.background = datos.color || '#ffffff'; el.style.color = datos.color_texto || '#15100b'; }
 }
 
+// ── LEGIBILIDAD (BV7) ─────────────────────────────────────────
+// Es la pantalla que ve TODO el que escanea el QR, y el formulario deja poner el
+// texto casi del color del recuadro, o el texto de un botón del color del botón,
+// sin decir nada. El panel ya sabe medirlo para la paleta de la carta
+// (REGLAS_COLOR, contrasteColores en paletas.js); aquí se usa la misma cuenta.
+//
+// SOLO AVISA, no impide guardar: quien lo eligió a propósito (un texto tenue
+// como adorno) tiene derecho a dejarlo, y el panel no puede ver lo que hay detrás
+// de una imagen de fondo. Compara contra lo único que el formulario sí fija: el
+// fondo del recuadro, que es sólido, y los pares que el propio formulario junta
+// (botón con su texto, icono con su fondo).
+//
+// Los mínimos son los de WCAG: 4,5 para texto normal y 3 para texto grande (24 px,
+// o 18,66 px en negrita).
+//
+// Los ICONOS de redes llevan 2,5 y no los 3 de WCAG, a propósito y a falta de
+// decidirlo con el usuario: los colores de fábrica del formulario (blanco sobre
+// #ef7a00) miden 2,8, y con 3 el panel avisaría de lo que él mismo ofrece a todo
+// el que encienda las redes. Un aviso que salta siempre se aprende a ignorar, y
+// entonces tampoco se lee el que importa. Si se oscurece el naranja de fábrica,
+// esto vuelve a 3.
+const MINIMO_ICONO_BIENVENIDA = 2.5;
+const TAMANO_BASE_BIENVENIDA = { nombre: 30, cta: 15 };
+const NOMBRE_DE_TEXTO_BIENVENIDA = {
+  nombre: 'El nombre', eslogan: 'La frase de bienvenida', adicional: 'El texto adicional',
+  direccion: 'La dirección, el horario y el correo', cta: 'El texto del botón principal',
+};
+
+function esTextoGrandeBienvenida(tamano, peso) {
+  return tamano >= 24 || (tamano >= 18.66 && peso >= 700);
+}
+
+// Pura, para poder probarla: recibe lo que se va a guardar (valoresBienvenida) y
+// lo que de verdad saldría (qué textos y botones existen), y devuelve la lista.
+function avisosDeLegibilidadBienvenida(d, sale, contraste) {
+  const medir = typeof contraste === 'function' ? contraste : contrasteColores;
+  const avisos = [];
+  const mirar = (cual, quien, colorA, colorB, minimo, sobre, secciones) => {
+    if (!/^#[0-9a-f]{6}$/i.test(colorA) || !/^#[0-9a-f]{6}$/i.test(colorB)) return;
+    const valor = medir(colorA, colorB);
+    if (valor >= minimo) return;
+    avisos.push({ cual, secciones, valor, minimo, texto: `${quien} se lee mal sobre ${sobre}: contraste ${formatoContrasteBienvenida(valor)} y lo recomendado es ${formatoContrasteBienvenida(minimo)}.` });
+  };
+  const textos = d.intro_textos || {};
+  const recuadro = d.intro_tarjeta_fondo;
+  for (const tipo of ['nombre', 'eslogan', 'adicional', 'direccion']) {
+    if (!sale[tipo]) continue;
+    const t = textos[tipo] || {};
+    const tamano = Number(t.tamano) || TAMANO_BASE_BIENVENIDA[tipo] || 16;
+    const peso = Number(t.peso) || (tipo === 'nombre' ? 700 : 400);
+    mirar(tipo, NOMBRE_DE_TEXTO_BIENVENIDA[tipo], t.color || '#ffffff', recuadro,
+      esTextoGrandeBienvenida(tamano, peso) ? 3 : 4.5, 'el fondo del recuadro', ['textos', 'recuadro']);
+  }
+  const cta = textos.cta || {};
+  mirar('cta', NOMBRE_DE_TEXTO_BIENVENIDA.cta, cta.color_texto || '#15100b', cta.color || '#ffffff', 4.5, 'el color del botón', ['textos']);
+  if (sale.redes) mirar('redes', 'El icono de las redes', d.intro_social_icono_color, d.intro_social_fondo, MINIMO_ICONO_BIENVENIDA, 'su fondo', ['redes']);
+  if (sale.botonMapa) mirar('mapa', 'El texto del botón de ubicación', d.intro_mapa_boton_color, d.intro_mapa_boton_fondo, 4.5, 'el color del botón', ['ubicacion']);
+  return avisos;
+}
+
+// Un decimal, con coma, y sin redondear hacia arriba: «4,5 y lo recomendado es
+// 4,5» sería absurdo.
+function formatoContrasteBienvenida(valor) {
+  return (Math.floor(valor * 10) / 10).toFixed(1).replace('.', ',');
+}
+
+// Pinta la lista bajo la vista previa y marca con ⚠ las secciones donde está la
+// causa, para que se vea a qué abrir sin leer el aviso entero.
+function pintarAvisosDeLegibilidad(avisos) {
+  const caja = campoBienvenida('apIntroAvisos');
+  if (caja) {
+    caja.replaceChildren();
+    caja.hidden = !avisos.length;
+    if (avisos.length) {
+      const titulo = document.createElement('strong');
+      titulo.textContent = 'Revisa la legibilidad';
+      const lista = document.createElement('ul');
+      for (const a of avisos) { const li = document.createElement('li'); li.textContent = a.texto; lista.appendChild(li); }
+      const nota = document.createElement('p');
+      nota.textContent = 'Es solo un aviso: puedes guardar igual. Pero con ese contraste a algunos clientes les costará leerlo, sobre todo con el sol o en un teléfono viejo.';
+      caja.append(titulo, lista, nota);
+    }
+  }
+  const con = new Set(avisos.flatMap(a => a.secciones));
+  document.querySelectorAll?.('#ajSeccionBienvenida [data-aviso]').forEach(d => d.classList.toggle('con-aviso', con.has(d.dataset.aviso)));
+}
+
 // La vista previa fija tiene tope de altura (ver .bienvenida-preview-fijo) y con
 // todos los elementos encendidos la bienvenida mide más: editar las redes con
 // las redes fuera de la ventana sería hacerlo a ciegas otra vez. Al tocar un
@@ -240,6 +327,16 @@ function actualizarVistaPreviaBienvenida() {
   const overlay = campoBienvenida('apIntroPreviewOverlay'); const content = campoBienvenida('apIntroPreviewContent');
   if (!preview || !overlay || !content) return;
   pintarEstadoDeBienvenida(!!datos.intro_activo);
+  // Lo que saldría en la carta: un texto vacío o un botón sin enlace no se pinta, y
+  // avisar de su color sería hablar de algo que nadie va a ver.
+  const atNegocio = (state.restaurante || {}).atributos || {};
+  pintarAvisosDeLegibilidad(avisosDeLegibilidadBienvenida(datos, {
+    nombre: true, eslogan: !!datos.intro_eslogan, adicional: !!datos.intro_texto_adicional,
+    direccion: !!(datos.direccion || (datos.intro_horario_activo && datos.horario_texto) || (datos.intro_correo_activo && datos.correo)),
+    redes: (datos.intro_social_instagram && atNegocio.social_instagram) || (datos.intro_social_facebook && atNegocio.social_facebook)
+      || (datos.intro_social_tiktok && atNegocio.social_tiktok),
+    botonMapa: !!(datos.intro_mapa_activo && datos.intro_mapa_url && datos.intro_mapa_modo !== 'mapa'),
+  }));
   preview.style.backgroundColor = datos.intro_fondo_color; preview.style.backgroundImage = datos.intro_fondo_url ? `url("${datos.intro_fondo_url}")` : 'none';
   preview.style.backgroundSize = datos.intro_imagen_ajuste === 'contain' ? 'contain' : datos.intro_imagen_ajuste === 'center' ? 'auto' : 'cover';
   preview.style.backgroundPosition = 'center'; preview.style.backgroundRepeat = datos.intro_imagen_ajuste === 'center' ? 'no-repeat' : 'no-repeat';
@@ -346,7 +443,10 @@ async function saveBienvenida() {
     // La pestaña Reservas existe según el interruptor de la bienvenida (01/10/2026):
     // sin repintar no aparecía hasta recargar el panel.
     ajustarPestanasAlModelo();
-    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    // Guardar no se impide, pero que no pase desapercibido.
+    const quedan = ((campoBienvenida('apIntroAvisos') || {}).querySelectorAll?.('li') || []).length;
+    st.textContent = quedan ? `✓ Guardado · ojo: ${quedan} aviso${quedan === 1 ? '' : 's'} de legibilidad, arriba` : '✓ Guardado';
+    st.style.color = quedan ? 'var(--warn)' : 'var(--success)';
     avisarGuardadoConCarta('Bienvenida guardada');
   } catch (e) {
     st.textContent = e.message; st.style.color = 'var(--danger)';

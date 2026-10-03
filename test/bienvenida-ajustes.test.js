@@ -448,3 +448,181 @@ describe('la vista previa de la bienvenida se queda a la vista (BV5)', () => {
 		assert.doesNotThrow(() => ctx.llevarPreviaAlCampo({}));
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('avisos de legibilidad de la bienvenida (BV7)', () => {
+	// Es la pantalla que ve todo el que escanea el QR, y el formulario deja poner
+	// el texto casi del color del recuadro sin decir nada. Solo avisa, no impide.
+	function conPaletas() {
+		const { ctx, $ } = montar();
+		vm.runInContext(leer('paletas.js'), ctx);   // contrasteColores: la misma cuenta que la paleta de la carta
+		return { ctx, $ };
+	}
+
+	// Lo que valoresBienvenida devolvería con los valores de fábrica del formulario.
+	const FABRICA = () => ({
+		intro_tarjeta_fondo: '#17120b',
+		intro_social_icono_color: '#ffffff', intro_social_fondo: '#ef7a00',
+		intro_mapa_boton_fondo: '#17120b', intro_mapa_boton_color: '#ffffff',
+		intro_textos: {
+			nombre: { color: '#ffffff', tamano: 30, peso: 0 }, eslogan: { color: '#ffffff', tamano: 16, peso: 0 },
+			adicional: { color: '#ffffff', tamano: 16, peso: 0 }, direccion: { color: '#ffffff', tamano: 16, peso: 0 },
+			cta: { color: '#ffffff', color_texto: '#15100b', tamano: 15, peso: 0 },
+		},
+	});
+	// Lo que sale de un vm trae otros prototipos: deepStrictEqual los vería distintos.
+	const plano = (x) => JSON.parse(JSON.stringify(x));
+	const TODO = { nombre: true, eslogan: true, adicional: true, direccion: true, redes: true, botonMapa: true };
+
+	test('los valores de fábrica no avisan de nada', () => {
+		const { ctx } = conPaletas();
+		const avisos = ctx.avisosDeLegibilidadBienvenida(FABRICA(), TODO);
+		assert.deepEqual(plano(avisos.map(a => a.texto)), []);
+	});
+
+	test('texto casi del color del recuadro: avisa, dice cuál y por qué', () => {
+		const { ctx } = conPaletas();
+		const d = FABRICA();
+		d.intro_textos.eslogan.color = '#1c160e';
+		const [a] = ctx.avisosDeLegibilidadBienvenida(d, TODO);
+		assert.equal(a.cual, 'eslogan');
+		assert.match(a.texto, /^La frase de bienvenida se lee mal sobre el fondo del recuadro/);
+		assert.match(a.texto, /contraste 1,\d y lo recomendado es 4,5/);
+		assert.deepEqual(plano(a.secciones), ['textos', 'recuadro']);
+	});
+
+	test('el umbral es de texto grande para el nombre (3) y de texto normal para lo pequeño (4,5)', () => {
+		const { ctx } = conPaletas();
+		// Un gris medio sobre el recuadro oscuro: contraste entre 3 y 4,5.
+		const gris = '#7a7468';
+		const medida = ctx.contrasteColores(gris, '#17120b');
+		assert.ok(medida > 3 && medida < 4.5, `el gris de la prueba mide ${medida}`);
+		const nombreGrande = FABRICA(); nombreGrande.intro_textos.nombre.color = gris;
+		assert.equal(ctx.avisosDeLegibilidadBienvenida(nombreGrande, TODO).length, 0, '30 px cuenta como texto grande');
+		const pequeno = FABRICA(); pequeno.intro_textos.eslogan.color = gris;
+		assert.equal(ctx.avisosDeLegibilidadBienvenida(pequeno, TODO).length, 1, '16 px pide 4,5');
+	});
+
+	test('un texto de 24 px, o de 19 px en negrita, también cuenta como grande; de 19 px normal, no', () => {
+		const { ctx } = conPaletas();
+		assert.equal(ctx.esTextoGrandeBienvenida(24, 400), true);
+		assert.equal(ctx.esTextoGrandeBienvenida(19, 700), true);
+		assert.equal(ctx.esTextoGrandeBienvenida(19, 400), false);
+		assert.equal(ctx.esTextoGrandeBienvenida(18, 800), false);
+	});
+
+	test('el texto del botón principal, contra el color de su botón', () => {
+		const { ctx } = conPaletas();
+		const d = FABRICA();
+		d.intro_textos.cta = { color: '#ffffff', color_texto: '#f4f4f4' };   // blanco sobre blanco
+		const avisos = ctx.avisosDeLegibilidadBienvenida(d, TODO);
+		assert.equal(avisos.length, 1);
+		assert.equal(avisos[0].cual, 'cta');
+		assert.match(avisos[0].texto, /el color del botón/);
+		assert.deepEqual(plano(avisos[0].secciones), ['textos']);
+	});
+
+	test('iconos de redes: mínimo de 2,5 —el de fábrica mide 2,8—, y solo si hay redes que se vayan a ver', () => {
+		const { ctx } = conPaletas();
+		const { ctx: c0 } = conPaletas();
+		// El de fábrica (blanco sobre #ef7a00) mide 2,8: el panel no puede avisar de lo que él mismo ofrece.
+		assert.ok(c0.contrasteColores('#ffffff', '#ef7a00') > 2.5 && c0.contrasteColores('#ffffff', '#ef7a00') < 3);
+		const d = FABRICA(); d.intro_social_icono_color = '#ef7b02';   // casi el color del fondo
+		assert.equal(ctx.avisosDeLegibilidadBienvenida(d, TODO).filter(a => a.cual === 'redes').length, 1);
+		assert.equal(ctx.avisosDeLegibilidadBienvenida(d, { ...TODO, redes: false }).length, 0, 'sin redes visibles no hay nada que avisar');
+		const [a] = ctx.avisosDeLegibilidadBienvenida(d, TODO);
+		assert.deepEqual(plano(a.secciones), ['redes']);
+	});
+
+	test('botón de ubicación: solo si el botón sale', () => {
+		const { ctx } = conPaletas();
+		const d = FABRICA(); d.intro_mapa_boton_color = '#17120c';
+		assert.equal(ctx.avisosDeLegibilidadBienvenida(d, TODO).filter(a => a.cual === 'mapa').length, 1);
+		assert.equal(ctx.avisosDeLegibilidadBienvenida(d, { ...TODO, botonMapa: false }).length, 0);
+	});
+
+	test('un texto que no sale en la carta no avisa, aunque tenga un color malo', () => {
+		const { ctx } = conPaletas();
+		const d = FABRICA();
+		for (const t of ['eslogan', 'adicional', 'direccion']) d.intro_textos[t].color = '#17120b';
+		const avisos = ctx.avisosDeLegibilidadBienvenida(d, { nombre: true });
+		assert.deepEqual(plano(avisos), []);
+	});
+
+	test('sin color puesto usa los de fábrica y un color roto no rompe nada', () => {
+		const { ctx } = conPaletas();
+		const d = FABRICA();
+		d.intro_textos.nombre = {}; d.intro_textos.eslogan = { color: 'no-es-un-color' }; d.intro_tarjeta_fondo = '';
+		assert.doesNotThrow(() => ctx.avisosDeLegibilidadBienvenida(d, TODO));
+		assert.deepEqual(plano(ctx.avisosDeLegibilidadBienvenida({ intro_tarjeta_fondo: '#17120b' }, { nombre: true })), []);
+	});
+
+	test('el contraste se muestra con una coma y sin redondear hacia arriba', () => {
+		const { ctx } = conPaletas();
+		assert.equal(ctx.formatoContrasteBienvenida(4.49), '4,4');
+		assert.equal(ctx.formatoContrasteBienvenida(4.5), '4,5');
+		assert.equal(ctx.formatoContrasteBienvenida(1), '1,0');
+	});
+
+	test('usa la misma cuenta que la paleta de la carta (contrasteColores), no una copia', () => {
+		const src = leer('bienvenida.js');
+		assert.match(src, /typeof contraste === 'function' \? contraste : contrasteColores/);
+		assert.doesNotMatch(src, /function luminancia|0\.2126/, 'no repite la fórmula');
+	});
+
+	test('no impide guardar: saveBienvenida no consulta los avisos para decidir', () => {
+		const src = leer('bienvenida.js');
+		const guardar = src.match(/async function saveBienvenida\(\) \{[\s\S]*?\r?\n\}/)[0];
+		const antes = guardar.slice(0, guardar.indexOf('apiFetch'));
+		assert.doesNotMatch(antes, /aviso|legibilidad/i);
+	});
+
+	test('al guardar dice cuántos avisos quedan, en singular y en plural', async () => {
+		const casos = [[0, '✓ Guardado'], [1, '✓ Guardado · ojo: 1 aviso de legibilidad, arriba'], [3, '✓ Guardado · ojo: 3 avisos de legibilidad, arriba']];
+		for (const [n, esperado] of casos) {
+			const { ctx, $ } = montar({}, { id: 'r1', nombre: 'Bonzas', atributos: {} });
+			$('apIntroAvisos').querySelectorAll = () => new Array(n).fill({});
+			Object.assign(ctx, {
+				apiFetch: async (m, r, c) => ({ id: 'r1', atributos: c.atributos }),
+				valoresBienvenida: () => ({}), renderBienvenida() {}, fijarFotoDePestana() {},
+				ajustesMarcarPendientes() {}, ajustarPestanasAlModelo() {}, avisarGuardadoConCarta() {}, showToast() {},
+			});
+			await ctx.saveBienvenida();
+			assert.equal($('bienvenidaStatus').textContent, esperado);
+		}
+	});
+
+	test('el cuadro existe y cuatro secciones pueden llevar la marca ⚠', () => {
+		const html = leer('index.html');
+		assert.match(html, /<div class="bienvenida-avisos" id="apIntroAvisos" role="status" hidden><\/div>/);
+		const marcadas = [...html.matchAll(/data-aviso="([^"]+)"/g)].map(m => m[1]).sort();
+		assert.deepEqual(marcadas, ['recuadro', 'redes', 'textos', 'ubicacion']);
+		assert.match(leer('panel.css'), /\.bienvenida-details\.con-aviso>summary::before\{content:'⚠'/);
+	});
+
+	test('la vista previa repinta los avisos con cada cambio', () => {
+		const src = leer('bienvenida.js');
+		const vista = src.match(/function actualizarVistaPreviaBienvenida\(\) \{[\s\S]*?\r?\n\}/)[0];
+		assert.match(vista, /pintarAvisosDeLegibilidad\(avisosDeLegibilidadBienvenida\(/);
+	});
+
+	test('pintar: llena la lista con textContent y marca las secciones afectadas', () => {
+		const { ctx, $ } = conPaletas();
+		const creados = [];
+		const nodo = (tag) => { const n = { tag, children: [], textContent: '', hidden: false, append(...h) { this.children.push(...h); }, appendChild(h) { this.children.push(h); } }; creados.push(n); return n; };
+		const caja = $('apIntroAvisos');
+		caja.children = []; caja.replaceChildren = function () { this.children = []; }; caja.append = (...h) => caja.children.push(...h);
+		const detalle = (clave) => { const d = campo(); d.dataset = { aviso: clave }; return d; };
+		const secciones = ['recuadro', 'textos', 'redes', 'ubicacion'].map(detalle);
+		ctx.document.createElement = nodo;
+		ctx.document.querySelectorAll = () => secciones;
+		ctx.pintarAvisosDeLegibilidad([{ texto: 'El nombre se lee mal', secciones: ['textos', 'recuadro'] }]);
+		assert.equal(caja.hidden, false);
+		assert.equal(secciones.filter(s => s._clases.has('con-aviso')).map(s => s.dataset.aviso).sort().join(), 'recuadro,textos');
+		const li = creados.find(n => n.tag === 'li');
+		assert.equal(li.textContent, 'El nombre se lee mal');
+		ctx.pintarAvisosDeLegibilidad([]);
+		assert.equal(caja.hidden, true);
+		assert.equal(secciones.some(s => s._clases.has('con-aviso')), false, 'sin avisos no queda ninguna marca');
+	});
+});
