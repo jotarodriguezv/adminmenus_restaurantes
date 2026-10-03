@@ -156,6 +156,14 @@ corregir el documento en la misma tarea.
   2,5 y no 3**, porque los colores de fábrica (blanco sobre `#ef7a00`) miden 2,8
   y con 3 el panel avisaría de lo que él mismo ofrece. Si se oscurece ese
   naranja, `MINIMO_ICONO_BIENVENIDA` vuelve a 3.
+
+  **Dos detalles que no se ven en el código** (BV6 y BV8, 03/10/2026). El
+  horario y el correo se pintan con el estilo de texto de la **dirección**
+  (`aplicarTextoPrevisualizacion`, y lo mismo en la carta); por eso ese bloque se
+  llama «Dirección, horario y correo» y no «Dirección opcional». Y **todo
+  selector de color del formulario lleva su código hexadecimal**, añadido por
+  `decorarCamposHexBienvenida` —no escrito a mano en cada uno— porque los de los
+  textos se generan al pintar: un color nuevo no tiene que acordarse de nada.
 - `public/imprimir.js` — «🖨 Imprimir carta», en Inicio: una vista previa en A4
   para imprimir o guardar en PDF con el cuadro de impresión del navegador. Sin
   librería de PDF. Si el navegador bloquea la pestaña nueva, se abre dentro del
