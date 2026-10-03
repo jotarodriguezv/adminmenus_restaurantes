@@ -218,3 +218,98 @@ describe('la dirección, junto a la ubicación', () => {
 		assert.ok(!html.includes('<summary>Ubicación en el menú</summary>'));
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('la bienvenida guarda por su cuenta (02/10/2026)', () => {
+	// Vivía en Apariencia y se guardaba con «Guardar apariencia», junto a los
+	// colores de la carta. Ahora está en Ajustes → Bienvenida con su botón.
+	function guardable(apiFetch) {
+		const { ctx, $ } = montar({}, { id: 'r1', nombre: 'Bonzas', atributos: {} });
+		const llamadas = { fotos: [], render: [], pestanas: 0, avisos: [], marcas: 0, toasts: [] };
+		Object.assign(ctx, {
+			apiFetch,
+			valoresBienvenida: () => ({ intro_activo: true, intro_eslogan: 'Hecho con cariño' }),
+			renderBienvenida: (at) => llamadas.render.push(at),
+			fijarFotoDePestana: (t) => llamadas.fotos.push(t),
+			ajustarPestanasAlModelo: () => { llamadas.pestanas++; },
+			avisarGuardadoConCarta: (m) => llamadas.avisos.push(m),
+			ajustesMarcarPendientes: () => { llamadas.marcas++; },
+			showToast: (m, tipo) => llamadas.toasts.push([m, tipo]),
+		});
+		return { ctx, $, llamadas };
+	}
+
+	test('manda SOLO las claves de la bienvenida, no los colores ni nada más', async () => {
+		const peticiones = [];
+		const { ctx } = guardable(async (metodo, ruta, cuerpo) => { peticiones.push({ metodo, ruta, cuerpo }); return { id: 'r1', atributos: cuerpo.atributos }; });
+		await ctx.saveBienvenida();
+		assert.equal(peticiones.length, 1);
+		assert.equal(peticiones[0].metodo, 'PATCH');
+		assert.equal(peticiones[0].ruta, '/api/restaurantes/r1');
+		assert.deepEqual(Object.keys(peticiones[0].cuerpo), ['atributos'], 'sin color_primario ni color_secundario');
+		assert.deepEqual(peticiones[0].cuerpo.atributos, { intro_activo: true, intro_eslogan: 'Hecho con cariño' });
+	});
+
+	test('al terminar: repinta desde lo guardado, toma SU foto y repinta las pestañas (Reservas)', async () => {
+		const { ctx, $, llamadas } = guardable(async (m, r, c) => ({ id: 'r1', atributos: c.atributos }));
+		await ctx.saveBienvenida();
+		assert.deepEqual(llamadas.fotos, ['bienvenida'], 'solo la suya: guardar esto no da por guardado lo demás de Ajustes');
+		assert.equal(llamadas.render.length, 1);
+		assert.equal(llamadas.render[0].intro_eslogan, 'Hecho con cariño');
+		assert.equal(llamadas.pestanas, 1, 'la pestaña Reservas depende de su interruptor');
+		assert.equal(llamadas.marcas, 1, 'el punto de «sin guardar» se apaga');
+		assert.deepEqual(llamadas.avisos, ['Bienvenida guardada']);
+		assert.equal($('bienvenidaStatus').textContent, '✓ Guardado');
+	});
+
+	test('si el servidor lo rechaza, se dice el motivo junto al botón y no se da por guardado', async () => {
+		const { ctx, $, llamadas } = guardable(async () => { throw new Error('El color de fondo de bienvenida tiene que ser un color válido'); });
+		await ctx.saveBienvenida();
+		assert.match($('bienvenidaStatus').textContent, /color de fondo/);
+		assert.deepEqual(llamadas.fotos, [], 'sigue pendiente');
+		assert.equal(llamadas.toasts.length, 1);
+		assert.equal(llamadas.toasts[0][1], 'error');
+	});
+
+	test('con la sesión caducada (apiFetch devuelve nada) no repinta ni toma foto', async () => {
+		const { ctx, llamadas } = guardable(async () => undefined);
+		await ctx.saveBienvenida();
+		assert.deepEqual(llamadas.fotos, []);
+		assert.deepEqual(llamadas.render, []);
+	});
+
+	test('guardar Ajustes refresca los datos de la bienvenida sin repintar su formulario', () => {
+		const ajustes = leer('ajustes.js');
+		const guardar = ajustes.match(/async function saveAjustes\(\)[\s\S]*?\n\}/)[0];
+		assert.match(guardar, /refrescarDatosDeBienvenida\(\)/);
+		const bien = leer('bienvenida.js');
+		const refresco = bien.match(/function refrescarDatosDeBienvenida\(\) \{[\s\S]*?\n\}/)[0];
+		assert.doesNotMatch(refresco, /renderBienvenida\(/, 'repintarlo tiraría lo que se esté escribiendo');
+		assert.match(refresco, /ajustarInterruptoresBienvenida\(\)/);
+	});
+
+	test('Apariencia ya no manda las claves intro_*', () => {
+		const aspecto = sinComentarios(leer('aspecto.js'));
+		assert.doesNotMatch(aspecto, /valoresBienvenida|intro_activo|intro_eslogan|renderBienvenida/);
+	});
+});
+
+describe('guardar «Mi negocio» y lo que la bienvenida dice de las redes', () => {
+	// Visto al probarlo el 02/10/2026: tras guardar un enlace de Facebook, el
+	// interruptor se habilitaba pero el texto de al lado seguía diciendo
+	// «agrega el enlace en Ajustes».
+	test('el texto de cada red se repinta con lo recién guardado', () => {
+		const { ctx, $ } = montar({}, { id: 'r1', nombre: 'Bonzas', atributos: { social_instagram: 'https://instagram.com/x' } });
+		Object.assign(ctx, {
+			pintarDatosEnBienvenida() {}, ajustarInterruptoresBienvenida() {},
+			actualizarVistaPreviaBienvenida() {}, ajustesMarcarPendientes() {},
+		});
+		ctx.refrescarDatosDeBienvenida();
+		assert.equal($('apIntroEstadoInstagram').textContent, 'Instagram · enlace configurado');
+		assert.match($('apIntroEstadoFacebook').textContent, /agrega el enlace/);
+
+		ctx.state.restaurante.atributos.social_facebook = 'https://facebook.com/bonzas';
+		ctx.refrescarDatosDeBienvenida();
+		assert.equal($('apIntroEstadoFacebook').textContent, 'Facebook · enlace configurado');
+	});
+});

@@ -246,6 +246,15 @@ function actualizarVistaPreviaBienvenida() {
   actualizarResumenesBienvenida();
 }
 
+// Al lado de cada interruptor de red dice si ya hay enlace o dónde ponerlo. Se
+// repinta también al guardar «Mi negocio»: el interruptor se habilita solo y el
+// texto no puede seguir diciendo «agrega el enlace».
+function pintarEstadoDeRedesEnBienvenida() {
+  const redes = state.restaurante?.atributos || {}; campoBienvenida('apIntroEstadoInstagram').textContent = redes.social_instagram ? 'Instagram · enlace configurado' : 'Instagram · agrega el enlace en Ajustes';
+  campoBienvenida('apIntroEstadoFacebook').textContent = redes.social_facebook ? 'Facebook · enlace configurado' : 'Facebook · agrega el enlace en Ajustes';
+  campoBienvenida('apIntroEstadoTiktok').textContent = redes.social_tiktok ? 'TikTok · enlace configurado' : 'TikTok · agrega el enlace en Ajustes';
+}
+
 function renderBienvenida(at = {}) {
   const datos = { ...VALORES_BIENVENIDA, ...at }; pintarControlesTextoBienvenida(datos.intro_textos || {});
   const poner = (id, valor) => { const el = campoBienvenida(id); if (el) el.value = valor ?? ''; };
@@ -261,9 +270,7 @@ function renderBienvenida(at = {}) {
   const fuentesMapa = campoBienvenida('apIntroMapaBotonFuente'); if (fuentesMapa && !fuentesMapa.options.length) fuentesMapa.innerHTML = (typeof FUENTES_TEXTO_MENU !== 'undefined' ? FUENTES_TEXTO_MENU : ['', 'Montserrat', 'Inter', 'Poppins']).map(f => `<option value="${f}">${f || 'Montserrat (predeterminada)'}</option>`).join(''); poner('apIntroMapaBotonFuente', datos.intro_mapa_boton_fuente);
   const imagen = campoBienvenida('apIntroImagenPreview'); imagen.dataset.url = datos.intro_fondo_url || ''; imagen.hidden = !datos.intro_fondo_url; if (datos.intro_fondo_url) imagen.src = datos.intro_fondo_url;
   campoBienvenida('apIntroImagenVacia').hidden = !!datos.intro_fondo_url; campoBienvenida('apIntroImagenEliminar').hidden = !datos.intro_fondo_url;
-  const redes = state.restaurante?.atributos || {}; campoBienvenida('apIntroEstadoInstagram').textContent = redes.social_instagram ? 'Instagram · enlace configurado' : 'Instagram · agrega el enlace en Ajustes';
-  campoBienvenida('apIntroEstadoFacebook').textContent = redes.social_facebook ? 'Facebook · enlace configurado' : 'Facebook · agrega el enlace en Ajustes';
-  campoBienvenida('apIntroEstadoTiktok').textContent = redes.social_tiktok ? 'TikTok · enlace configurado' : 'TikTok · agrega el enlace en Ajustes'; pintarDatosEnBienvenida(); ajustarInterruptoresBienvenida(); actualizarVistaPreviaBienvenida();
+  pintarEstadoDeRedesEnBienvenida(); pintarDatosEnBienvenida(); ajustarInterruptoresBienvenida(); actualizarVistaPreviaBienvenida();
 }
 
 async function subirFondoBienvenida(input) {
@@ -276,3 +283,52 @@ async function subirFondoBienvenida(input) {
 function quitarFondoBienvenida() { const imagen = campoBienvenida('apIntroImagenPreview'); imagen.dataset.url = ''; imagen.removeAttribute('src'); imagen.hidden = true; campoBienvenida('apIntroImagenVacia').hidden = false; campoBienvenida('apIntroImagenEliminar').hidden = true; actualizarVistaPreviaBienvenida(); }
 
 function restaurarBienvenida() { renderBienvenida({ ...VALORES_BIENVENIDA, intro_activo: campoBienvenida('apIntroActivo').checked }); showToast('Restauramos los valores de bienvenida; guarda para aplicarlos', 'success'); }
+
+// ── GUARDAR ───────────────────────────────────────────────────
+// Vive en Ajustes → Bienvenida y guarda SOLO sus claves (intro_*): el servidor
+// funde con lo que ya hay y no toca el resto. Hasta el 02/10/2026 se guardaba
+// con «Guardar apariencia», junto a los colores y la tipografía de la carta:
+// quien solo quería cambiar una frase guardaba también lo demás, y viceversa.
+async function saveBienvenida() {
+  const st = document.getElementById('bienvenidaStatus');
+  st.textContent = 'Guardando…'; st.style.color = 'var(--text-muted)';
+  try {
+    const data = await apiFetch('PATCH', `/api/restaurantes/${state.restaurante.id}`,
+      { atributos: valoresBienvenida() });
+    if (!data) return;   // sesión caducada: apiFetch ya llevó al login
+    state.restaurante = data;
+    renderBienvenida(data.atributos || {});
+    // Su propia foto: guardar esto no da por guardado el otro formulario de Ajustes.
+    fijarFotoDePestana('bienvenida');
+    ajustesMarcarPendientes();
+    // La pestaña Reservas existe según el interruptor de la bienvenida (01/10/2026):
+    // sin repintar no aparecía hasta recargar el panel.
+    ajustarPestanasAlModelo();
+    st.textContent = '✓ Guardado'; st.style.color = 'var(--success)';
+    avisarGuardadoConCarta('Bienvenida guardada');
+  } catch (e) {
+    st.textContent = e.message; st.style.color = 'var(--danger)';
+    showToast(e.message, 'error');
+  }
+}
+
+// Al entrar a Ajustes, desde lo guardado. Se llama después de renderAjustes():
+// los datos del negocio que la bienvenida enseña (dirección, enlaces, redes)
+// ya están puestos.
+function renderBienvenidaEnAjustes() {
+  renderBienvenida(state.restaurante?.atributos || {});
+  const st = document.getElementById('bienvenidaStatus');
+  if (st) { st.textContent = ''; st.style.color = 'var(--text-muted)'; }
+}
+
+// Guardar «Mi negocio», «Pedidos» o «Carta» puede cambiar lo que la bienvenida
+// enseña: una red social nueva, una dirección. Se refrescan los datos y los
+// interruptores SIN repintar el formulario entero, que tiraría lo que se esté
+// escribiendo en la bienvenida sin guardar.
+function refrescarDatosDeBienvenida() {
+  pintarEstadoDeRedesEnBienvenida();
+  pintarDatosEnBienvenida();
+  ajustarInterruptoresBienvenida();
+  actualizarVistaPreviaBienvenida();
+  ajustesMarcarPendientes();
+}

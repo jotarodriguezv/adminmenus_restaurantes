@@ -8,8 +8,9 @@ cliente por WhatsApp.
 
 ## Decisiones del usuario
 
-- Todo se configura **donde ya está la bienvenida**: pestaña Apariencia, sección
-  «Botón «Reservar mesa»». No se movió nada de sitio.
+- Todo se configura **donde ya está la bienvenida**: sección «Botón «Reservar
+  mesa»». Estaba en la pestaña Apariencia y desde el 02/10/2026 está en
+  **Ajustes → Bienvenida**.
 - Las reservas **solo en la bienvenida**, no en la carta.
 - **Sin aviso automático**: la lista y el contador de pendientes de la pestaña
   son el aviso. Nada de n8n ni Telegram.

@@ -7097,8 +7097,9 @@ describe('los toppings se guardan con el botón de Ajustes', () => {
 		const tab = src.slice(src.indexOf('<div id="tabAjustes"'), src.indexOf('<div id="tabAspecto"'));
 		for (const id of ['ajToppingsCuerpo', 'listToppingsPlatino', 'listToppingsPremium', 'listToppingsSalsas', 'toppingsGuia'])
 			assert.ok(tab.includes(`id="${id}"`), `falta ${id} en Ajustes`);
-		// Y un solo botón de guardar en toda la pestaña.
-		assert.equal((tab.match(/class="btn-save"/g) || []).length, 1);
+		// Y un solo botón de guardar Ajustes: la bienvenida (02/10/2026) trae el suyo.
+		assert.equal((tab.match(/onclick="saveAjustes\(\)"/g) || []).length, 1);
+		assert.equal((tab.match(/onclick="saveBienvenida\(\)"/g) || []).length, 1);
 	});
 
 	test('el catálogo viaja con lo demás, en la misma petición', async () => {
@@ -8138,7 +8139,7 @@ describe('las redes sociales las edita el restaurante, en Ajustes', () => {
 		assert.doesNotMatch(boton, /display:\s*none/, 'no puede nacer escondida: es del restaurante');
 		const cambiar = src.match(/function switchTab\(tab, btn\) \{[\s\S]*?\n\}/)[0];
 		assert.match(cambiar, /'tabAjustes'/);
-		assert.match(cambiar, /if \(tab === 'ajustes'\) \{ ajustesRecordarSeccion\(\); renderAjustes\(\); \}/);
+		assert.match(cambiar, /if \(tab === 'ajustes'\) \{ ajustesRecordarSeccion\(\); renderAjustes\(\); renderBienvenidaEnAjustes\(\); \}/);
 		assert.doesNotMatch(cambiar.split('\n')[1], /ajustes/, 'no se corta para el restaurante como Apariencia');
 	});
 
@@ -8316,7 +8317,7 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 		for (const id of ['ajSocialBar', 'ajSocialInstagram', 'ajSocialFacebook', 'ajSocialTiktok'])
 			assert.ok(negocio.includes(`id="${id}"`), `${id} sigue en la pantalla, ahora dentro del negocio`);
 		assert.equal((tab.match(/<div class="section-title">Redes sociales<\/div>/g) || []).length, 0, 'ya no hay tarjeta propia');
-		assert.equal((tab.match(/class="btn-save"/g) || []).length, 1, 'un solo botón de guardar');
+		assert.equal((tab.match(/onclick="saveAjustes\(\)"/g) || []).length, 1, 'un solo botón de guardar Ajustes');
 		assert.ok(tab.indexOf('saveAjustes()') > tab.indexOf('Redes sociales'), 'el botón de guardar, después de todas');
 	});
 
@@ -8376,18 +8377,14 @@ describe('la pestaña Apariencia (del restaurante), separada de Ajustes', () => 
 		return { ctx, campos: $ };
 	}
 
-	test('la pantalla de bienvenida se pinta desde lo guardado, apagada por defecto', () => {
-		const { ctx, campos } = montar({ direccion: 'Cra 7 # 12-34, Bogotá' });
+	test('Apariencia ya no pinta la pantalla de bienvenida: es de Ajustes', () => {
+		// Se mudó a Ajustes → Bienvenida el 02/10/2026. Si esta pestaña siguiera
+		// pintándola, dos pantallas tendrían los mismos controles.
+		const { ctx, campos } = montar({ direccion: 'Cra 7 # 12-34, Bogotá', intro_activo: true, intro_eslogan: 'Hecho con cariño' });
 		ctx.renderAspecto();
-		assert.equal(campos('apIntroActivo').checked, false, 'ausente es apagada, no como el buscador');
-		// La dirección es del negocio (Ajustes → Datos del negocio): Apariencia ya no
-		// la pinta ni la guarda.
+		assert.equal(campos('apIntroActivo').checked, false, 'no la toca');
+		assert.equal(campos('apIntroEslogan').value, '', 'no la toca');
 		assert.equal(campos('apDireccion').value, '');
-
-		const { ctx: ctx2, campos: campos2 } = montar({ intro_activo: true, intro_eslogan: 'Hecho con cariño' });
-		ctx2.renderAspecto();
-		assert.equal(campos2('apIntroActivo').checked, true);
-		assert.equal(campos2('apIntroEslogan').value, 'Hecho con cariño');
 	});
 
 	test('guardar manda los colores sueltos, y el resto en atributos', async () => {
@@ -8402,7 +8399,7 @@ describe('la pestaña Apariencia (del restaurante), separada de Ajustes', () => 
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo).sort(), ['atributos', 'color_primario', 'color_secundario']);
 		assert.deepEqual(Object.keys(peticiones[0].cuerpo.atributos).sort(),
 			['color_card', 'color_surface', 'estilo', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
-			 'fuente_cuerpo', 'fuente_titulo', 'intro_activo', 'intro_eslogan', 'mostrar_hero', 'nav', 'subtitulo']);
+			 'fuente_cuerpo', 'fuente_titulo', 'mostrar_hero', 'nav', 'subtitulo']);
 	});
 
 	test('si el servidor lo rechaza, se dice el motivo junto al botón', async () => {
@@ -8668,7 +8665,7 @@ describe('cambiar de pestaña con cambios sin guardar pregunta antes', () => {
 	function montar() {
 		const campos = {}, abiertos = [], pintadas = [];
 		const nodo = () => ({ classList: { add() {}, remove() {}, toggle() {} }, style: {}, textContent: '' });
-		const form = { valor: 'guardado' };
+		const form = { valor: 'guardado', bienvenida: 'guardada' };
 		const ctx = cargar('index.html', '// ── TABS', '// ── ¿HAY MÁS PESTAÑAS FUERA?', {
 			state: { rol: 'cliente' },
 			document: {
@@ -8679,6 +8676,9 @@ describe('cambiar de pestaña con cambios sin guardar pregunta antes', () => {
 			openModal: id => abiertos.push(id), closeModal: () => {},
 			renderAjustes: () => { form.valor = 'guardado'; pintadas.push('ajustes'); },
 			ajustesRecordarSeccion() {},
+			// La bienvenida de Ajustes: su formulario y su guardado son aparte.
+			renderBienvenidaEnAjustes: () => { form.bienvenida = 'guardada'; },
+			valoresBienvenida: () => ({ valor: form.bienvenida }),
 			recolectarAjustes: () => ({ valor: form.valor }),
 			renderInicio: () => pintadas.push('inicio'),
 			renderToppings() {}, renderTV() {}, renderImportar() {},
@@ -8732,6 +8732,52 @@ describe('cambiar de pestaña con cambios sin guardar pregunta antes', () => {
 		ctx.fijarFotoDePestana('ajustes');   // lo que hace saveAjustes al terminar
 		ctx.switchTab('inicio', boton());
 		assert.deepEqual(abiertos, []);
+	});
+
+	// La bienvenida está en Ajustes pero guarda aparte (02/10/2026): cada
+	// formulario tiene su foto, y salir de la pestaña pregunta por cualquiera.
+	test('la bienvenida sin guardar también pregunta al salir de Ajustes', () => {
+		const { ctx, form, abiertos, boton } = montar();
+		ctx.switchTab('ajustes', boton());
+		form.bienvenida = 'frase nueva';
+		ctx.switchTab('inicio', boton());
+		assert.deepEqual(abiertos, ['pestanaCambiosModal']);
+	});
+
+	test('guardar Ajustes NO da por guardada la bienvenida', () => {
+		const { ctx, form, abiertos, boton } = montar();
+		ctx.switchTab('ajustes', boton());
+		form.valor = 'topping encendido';
+		form.bienvenida = 'frase nueva';
+		ctx.fijarFotoDePestana('ajustes');   // saveAjustes
+		ctx.switchTab('inicio', boton());
+		assert.deepEqual(abiertos, ['pestanaCambiosModal'], 'la bienvenida seguía pendiente');
+	});
+
+	test('guardar la bienvenida NO da por guardado el resto de Ajustes', () => {
+		const { ctx, form, abiertos, boton } = montar();
+		ctx.switchTab('ajustes', boton());
+		form.valor = 'topping encendido';
+		form.bienvenida = 'frase nueva';
+		ctx.fijarFotoDePestana('bienvenida');   // saveBienvenida
+		ctx.switchTab('inicio', boton());
+		assert.deepEqual(abiertos, ['pestanaCambiosModal'], 'lo de Ajustes seguía pendiente');
+	});
+
+	test('con los dos guardados ya no pregunta, y salir sin guardar suelta las dos fotos', () => {
+		const { ctx, form, abiertos, boton } = montar();
+		ctx.switchTab('ajustes', boton());
+		form.valor = 'x'; form.bienvenida = 'y';
+		ctx.fijarFotoDePestana('ajustes'); ctx.fijarFotoDePestana('bienvenida');
+		ctx.switchTab('inicio', boton());
+		assert.deepEqual(abiertos, []);
+
+		const otra = montar();
+		otra.ctx.switchTab('ajustes', otra.boton());
+		otra.form.bienvenida = 'descartada';
+		otra.ctx.switchTab('inicio', otra.boton());
+		otra.ctx.salirDePestanaSinGuardar();
+		assert.equal(otra.ctx.hayCambiosEnPestana('ajustes'), false, 'ya no hay fotos con las que comparar');
 	});
 });
 
