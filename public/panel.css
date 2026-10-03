@@ -626,6 +626,7 @@ a,button,input,select,textarea{font-family:inherit;}
 .modelo-selector-nativo{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;
   margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;}
 .modelo-pagina-ayuda{margin:-2px 0 12px;color:var(--text-muted);font-size:12px;line-height:1.5;}
+.modelo-pagina-ayuda a{color:var(--accent);text-decoration:underline;text-underline-offset:2px;}
 .modelos-pagina{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
 .modelo-pagina{min-width:0;padding:9px;border:1px solid var(--border);border-radius:10px;background:var(--card);
   color:var(--text);text-align:left;cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s,background .2s;}

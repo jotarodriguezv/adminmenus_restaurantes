@@ -738,7 +738,7 @@ para este restaurante.
 > Lo que estaba mal era el rótulo, y se quitó.
 >
 > Sí se esconden, al cambiar el modelo y al abrir, **la Portada** (solo explorar) y
-> **«Mostrar mensaje de bienvenida»** (solo sidebar y carrito; en topnav sale
+> **«Mostrar mensaje de bienvenida»** (hoy «Mostrar el encabezado de la carta»; solo sidebar y carrito; en topnav sale
 > siempre). Se siguen guardando, como el estilo del carrete: quien pruebe otro modelo
 > y vuelva lo encuentra.
 >
@@ -3369,7 +3369,7 @@ Tipografía, así que se llega tras mucho scroll y sin saber cuánto falta.
 
 ## BV2 · Dos cosas llamadas «bienvenida» en la misma pestaña · **Media**
 
-- [ ] Pendiente
+- [x] Hecho · 2026-10-03 · «Mostrar mensaje de bienvenida» pasó a «Mostrar el encabezado de la carta», y Apariencia dice dónde está ahora la pantalla de bienvenida (enlace a Ajustes → Bienvenida). La clave guardada sigue siendo `mostrar_hero`
 
 «Mostrar mensaje de bienvenida» (el logo, el nombre y el subtítulo bajo la
 cabecera, en *Modelo de página*) y «Pantalla de bienvenida» (la que sale antes

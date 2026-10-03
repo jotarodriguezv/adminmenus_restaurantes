@@ -86,6 +86,16 @@ function ajustesMarcarPendientes() {
   if (punto) punto.hidden = !cambioDeFoto('bienvenida');
 }
 
+// Desde Apariencia, que ya no tiene la bienvenida pero es donde se la busca. Si
+// hay cambios sin guardar, switchTab pregunta y puede no cambiar de pestaña:
+// la sección solo se abre si llegó. Si la persona elige «Salir sin guardar», cae
+// en Ajustes (en la sección que tuviera) y el segundo paso es suyo.
+function irALaBienvenida() {
+  switchTab('ajustes', document.getElementById('tabBtnAjustes'));
+  if (pestanaActual !== 'ajustes') return;
+  ajustesCambiarSeccion('bienvenida');
+}
+
 // Para los enlaces que apuntan a un campo concreto («Cambiarlo en Datos del
 // negocio», «Pon aquí el número…»): un campo en una sección escondida no se
 // puede enfocar ni traer a la vista, así que primero se abre la suya.
