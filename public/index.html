@@ -161,6 +161,21 @@
 					<div style="margin:-10px 0 16px;font-size:11px;color:var(--text-dim);line-height:1.6;">
 						Le muestra la pestaña para importar un PDF o una foto y crear los productos. Puedes apagarla después desde Superadmin.
 					</div>
+					<!-- El entorno y el período comercial no son lo mismo: una demo es
+					     nuestra y no vence; una prueba comercial sí es un cliente real,
+					     pero se suspende al terminar los días ofrecidos. -->
+					<div class="form-group" style="margin-bottom:12px">
+						<label for="newRestoEstado" class="form-label">Estado al iniciar</label>
+						<select class="form-select" id="newRestoEstado" onchange="actualizarEstadoNuevoResto()">
+							<option value="produccion">Producción — cliente real</option>
+							<option value="prueba_interna">Prueba interna — demo del equipo</option>
+							<option value="prueba_comercial">Período de prueba comercial</option>
+						</select>
+					</div>
+					<div class="form-group" id="newRestoPeriodoPrueba" style="margin-bottom:16px" hidden>
+						<label for="newRestoDiasPrueba" class="form-label">Días de prueba <span style="color:var(--text-dim)">(incluido hoy; de 1 a 7)</span></label>
+						<input type="number" class="form-input" id="newRestoDiasPrueba" min="1" max="7" step="1" inputmode="numeric" placeholder="Ej.: 3, 5 o 7">
+					</div>
 					<!-- Las mismas paletas de Superadmin → Colores (public/paletas.js). Aquí
 					     no hay «De tu logo»: el logo se sube después, y en Superadmin ya sale. -->
 					<div class="form-label">Paleta de colores <span style="color:var(--text-dim)">(opcional; pone también el fondo y las cajas. Si no eliges, se usan los de siempre)</span></div>
@@ -9405,25 +9420,37 @@ function aplicarClonPreview(id) {
   soltarPaletaNuevoResto();
 }
 
+function actualizarEstadoNuevoResto() {
+  const esComercial = document.getElementById('newRestoEstado').value === 'prueba_comercial';
+  document.getElementById('newRestoPeriodoPrueba').hidden = !esComercial;
+}
+
 async function crearRestaurante() {
   const nombre=document.getElementById('newRestoNombre').value.trim();
   const slug=document.getElementById('newRestoSlug').value.trim();
   const plan=document.getElementById('newRestoPlan').value;
   const modelo=document.getElementById('newRestoModelo').value;
 	const importar_carta=document.getElementById('newRestoImportar').checked;
+	const estado=document.getElementById('newRestoEstado').value;
+	const diasPruebaRaw=document.getElementById('newRestoDiasPrueba').value;
   const color1=document.getElementById('newRestoColor1').value.trim();
   const color2=document.getElementById('newRestoColor2').value.trim();
   const pin=document.getElementById('newRestoPin').value.trim();
   const clonar_de=document.getElementById('newRestoClonar').value || undefined;
   const status=document.getElementById('newRestoStatus');
+	const es_prueba=estado === 'prueba_interna';
+	const dias_prueba_comercial=estado === 'prueba_comercial' ? Number(diasPruebaRaw) : null;
 
   if(!nombre||!slug){status.textContent='Nombre y slug son obligatorios';status.style.color='var(--danger)';return;}
   if(!/^[a-z0-9-]+$/.test(slug)){status.textContent='El slug solo puede tener letras minúsculas, números y guiones';status.style.color='var(--danger)';return;}
   if(!pin||pin.length<4||pin.length>10){status.textContent='El PIN debe tener entre 4 y 10 caracteres';status.style.color='var(--danger)';return;}
+	if (estado === 'prueba_comercial' && (!Number.isInteger(dias_prueba_comercial) || dias_prueba_comercial < 1 || dias_prueba_comercial > 7)) {
+		status.textContent='Escribe entre 1 y 7 días para el período de prueba'; status.style.color='var(--danger)'; return;
+	}
 
   status.textContent='Creando...'; status.style.color='var(--text-muted)';
   try {
-    const creado = await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de,plan,nav:modelo,importar_carta,...coloresPaletaNuevoResto()});
+    const creado = await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de,plan,nav:modelo,importar_carta,es_prueba,dias_prueba_comercial,...coloresPaletaNuevoResto()});
     // Si venía de una solicitud de alta, queda aprobada y enlazada a él.
     if (creado?.id) await marcarSolicitudCreada(creado.id);
     status.textContent='✓ Restaurante creado correctamente'; status.style.color='var(--success)';
@@ -9431,6 +9458,9 @@ async function crearRestaurante() {
     document.getElementById('newRestoSlug').value='';
     document.getElementById('newRestoPin').value='';
 		document.getElementById('newRestoImportar').checked=false;
+		document.getElementById('newRestoEstado').value='produccion';
+		document.getElementById('newRestoDiasPrueba').value='';
+		actualizarEstadoNuevoResto();
     document.getElementById('newRestoClonar').value='';
     document.getElementById('newRestoPlan').value=PLAN_POR_DEFECTO;
     filtrarModeloNuevoResto();
@@ -9668,6 +9698,7 @@ function habilitarArrastre() {
 
 // ── ARRANQUE ──────────────────────────────────────────────────
 filtrarModeloNuevoResto();
+actualizarEstadoNuevoResto();
 renderPaletasNuevoResto();
 habilitarArrastre();
 vigilarCambiosApariencia();
