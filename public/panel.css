@@ -1607,3 +1607,6 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 .sede-pegado-falta{color:var(--warn, #e0a030);margin-top:4px;word-break:break-word;}
 .reservas-filtro{margin-bottom:12px;max-width:260px;}
 .reserva-sede{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);font-weight:700;}
+.tv-interruptor{display:flex;flex-direction:column;align-items:flex-end;gap:3px;text-align:right;}
+.tv-interruptor-ayuda{font-size:11px;color:var(--text-dim);line-height:1.4;max-width:300px;}
+@media (max-width:640px){.tv-interruptor{align-items:flex-start;text-align:left;}}

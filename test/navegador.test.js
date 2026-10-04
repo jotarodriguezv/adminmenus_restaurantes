@@ -11636,3 +11636,54 @@ describe('Destacados por sede (panel)', () => {
 		assert.match(src, /if \(sinCambios\) caja\.dataset\.foto = JSON\.stringify\(caja\.leerFormulario\(\)\);/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('El interruptor de la pantalla de TV dice cuál pantalla es', () => {
+	// Con tres pantallas, «Encender la cartelera» en las tres no dejaba saber cuál se apagaba.
+	const montar = ({ activa, nombre, pantalla = 1 }) => {
+		const el = {};
+		const $ = id => (el[id] ||= { textContent: '', value: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } });
+		$('tvActiva').checked = activa; $('tvNombre').value = nombre;
+		const ctx = cargar('tv.js', [
+			['tv.js', 'function tvNombrePorDefecto', 'function tvEnlaceDePantalla'],
+			['tv.js', 'function tvPintarEtiquetaActiva', 'function tvAlternarActiva'],
+		], { document: { getElementById: $ }, tvPantallaActual: pantalla });
+		ctx.tvPintarEtiquetaActiva();
+		return { $ };
+	};
+
+	test('encendida: el texto lleva el nombre y «encendida», y la acción posible es apagarla', () => {
+		const { $ } = montar({ activa: true, nombre: 'Pantalla Bucaramanga' });
+		assert.equal($('tvActivaTexto').textContent, '«Pantalla Bucaramanga» encendida');
+		assert.equal($('tvActiva').attrs['aria-label'], 'Apagar la cartelera «Pantalla Bucaramanga»');
+	});
+
+	test('apagada: dice «apagada» y la acción posible es encenderla', () => {
+		const { $ } = montar({ activa: false, nombre: 'TV del salón' });
+		assert.equal($('tvActivaTexto').textContent, '«TV del salón» apagada');
+		assert.equal($('tvActiva').attrs['aria-label'], 'Encender la cartelera «TV del salón»');
+	});
+
+	test('sin nombre escrito usa el de siempre: «Pantalla N»', () => {
+		assert.equal(montar({ activa: true, nombre: '   ', pantalla: 2 }).$('tvActivaTexto').textContent, '«Pantalla 2» encendida');
+	});
+
+	test('aclara que solo toca esta pantalla, cuál es, y que se aplica al guardar', () => {
+		const t = montar({ activa: true, nombre: 'X', pantalla: 3 }).$('tvActivaAyuda').textContent;
+		assert.match(t, /Solo esta pantalla \(la 3 de 3\)/);
+		assert.match(t, /las otras no cambian/);
+		assert.match(t, /al guardar/);
+	});
+
+	test('se repinta al mover el interruptor y al escribir el nombre', () => {
+		const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.match(html, /id="tvNombre"[^>]*oninput="tvPintarEtiquetaActiva\(\)"/);
+		const tv = fs.readFileSync(path.join(PUBLIC, 'tv.js'), 'utf8');
+		assert.match(tv, /function tvAlternarActiva\(\) \{\s*tvPintarEtiquetaActiva\(\);/);
+	});
+
+	test('el texto fijo «Encender la cartelera» solo queda como valor inicial, que renderTV reemplaza', () => {
+		const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.match(html, /id="tvActivaTexto"[^>]*>Encender la cartelera</);
+	});
+});
