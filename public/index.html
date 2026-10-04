@@ -2664,13 +2664,19 @@
         «Entradas», «Hamburguesas», «Bebidas»… Crea esta y justo después se abre el plato, ya dentro de ella.
       </div>
       <input type="hidden" id="editCatId">
-      <div class="form-row">
-        <div class="form-group">
-          <label for="editCatNombre" class="form-label">Nombre</label>
-          <input type="text" class="form-input" id="editCatNombre" placeholder="Hamburguesas" oninput="avisarCategoriaParecida()" aria-describedby="catParecida">
-        </div>
-        <div class="form-group" style="position:relative">
-          <label for="editCatEmoji" class="form-label">Emoji</label>
+      <div class="form-group">
+        <label for="editCatNombre" class="form-label">Nombre</label>
+        <input type="text" class="form-input" id="editCatNombre" placeholder="Hamburguesas" oninput="avisarCategoriaParecida()" aria-describedby="catParecida">
+      </div>
+      <!-- No todas las cartas quieren iconos. Se ofrece a demanda, por categoría,
+           para que una carta pueda usarlo solo donde le ayude a reconocer secciones. -->
+      <div class="form-group" style="margin-top:-4px">
+        <button type="button" class="btn-sm" id="btnMostrarCatEmoji" onclick="mostrarCampoEmojiCategoria(true)" aria-controls="editCatEmojiGrupo">Añadir emoji <span class="solo-ancho">(opcional)</span></button>
+        <div id="editCatEmojiGrupo" hidden style="position:relative;margin-top:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">
+            <label for="editCatEmoji" class="form-label" style="margin:0">Emoji <span style="color:var(--text-dim)">(opcional)</span></label>
+            <button type="button" class="btn-sm" style="padding:4px 8px" onclick="quitarEmojiCategoria()">No usar emoji</button>
+          </div>
           <input type="text" class="form-input" id="editCatEmoji" placeholder="🍔" maxlength="4"
             autocomplete="off" onclick="abrirSelectorEmoji('editCatEmoji')">
           <!-- Pedido el 25/09/2026: escribir o pegar un emoji a mano es incómodo.
@@ -2690,16 +2696,10 @@
         <textarea class="form-textarea" id="editCatNota" maxlength="200" rows="2" style="min-height:0"
           placeholder="Todas las hamburguesas van acompañadas de papas"></textarea>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label for="editCatOrden" class="form-label">Orden (número)</label>
-          <input type="number" class="form-input" id="editCatOrden" placeholder="1" min="0">
-        </div>
-        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px;">
-          <div class="form-check" style="margin-bottom:0">
-            <label class="toggle"><input type="checkbox" id="editCatSinFotos"><span class="toggle-slider"></span></label>
-            <span style="font-size:13px;color:var(--text-muted)">Sin fotos (lista)</span>
-          </div>
+      <div class="form-group">
+        <div class="form-check" style="margin-bottom:0">
+          <label class="toggle"><input type="checkbox" id="editCatSinFotos"><span class="toggle-slider"></span></label>
+          <span style="font-size:13px;color:var(--text-muted)">Mostrar como lista, sin fotos</span>
         </div>
       </div>
       <!-- B3: bebidas, cervezas, adicionales. Nadie abre la ficha de una cerveza:
@@ -2707,16 +2707,16 @@
       <div class="form-group">
         <div class="form-check" style="margin-bottom:0">
           <label class="toggle"><input type="checkbox" id="editCatSinAbrir" aria-describedby="editCatSinAbrirAyuda"><span class="toggle-slider"></span></label>
-          <label for="editCatSinAbrir" style="font-size:13px;color:var(--text-muted)">Se pide sin abrir la ficha</label>
+          <label for="editCatSinAbrir" style="font-size:13px;color:var(--text-muted)">No medir aperturas de sus platos</label>
         </div>
         <div id="editCatSinAbrirAyuda" style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5">
-          Para bebidas, cervezas o adicionales. Sus platos no saldrán en «Platos que nadie abrió» de Estadísticas. En la carta no cambia nada.
+          Úsalo para bebidas, cervezas o adicionales que se piden directamente. No cambia la carta ni los pedidos: solo los excluye de «Platos que nadie abrió».
         </div>
       </div>
       <div class="form-group" id="editCatHorarioBloque" style="border-top:1px solid var(--border);padding-top:14px;">
         <div class="form-check" style="margin-bottom:0">
           <label class="toggle"><input type="checkbox" id="editCatHorarioActivo" onchange="toggleCatHorario()"><span class="toggle-slider"></span></label>
-          <span style="font-size:13px;color:var(--text-muted)">Mostrar solo en cierto horario</span>
+          <span style="font-size:13px;color:var(--text-muted)">Mostrar solo en determinados horarios</span>
         </div>
         <div id="editCatHorarioCampos" style="display:none;margin-top:14px;">
           <label class="form-label">Días</label>
@@ -6486,7 +6486,7 @@ function erroresDeFicha({ categoria, nombre, precio, gratis = false }) {
 const CAMPOS_FICHA = ['editNombre', 'editCategoria', 'editPrecioNum'];
 
 // Lo que la categoría no puede guardar sin. Aparte de la pantalla para poder
-// probarla, igual que erroresDeFicha: el emoji, el orden y el horario sí pueden
+// probarla, igual que erroresDeFicha: el emoji y el horario sí pueden
 // faltar —una categoría sin emoji se ve bien—, y el nombre no.
 function erroresDeCategoria({ nombre }) {
   return String(nombre || '').trim()
@@ -7069,7 +7069,8 @@ function renderCatList() {
 
     // Emoji
     const emojiDiv=document.createElement('div');
-    emojiDiv.className='cat-emoji'; emojiDiv.textContent=cat.emoji||'📁';
+    emojiDiv.className='cat-emoji'; emojiDiv.textContent=cat.emoji||'';
+    emojiDiv.hidden=!cat.emoji;
 
     // Info
     const infoDiv=document.createElement('div'); infoDiv.style.flex='1';
@@ -7167,6 +7168,20 @@ const EMOJIS_CATEGORIA = [
   '🥦','🌶️','🧄','🧅','🥕','🌽','🍄',
   '⭐','🔥','✨','❤️','👍','🎉','🍽️',
 ];
+
+function mostrarCampoEmojiCategoria(mostrar) {
+  const grupo = document.getElementById('editCatEmojiGrupo');
+  const boton = document.getElementById('btnMostrarCatEmoji');
+  if (!grupo || !boton) return;
+  grupo.hidden = !mostrar;
+  boton.hidden = mostrar;
+  if (!mostrar) cerrarSelectorEmoji();
+}
+
+function quitarEmojiCategoria() {
+  document.getElementById('editCatEmoji').value = '';
+  mostrarCampoEmojiCategoria(false);
+}
 
 let inputSelectorEmoji = null;
 
@@ -7268,7 +7283,7 @@ function openNewCatModal() {
   document.getElementById('editCatId').value='';
   document.getElementById('editCatNombre').value='';
   document.getElementById('editCatEmoji').value='';
-  document.getElementById('editCatOrden').value=state.categorias.length;
+  mostrarCampoEmojiCategoria(false);
   document.getElementById('editCatSinFotos').checked=false;
   document.getElementById('editCatSinAbrir').checked=false;
   document.getElementById('editCatNota').value='';
@@ -7287,7 +7302,7 @@ function openEditCatModal(id) {
   document.getElementById('editCatId').value=cat.id;
   document.getElementById('editCatNombre').value=cat.nombre;
   document.getElementById('editCatEmoji').value=cat.emoji||'';
-  document.getElementById('editCatOrden').value=cat.orden;
+  mostrarCampoEmojiCategoria(!!cat.emoji);
   document.getElementById('editCatSinFotos').checked=cat.sin_fotos;
   document.getElementById('editCatSinAbrir').checked=!!cat.atributos?.se_pide_sin_abrir;
   document.getElementById('editCatNota').value=cat.atributos?.nota || '';
@@ -7370,14 +7385,16 @@ async function saveCat() {
     btn.disabled=false;btn.textContent='Guardar';return;
   }
   pintarErroresEnCampos([], CAMPOS_CATEGORIA);
+  const catActual = id ? state.categorias.find(c=>c.id===id) : null;
   const body={
     nombre:nombreCat,
     emoji:document.getElementById('editCatEmoji').value.trim(),
-    orden:parseInt(document.getElementById('editCatOrden').value)||0,
+    // Al crear se pone al final; al editar conserva su puesto. El orden se
+    // cambia desde la lista con las flechas o arrastrando, no con un número.
+    orden:id ? (catActual?.orden ?? 0) : state.categorias.length,
     sin_fotos:document.getElementById('editCatSinFotos').checked,
   };
   // Imagen de cabecera → atributos (solo si cambió algo)
-  const catActual = id ? state.categorias.find(c=>c.id===id) : null;
   const atributos = { ...(catActual?.atributos || {}) };
   if(state.pendingCatImgUrl==='__remove__')   atributos.imagen_cabecera = null;
   else if(state.pendingCatImgUrl)             atributos.imagen_cabecera = state.pendingCatImgUrl;

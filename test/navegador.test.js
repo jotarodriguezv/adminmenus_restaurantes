@@ -7626,14 +7626,14 @@ describe('las categorías se reordenan arrastrando', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-describe('el modal de categoría marca las que se piden sin abrir la ficha', () => {
+describe('el modal de categoría aclara qué mide al abrir un plato', () => {
 	// B3, segunda mitad, en docs/revision-ux.md.
 	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 
-	test('la casilla existe, se explica y tiene su etiqueta', () => {
+	test('la casilla existe y deja claro que solo afecta las estadísticas', () => {
 		assert.match(src, /<input type="checkbox" id="editCatSinAbrir" aria-describedby="editCatSinAbrirAyuda">/);
-		assert.match(src, /<label for="editCatSinAbrir"[^>]*>Se pide sin abrir la ficha<\/label>/);
-		assert.match(src, /id="editCatSinAbrirAyuda"[^>]*>[\s\S]*?En la carta no cambia nada/);
+		assert.match(src, /<label for="editCatSinAbrir"[^>]*>No medir aperturas de sus platos<\/label>/);
+		assert.match(src, /id="editCatSinAbrirAyuda"[^>]*>[\s\S]*?No cambia la carta ni los pedidos/);
 	});
 
 	test('al abrir se rellena en los dos modos', () => {
@@ -7646,6 +7646,28 @@ describe('el modal de categoría marca las que se piden sin abrir la ficha', () 
 	test('guardar la pone al marcarla y la borra al desmarcarla', () => {
 		const guardar = src.match(/async function saveCat\(\) \{[\s\S]*?\n\}/)[0];
 		assert.match(guardar, /if\(document\.getElementById\('editCatSinAbrir'\)\.checked\) atributos\.se_pide_sin_abrir = true;\s*else delete atributos\.se_pide_sin_abrir;/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('el editor de categorías muestra solo los controles que hacen falta', () => {
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+
+	test('el orden se conserva al editar y las nuevas categorías llegan al final', () => {
+		assert.doesNotMatch(src, /id="editCatOrden"/);
+		const guardar = src.match(/async function saveCat\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(guardar, /orden:id \? \(catActual\?\.orden \?\? 0\) : state\.categorias\.length/);
+	});
+
+	test('el emoji se ofrece como una decisión opcional de cada categoría', () => {
+		assert.match(src, /id="btnMostrarCatEmoji"[^>]*>Añadir emoji/);
+		assert.match(src, /id="editCatEmojiGrupo" hidden/);
+		assert.match(src, /function quitarEmojiCategoria\(\)/);
+	});
+
+	test('los otros interruptores usan textos directos', () => {
+		assert.match(src, /Mostrar como lista, sin fotos/);
+		assert.match(src, /Mostrar solo en determinados horarios/);
 	});
 });
 
