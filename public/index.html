@@ -2276,7 +2276,7 @@
 					<input type="hidden" id="editProductId">
 					<div class="form-group producto-foto tab-multimedia">
 						<div class="form-label-fila">
-							<label class="form-label" id="labelImagen">Foto del producto</label>
+							<label class="form-label" id="labelImagen">Imagen principal</label>
 							<span class="info-tip">
 								<button type="button" class="info-tip-boton" aria-label="Ayuda sobre Foto del producto" onclick="alternarInfoTip(event, this)">ⓘ</button>
 								<!-- El texto lo reescribe ajustarFichaAlModelo(): en un restaurante
@@ -6293,7 +6293,7 @@ function ajustarFichaAlModelo() {
 	// no en un manual — en su propio "ⓘ" (25/09/2026) y no metido en la
 	// etiqueta, para no repetir el patrón .form-ayuda que se acaba de quitar.
 	const etiqueta = document.getElementById('labelImagen');
-	if (etiqueta) etiqueta.textContent = 'Imagen';
+	if (etiqueta) etiqueta.textContent = 'Imagen principal';
 	const ayudaImagen = document.getElementById('ayudaImagen');
 	if (ayudaImagen) ayudaImagen.textContent = esVideo
 		? 'Se muestra mientras el producto no tenga video. Agrégala ahora o después.'
