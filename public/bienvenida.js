@@ -180,8 +180,8 @@ function pintarSedesBienvenida(sedes = []) {
     crearCampo('Dirección', 'sedeDireccion', 'text', sede.direccion, 'Cra 7 # 12-34, Bogotá');
     crearCampo('Enlace de Google Maps', 'sedeMapa', 'url', sede.mapa_url, 'https://maps.google.com/...');
     const acciones = document.createElement('div'); acciones.className = 'bienvenida-sede-acciones';
-    [['↑ Subir', -1], ['↓ Bajar', 1]].forEach(([texto, cambio]) => { const mover = document.createElement('button'); mover.type = 'button'; mover.className = 'btn-sm'; mover.textContent = texto; mover.disabled = indice + cambio < 0 || indice + cambio >= sedes.length; mover.addEventListener('click', () => moverSedeBienvenida(indice, cambio)); acciones.appendChild(mover); });
-    const quitar = document.createElement('button'); quitar.type = 'button'; quitar.className = 'btn-danger'; quitar.textContent = 'Quitar sede'; quitar.addEventListener('click', () => { fila.remove(); actualizarVistaPreviaBienvenida(); }); acciones.appendChild(quitar); fila.appendChild(acciones); zona.appendChild(fila);
+    [['↑ Subir', -1, 'subir'], ['↓ Bajar', 1, 'bajar']].forEach(([texto, cambio, clase]) => { const mover = document.createElement('button'); mover.type = 'button'; mover.className = `bienvenida-sede-mover bienvenida-sede-mover--${clase}`; mover.textContent = texto; mover.setAttribute('aria-label', `${texto} ${sede.nombre || `Sede ${indice + 1}`}`); mover.disabled = indice + cambio < 0 || indice + cambio >= sedes.length; mover.addEventListener('click', () => moverSedeBienvenida(indice, cambio)); acciones.appendChild(mover); });
+    const quitar = document.createElement('button'); quitar.type = 'button'; quitar.className = 'bienvenida-sede-quitar'; quitar.innerHTML = '<span aria-hidden="true">×</span> Quitar sede'; quitar.setAttribute('aria-label', `Quitar ${sede.nombre || `Sede ${indice + 1}`}`); quitar.addEventListener('click', () => { fila.remove(); actualizarVistaPreviaBienvenida(); }); acciones.appendChild(quitar); fila.appendChild(acciones); zona.appendChild(fila);
   });
 }
 
