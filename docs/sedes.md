@@ -452,3 +452,63 @@ salía igual en todas: si llevaba el precio o la oferta de un local, el otro lo 
    petición da 400, y la cartelera trata las promociones como «hoy no hay» (no se cae), pero no hay
    por qué pasar por ahí.
 2. La carta (`vmenus-app`) y el panel, en cualquier orden entre sí.
+
+## 14. El carrito de compras con sedes, y las sedes a la vista (04/10/2026)
+
+Pregunta de Jota: «todo lo teníamos establecido para un número, para una sede: ¿cómo es el carrito
+con dos?». Se revisó el flujo entero. Lo que **ya funcionaba**, sin hacer nada, porque la carta de
+una sede recibe el restaurante con los datos del negocio de esa sede por encima
+(`restauranteDeLaSede`):
+
+- los **precios y platos** son los de la sede (el carrito cobra `precioVigente()` sobre ellos);
+- el pedido sale al **WhatsApp de la sede**, y el mensaje empieza «Pedido - Restaurante · Sede»;
+- el carrito solo se ofrece si **esa sede** tiene número (`carritoDisponible` mira los datos ya mezclados).
+
+Lo que **no** funcionaba, y se arregló:
+
+### 1. El carrito guardado era por restaurante
+La clave era `<slug>_cart`. Quien armaba un pedido en Piedecuesta y abría Bucaramanga lo veía reaparecer
+—repreciado, con un aviso— en un local que no era el suyo. Ahora es `<slug>_<sede>_cart`; **sin sede, la
+clave es la de siempre**, así que ningún carrito guardado de un restaurante de un solo local se mueve.
+
+### 2. El pedido registrado no decía su sede
+`pedidos_carta` no sabía de sedes. `sql/40` añade `sede_id` (`on delete set null`) y `sede_nombre` (una
+copia del nombre al pedir), con las mismas razones que las reservas (§11). La carta manda `sede_id`; el
+servidor, con sedes activas, la **exige** y tiene que ser una sede activa de este restaurante; sin sedes
+el campo se ignora y la fila ni lleva las columnas nuevas. La pestaña **Pedidos** dice la sede de cada
+uno y, con pedidos de dos o más, ofrece el filtro «Ver pedidos de» (el mismo de las reservas).
+
+### 3. El servidor comprobaba el WhatsApp del RESTAURANTE
+`POST /api/pedidos-publicos` rechazaba con «no recibe pedidos» si el restaurante no tenía número. Con
+**un número por sede y el general vacío** —el caso de Enchulados— rechazaba **todos** los pedidos, en
+silencio: la carta los manda igual por WhatsApp, y lo único que fallaba era dejar constancia en el panel.
+Ahora el número que cuenta es el **de la sede** (el suyo si lo trae; si no, el del restaurante; y un `''`
+propio es «no hay» y no hereda, la misma regla de `negocio.js`).
+
+El panel lo refleja: con sedes cargadas, `recibePedidos()` es verdadero solo si **todas** las sedes
+activas tienen a dónde mandar, y el aviso de Inicio nombra la que no («a Bucaramanga le falta su
+WhatsApp») y lleva a la pestaña Sedes. Mientras no se conocen las sedes —una lista de restaurantes, antes
+de abrir uno— y el restaurante no tiene número propio, **no se alarma**: el número puede estar en ellas.
+
+### Lo que se queda igual, a propósito
+Los **métodos de pago**, los tipos de entrega y los adicionales (toppings) son del restaurante, no de la
+sede: el carrito de las dos sedes los comparte. Si algún día un local necesita su propio Nequi o sus
+propios adicionales, es el siguiente paso, y está sin hacer.
+
+### Las sedes a la vista
+- **Inicio** lleva una tarjeta destacada, arriba, cuando «Varias sedes» está encendido: «Tienes 2 sedes
+  activas», y por cada una su enlace, su WhatsApp (o «⚠ sin WhatsApp: no recibe pedidos») y si tiene
+  horario propio; el botón «Administrar sedes»; y una línea que dice **dónde se administra cada cosa**
+  (Sedes, QR, Pantalla TV, Destacados, Reservas, Pedidos). Hasta aquí Inicio solo traía una fila perdida
+  entre las funciones.
+- **La pestaña Sedes va justo después de Inicio** (antes iba al final): con sedes es donde se cuadra todo.
+  Solo existe si el superadmin encendió «Varias sedes», así que a quien no las tiene no le cambia nada.
+
+### Orden de despliegue
+1. **`sql/40`** — aditivo; el servidor actual no nombra las columnas.
+2. **La carta** (`vmenus-app`, «Keep one cart per sede…»).
+3. **El panel.**
+
+El 2 va antes que el 3 porque el servidor nuevo **exige** la sede en restaurantes con sedes: con la carta
+vieja, el pedido saldría por WhatsApp pero no quedaría registrado. Hoy ningún restaurante real tiene
+sedes, así que no hay riesgo.

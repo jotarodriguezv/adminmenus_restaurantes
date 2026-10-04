@@ -8399,12 +8399,19 @@ describe('el orden de Ajustes y el nombre del carrito', () => {
 		assert.equal(JSON.stringify(botones.slice(0, 4)), '["inicio","productos","categorias","ajustes"]');
 	});
 
-	test('Superadmin es la segunda del carril y nace escondida', () => {
+	test('Sedes va justo detrás de Inicio y Superadmin detrás de ella; las dos nacen escondidas', () => {
+		// Con sedes (04/10/2026) la pestaña Sedes es donde se cuadra todo —datos, precios, QR de cada
+		// local—, así que va la primera tras Inicio. Solo existe si el superadmin encendió «Varias sedes»,
+		// y por eso a un restaurante sin sedes no le cambia nada del carril: Superadmin sigue la primera
+		// que ve el equipo tras Inicio.
 		const carril = src.match(/<div class="tabs">[\s\S]*?<\/div>/)[0];
 		const botones = [...carril.matchAll(/<button[^>]*onclick="switchTab\('([a-z]+)'[^>]*>([^<]*)</g)];
-		assert.equal(botones[1][1], 'apariencia', 'va detrás de Inicio');
-		assert.equal(botones[1][2], 'Superadmin', 'el nombre dice quién la ve');
-		assert.match(botones[1][0], /display:\s*none/, 'el restaurante no la ve');
+		assert.equal(botones[0][1], 'inicio');
+		assert.equal(botones[1][1], 'sedes', 'va detrás de Inicio');
+		assert.match(botones[1][0], /display:\s*none/, 'solo existe con «Varias sedes» encendido');
+		assert.equal(botones[2][1], 'apariencia', 'Superadmin va detrás');
+		assert.equal(botones[2][2], 'Superadmin', 'el nombre dice quién la ve');
+		assert.match(botones[2][0], /display:\s*none/, 'el restaurante no la ve');
 	});
 
 	test('dentro de Ajustes: los datos del negocio primero, con las redes dentro; luego el carrito y los filtros', () => {
@@ -9513,6 +9520,8 @@ describe('Inicio: qué pide una acción y qué tiene encendido la carta', () => 
 		MODELOS_CARRITO_OPCIONAL: ['video', 'vertical', 'topnav', 'sidebar', 'explorar'],
 		esModeloDeVideo: nav => ['video', 'vertical'].includes(nav),
 		MINIMO_PLATOS_BUSCADOR: 8,
+		// Las sedes no entran en estas reglas: sin sedes cargadas no hay ninguna sin WhatsApp.
+		nombresDeSedesSinWhatsApp: () => [],
 		Number, String, Array, Set,
 	});
 	const PLAN = { carrito: true };
@@ -9688,7 +9697,7 @@ describe('un plato que no lleva foto a propósito', () => {
 	], {
 		MODELO_POR_DEFECTO: 'topnav', MODELOS_CARRITO_OPCIONAL: [],
 		esModeloDeVideo: nav => ['video', 'vertical'].includes(nav),
-		MINIMO_PLATOS_BUSCADOR: 8, Number, String, Array, Set,
+		MINIMO_PLATOS_BUSCADOR: 8, nombresDeSedesSinWhatsApp: () => [], Number, String, Array, Set,
 	});
 	const cats = [{ id: 'c', nombre: 'Limonadas', sin_fotos: false }];
 	const plato = (id, extra = {}) => ({ id, nombre: id, categoria_id: 'c', precio_numerico: 1, disponible: true, imagen_url: null, atributos: {}, ...extra });
@@ -11685,5 +11694,153 @@ describe('El interruptor de la pantalla de TV dice cuál pantalla es', () => {
 	test('el texto fijo «Encender la cartelera» solo queda como valor inicial, que renderTV reemplaza', () => {
 		const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 		assert.match(html, /id="tvActivaTexto"[^>]*>Encender la cartelera</);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Sedes · a qué WhatsApp sale el pedido de cada una (panel)', () => {
+	const f = (state = {}) => cargar('sedes.js', [
+		['negocio.js', 'const soloDigitosNegocio', 'function botonWhatsappActivo'],
+		['sedes.js', 'function whatsappDeLaSede', null],
+	], { state, String, Array });
+	const sede = (nombre, atributos = {}, activa = true) => ({ nombre, activa, atributos });
+
+	test('el de la sede manda; si no lo trae, el del restaurante', () => {
+		const c = f();
+		assert.equal(c.whatsappDeLaSede({ whatsapp_negocio: '573001' }, sede('A', { whatsapp_negocio: '+57 300 2222222' })), '573002222222');
+		assert.equal(c.whatsappDeLaSede({ whatsapp_negocio: '573001111111' }, sede('A')), '573001111111');
+	});
+
+	test("un '' de la sede es «no hay número» y NO hereda (otro local, otro teléfono)", () => {
+		const c = f();
+		assert.equal(c.whatsappDeLaSede({ whatsapp_negocio: '573001111111' }, sede('A', { whatsapp_negocio: '' })), '');
+	});
+
+	test('las sedes sin a dónde mandar un pedido: solo las activas, por nombre', () => {
+		const c = f();
+		const lista = [sede('Piedecuesta', { whatsapp_negocio: '573001111111' }), sede('Bucaramanga'), sede('Cerrada', {}, false)];
+		assert.deepEqual(Array.from(c.sedesSinWhatsApp({}, lista)), ['Bucaramanga']);
+		assert.deepEqual(Array.from(c.sedesSinWhatsApp({ whatsapp_negocio: '573009998877' }, lista)), [], 'con el del restaurante, todas tienen');
+		assert.deepEqual(Array.from(c.sedesSinWhatsApp({}, null)), []);
+	});
+
+	test('sin sedes cargadas no se alarma a nadie', () => {
+		assert.deepEqual(Array.from(f({ restaurante: { id: 'r' }, sedesDe: 'otro', sedes: [sede('A')] }).nombresDeSedesSinWhatsApp({ con_sedes: true })), []);
+		assert.deepEqual(Array.from(f({ restaurante: { id: 'r' }, sedesDe: 'r', sedes: [sede('A')] }).nombresDeSedesSinWhatsApp({ con_sedes: false })), []);
+		assert.deepEqual(Array.from(f({ restaurante: { id: 'r' }, sedesDe: 'r', sedes: [sede('A')] }).nombresDeSedesSinWhatsApp({ con_sedes: true })), ['A']);
+	});
+
+	const recibe = (state) => cargar('index.html', [
+		['index.html', 'function recibePedidos', 'function formatoDeLaCarta'],
+		['negocio.js', 'const soloDigitosNegocio', 'function botonWhatsappActivo'],
+		['sedes.js', 'function whatsappDeLaSede', null],
+	], { state, String, Array }).recibePedidos;
+
+	test('recibePedidos: un restaurante sin sedes, como siempre', () => {
+		const r = recibe({});
+		assert.equal(r({ whatsapp_negocio: '573001' }), true);
+		assert.equal(r({}), false);
+	});
+
+	test('recibePedidos con sedes: solo si TODAS las activas tienen a dónde mandar', () => {
+		const st = { restaurante: { id: 'r' }, sedesDe: 'r', sedes: [sede('A', { whatsapp_negocio: '573001' }), sede('B', { whatsapp_negocio: '573002' })] };
+		assert.equal(recibe(st)({ con_sedes: true }), true, 'cada una con el suyo y el general vacío: recibe');
+		st.sedes.push(sede('C'));
+		assert.equal(recibe(st)({ con_sedes: true }), false, 'a C no le llega');
+		assert.equal(recibe(st)({ con_sedes: true, whatsapp_negocio: '573009' }), true, 'con el general, C hereda');
+	});
+
+	test('recibePedidos con sedes que todavía no se conocen: no alarma si el restaurante podría tener el número en ellas', () => {
+		const r = recibe({ restaurante: { id: 'r' }, sedesDe: undefined });
+		assert.equal(r({ con_sedes: true }), true);
+		assert.equal(r({ con_sedes: false }), false);
+	});
+
+	test('recibePedidos con sedes activas inexistentes: vuelve a mirar el del restaurante', () => {
+		const st = { restaurante: { id: 'r' }, sedesDe: 'r', sedes: [sede('A', {}, false)] };
+		assert.equal(recibe(st)({ con_sedes: true }), false);
+		assert.equal(recibe(st)({ con_sedes: true, whatsapp_negocio: '573001' }), true);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Inicio · las sedes a la vista', () => {
+	const f = (extra = {}) => cargar('inicio.js', [
+		['sedes.js', 'function whatsappDeLaSede', 'function nombresDeSedesSinWhatsApp'],
+		['negocio.js', 'const soloDigitosNegocio', 'function botonWhatsappActivo'],
+		['inicio.js', 'function resumenDeSedesInicio', 'function pintarSedesInicio'],
+	], { String, Array, ...extra });
+	const sede = (nombre, atributos = {}, activa = true) => ({ nombre, slug: nombre.toLowerCase(), activa, atributos });
+	const resumen = (c, args) => JSON.parse(JSON.stringify(c.resumenDeSedesInicio(args)));
+
+	test('sin el interruptor «Varias sedes», no hay tarjeta', () => {
+		const c = f();
+		assert.equal(c.resumenDeSedesInicio({ atributos: {} , sedes: [] }), null);
+		assert.equal(c.resumenDeSedesInicio({ atributos: { con_sedes: false }, sedes: [sede('A')] }), null);
+	});
+
+	test('con dos sedes activas dice cuántas, y por cada una enlace, WhatsApp y horario', () => {
+		const c = f();
+		const r = resumen(c, {
+			atributos: { con_sedes: true, whatsapp_negocio: '573009999999' },
+			sedes: [sede('Piedecuesta', { whatsapp_negocio: '573001111111', horario_atencion: [] }), sede('Bucaramanga')],
+			urlDe: s => 'https://menu.vmenus.co/enchulados/' + s.slug,
+		});
+		assert.equal(r.titulo, 'Tienes 2 sedes activas');
+		assert.match(r.detalle, /pregunta en cuál está el cliente/);
+		assert.deepEqual(r.filas.map(x => [x.nombre, x.url, x.whatsapp, x.horarioPropio]), [
+			['Piedecuesta', 'https://menu.vmenus.co/enchulados/piedecuesta', '573001111111', true],
+			['Bucaramanga', 'https://menu.vmenus.co/enchulados/bucaramanga', '573009999999', false],
+		]);
+	});
+
+	test('una sede sin WhatsApp sale con el número vacío: es lo que hace perder pedidos', () => {
+		const r = resumen(f(), { atributos: { con_sedes: true }, sedes: [sede('A'), sede('B', { whatsapp_negocio: '573001' })] });
+		assert.deepEqual(r.filas.map(x => x.whatsapp), ['', '573001']);
+	});
+
+	test('una sola sede, apagadas, y mientras se cargan', () => {
+		const c = f();
+		assert.equal(resumen(c, { atributos: { con_sedes: true }, sedes: [sede('A')] }).titulo, 'Tienes 1 sede activa');
+		const con = resumen(c, { atributos: { con_sedes: true }, sedes: [sede('A'), sede('B', {}, false), sede('C', {}, false)] });
+		assert.equal(con.filas.length, 1);
+		assert.match(con.detalle, /2 apagadas/);
+		const cargando = resumen(c, { atributos: { con_sedes: true }, sedes: null });
+		assert.match(cargando.detalle, /Revisando/);
+		assert.deepEqual(cargando.filas, []);
+	});
+
+	test('encendido pero sin ninguna activa: lo dice y manda a crearlas', () => {
+		const r = resumen(f(), { atributos: { con_sedes: true }, sedes: [sede('A', {}, false)] });
+		assert.equal(r.sinSedes, true);
+		assert.match(r.detalle, /ninguna activa/);
+		assert.match(r.detalle, /pestaña Sedes/);
+	});
+
+	test('la tarjeta dice dónde se administra cada cosa', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'inicio.js'), 'utf8');
+		const donde = src.match(/const DONDE_SE_ADMINISTRAN_LAS_SEDES = '([^']*)'/)[1];
+		for (const palabra of ['Sedes', 'QR', 'Pantalla TV', 'Destacados', 'Reservas', 'Pedidos']) assert.ok(donde.includes(palabra), palabra);
+	});
+
+	test('el aviso del carrito sin número nombra la sede y lleva a la pestaña Sedes', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'inicio.js'), 'utf8');
+		assert.match(src, /le falta su WhatsApp\. Quien pide desde/);
+		assert.match(src, /boton: sinNumero\.length \? 'Poner el WhatsApp de la sede' : 'Poner el número', tab: sinNumero\.length \? 'sedes' : 'ajustes'/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Pedidos · la sede de cada uno (panel)', () => {
+	test('cada pedido dice su sede, escapada, y solo si la tiene', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'ordenes.js'), 'utf8');
+		assert.match(src, /\$\{o\.sede_nombre \? `<br><span class="reserva-sede">\$\{esc\(o\.sede_nombre\)\}<\/span>` : ''\}/);
+	});
+
+	test('el filtro por sede reutiliza el de las reservas y no filtra el total de la pestaña', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'ordenes.js'), 'utf8');
+		assert.match(src, /const ordenes = reservasVisibles\(state\.ordenes, ordenesFiltroSede\);/);
+		const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+		assert.match(html, /<div id="ordenesFiltro" class="reservas-filtro"><\/div><div id="ordenesResumen"><\/div>/);
 	});
 });

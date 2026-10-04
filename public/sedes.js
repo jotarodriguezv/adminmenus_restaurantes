@@ -403,3 +403,24 @@ function aplicarPreciosPegados() {
   if (r.sinPlato.length) linea('sede-pegado-falta', `Sin plato con ese nombre (${r.sinPlato.length}): ${r.sinPlato.join(' · ')}`);
   if (r.sinPrecio.length) linea('sede-pegado-falta', `Sin un precio que se entienda (${r.sinPrecio.length}): ${r.sinPrecio.join(' · ')}`);
 }
+
+// ── EL WHATSAPP DE CADA SEDE ──────────────────────────────────
+// El número al que sale el pedido de una sede: el suyo si lo trae —aunque sea '', que es «no
+// hay», y no se hereda: es la regla de negocio.js— y, si no, el del restaurante. Es lo mismo que
+// hace la carta al mezclar los datos de la sede por encima de los del restaurante.
+function whatsappDeLaSede(atributosDelRestaurante, sede) {
+  const propio = sede?.atributos?.whatsapp_negocio;
+  if (propio !== undefined && propio !== null) return String(propio).replace(/\D/g, '');
+  return whatsappDelNegocio(atributosDelRestaurante);
+}
+
+// Los nombres de las sedes ACTIVAS que no tienen a dónde mandar un pedido.
+function sedesSinWhatsApp(atributosDelRestaurante, sedes) {
+  return (sedes || []).filter(s => s.activa && !whatsappDeLaSede(atributosDelRestaurante, s)).map(s => s.nombre);
+}
+
+// Con sedes cargadas, las que no tienen número; si no se sabe, ninguna (no se alarma sin datos).
+function nombresDeSedesSinWhatsApp(atributos) {
+  if (atributos?.con_sedes !== true || !state.restaurante || state.sedesDe !== state.restaurante.id) return [];
+  return sedesSinWhatsApp(atributos, state.sedes);
+}

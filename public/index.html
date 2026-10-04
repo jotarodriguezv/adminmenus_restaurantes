@@ -249,6 +249,10 @@
 			</div>
 			<div class="tabs">
 				<button class="tab-btn active" id="tabBtnInicio" onclick="switchTab('inicio',this)">Inicio</button>
+				<!-- Con sedes, es de lo primero que se necesita: ahí se cuadran los datos, los precios y los QR de
+				     cada local. Por eso va justo después de Inicio. Solo existe si el superadmin encendió «Varias
+				     sedes» (ver ajustarPestanaSedes() en sedes.js). -->
+				<button class="tab-btn" id="tabBtnSedes" onclick="switchTab('sedes',this)" style="display:none">Sedes</button>
 				<!-- «Superadmin» y no «Apariencia» desde el 17/09/2026, decidido con el
 				     usuario: dejó de ser apariencia hace tiempo —nombre, slug, plan,
 				     modelo, dominio, zona horaria, cobranza— y sobre todo es la única
@@ -275,10 +279,6 @@
 					<button class="tab-btn" onclick="switchTab('ordenes',this)">Pedidos</button>
 				<!-- Solo existe si el restaurante encendió las reservas en Apariencia; ver ajustarPestanasAlModelo(). -->
 				<button class="tab-btn" id="tabBtnReservas" onclick="switchTab('reservas',this)" style="display:none">Reservas</button>
-				<!-- Varios locales con la misma carta y precios propios (docs/sedes.md). La ve el
-				     administrador siempre y el dueño solo si su restaurante ya tiene sedes; ver
-				     ajustarPestanaSedes() en sedes.js. -->
-				<button class="tab-btn" id="tabBtnSedes" onclick="switchTab('sedes',this)" style="display:none">Sedes</button>
 			</div>
 			<div class="content">
 				<!-- TAB INICIO -->
@@ -307,6 +307,17 @@
 						</div>
 					</div>
 					<div class="inicio-resumen" id="inicioResumen"></div>
+					<!-- Solo con «Varias sedes» encendido: dice cuántas sedes tiene la carta, cuáles, a qué WhatsApp
+					     manda cada una, y dónde se administra todo (inicio.js, pintarSedesInicio). -->
+					<section class="section-card inicio-sedes" id="inicioSedes" hidden>
+						<div class="inicio-estado-cabecera">
+							<div class="inicio-estado-titulo" id="inicioSedesTitulo">Tus sedes</div>
+							<button type="button" class="btn-sm accent" onclick="abrirDesdeInicio('sedes')">Administrar sedes</button>
+						</div>
+						<p class="inicio-estado-detalle" id="inicioSedesDetalle"></p>
+						<div id="inicioSedesLista" class="inicio-sedes-lista"></div>
+						<p class="inicio-sedes-donde" id="inicioSedesDonde"></p>
+					</section>
 					<div class="inicio-estados" aria-label="Estado de tu servicio">
 						<section class="section-card inicio-estado">
 							<div class="inicio-estado-cabecera">
@@ -2229,7 +2240,7 @@
 					<div class="section-card"><div class="section-header"><div class="section-title">Reservas de mesa</div><button class="btn-sm" onclick="cargarReservas()">Actualizar</button></div><p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Las que piden tus clientes desde la pantalla de bienvenida de la carta. Confírmalas o cancélalas y escríbeles por WhatsApp: no se les avisa solas.</p><div id="reservasFiltro" class="reservas-filtro"></div><div id="reservasResumen" class="reservas-resumen"></div><div id="reservasLista"></div></div>
 				</div>
 				<div id="tabOrdenes" class="hidden">
-					<div class="section-card"><div class="section-header"><div class="section-title">Pedidos desde la carta</div><button class="btn-sm" onclick="cargarOrdenes()">Actualizar</button></div><p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Son pedidos que el cliente confirmó haber enviado por WhatsApp. Confirma su atención aquí.</p><div id="ordenesResumen"></div><div id="ordenesLista"></div></div>
+					<div class="section-card"><div class="section-header"><div class="section-title">Pedidos desde la carta</div><button class="btn-sm" onclick="cargarOrdenes()">Actualizar</button></div><p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Son pedidos que el cliente confirmó haber enviado por WhatsApp. Confirma su atención aquí.</p><div id="ordenesFiltro" class="reservas-filtro"></div><div id="ordenesResumen"></div><div id="ordenesLista"></div></div>
 				</div>
 			</div>
 		</div>
@@ -3551,6 +3562,17 @@ function pintarAyudaSegunQuienMira(esAdmin) {
 // Mismo criterio que la carta (soloDigitos): «+57 300…» cuenta como número, y
 // un campo de espacios o guiones cuenta como vacío.
 function recibePedidos(atributos) {
+  // Con sedes, cada una manda a SU número: el carrito «puede recibir» solo si todas las sedes activas
+  // tienen a dónde. Mientras no se sepan las sedes (una lista de restaurantes, antes de abrir uno) y
+  // el restaurante no tenga número propio, no se alarma: el número puede estar en las sedes.
+  if (atributos?.con_sedes === true) {
+    if (state.restaurante && state.sedesDe === state.restaurante.id) {
+      const activas = (state.sedes || []).filter(x => x.activa);
+      if (activas.length) return sedesSinWhatsApp(atributos, activas).length === 0;
+    } else if (!whatsappDelNegocio(atributos)) {
+      return true;
+    }
+  }
   return !!whatsappDelNegocio(atributos);
 }
 

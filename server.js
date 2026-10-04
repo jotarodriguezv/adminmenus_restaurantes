@@ -3439,12 +3439,39 @@ app.post('/api/pedidos-publicos', async (req, res) => {
   const total = Number.isInteger(b.total_reportado) && b.total_reportado >= 0 ? b.total_reportado : -1;
   if (total < 0) return res.status(400).json({ error: 'Total inválido' });
   const { data: resto } = await supabase.from('restaurantes').select('id, activo, atributos').eq('id', b.restaurante_id).maybeSingle();
-  if (!resto || resto.activo === false || !resto.atributos?.carrito || !negocio.whatsappDelNegocio(resto.atributos))
+  if (!resto || resto.activo === false || !resto.atributos?.carrito)
     return res.status(400).json({ error: 'El restaurante no recibe pedidos' });
+
+  // ── LA SEDE ───────────────────────────────────────────────
+  // En un restaurante con sedes el pedido tiene que decir para qué local es: se EXIGE, y tiene que
+  // ser una sede ACTIVA de este restaurante (el id lo manda el navegador: no se fía). Y el WhatsApp
+  // que cuenta para «¿recibe pedidos?» es el de ESA sede, no el del restaurante: con un número por
+  // sede y el general vacío, comprobar el general rechazaba los pedidos de todas, en silencio (la
+  // carta los manda igual por WhatsApp; lo único que fallaba era dejar constancia en el panel).
+  // Sin sedes, o con el interruptor apagado, el campo se ignora.
+  let sede = null;
+  let atributosEfectivos = resto.atributos;
+  if (resto.atributos?.con_sedes === true) {
+    const { data: sedes, error: errSedes } = await supabase.from('sedes')
+      .select('id, nombre, activa, atributos').eq('restaurante_id', resto.id);
+    if (errSedes) { console.error('[pedidos] no se pudieron leer las sedes:', errSedes.message); return res.status(500).json({ error: 'No se pudo registrar el pedido' }); }
+    const activas = (sedes || []).filter(s => s.activa);
+    if (activas.length) {
+      sede = UUID_RE.test(b.sede_id || '') ? activas.find(s => s.id === b.sede_id) || null : null;
+      if (!sede) return res.status(400).json({ error: 'Elige la sede del pedido' });
+      const propios = Object.fromEntries(Object.entries(sede.atributos || {}).filter(([k]) => CLAVES_SEDE.includes(k)));
+      atributosEfectivos = { ...resto.atributos, ...propios };
+    }
+  }
+  if (!negocio.whatsappDelNegocio(atributosEfectivos))
+    return res.status(400).json({ error: 'El restaurante no recibe pedidos' });
+
   const { error } = await supabase.from('pedidos_carta').insert([{
     restaurante_id: resto.id, cliente_nombre: nombre, cliente_telefono: telefono,
     tipo_entrega: b.tipo_entrega, direccion_entrega: b.tipo_entrega === 'domicilio' ? direccion : null,
-    metodo_pago: pago, total_reportado: total, items: limpios
+    metodo_pago: pago, total_reportado: total, items: limpios,
+    // Las claves de la sede solo viajan si hay sede: un restaurante de un solo local inserta lo de siempre.
+    ...(sede ? { sede_id: sede.id, sede_nombre: sede.nombre } : {}),
   }]);
   if (error) { console.error('[pedidos] no se pudo guardar:', error.message); return res.status(500).json({ error: 'No se pudo registrar el pedido' }); }
   res.status(201).json({ ok: true });

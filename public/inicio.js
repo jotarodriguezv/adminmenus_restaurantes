@@ -144,11 +144,15 @@ function revisionDeInicio({ productos = [], categorias = [], atributos = {}, pla
   // 1. El carrito que no puede enviar. Es lo único de esta pantalla que hace
   //    perder dinero: el comensal arma el pedido y el botón no lo manda.
   if (cartaTieneCarrito(atributos, plan) && !recibePedidos(atributos)) {
+    // Con sedes, el pedido sale al WhatsApp de LA SEDE: lo que falta es el de una en concreto.
+    const sinNumero = nombresDeSedesSinWhatsApp(atributos);
     pendientes.push({
       clave: 'whatsapp', grave: true,
       titulo: 'Tu carrito no puede recibir pedidos',
-      nota: 'Está encendido, pero falta el número de WhatsApp al que llegan. Tus clientes arman el pedido y no lo pueden enviar.',
-      boton: 'Poner el número', tab: 'ajustes',
+      nota: sinNumero.length
+        ? `Está encendido, pero a ${sinNumero.join(' y ')} le falta su WhatsApp. Quien pide desde ${sinNumero.length === 1 ? 'esa sede' : 'esas sedes'} arma el pedido y no lo puede enviar.`
+        : 'Está encendido, pero falta el número de WhatsApp al que llegan. Tus clientes arman el pedido y no lo pueden enviar.',
+      boton: sinNumero.length ? 'Poner el WhatsApp de la sede' : 'Poner el número', tab: sinNumero.length ? 'sedes' : 'ajustes',
     });
   }
 
@@ -218,7 +222,8 @@ function funcionesDeInicio({ productos = [], promociones = [], atributos = {}, p
 
   const funciones = [
     { clave: 'carrito', titulo: 'Carrito de pedidos', tab: 'ajustes', encendido: carrito,
-      detalle: carrito ? (recibePedidos(atributos) ? 'Los pedidos te llegan por WhatsApp.' : 'Falta el número de WhatsApp.')
+      detalle: carrito ? (recibePedidos(atributos) ? 'Los pedidos te llegan por WhatsApp.'
+                           : (nombresDeSedesSinWhatsApp(atributos).length ? `Falta el WhatsApp de ${nombresDeSedesSinWhatsApp(atributos).join(' y ')}.` : 'Falta el número de WhatsApp.'))
                        : 'Tu carta funciona como catálogo.' },
     { clave: 'destacados', titulo: 'Destacados', tab: 'promo', encendido: destacados > 0,
       detalle: destacados ? `${plural(destacados, 'publicado', 'publicados')}.` : 'Ninguno publicado.' },
@@ -321,8 +326,9 @@ function configuracionDeInicio({ productos = [], categorias = [], atributos = {}
     datosDelNegocioEnInicio(atributos),
     { titulo: 'Pedidos por WhatsApp', lista: requiereWhatsApp, listo: !requiereWhatsApp || recibePedidos(atributos),
       detalle: !requiereWhatsApp ? 'Opcional: actívalo cuando quieras recibir pedidos.'
-        : recibePedidos(atributos) ? 'El carrito ya puede enviar pedidos.' : 'Falta el número que recibe los pedidos.',
-      accion: recibePedidos(atributos) ? 'Ver pedidos' : 'Configurar', tab: 'ajustes' },
+        : recibePedidos(atributos) ? 'El carrito ya puede enviar pedidos.'
+          : (nombresDeSedesSinWhatsApp(atributos).length ? `Falta el WhatsApp de ${nombresDeSedesSinWhatsApp(atributos).join(' y ')}.` : 'Falta el número que recibe los pedidos.'),
+      accion: recibePedidos(atributos) ? 'Ver pedidos' : 'Configurar', tab: !recibePedidos(atributos) && nombresDeSedesSinWhatsApp(atributos).length ? 'sedes' : 'ajustes' },
     { titulo: 'Código QR', lista: true, listo: !!restaurante.slug,
       detalle: restaurante.slug ? 'Tu QR ya está listo para descargar e imprimir.' : 'Primero define la dirección de tu carta.',
       accion: restaurante.slug ? 'Abrir QR' : 'Ir a ajustes', tab: restaurante.slug ? 'qr' : 'ajustes' },
@@ -395,6 +401,58 @@ function pintarPendientes({ pendientes, enOrden }) {
   }
 }
 
+// ── LAS SEDES, A LA VISTA ─────────────────────────────────────
+// Con «Varias sedes» encendido, lo primero que tiene que saber quien entra es que su carta tiene
+// sedes y dónde se manejan: no es un detalle, cambia cómo se ve la carta y cómo se llega a ella.
+// Devuelve null si el restaurante no las tiene. Pura, para probarla sin pantalla.
+function resumenDeSedesInicio({ atributos = {}, sedes = null, urlDe = s => s.slug } = {}) {
+  if (atributos.con_sedes !== true) return null;
+  if (sedes === null) return { titulo: 'Tus sedes', detalle: 'Revisando tus sedes…', filas: [], sinSedes: false };
+  const activas = sedes.filter(s => s.activa);
+  if (!activas.length) {
+    return { titulo: 'Tus sedes', filas: [], sinSedes: true,
+      detalle: 'Las sedes están encendidas, pero todavía no hay ninguna activa: tu carta se ve como la de un solo local. Créalas en la pestaña Sedes.' };
+  }
+  const apagadas = sedes.length - activas.length;
+  return {
+    titulo: activas.length === 1 ? 'Tienes 1 sede activa' : `Tienes ${activas.length} sedes activas`,
+    sinSedes: false,
+    detalle: 'Tu carta pregunta en cuál está el cliente al entrar, y cada sede tiene su propio enlace, su QR, sus precios y sus datos.'
+      + (apagadas ? ` (${apagadas === 1 ? '1 apagada' : apagadas + ' apagadas'}.)` : ''),
+    filas: activas.map(s => ({
+      nombre: s.nombre, url: urlDe(s),
+      whatsapp: whatsappDeLaSede(atributos, s),
+      horarioPropio: s.atributos?.horario_atencion !== undefined && s.atributos?.horario_atencion !== null,
+    })),
+  };
+}
+
+// Dónde se administra cada cosa de las sedes: la pregunta que nadie sabe sin que se la digan.
+const DONDE_SE_ADMINISTRAN_LAS_SEDES = 'Sedes: datos, horario y precios de cada local · QR: uno por sede · Pantalla TV: una sede por pantalla · Destacados: para todas o para una · Reservas y Pedidos: dicen de qué sede son.';
+
+function pintarSedesInicio(resumen) {
+  const caja = document.getElementById('inicioSedes');
+  if (!caja) return;
+  caja.hidden = !resumen;
+  if (!resumen) return;
+  document.getElementById('inicioSedesTitulo').textContent = resumen.titulo;
+  document.getElementById('inicioSedesDetalle').textContent = resumen.detalle;
+  const lista = document.getElementById('inicioSedesLista');
+  lista.replaceChildren();
+  for (const f of resumen.filas) {
+    const fila = el('div', 'inicio-sede-fila');
+    fila.appendChild(el('strong', 'inicio-sede-nombre', f.nombre));
+    const enlace = el('a', 'inicio-sede-enlace', f.url.replace(/^https?:\/\//, ''));
+    enlace.href = f.url; enlace.target = '_blank'; enlace.rel = 'noopener noreferrer';
+    fila.appendChild(enlace);
+    // El número al que sale el pedido de esta sede, o la falta de él: es lo que hace perder pedidos.
+    fila.appendChild(el('span', 'inicio-sede-dato' + (f.whatsapp ? '' : ' falta'), f.whatsapp ? `WhatsApp ${f.whatsapp}` : '⚠ sin WhatsApp: no recibe pedidos'));
+    fila.appendChild(el('span', 'inicio-sede-dato', f.horarioPropio ? 'Horario propio' : 'Horario del restaurante'));
+    lista.appendChild(fila);
+  }
+  document.getElementById('inicioSedesDonde').textContent = resumen.sinSedes ? '' : DONDE_SE_ADMINISTRAN_LAS_SEDES;
+}
+
 function pintarFunciones(funciones) {
   const caja = document.getElementById('inicioFunciones');
   caja.replaceChildren();
@@ -433,6 +491,7 @@ function renderInicio() {
   if (enlace) enlace.href = urlPublica(state.restaurante);
 
   pintarMetricas(datos.productos, datos.categorias);
+  pintarSedesInicio(resumenDeSedesInicio({ atributos: datos.atributos, sedes: datos.sedes, urlDe: s => `${urlPublica(state.restaurante)}/${s.slug}` }));
   pintarEstadoOperacion(state.restaurante);
   pintarAvisoRenovacion();
   pintarPendientes(revisionDeInicio(datos));
