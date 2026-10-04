@@ -7943,6 +7943,55 @@ describe('Apariencia enseña lo que el modelo usa', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('el modelo de página se inspecciona antes de cambiarlo', () => {
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const css = fs.readFileSync(path.join(PUBLIC, 'panel.css'), 'utf8');
+
+	function montar({ actual = 'topnav', respuesta = false } = {}) {
+		const selector = { value: actual, disabled: false };
+		let pregunta = null, ajustes = 0, opciones = 0;
+		const ctx = cargar('aspecto.js', [['const NOMBRE_MODELO_PAGINA', '// No son dibujos aproximados']], {
+			document: { getElementById: id => id === 'apNavModelo' ? selector : null },
+			planActual: () => ({ modelos: ['topnav', 'sidebar', 'explorar'] }),
+			preguntar: async datos => { pregunta = datos; return respuesta; },
+			ajustarEstiloAlModelo: () => { ajustes++; },
+			pintarOpcionesModelo: () => { opciones++; },
+		});
+		return { ctx, selector, pregunta: () => pregunta, ajustes: () => ajustes, opciones: () => opciones };
+	}
+
+	test('corrige la explicación y explica la ampliación sin convertirla en un clic', () => {
+		assert.match(src, /Elige la forma en la que tus clientes van a ver tu página\. Puedes cambiarla cuando quieras\./);
+		assert.match(src, /En computador, pasa el cursor sobre una vista para verla más grande\./);
+		assert.match(css, /@media \(min-width:721px\) and \(hover:hover\)[\s\S]*?\.modelo-vista-real\{height:286px/);
+		assert.match(css, /\.modelo-vista-real iframe\{width:200%;height:200%;transform:scale\(\.5\);\}/);
+	});
+
+	test('al elegir otro modelo pregunta antes de tocar el selector', async () => {
+		const m = montar({ respuesta: false });
+		await m.ctx.seleccionarModeloPagina('sidebar');
+		assert.equal(m.selector.value, 'topnav');
+		assert.equal(m.ajustes(), 0);
+		assert.equal(m.pregunta().titulo, '¿Cambiar el modelo de tu página?');
+		assert.match(m.pregunta().texto, /Categorías arriba.*Menú lateral/);
+	});
+
+	test('solo aplica el modelo después de confirmarlo', async () => {
+		const m = montar({ respuesta: true });
+		await m.ctx.seleccionarModeloPagina('explorar');
+		assert.equal(m.selector.value, 'explorar');
+		assert.equal(m.ajustes(), 1);
+		assert.equal(m.opciones(), 1);
+	});
+
+	test('pulsar el modelo ya activo no abre una confirmación innecesaria', async () => {
+		const m = montar();
+		await m.ctx.seleccionarModeloPagina('topnav');
+		assert.equal(m.pregunta(), null);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('aplicarPlanAlPanel bloquea el modelo en video para el cliente, nunca para el superadmin', () => {
 	// Bug visto el 27/09/2026: el cliente de un restaurante de video podía
 	// cruzar entre horizontal y vertical, y guardar Apariencia daba
