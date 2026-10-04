@@ -209,6 +209,11 @@ function tarjetaDePromo(p) {
             <span style="font-size:12px;color:var(--text-muted)">En la carta</span></div>
           <div class="p-destino p-tv-fila form-check"><label class="toggle"><input type="checkbox" class="p-tv"><span class="toggle-slider"></span></label>
             <span style="font-size:12px;color:var(--text-muted)">En el televisor</span></div>
+          <div class="p-pantallas" style="display:none;width:100%">
+            <label class="form-label" style="margin-bottom:6px">¿En qué pantallas sale?</label>
+            <div class="p-pantallas-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5">Cada pantalla es de una sede: un destacado con un precio o una oferta de un local no debe salir en el otro.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -348,8 +353,30 @@ function tarjetaDePromo(p) {
 
   pintarDias(); nota();
 
+  // ── EN QUÉ PANTALLAS DE TV SALE ──────────────────────────────
+  // La base ya guarda a qué pantallas va un destacado (pantallas_tv, por defecto solo la 1),
+  // pero el panel no dejaba elegirlas. Con cada pantalla ligada a una sede, es lo que decide
+  // en cuál local sale. La fila solo aparece si hay más de una pantalla que elegir.
+  caja._pantallas = new Set(pantallasDeDestacado(p));
+  const pintarPantallas = () => {
+    const fila = q('p-pantallas');
+    fila.style.display = restauranteTieneTv() && q('p-tv').checked && hayVariasPantallasTv() ? 'block' : 'none';
+    const cont = q('p-pantallas-chips');
+    cont.innerHTML = '';
+    for (const n of [1, 2, 3]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cat-chip' + (caja._pantallas.has(n) ? ' active' : '');
+      b.setAttribute('aria-pressed', caja._pantallas.has(n) ? 'true' : 'false');
+      b.textContent = etiquetaDePantallaTv(n);
+      b.onclick = () => { if (caja._pantallas.has(n)) caja._pantallas.delete(n); else caja._pantallas.add(n); pintarPantallas(); };
+      cont.appendChild(b);
+    }
+  };
+  pintarPantallas();
+
   for (const c of ['p-activa', 'p-popup', 'p-tv', 'p-desde', 'p-hasta', 'p-desdef', 'p-hastaf'])
-    q(c).onchange = nota;
+    q(c).onchange = () => { nota(); pintarPantallas(); };
   q('p-prog').onchange = () => {
     q('p-campos').style.display = q('p-prog').checked ? 'block' : 'none';
     nota();
@@ -418,12 +445,34 @@ function promoDelFormulario(caja, elegidos) {
     en_popup: q('p-popup').checked,
     en_tv: q('p-tv').checked,
     programacion: programacionParaGuardar(caja, elegidos),
+    // Solo si la tarjeta las lleva: lo que se compara para saber si hay cambios sin
+    // guardar no cambia para quien nunca las toca.
+    ...(caja._pantallas ? { pantallas_tv: [...caja._pantallas].sort() } : {}),
   };
+}
+
+// Las pantallas de un destacado, como números; sin ninguna guardada, la 1 (lo mismo que
+// hace tv.html y el valor por defecto de la columna).
+function pantallasDeDestacado(promo) {
+  const lista = Array.isArray(promo?.pantallas_tv) ? promo.pantallas_tv.map(Number).filter(n => n >= 1 && n <= 3) : [];
+  return lista.length ? lista : [1];
+}
+
+// ¿Hay más de una pantalla de TV de la que hablar? Con una sola, la fila de pantallas
+// sería ruido.
+function hayVariasPantallasTv() {
+  return Object.keys(state.restaurante?.atributos?.tv_pantallas || {}).length > 0;
 }
 
 async function guardarPromo(id, caja, elegidos) {
   const q = c => caja.querySelector('.' + c);
   const st = q('p-estado');
+  // Marcado para el televisor y en ninguna pantalla: no saldría en ningún sitio.
+  if (q('p-tv').checked && restauranteTieneTv() && hayVariasPantallasTv() && caja._pantallas && !caja._pantallas.size) {
+    st.textContent = 'Elige al menos una pantalla'; st.style.color = 'var(--danger)';
+    showToast('Elige en qué pantalla sale este destacado', 'error');
+    return;
+  }
   st.textContent = 'Guardando…'; st.style.color = 'var(--text-muted)';
   try {
     const cuerpo = promoDelFormulario(caja, elegidos);

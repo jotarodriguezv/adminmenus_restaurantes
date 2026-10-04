@@ -296,3 +296,94 @@ describe('PATCH /api/restaurantes/:id · max_sedes', () => {
 		assert.equal('max_sedes' in g, false);
 	});
 });
+
+describe('PATCH /api/restaurantes/:id · la sede de cada pantalla de TV', () => {
+	const SEDES = [{ slug: 'piedecuesta', activa: true }, { slug: 'bucaramanga', activa: true }, { slug: 'cerrada', activa: false }];
+	// El restaurante tal como está guardado, y las sedes que tiene.
+	const conMundoTv = ({ guardado = { con_sedes: true }, sedes = SEDES, errorSedes = false } = {}) => conTabla(st => {
+		if (st.tabla === 'restaurantes' && st.op === 'select') return { data: { atributos: guardado }, error: null };
+		if (st.tabla === 'sedes') return errorSedes ? { data: null, error: { message: 'boom' } } : { data: sedes, error: null };
+		return { data: { id: IDS.restaurante, atributos: {} }, error: null };
+	});
+	const guardar = atributos => pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos }, tokenAdmin);
+	const consultoSedes = () => llamadas.some(l => l.tabla === 'sedes');
+
+	test('una pantalla encendida con una sede que existe se guarda', async () => {
+		conMundoTv();
+		const r = await guardar({ tv: { activa: true, sede: 'bucaramanga' } });
+		assert.equal(r.status, 200);
+		assert.equal(escrituras('restaurantes', 'update').pop().payload.atributos.tv.sede, 'bucaramanga');
+	});
+
+	test('con sedes, una pantalla ENCENDIDA sin sede se rechaza y dice cuál', async () => {
+		conMundoTv();
+		const r = await guardar({ tv: { activa: true } });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /sede de la pantalla 1/);
+		assert.equal(escrituras('restaurantes', 'update').length, 0);
+	});
+
+	test('una pantalla apagada sin sede sí se puede guardar (borrador)', async () => {
+		conMundoTv();
+		assert.equal((await guardar({ tv: { activa: false } })).status, 200);
+	});
+
+	test('una sede que no existe se rechaza, y una apagada pero existente no', async () => {
+		conMundoTv();
+		const r = await guardar({ tv: { activa: true, sede: 'cali' } });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /ya no existe/);
+		reiniciar(); conMundoTv();
+		assert.equal((await guardar({ tv: { activa: true, sede: 'cerrada' } })).status, 200);
+	});
+
+	test('al guardar la pantalla 2 se mira también lo que hay en la 3, y el mensaje la nombra', async () => {
+		conMundoTv();
+		const r = await guardar({ tv_pantallas: { 2: { activa: true, sede: 'piedecuesta' }, 3: { activa: true } } });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /pantalla 3/);
+	});
+
+	test('lo ya guardado cuenta: no se salta la regla mandando solo la otra pantalla', async () => {
+		conMundoTv({ guardado: { con_sedes: true, tv: { activa: true } } });
+		const r = await guardar({ tv_pantallas: { 2: { activa: true, sede: 'piedecuesta' } } });
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /pantalla 1/);
+	});
+
+	test('sin el interruptor «Varias sedes», la sede se ignora y no se consulta nada', async () => {
+		conMundoTv({ guardado: {} });
+		assert.equal((await guardar({ tv: { activa: true } })).status, 200);
+		assert.equal((await guardar({ tv: { activa: true, sede: 'cualquiera' } })).status, 200);
+		assert.equal(consultoSedes(), false);
+	});
+
+	test('encendido pero sin ninguna sede activa, no se exige', async () => {
+		conMundoTv({ sedes: [{ slug: 'cerrada', activa: false }] });
+		assert.equal((await guardar({ tv: { activa: true } })).status, 200);
+	});
+
+	test('la forma se valida siempre, con o sin sedes: un slug o vacío', async () => {
+		for (const sede of ['Con Mayusculas', 'a b', 5, { x: 1 }, 'a_b']) {
+			reiniciar(); conMundoTv({ guardado: {} });
+			const r = await guardar({ tv: { activa: false, sede } });
+			assert.equal(r.status, 400, JSON.stringify(sede));
+			assert.match(r.body.error, /no es válida/);
+		}
+		reiniciar(); conMundoTv({ guardado: {} });
+		assert.equal((await guardar({ tv: { activa: false, sede: '' } })).status, 200);
+	});
+
+	test('si no se pueden leer las sedes, 500 y nada guardado', async () => {
+		conMundoTv({ errorSedes: true });
+		const r = await guardar({ tv: { activa: true, sede: 'bucaramanga' } });
+		assert.equal(r.status, 500);
+		assert.equal(escrituras('restaurantes', 'update').length, 0);
+	});
+
+	test('un guardado que no toca las pantallas no consulta las sedes', async () => {
+		conMundoTv();
+		assert.equal((await guardar({ subtitulo: 'Carta Digital' })).status, 200);
+		assert.equal(consultoSedes(), false);
+	});
+});

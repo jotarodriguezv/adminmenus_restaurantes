@@ -145,8 +145,6 @@ algo que no existe (PostgREST responde 400).
 ## 8. Lo que queda fuera (fase 2)
 
 - **Estadísticas por sede.** Hoy una visita cuenta para el restaurante.
-- **Televisor por sede.** `tv.html` no entiende la sede, y la ruta
-  `/<restaurante>/<sede>/tv` no la sirve nginx. Propuesta y problema de precios en §9.
 - **Ofertas por sede.**
 - **Pestaña Importar carta** no conoce sedes: importa a la carta base. Ver §10 para
   cómo podría servir para los precios de una sede.
@@ -154,10 +152,11 @@ algo que no existe (PostgREST responde 400).
   tamaño) viven donde ya vivían, en el plato; esta función no los distingue por
   sede.
 
-## 9. Anotado para después: la cartelera (TV) y los precios por sede
+## 9. La cartelera (TV) y los precios por sede: el planteamiento
 
-*Pedido por Jota el 04/10/2026: que quede escrito. **No está hecho** y no entra en
-el PR de las sedes.*
+*Se anotó el 04/10/2026 antes de construirlo y **se construyó el 05/10/2026**: lo que
+quedó hecho y lo que difiere de este planteamiento está en §12. Se deja el original
+porque explica el porqué.*
 
 ### El problema
 
@@ -347,3 +346,75 @@ real, pero así queda correcto para el siguiente.
 ### Pendiente
 
 - **Cartelera (TV) por sede.** §9.
+
+## 12. La cartelera (TV) por sede (05/10/2026)
+
+Se hizo la propuesta de §9: **cada pantalla pertenece a una sede**, sin tocar URLs, nginx
+ni la lógica de pantallas, horarios y ritmo.
+
+### Cómo queda
+
+- **Dato:** `atributos.tv.sede` (pantalla 1) y `atributos.tv_pantallas[n].sede`
+  (pantallas 2 y 3): el slug de la sede. Sin migración.
+- **Panel → Pantalla TV:** con «Varias sedes» encendido y al menos una sede activa, el
+  formulario de cada pantalla tiene «Sede de esta pantalla». La tarjeta de pantalla
+  dice su sede («TV del salón · Bucaramanga»). Una pantalla **encendida** necesita sede.
+- **`tv.html`:** pide la sede de su pantalla y sus precios (`productos_sedes`) y aplica la
+  misma regla que la carta del QR. Es la **cuarta copia** que se temía en §9, y se
+  resolvió como con las ofertas: un juego de casos compartido (`test/casos-sede.json`,
+  en `vmenus-app`) que corre contra `core/sedes.js` y contra `tv.html`. Solo hay dos
+  copias de la regla (la carta y la TV): el panel y el servidor no calculan precios, solo
+  los guardan.
+- **La caché local de la pantalla pasó a ser por número de pantalla.** Antes era por
+  restaurante; con sedes, dos pantallas de un mismo navegador habrían pintado primero los
+  precios de la otra.
+
+### Las preguntas abiertas de §9, resueltas
+
+- **¿Y si la pantalla no tiene sede?** En un restaurante con sedes, **no enseña nada**:
+  reposo con «Falta asignar la sede de esta pantalla (panel, Pantalla TV)». Se descartó
+  enseñar los precios base porque son los de OTRO local, y un precio en la pared que la
+  caja no cobra es peor que una pantalla que avisa. El servidor además **no deja
+  encenderla** sin sede (`errorDeSedesDeLasPantallas`, en `PATCH /api/restaurantes/:id`).
+  Lo mismo si la sede asignada se borra: la pantalla avisa en vez de caer a otra.
+- **Platos que no se sirven en esa sede** salen también de la selección de la cartelera.
+- **Peticiones desde el televisor:** dos más por carga (`sedes` y `productos_sedes`), y
+  **solo** si el restaurante tiene el interruptor de sedes. Si fallan, se trata como fallo
+  de carga y se conserva lo último que se vio: nunca se pinta una carta con precios a medias.
+- **La oferta de precio** se apaga en una sede que cambia el precio, igual que en la carta.
+
+### La regla de validación en el servidor
+
+Al guardar atributos que tocan `tv` o `tv_pantallas`, se miran las **tres** pantallas de
+lo que quedará guardado (el panel manda el mapa de `tv_pantallas` entero y no se sabe cuál
+se editó): la forma (un slug o vacío), que la sede **exista**, y, con sedes activas, que una
+pantalla encendida **tenga** sede. El mensaje nombra la pantalla. Sin el interruptor de
+sedes, o sin ninguna sede activa, el campo se ignora y no se consulta nada.
+
+### Los destacados: lo que se encontró
+
+Los destacados de la TV **ya se podían asignar a pantallas concretas**
+(`promociones.pantallas_tv`, `sql/33`, por defecto solo la 1), y `tv.html` ya lo respetaba;
+pero **el panel no tenía dónde elegirlas**: en la práctica salían solo en la pantalla 1.
+
+Con cada pantalla ligada a una sede, ese campo es justo lo que decide **en cuál local sale
+un destacado**, así que se añadió la UI que faltaba: en la tarjeta de cada destacado,
+«¿En qué pantallas sale?» con una ficha por pantalla nombrada con su sede. Solo aparece si
+el restaurante tiene el televisor y **más de una pantalla** configurada. Hay que elegir al
+menos una. Y el resumen de la pestaña TV («salen N destacados») ya cuenta solo los de **esa**
+pantalla, con la misma regla que `tv.html` (con destinos, solo en esos; sin destinos, solo
+en la 1).
+
+Esto cubre la **cartelera**. Queda abierto el destacado de la **carta** (el popup, `en_popup`):
+no tiene sede, así que sale igual en todas. Si un destacado lleva un precio u oferta de un
+local, hoy saldría también en el otro. Propuesta, sin hacer: `promociones.sede_id` opcional
+(vacío = todas las sedes) con `on delete cascade` —no `set null`: una promoción de una sede
+que se borra no puede pasar a valer para todas—, filtrado en `core/promociones.js` y en el
+formulario del destacado.
+
+### Orden de despliegue
+
+Sin migraciones. La carta (`vmenus-app`, `tv.html`) y el panel son independientes entre sí:
+una cartelera nueva con un panel viejo simplemente no tiene el selector (y las pantallas
+sin sede quedan en reposo); un panel nuevo con una cartelera vieja deja elegir la sede y la
+cartelera la ignora. Lo conveniente es desplegar los dos antes de asignar sedes.

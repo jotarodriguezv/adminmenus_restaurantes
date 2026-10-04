@@ -721,6 +721,13 @@
 								<label for="tvNombre" class="form-label">Nombre de esta pantalla</label>
 								<input type="text" class="form-input" id="tvNombre" maxlength="60" placeholder="Por ejemplo: TV del salón">
 							</div>
+							<!-- Con sedes: cada pantalla pertenece a una sede y enseña SUS precios (docs/sedes.md §12).
+							     Lo llena tvPrepararSedes() de tv.js; escondido si el restaurante no las tiene. -->
+							<div class="form-group" id="tvSedeBloque" style="display:none">
+								<label for="tvSede" class="form-label">Sede de esta pantalla</label>
+								<select class="form-select" id="tvSede"></select>
+								<small class="bienvenida-ayuda">Esta pantalla enseña los precios y los platos de esa sede. Sin sede no se puede encender: se quedaría en reposo, porque enseñar los precios de otro local sería peor.</small>
+							</div>
 							<!-- ── LA CARTELERA DE VERDAD, DENTRO DEL PANEL ──────────
 							     No es una imitación: es la MISMA página que se abre en el
 							     televisor, embebida. Una imitación tendría que reproducir
