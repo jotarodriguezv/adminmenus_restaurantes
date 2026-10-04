@@ -11559,3 +11559,80 @@ describe('Destacados · en qué pantallas de TV salen', () => {
 		assert.match(src, /\.\.\.\(caja\._pantallas \? \{ pantallas_tv: \[\.\.\.caja\._pantallas\]\.sort\(\) \} : \{\}\),/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('Destacados por sede (panel)', () => {
+	const SEDES = [{ id: 'sede-pie', slug: 'piedecuesta', nombre: 'Piedecuesta' }, { id: 'sede-buc', slug: 'bucaramanga', nombre: 'Bucaramanga' }];
+	const estado = () => ({
+		sedes: SEDES,
+		restaurante: { atributos: { tv: { sede: 'piedecuesta' }, tv_pantallas: { 2: { sede: 'bucaramanga' }, 3: {} } } },
+	});
+
+	test('el resumen de la TV cuenta un destacado de una sede solo en las pantallas de esa sede', () => {
+		const c = cargar('tv.js', [
+			['tv.js', 'function tvConfiguracionDePantalla', 'function tvPintarPantallas'],
+			['tv.js', 'function saleEnLaPantallaTv', '// Los que la cartelera va a poder pintar de verdad.'],
+		], { state: estado(), tvPantallaActual: 1 });
+		const deBuc = { sede_id: 'sede-buc' };
+		assert.equal(c.deLaSedeDeLaPantallaTv(deBuc, 1), false, 'la pantalla 1 es de Piedecuesta');
+		assert.equal(c.deLaSedeDeLaPantallaTv(deBuc, 2), true, 'la 2 es de Bucaramanga');
+		assert.equal(c.deLaSedeDeLaPantallaTv(deBuc, 3), false, 'una pantalla sin sede no es de ninguna');
+	});
+
+	test('un destacado de todas las sedes cuenta en cualquier pantalla', () => {
+		const c = cargar('tv.js', [
+			['tv.js', 'function tvConfiguracionDePantalla', 'function tvPintarPantallas'],
+			['tv.js', 'function saleEnLaPantallaTv', '// Los que la cartelera va a poder pintar de verdad.'],
+		], { state: estado(), tvPantallaActual: 1 });
+		for (const promo of [{}, { sede_id: null }, { sede_id: '' }])
+			for (const n of [1, 2, 3]) assert.equal(c.deLaSedeDeLaPantallaTv(promo, n), true);
+	});
+
+	test('una sede que ya no existe no deja pasar el destacado a ninguna pantalla', () => {
+		const c = cargar('tv.js', [
+			['tv.js', 'function tvConfiguracionDePantalla', 'function tvPintarPantallas'],
+			['tv.js', 'function saleEnLaPantallaTv', '// Los que la cartelera va a poder pintar de verdad.'],
+		], { state: estado(), tvPantallaActual: 1 });
+		assert.equal(c.deLaSedeDeLaPantallaTv({ sede_id: 'borrada' }, 1), false);
+	});
+
+	const promo = (st) => cargar('promocion.js', 'function sedeDelDestacadoVisible', 'async function prepararSedeDePromo', {
+		state: st,
+		tvConfiguracionDePantalla: n => (st.restaurante.atributos.tv_pantallas?.[n] || (n === 1 ? st.restaurante.atributos.tv : {}) || {}),
+		etiquetaDePantallaTv: n => `Pantalla ${n}`,
+	});
+
+	test('avisa de las pantallas elegidas que son de OTRA sede que la del destacado', () => {
+		const c = promo(estado());
+		assert.deepEqual(Array.from(c.pantallasDeOtraSede('sede-buc', new Set([1, 2]))), ['Pantalla 1']);
+		assert.deepEqual(Array.from(c.pantallasDeOtraSede('sede-pie', new Set([1, 2]))), ['Pantalla 2']);
+		assert.deepEqual(Array.from(c.pantallasDeOtraSede('sede-buc', new Set([2]))), []);
+	});
+
+	test('para todas las sedes, sede inexistente o pantalla sin sede, no hay aviso', () => {
+		const c = promo(estado());
+		assert.deepEqual(Array.from(c.pantallasDeOtraSede('', new Set([1, 2]))), []);
+		assert.deepEqual(Array.from(c.pantallasDeOtraSede(null, new Set([1]))), []);
+		assert.deepEqual(Array.from(c.pantallasDeOtraSede('borrada', new Set([1]))), []);
+		assert.deepEqual(Array.from(c.pantallasDeOtraSede('sede-buc', new Set([3]))), [], 'una pantalla sin sede no «es de otra»');
+	});
+
+	test('el selector solo cuenta como a la vista si se mostró', () => {
+		const c = promo(estado());
+		const caja = display => ({ querySelector: () => (display === null ? null : { style: { display } }) });
+		assert.equal(c.sedeDelDestacadoVisible(caja('block')), true);
+		assert.equal(c.sedeDelDestacadoVisible(caja('none')), false);
+		assert.equal(c.sedeDelDestacadoVisible(caja(null)), false);
+	});
+
+	test('lo que se guarda lleva la sede solo con el selector a la vista, y vacía es null', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'promocion.js'), 'utf8');
+		assert.match(src, /\.\.\.\(sedeDelDestacadoVisible\(caja\) \? \{ sede_id: q\('p-sede'\)\.value \|\| null \} : \{\}\),/);
+	});
+
+	test('rellenar el selector no cuenta como un cambio del usuario', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'promocion.js'), 'utf8');
+		assert.match(src, /const sinCambios = caja\.dataset\.foto === JSON\.stringify\(caja\.leerFormulario\(\)\);/);
+		assert.match(src, /if \(sinCambios\) caja\.dataset\.foto = JSON\.stringify\(caja\.leerFormulario\(\)\);/);
+	});
+});

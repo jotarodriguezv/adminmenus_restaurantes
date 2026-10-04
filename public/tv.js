@@ -620,6 +620,15 @@ function saleEnLaPantallaTv(promo, numero) {
   return destinos.length ? destinos.includes(numero) : numero === 1;
 }
 
+// ¿Es el destacado de la sede de esa pantalla (o de todas)? La MISMA regla que tv.html:
+// uno dirigido a una sede solo sale en las pantallas de esa sede.
+function deLaSedeDeLaPantallaTv(promo, numero) {
+  if (!promo?.sede_id) return true;
+  const slug = tvConfiguracionDePantalla(numero).sede;
+  const sede = (state.sedes || []).find(s => s.id === promo.sede_id);
+  return !!sede && !!slug && sede.slug === slug;
+}
+
 // Los que la cartelera va a poder pintar de verdad. Una promoción apagada no
 // ocupa turno, y contarla prometería una vuelta más larga de la que se ve en la
 // pared. Es el mismo filtro que hace listaIntercalados() en tv.html.
@@ -628,7 +637,7 @@ function tvDestacadosVisibles() {
   const todas = state.promociones || [];
   const vivas = todas.filter(p =>
     p && p.activa && p.en_tv && p.imagen_url && saleEnLaPantallaTv(p, tvPantallaActual) &&
-    vigenteAhora(programacionDe(p), zona));
+    deLaSedeDeLaPantallaTv(p, tvPantallaActual) && vigenteAhora(programacionDe(p), zona));
   // Sin respaldo en las columnas viejas (promo_activa / promo_imagen_url,
   // quitado el 02/10/2026): la pared ya solo lee la tabla, y contar una imagen
   // que no sale prometería una vuelta más larga de la que se ve.

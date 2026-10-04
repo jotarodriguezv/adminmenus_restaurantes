@@ -209,10 +209,16 @@ function tarjetaDePromo(p) {
             <span style="font-size:12px;color:var(--text-muted)">En la carta</span></div>
           <div class="p-destino p-tv-fila form-check"><label class="toggle"><input type="checkbox" class="p-tv"><span class="toggle-slider"></span></label>
             <span style="font-size:12px;color:var(--text-muted)">En el televisor</span></div>
+          <div class="p-sede-fila" style="display:none;width:100%">
+            <label class="form-label" style="margin-bottom:6px">¿En qué sede sale?</label>
+            <select class="form-select p-sede" style="max-width:320px"></select>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5">«En todas las sedes» es lo normal. Elige una si el destacado lleva un precio o una oferta de ese local: no saldrá en la carta ni en las pantallas de las demás.</div>
+          </div>
           <div class="p-pantallas" style="display:none;width:100%">
             <label class="form-label" style="margin-bottom:6px">¿En qué pantallas sale?</label>
             <div class="p-pantallas-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
             <div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5">Cada pantalla es de una sede: un destacado con un precio o una oferta de un local no debe salir en el otro.</div>
+            <div class="p-aviso-sede" style="font-size:11px;color:var(--warn);margin-top:6px;line-height:1.5"></div>
           </div>
         </div>
       </div>
@@ -369,14 +375,19 @@ function tarjetaDePromo(p) {
       b.className = 'cat-chip' + (caja._pantallas.has(n) ? ' active' : '');
       b.setAttribute('aria-pressed', caja._pantallas.has(n) ? 'true' : 'false');
       b.textContent = etiquetaDePantallaTv(n);
-      b.onclick = () => { if (caja._pantallas.has(n)) caja._pantallas.delete(n); else caja._pantallas.add(n); pintarPantallas(); };
+      b.onclick = () => { if (caja._pantallas.has(n)) caja._pantallas.delete(n); else caja._pantallas.add(n); pintarPantallas(); caja.avisarSedeDePantallas?.(); };
       cont.appendChild(b);
     }
   };
   pintarPantallas();
+  caja.avisarSedeDePantallas = () => {
+    const otras = pantallasDeOtraSede(q('p-sede').value, caja._pantallas);
+    q('p-aviso-sede').textContent = otras.length && q('p-tv').checked
+      ? `${otras.join(' y ')} ${otras.length === 1 ? 'es de otra sede' : 'son de otra sede'}: allí no saldrá este destacado.` : '';
+  };
 
   for (const c of ['p-activa', 'p-popup', 'p-tv', 'p-desde', 'p-hasta', 'p-desdef', 'p-hastaf'])
-    q(c).onchange = () => { nota(); pintarPantallas(); };
+    q(c).onchange = () => { nota(); pintarPantallas(); caja.avisarSedeDePantallas?.(); };
   q('p-prog').onchange = () => {
     q('p-campos').style.display = q('p-prog').checked ? 'block' : 'none';
     nota();
@@ -389,6 +400,7 @@ function tarjetaDePromo(p) {
   // pestaña se daría por buena al guardar una y taparía lo pendiente en otra.
   caja.leerFormulario = () => promoDelFormulario(caja, elegidos);
   caja.dataset.foto = JSON.stringify(caja.leerFormulario());
+  prepararSedeDePromo(caja, p);
   return caja;
 }
 
@@ -445,10 +457,62 @@ function promoDelFormulario(caja, elegidos) {
     en_popup: q('p-popup').checked,
     en_tv: q('p-tv').checked,
     programacion: programacionParaGuardar(caja, elegidos),
+    // La sede solo viaja si el selector está a la vista: sin sedes no se escribe la clave, y la
+    // comparación de «hay cambios sin guardar» no cambia para quien nunca las usa.
+    ...(sedeDelDestacadoVisible(caja) ? { sede_id: q('p-sede').value || null } : {}),
     // Solo si la tarjeta las lleva: lo que se compara para saber si hay cambios sin
     // guardar no cambia para quien nunca las toca.
     ...(caja._pantallas ? { pantallas_tv: [...caja._pantallas].sort() } : {}),
   };
+}
+
+function sedeDelDestacadoVisible(caja) {
+  const fila = caja.querySelector('.p-sede-fila');
+  return !!fila && fila.style.display !== 'none';
+}
+
+// Los nombres de las pantallas elegidas que son de OTRA sede que la del destacado: allí no
+// saldrá, y quien lo prepara tiene que enterarse antes de preguntar por qué no se ve.
+// `sedeId` vacío (todas las sedes) no choca con ninguna.
+function pantallasDeOtraSede(sedeId, pantallas) {
+  if (!sedeId) return [];
+  const sede = (state.sedes || []).find(s => s.id === sedeId);
+  if (!sede) return [];
+  return [...pantallas].sort().filter(n => {
+    const delTv = tvConfiguracionDePantalla(n).sede;
+    return delTv && delTv !== sede.slug;
+  }).map(n => etiquetaDePantallaTv(n));
+}
+
+// Rellena el selector con las sedes activas. Es asíncrono porque las sedes pueden no estar
+// cargadas todavía, y rellenarlo no cuenta como un cambio del usuario: si no había cambios
+// antes, la «foto» de cómo estaba se toma de nuevo con la sede ya puesta.
+async function prepararSedeDePromo(caja, p) {
+  const resto = state.restaurante;
+  if (resto?.atributos?.con_sedes !== true) return;
+  const id = resto.id;
+  let sedes = state.sedesDe === id ? state.sedes : null;
+  if (!sedes) {
+    try {
+      sedes = await apiFetch('GET', `/api/sedes?restaurante_id=${id}`) || [];
+      state.sedes = sedes; state.sedesDe = id;
+    } catch { sedes = []; }
+  }
+  const activas = sedes.filter(s => s.activa);
+  if (!activas.length) return;
+  const sinCambios = caja.dataset.foto === JSON.stringify(caja.leerFormulario());
+  const sel = caja.querySelector('.p-sede');
+  sel.replaceChildren();
+  const opcion = (valor, texto) => { const o = document.createElement('option'); o.value = valor; o.textContent = texto; sel.appendChild(o); };
+  opcion('', 'En todas las sedes');
+  for (const s of activas) opcion(s.id, s.nombre);
+  // Una sede guardada que ya no está entre las activas se deja a la vista, no se borra en silencio.
+  if (p.sede_id && !activas.some(s => s.id === p.sede_id)) opcion(p.sede_id, 'Una sede apagada o borrada');
+  sel.value = p.sede_id || '';
+  caja.querySelector('.p-sede-fila').style.display = 'block';
+  sel.onchange = () => caja.avisarSedeDePantallas?.();
+  caja.avisarSedeDePantallas?.();
+  if (sinCambios) caja.dataset.foto = JSON.stringify(caja.leerFormulario());
 }
 
 // Las pantallas de un destacado, como números; sin ninguna guardada, la 1 (lo mismo que
