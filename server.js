@@ -1502,6 +1502,12 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     // la carta lo compara con `=== true`, así que aquí se fuerza a booleano para que
     // un 'false' escrito como texto no deje las sedes encendidas.
     if ('con_sedes' in body.atributos) body.atributos.con_sedes = body.atributos.con_sedes === true;
+    // Cuántas sedes tiene contratadas (docs/sedes.md): un entero entre 1 y el techo. Lo que no
+    // sea un número se queda en el valor por defecto en vez de dejar el tope en NaN.
+    if ('max_sedes' in body.atributos) {
+      const n = Math.round(Number(body.atributos.max_sedes));
+      body.atributos.max_sedes = Number.isFinite(n) ? Math.min(Math.max(n, 1), MAX_SEDES) : SEDES_POR_DEFECTO;
+    }
   }
 
   const { data, error } = await supabase.from('restaurantes').update(body).eq('id', req.params.id).select().single();
@@ -2532,7 +2538,16 @@ const SLUG_SEDE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 // 'tv' es la cartelera (nginx la sirve por ruta, antes que la carta): una sede
 // con ese slug tendría un QR que abre el televisor en vez de la carta.
 const SLUGS_SEDE_RESERVADOS = ['tv'];
+// El techo absoluto, y el tope de cada restaurante dentro de él: lo que se vendió
+// (atributos.max_sedes, lo pone el superadmin en Superadmin → Varias sedes). Sin
+// número puesto, dos: el caso que motivó las sedes, y lo prudente si se olvida
+// ponerlo —tres sedes regaladas por un descuido es un costo; dos, no.
 const MAX_SEDES = 20;
+const SEDES_POR_DEFECTO = 2;
+function topeDeSedes(atributos) {
+  const n = atributos?.max_sedes;
+  return Number.isInteger(n) && n >= 1 ? Math.min(n, MAX_SEDES) : SEDES_POR_DEFECTO;
+}
 
 // El slug por defecto sale del nombre: «Cañaveral Ruitoque» → canaveral-ruitoque.
 function slugDeSede(texto) {
@@ -2599,8 +2614,9 @@ app.post('/api/sedes', auth, async (req, res) => {
   const { data: existentes, error: errLista } = await supabase.from('sedes')
     .select('id, slug').eq('restaurante_id', restaurante_id);
   if (errLista) return res.status(500).json({ error: errLista.message });
-  if ((existentes || []).length >= MAX_SEDES)
-    return res.status(409).json({ error: `Ya hay ${MAX_SEDES} sedes, que es el máximo` });
+  const tope = topeDeSedes(resto.atributos);
+  if ((existentes || []).length >= tope)
+    return res.status(409).json({ error: `Este restaurante tiene ${tope === 1 ? 'contratada 1 sede' : `contratadas ${tope} sedes`}. Para añadir otra, súbele el tope en Superadmin → Varias sedes.` });
   if ((existentes || []).some(s => s.slug === slug))
     return res.status(409).json({ error: 'Ya hay una sede con ese enlace' });
 

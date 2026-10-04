@@ -543,6 +543,10 @@
 							<label class="toggle"><input type="checkbox" id="apSedes"><span class="toggle-slider"></span></label>
 							<span style="font-size:13px;color:var(--text-muted)">Este restaurante tiene varias sedes</span>
 						</div>
+						<div class="form-group" style="max-width:220px">
+							<label for="apMaxSedes" class="form-label">Sedes contratadas (máximo)</label>
+							<input type="number" class="form-input" id="apMaxSedes" min="1" max="20" step="1" placeholder="2" inputmode="numeric">
+						</div>
 						<div style="font-size:11px;color:var(--text-dim);line-height:1.6;">
 							Enciende la pestaña <strong>Sedes</strong>, donde creas cada local y le pones
 							sus precios, y hace que la carta pregunte en qué sede está el cliente. Apagado,
@@ -1930,6 +1934,13 @@
 						<div class="qr-controls-col">
 							<div class="section-card">
 								<div class="section-title">Enlace del menú</div>
+								<!-- Con sedes: un QR por local, que abre directo su carta (docs/sedes.md).
+								     Lo llena qrPrepararSedes() de qr.js; escondido si el restaurante no las tiene. -->
+								<div id="qrSedeBloque" style="display:none;margin-bottom:14px;">
+									<label for="qrSede" class="form-label">QR de</label>
+									<select class="form-select" id="qrSede" onchange="qrElegirSede()"></select>
+									<small class="bienvenida-ayuda">Cada local imprime el suyo: abre directo su carta. El del restaurante pregunta primero en qué sede está el cliente.</small>
+								</div>
 								<!-- M2: era un campo de 232 px en móvil y cortaba la dirección en
 								     «https://menu.vmenus.co/zz-pr». Un enlace que parte línea se lee
 								     entero —para dictarlo o comprobar el slug— y además se abre. -->
@@ -2134,6 +2145,7 @@
 					<div class="section-card">
 						<div class="section-header"><div class="section-title">Sedes</div><button class="btn-sm" onclick="renderSedes()">Actualizar</button></div>
 						<p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5">Los locales de este restaurante. Comparten la carta, pero cada uno puede tener sus propios precios, sus platos y sus datos (dirección, WhatsApp). Cada sede tiene su enlace y su QR; el enlace sin sede le pregunta al cliente en cuál está.</p>
+						<div id="sedesCupo" class="sede-cupo"></div>
 						<div id="sedesLista"></div>
 					</div>
 					<div class="section-card" id="sedesAdmin" style="display:none">
@@ -2155,6 +2167,33 @@
 					<div class="section-card" id="sedesPrecios" style="display:none">
 						<div class="section-header"><div class="section-title" id="sedesPreciosTitulo">Precios</div><button class="btn-sm" onclick="cerrarPreciosDeSede()">Cerrar</button></div>
 						<p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5">Deja el precio vacío para que cueste lo mismo que en la carta general (se ve en gris). Desmarca «Se sirve» si el plato no existe en esta sede. Si pones un precio distinto, la oferta de ese plato no se aplica en esta sede.</p>
+						<!-- Para no teclear plato por plato (docs/sedes.md §6): un porcentaje sobre el precio
+						     base y pegar una columna desde una hoja de cálculo. Solo RELLENAN las cajas; nada se
+						     guarda hasta «Guardar precios». -->
+						<div class="sede-herramientas">
+							<div class="sede-herramienta">
+								<span class="form-label">Subir o bajar todo</span>
+								<div class="sede-herramienta-fila">
+									<input type="number" class="form-input" id="sedPorcentaje" step="any" placeholder="15" aria-label="Porcentaje" style="width:90px"> <span>%</span>
+									<select class="form-select" id="sedRedondeo" aria-label="Redondear a" style="width:auto">
+										<option value="500">redondear a 500</option>
+										<option value="100">redondear a 100</option>
+										<option value="1000">redondear a 1.000</option>
+										<option value="1">sin redondear</option>
+									</select>
+									<button class="btn-sm" onclick="aplicarPorcentajeASede(false)">Solo a los vacíos</button>
+									<button class="btn-sm" onclick="aplicarPorcentajeASede(true)">A todos</button>
+								</div>
+								<small class="bienvenida-ayuda">Se calcula sobre el precio base. «Solo a los vacíos» no toca lo que ya escribiste.</small>
+							</div>
+							<details class="sede-herramienta sede-pegar">
+								<summary>Pegar precios desde una hoja de cálculo</summary>
+								<textarea class="form-textarea" id="sedPegado" rows="6" placeholder="Burger Clásica&#9;26000&#10;Perro Especial&#9;19500"></textarea>
+								<small class="bienvenida-ayuda">Una línea por plato: el nombre y el precio, separados por tabulador (copiado de Excel o Sheets), punto y coma, o dos espacios. Se busca el plato por nombre, sin importar mayúsculas ni tildes.</small>
+								<div><button class="btn-sm" onclick="aplicarPreciosPegados()">Poner estos precios</button></div>
+								<div id="sedPegadoResultado" class="sede-pegado-resultado" role="status"></div>
+							</details>
+						</div>
 						<div id="sedesPreciosTabla"></div>
 						<div style="margin-top:16px"><button class="btn-sm accent" id="sedesPreciosGuardar" onclick="guardarPreciosDeSede()">Guardar precios</button></div>
 					</div>
@@ -8355,6 +8394,7 @@ function recolectarApariencia() {
       importar_carta: document.getElementById('apImportar').checked,
       // Igual: lo concede el superadmin. Ver docs/sedes.md.
       con_sedes: document.getElementById('apSedes').checked,
+      max_sedes: Number(document.getElementById('apMaxSedes').value) || 2,
       url_modo: document.getElementById('apUrlModo').value,
       zona_horaria: document.getElementById('apZonaHoraria').value,
       portada_activa: document.getElementById('apPortadaActiva').checked,
@@ -8453,6 +8493,8 @@ function renderPlan() {
   if (imp) imp.checked = !!state.restaurante?.atributos?.importar_carta;
   const sed = document.getElementById('apSedes');
   if (sed) sed.checked = state.restaurante?.atributos?.con_sedes === true;
+  const maxSed = document.getElementById('apMaxSedes');
+  if (maxSed) maxSed.value = state.restaurante?.atributos?.max_sedes ?? 2;
 }
 
 // Qué pestañas tienen sentido con la configuración de ahora mismo.

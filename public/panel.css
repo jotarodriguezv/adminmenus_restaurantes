@@ -1597,3 +1597,11 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
   .sede-plato-base{text-align:left;}
   .sede-sirve{grid-column:1 / -1;}
 }
+.sede-cupo{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin:0 0 10px;}
+.sede-herramientas{display:grid;gap:14px;margin-bottom:16px;padding:14px;border:1px dashed var(--border);border-radius:var(--r-lg);}
+.sede-herramienta-fila{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0;}
+.sede-pegar summary{cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
+.sede-pegar textarea{margin:10px 0 6px;font-family:var(--mono);font-size:12px;}
+.sede-pegado-resultado{margin-top:10px;font-size:12px;line-height:1.6;}
+.sede-pegado-ok{color:var(--ok, #3fb68b);}
+.sede-pegado-falta{color:var(--warn, #e0a030);margin-top:4px;word-break:break-word;}
