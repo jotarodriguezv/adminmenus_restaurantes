@@ -2516,6 +2516,224 @@ app.delete('/api/promociones/:id', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── SEDES ─────────────────────────────────────────────────────
+// Varios locales que comparten carta pero no precios (sql/37, docs/sedes.md).
+//
+// Crear, cambiar y borrar sedes es del ADMIN: es una decisión comercial (una
+// sede extra se acuerda y quizá se cobra) y no debe poder hacerla el cliente
+// solo. Lo que sí puede hacer el dueño es ajustar los PRECIOS de sus sedes,
+// que es el trabajo de todos los días.
+const CLAVES_SEDE = ['direccion', 'mapa_url', 'resena_url', 'whatsapp_negocio', 'whatsapp_boton', 'horario_atencion', 'correo'];
+const SLUG_SEDE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+// 'tv' es la cartelera (nginx la sirve por ruta, antes que la carta): una sede
+// con ese slug tendría un QR que abre el televisor en vez de la carta.
+const SLUGS_SEDE_RESERVADOS = ['tv'];
+const MAX_SEDES = 20;
+
+// El slug por defecto sale del nombre: «Cañaveral Ruitoque» → canaveral-ruitoque.
+function slugDeSede(texto) {
+  return String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+}
+
+function errorDeSlugSede(slug) {
+  if (!slug || !SLUG_SEDE.test(slug) || slug.length > 60)
+    return 'El enlace de la sede solo puede llevar letras minúsculas, números y guiones';
+  if (SLUGS_SEDE_RESERVADOS.includes(slug)) return `«${slug}» está reservado, elige otro nombre para el enlace`;
+  return null;
+}
+
+// Los datos del negocio de la sede: solo las claves que cambian de un local a
+// otro, y con las mismas reglas que en Ajustes → Datos del negocio (son las
+// mismas funciones). Devuelve { atributos } o { error }.
+function atributosDeSede(entrada) {
+  const crudos = entrada && typeof entrada === 'object' && !Array.isArray(entrada) ? entrada : {};
+  const atributos = Object.fromEntries(Object.entries(crudos).filter(([k]) => CLAVES_SEDE.includes(k)));
+  if ('direccion' in atributos) {
+    const d = String(atributos.direccion ?? '').replace(/\s+/g, ' ').trim();
+    if (d.length > 200) return { error: 'La dirección es demasiado larga' };
+    atributos.direccion = d;
+  }
+  const error = negocio.validarNegocio(atributos) || validarIntro(atributos);
+  if (error) return { error };
+  return { atributos };
+}
+
+async function marcarConSedes(restauranteId, valor) {
+  const { data } = await supabase.from('restaurantes').select('atributos').eq('id', restauranteId).single();
+  const atributos = { ...(data?.atributos || {}), con_sedes: valor };
+  return supabase.from('restaurantes').update({ atributos }).eq('id', restauranteId);
+}
+
+const errorDuplicada = (error) => error.code === '23505' ? 'Ya hay una sede con ese enlace' : error.message;
+
+app.get('/api/sedes', auth, async (req, res) => {
+  const { restaurante_id } = req.query;
+  if (!restaurante_id || !canAccessRestaurante(req.user, restaurante_id))
+    return res.status(403).json({ error: 'Sin permiso' });
+  const { data, error } = await supabase.from('sedes')
+    .select('*').eq('restaurante_id', restaurante_id).order('orden', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/sedes', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo el administrador puede crear sedes' });
+  const { restaurante_id } = req.body;
+  if (!restaurante_id) return res.status(400).json({ error: 'Falta restaurante_id' });
+
+  const malNombre = errorDeNombre(req.body.nombre, 'de la sede');
+  if (malNombre) return res.status(400).json({ error: malNombre });
+  const nombre = String(req.body.nombre).trim();
+  const slug = String(req.body.slug || slugDeSede(nombre)).trim().toLowerCase();
+  const malSlug = errorDeSlugSede(slug);
+  if (malSlug) return res.status(400).json({ error: malSlug });
+  const a = atributosDeSede(req.body.atributos);
+  if (a.error) return res.status(400).json({ error: a.error });
+
+  const { data: existentes, error: errLista } = await supabase.from('sedes')
+    .select('id, slug').eq('restaurante_id', restaurante_id);
+  if (errLista) return res.status(500).json({ error: errLista.message });
+  if ((existentes || []).length >= MAX_SEDES)
+    return res.status(409).json({ error: `Ya hay ${MAX_SEDES} sedes, que es el máximo` });
+  if ((existentes || []).some(s => s.slug === slug))
+    return res.status(409).json({ error: 'Ya hay una sede con ese enlace' });
+
+  const { data, error } = await supabase.from('sedes')
+    .insert([{ restaurante_id, nombre, slug, atributos: a.atributos, orden: (existentes || []).length }])
+    .select().single();
+  if (error) return res.status(error.code === '23505' ? 409 : 500).json({ error: errorDuplicada(error) });
+
+  // Con la primera sede, el restaurante pasa a «tener sedes»: es la marca que
+  // mira la carta para pedirlas (y que ahorra la petición a quien no las tiene).
+  const { error: errMarca } = await marcarConSedes(restaurante_id, true);
+  if (errMarca) console.warn('no se pudo marcar con_sedes:', errMarca.message);
+  res.json(data);
+});
+
+app.patch('/api/sedes/:id', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo el administrador puede cambiar sedes' });
+  const { data: actual } = await supabase.from('sedes')
+    .select('restaurante_id, slug').eq('id', req.params.id).single();
+  if (!actual) return res.status(404).json({ error: 'No existe' });
+
+  // 'restaurante_id' no se lee del cuerpo: una sede no se puede mover a otro
+  // restaurante mandándolo.
+  const fila = {};
+  if (req.body.nombre !== undefined) {
+    const mal = errorDeNombre(req.body.nombre, 'de la sede');
+    if (mal) return res.status(400).json({ error: mal });
+    fila.nombre = String(req.body.nombre).trim();
+  }
+  if (req.body.slug !== undefined && req.body.slug !== actual.slug) {
+    const slug = String(req.body.slug).trim().toLowerCase();
+    const mal = errorDeSlugSede(slug);
+    if (mal) return res.status(400).json({ error: mal });
+    const { data: choque } = await supabase.from('sedes').select('id')
+      .eq('restaurante_id', actual.restaurante_id).eq('slug', slug).neq('id', req.params.id).maybeSingle();
+    if (choque) return res.status(409).json({ error: 'Ya hay una sede con ese enlace' });
+    fila.slug = slug;
+  }
+  if (req.body.atributos !== undefined) {
+    const a = atributosDeSede(req.body.atributos);
+    if (a.error) return res.status(400).json({ error: a.error });
+    fila.atributos = a.atributos;
+  }
+  if (req.body.activa !== undefined) fila.activa = req.body.activa === true;
+  if (req.body.orden !== undefined) fila.orden = Number.isInteger(req.body.orden) ? req.body.orden : 0;
+
+  const { data, error } = await supabase.from('sedes')
+    .update(fila).eq('id', req.params.id).select().single();
+  if (error) return res.status(error.code === '23505' ? 409 : 500).json({ error: errorDuplicada(error) });
+  res.json(data);
+});
+
+// Los precios de la sede se van con ella (on delete cascade): son suyos. Los
+// platos no se tocan. Apagarla (activa=false) es lo que conserva los precios.
+app.delete('/api/sedes/:id', auth, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo el administrador puede borrar sedes' });
+  const { data: actual } = await supabase.from('sedes')
+    .select('restaurante_id').eq('id', req.params.id).single();
+  if (!actual) return res.status(404).json({ error: 'No existe' });
+
+  const { error } = await supabase.from('sedes').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+
+  const { count } = await supabase.from('sedes')
+    .select('id', { count: 'exact', head: true }).eq('restaurante_id', actual.restaurante_id);
+  if (!count) {
+    const { error: errMarca } = await marcarConSedes(actual.restaurante_id, false);
+    if (errMarca) console.warn('no se pudo quitar con_sedes:', errMarca.message);
+  }
+  res.json({ ok: true });
+});
+
+// ── PRECIOS Y DISPONIBILIDAD POR SEDE ─────────────────────────
+app.get('/api/productos-sedes', auth, async (req, res) => {
+  const { sede_id } = req.query;
+  if (!sede_id) return res.status(400).json({ error: 'Falta sede_id' });
+  const { data: sede } = await supabase.from('sedes').select('restaurante_id').eq('id', sede_id).single();
+  if (!sede) return res.status(404).json({ error: 'No existe' });
+  if (!canAccessRestaurante(req.user, sede.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+  const { data, error } = await supabase.from('productos_sedes').select('*').eq('sede_id', sede_id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+// Guarda de golpe lo que cambia en una sede. Cada fila trae el plato y, de lo
+// que cambia, precio_numerico (null o ausente = hereda el base) y disponible
+// (false = no se sirve aquí; null o ausente = hereda). Una fila que no cambia
+// nada se BORRA: así la tabla solo guarda excepciones y «igual que el base»
+// vuelve a ser la ausencia de fila.
+//
+// Es por lote y no por plato porque una carta de 75 platos con precios propios se
+// carga de una vez, y 75 peticiones sueltas dejan la sede a medias si una falla.
+app.put('/api/productos-sedes', auth, async (req, res) => {
+  const { sede_id, filas } = req.body;
+  if (!sede_id || !Array.isArray(filas)) return res.status(400).json({ error: 'Faltan datos' });
+  if (filas.length > 1000) return res.status(400).json({ error: 'Demasiados platos de una vez' });
+  const { data: sede } = await supabase.from('sedes').select('restaurante_id').eq('id', sede_id).single();
+  if (!sede) return res.status(404).json({ error: 'No existe' });
+  if (!canAccessRestaurante(req.user, sede.restaurante_id)) return res.status(403).json({ error: 'Sin permiso' });
+
+  // Los platos tienen que ser de ESTE restaurante: sin esto, mandando el id de un
+  // plato ajeno se le pondría precio en una sede que no es suya.
+  const { data: platos, error: errPlatos } = await supabase.from('productos')
+    .select('id').eq('restaurante_id', sede.restaurante_id);
+  if (errPlatos) return res.status(500).json({ error: errPlatos.message });
+  const propios = new Set((platos || []).map(p => p.id));
+
+  const guardar = [];
+  const quitar = [];
+  for (const f of filas) {
+    if (!f || !propios.has(f.producto_id)) return res.status(400).json({ error: 'Hay un plato que no es de este restaurante' });
+    const p = { precio_numerico: f.precio_numerico };
+    const tienePrecio = f.precio_numerico !== undefined && f.precio_numerico !== null && f.precio_numerico !== '';
+    if (tienePrecio) {
+      const mal = normalizarPrecio(p);
+      if (mal) return res.status(400).json({ error: mal });
+    }
+    const noSeSirve = f.disponible === false;
+    if (!tienePrecio && !noSeSirve) { quitar.push(f.producto_id); continue; }
+    guardar.push({
+      producto_id: f.producto_id, sede_id,
+      precio: tienePrecio ? p.precio : null,
+      precio_numerico: tienePrecio ? p.precio_numerico : null,
+      disponible: noSeSirve ? false : null,
+    });
+  }
+
+  if (guardar.length) {
+    const { error } = await supabase.from('productos_sedes').upsert(guardar, { onConflict: 'producto_id,sede_id' });
+    if (error) return res.status(500).json({ error: error.message });
+  }
+  if (quitar.length) {
+    const { error } = await supabase.from('productos_sedes').delete().eq('sede_id', sede_id).in('producto_id', quitar);
+    if (error) return res.status(500).json({ error: error.message });
+  }
+  res.json({ guardados: guardar.length, quitados: quitar.length });
+});
+
 // ── IMÁGENES ──────────────────────────────────────────────────
 app.post('/api/upload', auth,
   (req, res, next) => {

@@ -1,0 +1,201 @@
+// Las rutas de las sedes, por HTTP contra el server.js de verdad y un Supabase
+// simulado (sql/37, docs/sedes.md).
+const { test, describe, beforeEach } = require('node:test');
+const assert = require('node:assert/strict');
+
+const S = require('./helpers/servidor.js');
+const { pedir, llamadas, reiniciar, conTabla, tokenCliente, tokenAdmin, IDS } = S;
+
+const SEDE = '99999999-9999-4999-8999-999999999999';
+const PLATO_B = '44444444-4444-4444-8444-444444444444';
+const PLATO_AJENO = '55555555-5555-4555-8555-555555555555';
+
+const escrituras = (tabla, op) => llamadas.filter(l => l.tabla === tabla && l.op === op);
+
+// Un mundo mínimo: un restaurante, una sede de ese restaurante y dos platos.
+function conMundo({ sedes = [], restaurante = { atributos: {} } } = {}) {
+	conTabla(st => {
+		if (st.tabla === 'restaurantes') return { data: restaurante, error: null };
+		if (st.tabla === 'sedes' && st.op === 'select') {
+			if (st.filtros.id === SEDE) return { data: { restaurante_id: IDS.restaurante, slug: 'bucaramanga' }, error: null };
+			if (st.opciones?.head) return { data: null, count: sedes.length, error: null };
+			return { data: sedes, error: null };
+		}
+		if (st.tabla === 'sedes' && st.op === 'insert') return { data: { id: SEDE, ...st.payload[0] }, error: null };
+		if (st.tabla === 'sedes' && st.op === 'update') return { data: { id: SEDE, ...st.payload }, error: null };
+		if (st.tabla === 'productos' && st.op === 'select') return { data: [{ id: IDS.producto }, { id: PLATO_B }], error: null };
+		return { data: null, error: null };
+	});
+}
+
+beforeEach(() => reiniciar());
+
+describe('POST /api/sedes', () => {
+	const cuerpo = (extra = {}) => ({ restaurante_id: IDS.restaurante, nombre: 'Bucaramanga', ...extra });
+
+	test('solo el administrador crea sedes', async () => {
+		conMundo();
+		assert.equal((await pedir('POST', '/api/sedes', cuerpo(), tokenCliente)).status, 403);
+		assert.equal((await pedir('POST', '/api/sedes', cuerpo())).status, 401);
+		assert.equal(escrituras('sedes', 'insert').length, 0);
+	});
+
+	test('crea la sede con el enlace sacado del nombre y marca al restaurante con_sedes', async () => {
+		conMundo();
+		const r = await pedir('POST', '/api/sedes', cuerpo({ nombre: 'Cañaveral Ruitoque' }), tokenAdmin);
+		assert.equal(r.status, 200);
+		const fila = escrituras('sedes', 'insert')[0].payload[0];
+		assert.equal(fila.slug, 'canaveral-ruitoque');
+		assert.equal(fila.restaurante_id, IDS.restaurante);
+		const marca = escrituras('restaurantes', 'update')[0];
+		assert.equal(marca.payload.atributos.con_sedes, true);
+	});
+
+	test('conserva los demás atributos del restaurante al marcarlo', async () => {
+		conMundo({ restaurante: { atributos: { nav: 'topnav', plan: 'x' } } });
+		await pedir('POST', '/api/sedes', cuerpo(), tokenAdmin);
+		const a = escrituras('restaurantes', 'update')[0].payload.atributos;
+		assert.equal(a.nav, 'topnav');
+		assert.equal(a.plan, 'x');
+	});
+
+	test('rechaza enlaces mal formados y el reservado de la cartelera', async () => {
+		conMundo();
+		for (const slug of ['Con Mayusculas', 'a_b', '-x', 'tv', '']) {
+			if (slug === '') continue; // vacío cae al que sale del nombre
+			const r = await pedir('POST', '/api/sedes', cuerpo({ slug }), tokenAdmin);
+			assert.equal(r.status, 400, slug);
+		}
+		assert.equal(escrituras('sedes', 'insert').length, 0);
+	});
+
+	test('rechaza un nombre vacío', async () => {
+		conMundo();
+		assert.equal((await pedir('POST', '/api/sedes', cuerpo({ nombre: '  ' }), tokenAdmin)).status, 400);
+	});
+
+	test('rechaza un enlace repetido en el mismo restaurante', async () => {
+		conMundo({ sedes: [{ id: 'x', slug: 'bucaramanga' }] });
+		assert.equal((await pedir('POST', '/api/sedes', cuerpo(), tokenAdmin)).status, 409);
+	});
+
+	test('valida los datos del negocio con las reglas de siempre y descarta lo ajeno', async () => {
+		conMundo();
+		const malo = await pedir('POST', '/api/sedes', cuerpo({ atributos: { whatsapp_negocio: '123' } }), tokenAdmin);
+		assert.equal(malo.status, 400);
+		const mapa = await pedir('POST', '/api/sedes', cuerpo({ atributos: { mapa_url: 'https://evil.example/x' } }), tokenAdmin);
+		assert.equal(mapa.status, 400, 'el mapa tiene que ser de Google');
+
+		const bueno = await pedir('POST', '/api/sedes', cuerpo({
+			atributos: { whatsapp_negocio: '+57 300 123 4567', direccion: '  Calle 1 ', css_custom: 'body{}', color_dark: '#000' },
+		}), tokenAdmin);
+		assert.equal(bueno.status, 200);
+		const guardado = escrituras('sedes', 'insert').pop().payload[0].atributos;
+		assert.deepEqual(guardado, { whatsapp_negocio: '573001234567', direccion: 'Calle 1' });
+	});
+});
+
+describe('PATCH y DELETE /api/sedes/:id', () => {
+	test('un cliente no cambia ni borra sedes', async () => {
+		conMundo();
+		assert.equal((await pedir('PATCH', `/api/sedes/${SEDE}`, { nombre: 'x' }, tokenCliente)).status, 403);
+		assert.equal((await pedir('DELETE', `/api/sedes/${SEDE}`, null, tokenCliente)).status, 403);
+	});
+
+	test('no se puede mover una sede a otro restaurante mandándolo en el cuerpo', async () => {
+		conMundo();
+		const r = await pedir('PATCH', `/api/sedes/${SEDE}`, { nombre: 'Nueva', restaurante_id: 'otro' }, tokenAdmin);
+		assert.equal(r.status, 200);
+		const fila = escrituras('sedes', 'update')[0].payload;
+		assert.equal(fila.nombre, 'Nueva');
+		assert.equal('restaurante_id' in fila, false);
+	});
+
+	test('apagar una sede', async () => {
+		conMundo();
+		await pedir('PATCH', `/api/sedes/${SEDE}`, { activa: false }, tokenAdmin);
+		assert.equal(escrituras('sedes', 'update')[0].payload.activa, false);
+	});
+
+	test('borrar la última sede quita la marca con_sedes; si quedan otras, no', async () => {
+		conMundo({ sedes: [], restaurante: { atributos: { con_sedes: true } } });
+		assert.equal((await pedir('DELETE', `/api/sedes/${SEDE}`, null, tokenAdmin)).status, 200);
+		assert.equal(escrituras('restaurantes', 'update')[0].payload.atributos.con_sedes, false);
+
+		reiniciar();
+		conMundo({ sedes: [{ id: 'otra' }], restaurante: { atributos: { con_sedes: true } } });
+		await pedir('DELETE', `/api/sedes/${SEDE}`, null, tokenAdmin);
+		assert.equal(escrituras('restaurantes', 'update').length, 0);
+	});
+});
+
+describe('GET /api/sedes', () => {
+	test('el dueño ve las de su restaurante y no las de otro', async () => {
+		conMundo({ sedes: [{ id: 'a' }] });
+		const propia = await pedir('GET', `/api/sedes?restaurante_id=${IDS.restaurante}`, null, tokenCliente);
+		assert.equal(propia.status, 200);
+		const ajena = await pedir('GET', '/api/sedes?restaurante_id=otro', null, tokenCliente);
+		assert.equal(ajena.status, 403);
+	});
+});
+
+describe('PUT /api/productos-sedes · precios y disponibilidad por sede', () => {
+	const put = (filas, token = tokenCliente) => pedir('PUT', '/api/productos-sedes', { sede_id: SEDE, filas }, token);
+
+	test('el dueño guarda precios propios y el texto sale del número', async () => {
+		conMundo();
+		const r = await put([{ producto_id: IDS.producto, precio_numerico: 31000 }]);
+		assert.equal(r.status, 200);
+		assert.deepEqual(r.body, { guardados: 1, quitados: 0 });
+		const fila = escrituras('productos_sedes', 'upsert')[0].payload[0];
+		assert.equal(fila.precio_numerico, 31000);
+		assert.equal(fila.precio, '$ 31.000');
+		assert.equal(fila.disponible, null);
+		assert.equal(fila.sede_id, SEDE);
+	});
+
+	test('«no se sirve aquí» se guarda como disponible=false, sin precio', async () => {
+		conMundo();
+		await put([{ producto_id: IDS.producto, disponible: false }]);
+		const fila = escrituras('productos_sedes', 'upsert')[0].payload[0];
+		assert.equal(fila.disponible, false);
+		assert.equal(fila.precio_numerico, null);
+	});
+
+	test('una fila que no cambia nada se borra: la tabla solo guarda excepciones', async () => {
+		conMundo();
+		const r = await put([{ producto_id: IDS.producto, precio_numerico: null }, { producto_id: PLATO_B, disponible: true }]);
+		assert.deepEqual(r.body, { guardados: 0, quitados: 2 });
+		assert.equal(escrituras('productos_sedes', 'upsert').length, 0);
+		assert.equal(escrituras('productos_sedes', 'delete').length, 1);
+	});
+
+	test('un plato de otro restaurante se rechaza y no se guarda nada', async () => {
+		conMundo();
+		const r = await put([{ producto_id: IDS.producto, precio_numerico: 1 }, { producto_id: PLATO_AJENO, precio_numerico: 1 }]);
+		assert.equal(r.status, 400);
+		assert.equal(escrituras('productos_sedes', 'upsert').length, 0);
+	});
+
+	test('un precio inválido se rechaza', async () => {
+		conMundo();
+		for (const precio_numerico of [-5, 'abc']) {
+			assert.equal((await put([{ producto_id: IDS.producto, precio_numerico }])).status, 400);
+		}
+		assert.equal(escrituras('productos_sedes', 'upsert').length, 0);
+	});
+
+	test('sin sesión, 401; con una sede de otro restaurante, 403', async () => {
+		conMundo();
+		assert.equal((await pedir('PUT', '/api/productos-sedes', { sede_id: SEDE, filas: [] })).status, 401);
+		reiniciar();
+		conTabla(st => st.tabla === 'sedes' ? { data: { restaurante_id: 'otro' }, error: null } : { data: null, error: null });
+		assert.equal((await put([])).status, 403);
+	});
+
+	test('pide sede_id y una lista', async () => {
+		conMundo();
+		assert.equal((await pedir('PUT', '/api/productos-sedes', { filas: [] }, tokenCliente)).status, 400);
+		assert.equal((await pedir('PUT', '/api/productos-sedes', { sede_id: SEDE }, tokenCliente)).status, 400);
+	});
+});

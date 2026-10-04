@@ -275,6 +275,10 @@
 					<button class="tab-btn" onclick="switchTab('ordenes',this)">Pedidos</button>
 				<!-- Solo existe si el restaurante encendió las reservas en Apariencia; ver ajustarPestanasAlModelo(). -->
 				<button class="tab-btn" id="tabBtnReservas" onclick="switchTab('reservas',this)" style="display:none">Reservas</button>
+				<!-- Varios locales con la misma carta y precios propios (docs/sedes.md). La ve el
+				     administrador siempre y el dueño solo si su restaurante ya tiene sedes; ver
+				     ajustarPestanaSedes() en sedes.js. -->
+				<button class="tab-btn" id="tabBtnSedes" onclick="switchTab('sedes',this)" style="display:none">Sedes</button>
 			</div>
 			<div class="content">
 				<!-- TAB INICIO -->
@@ -2112,6 +2116,35 @@
 						<div id="estIgnorados"></div>
 					</div>
 				</div>
+				<div id="tabSedes" class="hidden">
+					<div class="section-card">
+						<div class="section-header"><div class="section-title">Sedes</div><button class="btn-sm" onclick="renderSedes()">Actualizar</button></div>
+						<p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5">Los locales de este restaurante. Comparten la carta, pero cada uno puede tener sus propios precios, sus platos y sus datos (dirección, WhatsApp). Cada sede tiene su enlace y su QR; el enlace sin sede le pregunta al cliente en cuál está.</p>
+						<div id="sedesLista"></div>
+					</div>
+					<div class="section-card" id="sedesAdmin" style="display:none">
+						<div class="section-header"><div class="section-title" id="sedFormularioTitulo">Nueva sede</div></div>
+						<div class="form-row">
+							<div class="form-group"><label for="sedNombre" class="form-label">Nombre</label><input type="text" class="form-input" id="sedNombre" maxlength="80" placeholder="Bucaramanga" autocomplete="off"></div>
+							<div class="form-group" id="sedSlugGrupo" style="display:none"><label for="sedSlug" class="form-label">Enlace</label><input type="text" class="form-input" id="sedSlug" maxlength="60" autocomplete="off"><small class="bienvenida-ayuda">Cambiarlo invalida los QR ya impresos de esta sede.</small></div>
+						</div>
+						<div class="form-group"><label for="sedDireccion" class="form-label">Dirección <span style="color:var(--text-dim)">(opcional)</span></label><input type="text" class="form-input" id="sedDireccion" maxlength="200" placeholder="Cra 7 # 12-34, Bucaramanga" autocomplete="off"></div>
+						<div class="form-group"><label for="sedWhatsapp" class="form-label">WhatsApp de esta sede <span style="color:var(--text-dim)">(con código de país, sin +; vacío = el del restaurante)</span></label><input type="tel" class="form-input" id="sedWhatsapp" placeholder="573001234567" autocomplete="off"></div>
+						<div class="form-group"><label for="sedMapa" class="form-label">Ubicación en Google Maps <span style="color:var(--text-dim)">(enlace)</span></label><input type="url" class="form-input" id="sedMapa" placeholder="https://maps.google.com/..." autocomplete="off"></div>
+						<div class="form-group"><label for="sedResena" class="form-label">Reseñas de Google <span style="color:var(--text-dim)">(enlace)</span></label><input type="url" class="form-input" id="sedResena" placeholder="https://g.page/r/…/review" autocomplete="off"></div>
+						<div class="form-group"><label for="sedCorreo" class="form-label">Correo <span style="color:var(--text-dim)">(opcional)</span></label><input type="email" class="form-input" id="sedCorreo" maxlength="120" autocomplete="off"></div>
+						<div style="display:flex;gap:8px;flex-wrap:wrap">
+							<button class="btn-sm accent" id="sedGuardar" onclick="guardarSede()">Crear sede</button>
+							<button class="btn-sm" id="sedCancelar" onclick="limpiarFormularioSede()" style="display:none">Cancelar</button>
+						</div>
+					</div>
+					<div class="section-card" id="sedesPrecios" style="display:none">
+						<div class="section-header"><div class="section-title" id="sedesPreciosTitulo">Precios</div><button class="btn-sm" onclick="cerrarPreciosDeSede()">Cerrar</button></div>
+						<p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5">Deja el precio vacío para que cueste lo mismo que en la carta general (se ve en gris). Desmarca «Se sirve» si el plato no existe en esta sede. Si pones un precio distinto, la oferta de ese plato no se aplica en esta sede.</p>
+						<div id="sedesPreciosTabla"></div>
+						<div style="margin-top:16px"><button class="btn-sm accent" id="sedesPreciosGuardar" onclick="guardarPreciosDeSede()">Guardar precios</button></div>
+					</div>
+				</div>
 				<div id="tabReservas" class="hidden">
 					<div class="section-card"><div class="section-header"><div class="section-title">Reservas de mesa</div><button class="btn-sm" onclick="cargarReservas()">Actualizar</button></div><p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Las que piden tus clientes desde la pantalla de bienvenida de la carta. Confírmalas o cancélalas y escríbeles por WhatsApp: no se les avisa solas.</p><div id="reservasResumen" class="reservas-resumen"></div><div id="reservasLista"></div></div>
 				</div>
@@ -3079,6 +3112,7 @@
 <script src="pedidos.js"></script>
 <script src="ordenes.js"></script>
 <script src="reservas.js"></script>
+<script src="sedes.js"></script>
 <script src="sesion.js"></script>
 <script src="negocio.js"></script>
 <script src="horario-atencion.js"></script>
@@ -3475,7 +3509,7 @@ function switchTab(tab, btn) {
   // En un móvil la pestaña pulsada puede estar medio fuera; se trae a la vista
   // para que se vea cuál está activa. 'nearest' no mueve la página en vertical.
   btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  ['tabInicio','tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabOrdenes','tabReservas','tabAjustes','tabAspecto'].forEach(id=>{
+  ['tabInicio','tabProductos','tabCategorias','tabApariencia','tabPromo','tabTv','tabImportar','tabQr','tabEstadisticas','tabOrdenes','tabReservas','tabSedes','tabAjustes','tabAspecto'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden', id!=='tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   });
   if (tab === 'toppings') renderToppings();
@@ -3485,6 +3519,7 @@ function switchTab(tab, btn) {
   if (tab === 'estadisticas' && !estadisticasCargadas) { estadisticasCargadas = true; seleccionarRango('7'); }
   if (tab === 'ordenes' && !ordenesCargadas) cargarOrdenes();
   if (tab === 'reservas') cargarReservas();
+  if (tab === 'sedes') renderSedes();
   if (tab === 'ajustes') { ajustesRecordarSeccion(); renderAjustes(); renderBienvenidaEnAjustes(); }
   if (tab === 'aspecto') renderAspecto();
   if (tab === 'inicio') renderInicio();
@@ -8420,6 +8455,7 @@ function ajustarPestanasAlModelo() {
   // servidor por plan.
   document.getElementById('tabBtnTv').style.display = restauranteTieneTv() ? 'block' : 'none';
   ajustarPestanaReservas();   // 01/10/2026: solo existe si el restaurante las encendió
+  ajustarPestanaSedes();      // el admin siempre; el dueño solo si ya tiene sedes
   marcarBordesDeTabs();   // aparecer o desaparecer pestañas cambia si sobran
 }
 
