@@ -340,6 +340,7 @@ a,button,input,select,textarea{font-family:inherit;}
 /* .form-select declara width:100% más abajo. Esta regla gana por especificidad
    para que el desplegable no invada toda la tarjeta al abrirse. */
 .plan-card .plan-select{box-sizing:border-box;flex:0 0 180px;width:180px;max-width:100%;min-width:0;padding:9px 34px 9px 13px;border:1px solid var(--accent);border-radius:10px;background-color:#27170b;color:#fff;font-family:var(--sans);font-size:12px;font-weight:800;box-shadow:0 0 0 3px rgba(237,124,0,.12);cursor:pointer;}
+.plan-card .plan-select option{background:#fff7ef;color:#4b2b16;font-family:var(--sans);font-weight:800;}
 .plan-select:hover,.plan-select:focus{border-color:#ff9a36;box-shadow:0 0 0 4px rgba(237,124,0,.2);}
 .plan-summary{display:block;margin-top:14px;font-family:var(--sans);font-size:12px;font-weight:600;line-height:1.8;color:var(--text-muted);}
 .plan-summary span{font-weight:800;}
