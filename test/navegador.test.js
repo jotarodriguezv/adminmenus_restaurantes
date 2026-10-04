@@ -7982,6 +7982,18 @@ describe('aplicarPlanAlPanel bloquea el modelo en video para el cliente, nunca p
 });
 
 // ═══════════════════════════════════════════════════════════════
+describe('Inicio · no duplica las Acciones rápidas', () => {
+	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+	const inicio = fs.readFileSync(path.join(PUBLIC, 'inicio.js'), 'utf8');
+
+	test('quita la tarjeta y los cuatro botones antiguos, sin tocar el acceso flotante', () => {
+		assert.doesNotMatch(src, /id="inicioAccesos"/);
+		assert.doesNotMatch(inicio, /function pintarAccesos\(/);
+		assert.match(src, /id="quickAccess" aria-label="Acciones rápidas"/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
 describe('el formulario de crear restaurante va plegado', () => {
 	// S4 en docs/revision-ux.md: seis gestos en móvil hasta el primer restaurante.
 	const src = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
