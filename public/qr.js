@@ -36,7 +36,72 @@ let qrMatriz   = null;   // { count, isDark(r,c) }
 // invalida los códigos ya impresos — solo cambia los que se generen
 // de aquí en adelante.
 function qrEnlace() {
-	return urlPublica(state.restaurante);
+	const base = urlPublica(state.restaurante);
+	return qrSedeSlug ? `${base}/${qrSedeSlug}` : base;
+}
+
+// ── UN QR POR SEDE ────────────────────────────────────────────
+// Un restaurante con sedes imprime un QR por local, y cada uno tiene que abrir
+// DIRECTO la carta de ese local (/<restaurante>/<sede>). El del restaurante a
+// secas lleva al selector de sedes: sirve para la puerta de entrada o las redes,
+// no para una mesa. El diseño (colores, forma, logo) es uno solo: lo que cambia
+// es el destino y el nombre del archivo.
+//
+// '' = el del restaurante. No se guarda: es qué QR se está mirando, no una opción.
+let qrSedeSlug = '';
+
+function qrSedeActual() {
+	return qrSedeSlug ? (state.sedes || []).find(s => s.slug === qrSedeSlug) || null : null;
+}
+
+// «-bucaramanga» para los archivos, o nada.
+function qrSufijoDeArchivo() {
+	return qrSedeSlug ? `-${qrSedeSlug}` : '';
+}
+
+// El pie del cartel: lo que el restaurante escribió, o su nombre. Si es el nombre,
+// con la sede detrás —«Demo Taquería · Bucaramanga»—: un cartel de mesa tiene que
+// decir en qué local está. Un texto propio no se toca.
+function qrPieDelCartel() {
+	if (qrCfg.cartel_pie) return qrCfg.cartel_pie;
+	const sede = qrSedeActual();
+	return sede ? `${state.restaurante.nombre} · ${sede.nombre}` : state.restaurante.nombre;
+}
+
+async function qrPrepararSedes() {
+	const bloque = document.getElementById('qrSedeBloque');
+	const resto = state.restaurante;
+	if (!bloque) return;
+	if (resto?.atributos?.con_sedes !== true) { qrSedeSlug = ''; bloque.style.display = 'none'; return; }
+	let sedes = state.sedesDe === resto.id ? state.sedes : null;
+	if (!sedes) {
+		try {
+			sedes = await apiFetch('GET', `/api/sedes?restaurante_id=${resto.id}`) || [];
+			state.sedes = sedes; state.sedesDe = resto.id;
+		} catch { sedes = []; }
+	}
+	// Solo las encendidas: el enlace de una apagada no abre ninguna carta.
+	const activas = sedes.filter(s => s.activa);
+	if (!activas.some(s => s.slug === qrSedeSlug)) qrSedeSlug = '';
+	const selector = document.getElementById('qrSede');
+	selector.replaceChildren();
+	const general = document.createElement('option');
+	general.value = ''; general.textContent = 'Restaurante (el cliente elige sede)';
+	selector.appendChild(general);
+	for (const s of activas) {
+		const o = document.createElement('option');
+		o.value = s.slug; o.textContent = `Sede ${s.nombre}`;
+		selector.appendChild(o);
+	}
+	selector.value = qrSedeSlug;
+	bloque.style.display = activas.length ? 'block' : 'none';
+}
+
+function qrElegirSede() {
+	qrSedeSlug = document.getElementById('qrSede').value;
+	const enlace = document.getElementById('qrEnlace');
+	enlace.textContent = enlace.href = qrEnlace();
+	qrActualizar();
 }
 
 // Con el logo tapando el centro hace falta la corrección de errores
@@ -266,7 +331,7 @@ function qrRenderizarCartel(canvas, escala) {
 	// Pie: nombre del negocio + enlace legible para quien no pueda escanear
 	ctx.fillStyle = qrCfg.cartel_fg;
 	ctx.font = `700 ${46 * escala}px 'Montserrat', sans-serif`;
-	ctx.fillText(qrCfg.cartel_pie || state.restaurante.nombre, W / 2, 1120 * escala);
+	ctx.fillText(qrPieDelCartel(), W / 2, 1120 * escala);
 	ctx.globalAlpha = 0.65;
 	ctx.font = `400 ${28 * escala}px 'Montserrat', sans-serif`;
 	ctx.fillText(qrEnlace().replace(/^https?:\/\//, ''), W / 2, 1205 * escala);
@@ -451,6 +516,7 @@ function qrAplicarAControles() {
 async function renderQR() {
 	if (!state.restaurante) return;
 	qrCfg = { ...QR_DEFAULTS, ...(state.restaurante.atributos?.qr || {}) };
+	await qrPrepararSedes();
 	qrAplicarAControles();
 
 	// Sin logo cargado no tiene sentido ofrecer la opción
@@ -477,20 +543,20 @@ function qrDescargarPNG() {
 	qrActualizar();
 	const c = document.createElement('canvas');
 	qrRenderizarEn(c, 2048);
-	c.toBlob(b => qrDescargar(b, `qr-${state.restaurante.slug}.png`), 'image/png');
+	c.toBlob(b => qrDescargar(b, `qr-${state.restaurante.slug}${qrSufijoDeArchivo()}.png`), 'image/png');
 }
 
 function qrDescargarSVG() {
 	qrActualizar();
 	const svg = qrComoSVG(1024);
-	qrDescargar(new Blob([svg], { type: 'image/svg+xml' }), `qr-${state.restaurante.slug}.svg`);
+	qrDescargar(new Blob([svg], { type: 'image/svg+xml' }), `qr-${state.restaurante.slug}${qrSufijoDeArchivo()}.svg`);
 }
 
 function qrDescargarCartel() {
 	qrActualizar();
 	const c = document.createElement('canvas');
 	qrRenderizarCartel(c, 2);
-	c.toBlob(b => qrDescargar(b, `cartel-${state.restaurante.slug}.png`), 'image/png');
+	c.toBlob(b => qrDescargar(b, `cartel-${state.restaurante.slug}${qrSufijoDeArchivo()}.png`), 'image/png');
 }
 
 function qrVistaPreviaCartel() {

@@ -23,6 +23,13 @@ function restauranteTieneSedes() {
   return state.restaurante?.atributos?.con_sedes === true;
 }
 
+// Las sedes que tiene contratadas este restaurante. Misma regla que el servidor
+// (topeDeSedes en server.js): un entero desde 1; sin él, dos.
+function topeDeSedesDelRestaurante() {
+  const n = state.restaurante?.atributos?.max_sedes;
+  return Number.isInteger(n) && n >= 1 ? n : 2;
+}
+
 function ajustarPestanaSedes() {
   const boton = document.getElementById('tabBtnSedes');
   if (!boton) return;
@@ -49,7 +56,12 @@ async function renderSedes() {
   // Inicio resume las sedes con lo mismo que acaba de leer esta pestaña.
   state.sedes = sedesLista;
   state.sedesDe = state.restaurante.id;
-  document.getElementById('sedesAdmin').style.display = esAdminDeSedes() ? 'block' : 'none';
+  // El formulario de crear solo aparece mientras quede cupo: el tope lo fija el superadmin.
+  const tope = topeDeSedesDelRestaurante();
+  const lleno = sedesLista.length >= tope;
+  document.getElementById('sedesAdmin').style.display = esAdminDeSedes() && (!lleno || sedeEnEdicionId) ? 'block' : 'none';
+  document.getElementById('sedesCupo').textContent = `${sedesLista.length} de ${tope} ${tope === 1 ? 'sede contratada' : 'sedes contratadas'}`
+    + (lleno && esAdminDeSedes() ? ' · para añadir otra, súbele el tope en Superadmin → Varias sedes' : '');
   if (sedeAbiertaId && !sedesLista.some(s => s.id === sedeAbiertaId)) sedeAbiertaId = null;
   pintarSedes();
   if (sedeAbiertaId) await abrirPreciosDeSede(sedeAbiertaId);
@@ -243,4 +255,103 @@ async function guardarPreciosDeSede() {
 function cerrarPreciosDeSede() {
   sedeAbiertaId = null;
   document.getElementById('sedesPrecios').style.display = 'none';
+}
+
+// ── HERRAMIENTAS PARA CARGAR PRECIOS ──────────────────────────
+// Una carta de 75 platos con precios propios no se teclea plato por plato. Estas dos
+// herramientas solo RELLENAN las cajas de la tabla; nada se guarda hasta «Guardar
+// precios», así que se puede probar y deshacer recargando.
+//
+// Las reglas van aparte del pintado para poder probarlas sin navegador.
+
+// «Burger Clásica» y «burger clasica» son el mismo plato: sin tildes, sin mayúsculas,
+// sin signos, con los espacios unidos.
+function normalizarNombreDePlato(texto) {
+  return String(texto ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// El base subido un porcentaje y redondeado al múltiplo elegido (en pesos
+// colombianos lo normal es 500). null si no hay forma de calcularlo.
+function precioConPorcentaje(base, porcentaje, redondeo = 500) {
+  const b = Number(base), p = Number(porcentaje);
+  const r = Math.max(1, Math.round(Number(redondeo)) || 1);
+  if (!Number.isFinite(b) || !Number.isFinite(p) || b < 0 || p <= -100) return null;
+  return Math.round(b * (1 + p / 100) / r) * r;
+}
+
+// «26000», «$ 26.000» y «26,000» son veintiséis mil; «19,5» no es un precio en
+// pesos y se rechaza en vez de adivinar si son diecinueve pesos o diecinueve mil
+// quinientos. null si no es un precio.
+function numeroDePrecio(texto) {
+  const s = String(texto ?? '').replace(/[$\s]/g, '');
+  if (/^\d+$/.test(s)) return Number(s);
+  if (/^\d{1,3}([.,]\d{3})+$/.test(s)) return Number(s.replace(/[.,]/g, ''));
+  return null;
+}
+
+// Una línea por plato: «nombre» y «precio» separados por tabulador (lo que sale de
+// copiar dos columnas de Excel o Sheets), «;», «|» o dos espacios o más; y, si no, por
+// el último espacio antes de un número. Devuelve lo que coincidió y, aparte, lo que
+// no: que se vea qué quedó fuera es lo que permite fiarse de lo que entró.
+function analizarPreciosPegados(texto, platos) {
+  const porNombre = new Map();
+  for (const p of platos) {
+    const k = normalizarNombreDePlato(p.nombre);
+    if (k && !porNombre.has(k)) porNombre.set(k, p.id);
+  }
+  const resultado = { coinciden: [], sinPlato: [], sinPrecio: [] };
+  for (const cruda of String(texto ?? '').split(/\r?\n/)) {
+    const linea = cruda.trim();
+    if (!linea) continue;
+    const m = linea.match(/^(.*?)\s*[\t;|]\s*([^\t;|]+)$/) || linea.match(/^(.+?)\s{2,}(\S.*)$/) || linea.match(/^(.+?)\s+(\$?\s*\d[\d.,]*)$/);
+    const precio = m ? numeroDePrecio(m[2]) : null;
+    if (precio === null) { resultado.sinPrecio.push(linea); continue; }
+    const id = porNombre.get(normalizarNombreDePlato(m[1]));
+    if (!id) { resultado.sinPlato.push(m[1].trim()); continue; }
+    resultado.coinciden.push({ producto_id: id, precio_numerico: precio });
+  }
+  return resultado;
+}
+
+// Las filas de la tabla de precios, con su caja y su plato base.
+function filasDeLaTablaDeSede() {
+  return [...document.querySelectorAll('#sedesPreciosTabla .sede-plato')].map(fila => ({
+    fila,
+    caja: fila.querySelector('.sede-precio'),
+    sirve: fila.querySelector('.sede-sirve-caja').checked,
+    plato: state.productos.find(p => p.id === fila.dataset.plato),
+  }));
+}
+
+function aplicarPorcentajeASede(aTodos) {
+  const pct = document.getElementById('sedPorcentaje').value.trim();
+  if (pct === '' || !Number.isFinite(Number(pct))) { showToast('Escribe el porcentaje', 'error'); return; }
+  const redondeo = document.getElementById('sedRedondeo').value;
+  let n = 0;
+  for (const { caja, sirve, plato } of filasDeLaTablaDeSede()) {
+    if (!plato || !sirve) continue;            // un plato que no se sirve aquí no necesita precio
+    if (!aTodos && caja.value.trim() !== '') continue;
+    const precio = precioConPorcentaje(plato.precio_numerico, pct, redondeo);
+    if (precio === null) continue;
+    caja.value = precio; n++;
+  }
+  showToast(n ? `Precios puestos en ${n} ${n === 1 ? 'plato' : 'platos'}. Revisa y guarda.` : 'No había platos a los que aplicarlo', n ? 'success' : 'info');
+}
+
+function aplicarPreciosPegados() {
+  const filas = filasDeLaTablaDeSede();
+  const r = analizarPreciosPegados(document.getElementById('sedPegado').value, state.productos);
+  const porId = new Map(filas.map(f => [f.plato?.id, f]));
+  for (const c of r.coinciden) {
+    const f = porId.get(c.producto_id);
+    if (f) f.caja.value = c.precio_numerico;
+  }
+  // Lo que no entró, a la vista y por textContent: son líneas que escribió una persona.
+  const caja = document.getElementById('sedPegadoResultado');
+  caja.replaceChildren();
+  const linea = (clase, texto) => { const d = document.createElement('div'); d.className = clase; d.textContent = texto; caja.appendChild(d); };
+  linea('sede-pegado-ok', `${r.coinciden.length} ${r.coinciden.length === 1 ? 'precio puesto' : 'precios puestos'}. Revisa y guarda.`);
+  if (r.sinPlato.length) linea('sede-pegado-falta', `Sin plato con ese nombre (${r.sinPlato.length}): ${r.sinPlato.join(' · ')}`);
+  if (r.sinPrecio.length) linea('sede-pegado-falta', `Sin un precio que se entienda (${r.sinPrecio.length}): ${r.sinPrecio.join(' · ')}`);
 }

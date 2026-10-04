@@ -72,6 +72,45 @@ describe('POST /api/sedes', () => {
 		assert.equal(escrituras('sedes', 'insert').length, 0);
 	});
 
+	describe('el tope de sedes lo fija el superadmin', () => {
+		const sedesExistentes = n => Array.from({ length: n }, (_, i) => ({ id: 'e' + i, slug: 'sede-' + i }));
+
+		test('sin max_sedes puesto, el tope es dos', async () => {
+			conMundo({ sedes: sedesExistentes(2), restaurante: { atributos: { con_sedes: true } } });
+			const r = await pedir('POST', '/api/sedes', cuerpo({ nombre: 'Tercera' }), tokenAdmin);
+			assert.equal(r.status, 409);
+			assert.match(r.body.error, /contratadas 2 sedes/);
+			assert.equal(escrituras('sedes', 'insert').length, 0);
+		});
+
+		test('con dos creadas y max_sedes 2, la segunda entra y la tercera no', async () => {
+			conMundo({ sedes: sedesExistentes(1), restaurante: { atributos: { con_sedes: true, max_sedes: 2 } } });
+			assert.equal((await pedir('POST', '/api/sedes', cuerpo({ nombre: 'Segunda' }), tokenAdmin)).status, 200);
+			reiniciar();
+			conMundo({ sedes: sedesExistentes(2), restaurante: { atributos: { con_sedes: true, max_sedes: 2 } } });
+			assert.equal((await pedir('POST', '/api/sedes', cuerpo({ nombre: 'Tercera' }), tokenAdmin)).status, 409);
+		});
+
+		test('subir el tope deja crear más', async () => {
+			conMundo({ sedes: sedesExistentes(2), restaurante: { atributos: { con_sedes: true, max_sedes: 3 } } });
+			assert.equal((await pedir('POST', '/api/sedes', cuerpo({ nombre: 'Tercera' }), tokenAdmin)).status, 200);
+		});
+
+		test('un tope que no es un entero válido cae al de por defecto, no a «sin límite»', async () => {
+			for (const max_sedes of ['muchas', -3, 0, 1.5, null]) {
+				reiniciar();
+				conMundo({ sedes: sedesExistentes(2), restaurante: { atributos: { con_sedes: true, max_sedes } } });
+				const r = await pedir('POST', '/api/sedes', cuerpo({ nombre: 'Tercera' }), tokenAdmin);
+				assert.equal(r.status, 409, String(max_sedes));
+			}
+		});
+
+		test('el techo absoluto de 20 sigue valiendo aunque el tope diga más', async () => {
+			conMundo({ sedes: sedesExistentes(20), restaurante: { atributos: { con_sedes: true, max_sedes: 99 } } });
+			assert.equal((await pedir('POST', '/api/sedes', cuerpo({ nombre: 'Vigesimoprimera' }), tokenAdmin)).status, 409);
+		});
+	});
+
 	test('rechaza un nombre vacío', async () => {
 		conMundo();
 		assert.equal((await pedir('POST', '/api/sedes', cuerpo({ nombre: '  ' }), tokenAdmin)).status, 400);
@@ -222,5 +261,38 @@ describe('PATCH /api/restaurantes/:id · el interruptor «Varias sedes»', () =>
 		await guardar({ con_sedes: true }, tokenCliente);
 		const guardado = escrituras('restaurantes', 'update').pop()?.payload.atributos || {};
 		assert.equal('con_sedes' in guardado, false);
+	});
+});
+
+describe('PATCH /api/restaurantes/:id · max_sedes', () => {
+	const guardar = (atributos, token = tokenAdmin) => pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos }, token);
+	const conRestaurante = () => conTabla(st => (st.tabla === 'restaurantes' && st.op === 'select' ? { data: { atributos: {} }, error: null } : { data: { id: IDS.restaurante, atributos: {} }, error: null }));
+	const guardado = () => escrituras('restaurantes', 'update').pop().payload.atributos.max_sedes;
+
+	test('se guarda como entero entre 1 y 20', async () => {
+		conRestaurante();
+		await guardar({ max_sedes: 3 });
+		assert.equal(guardado(), 3);
+		await guardar({ max_sedes: '4' });
+		assert.equal(guardado(), 4, 'un número escrito como texto se entiende');
+		await guardar({ max_sedes: 2.6 });
+		assert.equal(guardado(), 3);
+		await guardar({ max_sedes: 500 });
+		assert.equal(guardado(), 20);
+		await guardar({ max_sedes: 0 });
+		assert.equal(guardado(), 1);
+	});
+
+	test('lo que no es un número se queda en dos, no en NaN', async () => {
+		conRestaurante();
+		await guardar({ max_sedes: 'muchas' });
+		assert.equal(guardado(), 2);
+	});
+
+	test('el dueño no puede subirse el tope', async () => {
+		conRestaurante();
+		await guardar({ max_sedes: 10 }, tokenCliente);
+		const g = escrituras('restaurantes', 'update').pop()?.payload.atributos || {};
+		assert.equal('max_sedes' in g, false);
 	});
 });

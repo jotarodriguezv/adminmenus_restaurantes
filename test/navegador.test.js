@@ -11213,3 +11213,122 @@ describe('las paletas al crear un restaurante', () => {
 		assert.match(clon, /soltarPaletaNuevoResto\(\);/);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('QR por sede (docs/sedes.md)', () => {
+	const montar = (sedeSlug, cfg = {}, sedes = [{ slug: 'bucaramanga', nombre: 'Bucaramanga' }]) => {
+		const ctx = cargar('qr.js', 'function qrEnlace', 'async function qrPrepararSedes', {
+			urlPublica: () => 'https://menu.vmenus.co/enchulados',
+			state: { restaurante: { nombre: 'Enchulados', slug: 'enchulados' }, sedes },
+			qrCfg: cfg,
+		});
+		vm.runInContext(`qrSedeSlug = ${JSON.stringify(sedeSlug)}`, ctx);
+		return ctx;
+	};
+
+	test('sin sede, el QR es el del restaurante, que lleva al selector', () => {
+		const c = montar('');
+		assert.equal(c.qrEnlace(), 'https://menu.vmenus.co/enchulados');
+		assert.equal(c.qrSufijoDeArchivo(), '');
+		assert.equal(c.qrSedeActual(), null);
+	});
+
+	test('con sede, el QR abre directo su carta y el archivo lo dice', () => {
+		const c = montar('bucaramanga');
+		assert.equal(c.qrEnlace(), 'https://menu.vmenus.co/enchulados/bucaramanga');
+		assert.equal(c.qrSufijoDeArchivo(), '-bucaramanga');
+		assert.equal(c.qrSedeActual().nombre, 'Bucaramanga');
+	});
+
+	test('el cartel dice la sede cuando el pie es el nombre, y respeta un texto propio', () => {
+		assert.equal(montar('bucaramanga').qrPieDelCartel(), 'Enchulados · Bucaramanga');
+		assert.equal(montar('').qrPieDelCartel(), 'Enchulados');
+		assert.equal(montar('bucaramanga', { cartel_pie: 'Escanea y pide' }).qrPieDelCartel(), 'Escanea y pide');
+	});
+
+	test('los tres archivos que se descargan llevan el sufijo de la sede', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'qr.js'), 'utf8');
+		for (const f of ['qr-${state.restaurante.slug}${qrSufijoDeArchivo()}.png', 'qr-${state.restaurante.slug}${qrSufijoDeArchivo()}.svg', 'cartel-${state.restaurante.slug}${qrSufijoDeArchivo()}.png'])
+			assert.ok(src.includes(f), f);
+	});
+
+	test('una sede que ya no está activa no deja el QR apuntando a ella', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'qr.js'), 'utf8');
+		assert.match(src, /const activas = sedes\.filter\(s => s\.activa\);\s*if \(!activas\.some\(s => s\.slug === qrSedeSlug\)\) qrSedeSlug = '';/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Sedes · cargar precios sin teclear plato por plato', () => {
+	const f = () => cargar('sedes.js', 'function normalizarNombreDePlato', 'function filasDeLaTablaDeSede', {});
+
+	test('el nombre se compara sin tildes, mayúsculas ni signos', () => {
+		const c = f();
+		assert.equal(c.normalizarNombreDePlato('  Burger  CLÁSICA! '), 'burger clasica');
+		assert.equal(c.normalizarNombreDePlato('Soda de Maíz Morado'), c.normalizarNombreDePlato('soda de maiz morado'));
+		assert.equal(c.normalizarNombreDePlato(null), '');
+	});
+
+	test('el porcentaje se redondea al múltiplo elegido', () => {
+		const c = f();
+		assert.equal(c.precioConPorcentaje(22000, 15, 500), 25500);
+		assert.equal(c.precioConPorcentaje(26000, 19.2, 500), 31000);
+		assert.equal(c.precioConPorcentaje(21000, 15, 1), 24150);
+		assert.equal(c.precioConPorcentaje(12000, 0, 500), 12000);
+		assert.equal(c.precioConPorcentaje(22000, -10, 100), 19800);
+	});
+
+	test('sin forma de calcular, null y no un precio inventado', () => {
+		const c = f();
+		for (const [b, p] of [['abc', 10], [1000, 'x'], [-5, 10], [1000, -100], [1000, -250]])
+			assert.equal(c.precioConPorcentaje(b, p, 500), null, `${b} ${p}`);
+	});
+
+	test('«26000», «$ 26.000» y «26,000» son veintiséis mil; «19,5» no es un precio', () => {
+		const c = f();
+		for (const t of ['26000', '$ 26.000', '26,000', ' $26.000 ']) assert.equal(c.numeroDePrecio(t), 26000, t);
+		assert.equal(c.numeroDePrecio('1.234.567'), 1234567);
+		for (const t of ['19,5', 'gratis', '', '12.34', '$']) assert.equal(c.numeroDePrecio(t), null, t);
+	});
+
+	test('pegar dos columnas de una hoja de cálculo pone cada precio en su plato', () => {
+		const c = f();
+		const platos = [{ id: 'a', nombre: 'Burger Clásica' }, { id: 'b', nombre: 'Perro Especial' }, { id: 'c', nombre: 'Nachos de la Casa' }];
+		const r = c.analizarPreciosPegados('burger clasica\t26000\nPerro Especial;$ 19.500\n  Nachos de la Casa   31000  \n', platos);
+		assert.deepEqual(JSON.parse(JSON.stringify(r.coinciden)), [
+			{ producto_id: 'a', precio_numerico: 26000 },
+			{ producto_id: 'b', precio_numerico: 19500 },
+			{ producto_id: 'c', precio_numerico: 31000 },
+		]);
+		assert.equal(r.sinPlato.length + r.sinPrecio.length, 0);
+	});
+
+	test('lo que no entra se cuenta aparte: plato que no existe, y línea sin precio', () => {
+		const c = f();
+		const platos = [{ id: 'a', nombre: 'Burger Clásica' }];
+		const r = c.analizarPreciosPegados('Plato\tPrecio\nSopa del día\t12000\nBurger Clásica\tgratis\nBurger Clásica\t26000\nsolo una palabra', platos);
+		assert.equal(r.coinciden.length, 1);
+		assert.deepEqual(Array.from(r.sinPlato), ['Sopa del día']);
+		assert.deepEqual(Array.from(r.sinPrecio), ['Plato\tPrecio', 'Burger Clásica\tgratis', 'solo una palabra']);
+	});
+
+	test('un nombre con dígitos y sin separador claro se corta en el último espacio antes del número', () => {
+		const c = f();
+		const r = c.analizarPreciosPegados('Gaseosa 400 ml 5000', [{ id: 'g', nombre: 'Gaseosa 400 ml' }]);
+		assert.deepEqual(JSON.parse(JSON.stringify(r.coinciden)), [{ producto_id: 'g', precio_numerico: 5000 }]);
+	});
+
+	test('con dos platos del mismo nombre se usa el primero, sin romper', () => {
+		const c = f();
+		const r = c.analizarPreciosPegados('Burger\t100', [{ id: 'x', nombre: 'Burger' }, { id: 'y', nombre: 'burger' }]);
+		assert.equal(r.coinciden[0].producto_id, 'x');
+	});
+
+	test('texto vacío o ausente no revienta', () => {
+		const c = f();
+		for (const t of ['', null, undefined, '\n\n']) {
+			const r = c.analizarPreciosPegados(t, [{ id: 'a', nombre: 'A' }]);
+			assert.equal(r.coinciden.length + r.sinPlato.length + r.sinPrecio.length, 0);
+		}
+	});
+});

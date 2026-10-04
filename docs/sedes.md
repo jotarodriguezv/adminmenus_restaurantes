@@ -148,16 +148,11 @@ algo que no existe (PostgREST responde 400).
 - **Reservas por sede.** La reserva no sabe a qué sede va.
 - **Televisor por sede.** `tv.html` no entiende la sede, y la ruta
   `/<restaurante>/<sede>/tv` no la sirve nginx. Propuesta y problema de precios en §9.
-- **QR por sede.** La pestaña QR genera el del restaurante; el de cada sede se
-  hace hoy con el enlace que enseña la pestaña Sedes.
 - **Ofertas por sede.**
-- **La bienvenida**: que ofrezca elegir sede dentro de su propia tarjeta. Hoy el
-  selector (`core/selector-sedes.js`) es una pantalla aparte.
 - **Horario por sede** en el formulario del panel (la carta ya lo soporta: es una
-  clave de `CLAVES_DE_SEDE`).
-- **Carga masiva de precios** (pegar una columna, o «subir X %»): hoy se
-  teclea plato por plato.
-- **Pestaña Importar carta** no conoce sedes: importa a la carta base.
+  clave de `CLAVES_DE_SEDE`). Ver §10: compartido por defecto, propio si se pide.
+- **Pestaña Importar carta** no conoce sedes: importa a la carta base. Ver §10 para
+  cómo podría servir para los precios de una sede.
 - Los precios de las **variantes** de un plato («Desde $ 25.000», por proteína o
   tamaño) viven donde ya vivían, en el plato; esta función no los distingue por
   sede.
@@ -230,3 +225,77 @@ Preguntas que quedan abiertas:
 Si una sede con precios distintos necesita cartelera **ya**, lo que no engaña es no
 encender la pantalla de ese restaurante, o dejarla solo con platos de precio igual en
 todas las sedes. Está dicho aquí para que no se descubra frente a un cliente.
+
+## 10. QR por sede, tope de sedes y carga de precios (04/10/2026)
+
+Pedido para dejar listo al primer cliente con sedes. Se hizo lo que no dependía de
+una decisión de negocio; lo demás está más abajo con su propuesta.
+
+### El tope de sedes lo fija el superadmin
+
+`atributos.max_sedes` (Superadmin → Varias sedes → «Sedes contratadas (máximo)»):
+un entero entre 1 y 20. El servidor lo normaliza al guardarlo (lo que no sea un
+número queda en el valor por defecto, no en «sin límite») y `POST /api/sedes`
+contesta 409 al llegar a él. **Sin número puesto, el tope es dos**: lo prudente si
+se olvida fijarlo es no regalar sedes. El 20 sigue siendo el techo absoluto.
+
+La pestaña Sedes dice «2 de 2 sedes contratadas» y esconde el formulario de crear
+mientras no quede cupo; si falta una sede, el superadmin sube el tope y ya.
+
+La razón de que sea un número y no «las que quiera»: la sede extra es una decisión
+comercial caso por caso (el primer cliente llegado por marketing se trata distinto
+de uno que paga la lista), y eso tiene que poder cambiarse sin tocar código.
+
+### QR por sede
+
+La pestaña QR, con sedes encendidas, deja elegir **de qué es el QR**: el del
+restaurante (lleva al selector, para la puerta o las redes) o el de una sede
+activa (`/<restaurante>/<sede>`, abre directo su carta, para sus mesas). El diseño
+—colores, forma, logo— es uno solo; cambian el destino, el nombre del archivo
+(`qr-<slug>-<sede>.png`) y, en el cartel, el pie, que dice la sede cuando es el
+nombre del restaurante (un texto propio no se toca). Las sedes apagadas no salen:
+su enlace no abre ninguna carta.
+
+### Cargar precios sin teclear plato por plato
+
+Dos herramientas en la tabla de precios de cada sede. **Solo rellenan las cajas**:
+nada se guarda hasta «Guardar precios», y se deshace recargando.
+
+- **Subir o bajar todo un %**, sobre el precio base y redondeado (500 por defecto,
+  lo normal en pesos). «Solo a los vacíos» no pisa lo ya escrito; «A todos» sí.
+  Los platos desmarcados («no se sirve aquí») no reciben precio.
+- **Pegar precios**: una línea por plato —nombre y precio separados por tabulador
+  (copiado de Excel o Sheets), `;`, `|` o dos espacios—. Se busca el plato por
+  nombre sin importar tildes ni mayúsculas, y lo que **no** entró se enseña aparte
+  (plato que no existe, línea sin precio): que se vea lo que quedó fuera es lo que
+  permite fiarse de lo que entró. Un `19,5` se rechaza en vez de adivinar si son
+  diecinueve pesos o diecinueve mil quinientos.
+
+### ¿Sirve el importador de cartas (PDF o foto) para esto?
+
+Sí, para **dos cosas distintas**, y conviene no mezclarlas:
+
+1. **La carta base** (la de la sede de referencia): es justo para lo que está. Sube
+   el PDF o la foto, se crean los platos, y esos precios son el *base*.
+2. **Los precios de otra sede**: hoy no. El importador solo *crea* platos
+   (`docs/importar-carta.md`: «añade y no pisa»); no sabe poner un precio a un plato
+   que ya existe, ni en una sede. Se podría hacer un modo «importar precios de una
+   sede» que lea la carta de esa sede con la misma extracción y, en vez de crear,
+   **empareje por nombre** con los platos existentes (la regla de
+   `normalizarNombreDePlato`) y rellene las cajas de la tabla, con la misma lista de
+   «no coincidió». Cuesta una extracción de IA por carta, como cualquier importación.
+   No está hecho: para una carta de 75 platos, pegar una columna ya lo resuelve; el
+   importador compensa cuando la carta de la otra sede solo existe en papel.
+
+### Pendiente de decidir o construir
+
+- **Horario por sede.** La carta ya lo soporta (`horario_atencion` es clave de
+  sede). Propuesta: **compartido por defecto**, y una casilla «esta sede tiene otro
+  horario» que enseña el mismo editor de franjas de Ajustes. Así, si es el mismo en
+  los dos locales, se escribe una vez; y si difiere, se puede. Falta cablear el
+  editor (`horario-atencion.js`) a un contenedor que no sea el de Ajustes.
+- **Reservas por sede.** Hace falta `sede_id` en `reservas` (migración), que el
+  formulario de la bienvenida de una sede lo mande, que la lista del panel diga el
+  local y que el mensaje de WhatsApp al comensal nombre la sede. Hoy, en la
+  bienvenida de selección, el botón de reservas **se esconde** a propósito.
+- **Cartelera (TV) por sede.** §9.
