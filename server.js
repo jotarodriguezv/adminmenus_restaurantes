@@ -712,7 +712,7 @@ const ATRIBUTOS_CLONABLES = ['nav', 'estilo', 'fuente_titulo', 'fuente_cuerpo', 
 app.post('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
   const { nombre, slug, color_primario, color_secundario, activo, pin, clonar_de, plan, nav,
-          color_surface, color_card, fondo_color } = req.body;
+          color_surface, color_card, fondo_color, importar_carta } = req.body;
   if (!nombre || !slug) return res.status(400).json({ error: 'Nombre y slug requeridos' });
   const malSlug = errorDeSlug(slug);
   if (malSlug) return res.status(400).json({ error: malSlug });
@@ -735,6 +735,10 @@ app.post('/api/restaurantes', auth, async (req, res) => {
   // lista, igual que en el PATCH de más abajo: el superadmin ya es de fiar.
   if (PLANES[plan]) atributos.plan = plan;
   if (nav) atributos.nav = nav;
+  // Es la misma llave que controla el interruptor de Superadmin. No se copia
+  // desde otro restaurante porque es un permiso temporal, pero sí se puede
+  // conceder desde el alta para que el cliente empiece importando su carta.
+  if (typeof importar_carta === 'boolean') atributos.importar_carta = importar_carta;
   // Los otros tres colores de una paleta elegida al crear (public/paletas.js).
   // Como el modelo, lo elegido aquí gana sobre lo que copiaría «copiar
   // apariencia». Solo #rrggbb: la carta mete estos valores en CSS tal cual.
