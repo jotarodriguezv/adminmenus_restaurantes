@@ -145,12 +145,9 @@ algo que no existe (PostgREST responde 400).
 ## 8. Lo que queda fuera (fase 2)
 
 - **Estadísticas por sede.** Hoy una visita cuenta para el restaurante.
-- **Reservas por sede.** La reserva no sabe a qué sede va.
 - **Televisor por sede.** `tv.html` no entiende la sede, y la ruta
   `/<restaurante>/<sede>/tv` no la sirve nginx. Propuesta y problema de precios en §9.
 - **Ofertas por sede.**
-- **Horario por sede** en el formulario del panel (la carta ya lo soporta: es una
-  clave de `CLAVES_DE_SEDE`). Ver §10: compartido por defecto, propio si se pide.
 - **Pestaña Importar carta** no conoce sedes: importa a la carta base. Ver §10 para
   cómo podría servir para los precios de una sede.
 - Los precios de las **variantes** de un plato («Desde $ 25.000», por proteína o
@@ -287,15 +284,66 @@ Sí, para **dos cosas distintas**, y conviene no mezclarlas:
    No está hecho: para una carta de 75 platos, pegar una columna ya lo resuelve; el
    importador compensa cuando la carta de la otra sede solo existe en papel.
 
-### Pendiente de decidir o construir
+## 11. Reservas por sede y horario por sede (04/10/2026)
 
-- **Horario por sede.** La carta ya lo soporta (`horario_atencion` es clave de
-  sede). Propuesta: **compartido por defecto**, y una casilla «esta sede tiene otro
-  horario» que enseña el mismo editor de franjas de Ajustes. Así, si es el mismo en
-  los dos locales, se escribe una vez; y si difiere, se puede. Falta cablear el
-  editor (`horario-atencion.js`) a un contenedor que no sea el de Ajustes.
-- **Reservas por sede.** Hace falta `sede_id` en `reservas` (migración), que el
-  formulario de la bienvenida de una sede lo mande, que la lista del panel diga el
-  local y que el mensaje de WhatsApp al comensal nombre la sede. Hoy, en la
-  bienvenida de selección, el botón de reservas **se esconde** a propósito.
+### Reservas
+
+Una reserva de un restaurante con sedes tiene que decir **para qué local es**.
+
+- **Datos (`sql/38_reservas_por_sede.sql`):** `reservas.sede_id` (con `on delete set
+  null`: borrar una sede no se lleva las reservas) y `reservas.sede_nombre`, una
+  **copia** del nombre al reservar. La copia es a propósito: si la sede se borra o se
+  renombra, la reserva sigue diciendo a qué local iba, y la lista del panel no cruza
+  tablas. Aditiva, nullable, con los permisos de `sql/34` (privada).
+- **Carta:** el formulario de la bienvenida **de una sede** manda `sede_id` (la sede
+  de la URL). En la pantalla de *elegir* sede no hay formulario, porque no hay sede a
+  la que mandarla.
+- **Servidor (`POST /api/reservas`):** con `con_sedes` encendido y al menos una sede
+  activa, la sede es **obligatoria** y tiene que ser una sede **activa de este
+  restaurante** (el id lo manda el navegador: no se fía). Sin sedes, o con el
+  interruptor apagado, el campo se ignora y la fila **ni siquiera lleva las columnas
+  nuevas**: un restaurante de un solo local inserta exactamente lo de siempre, con o sin
+  la migración aplicada. Si no se pueden leer las sedes, 500 y nada guardado.
+- **Panel:** cada reserva dice su sede; con reservas de **dos sedes o más** aparece
+  un filtro «Ver reservas de» (el contador de la pestaña **no** se filtra: es lo que
+  queda por confirmar en todo el restaurante); y el mensaje de WhatsApp al comensal
+  nombra el local («…tu reserva en Enchulados (Bucaramanga) está confirmada…»).
+- **Quién recibe el aviso:** no hay aviso automático (decidido el 01/10/2026, ver
+  `docs/reservas.md`): la lista es el aviso. El WhatsApp de cada sede **no interviene**
+  en las reservas; sirve para los pedidos del carrito.
+
+### Horario
+
+`horario_atencion` es una de las claves que una sede puede tener (`CLAVES_DE_SEDE`).
+**Compartido por defecto**: sin la clave, la sede hereda el del restaurante, de modo
+que cambiarlo en Ajustes llega a todas las sedes que no lo cambiaron. Con la casilla
+«Esta sede tiene otro horario» sale el editor de franjas, partiendo de **una copia del
+horario del restaurante** (lo normal es que difiera en un día o una hora).
+
+- **El formulario solo manda `horario_atencion` si la casilla está puesta.** Mandarlo
+  siempre desligaría a todas las sedes del horario del restaurante sin que nadie lo
+  decidiera. Y editar una sede **reemplaza** sus atributos, así que quitar la casilla
+  borra la clave y la sede vuelve a heredar.
+- Una lista **vacía** con la casilla puesta es «esta sede no tiene horario»: la carta
+  no enseña ninguna línea en ella (no hereda).
+- **El editor es el de Ajustes**, sin copia: `horario-atencion.js` trabaja sobre un
+  «contexto» (`lista()` y los tres ids). Sin argumento es el de Ajustes; la sede pasa
+  `HORARIO_SEDE` (en `sedes.js`). Lo que se arregle en uno se arregla en el otro.
+- La lista de sedes dice, en cada una, «Horario del restaurante» u «Horario propio: …».
+- La carta no cambia: ya mezclaba `horario_atencion` de la sede por encima del del
+  restaurante (`core/sedes.js`).
+
+### Orden de despliegue
+
+1. **`sql/38`** — aditivo; las versiones actuales del servidor no nombran las columnas.
+2. **La carta** (`vmenus-app`, «Send the sede with each table reservation»).
+3. **El panel.**
+
+El 2 va antes que el 3 porque el servidor nuevo **exige** la sede en un restaurante con
+sedes: si llegara antes que la carta, el formulario de la carta vieja las rechazaría.
+Hoy ningún restaurante con sedes tiene las reservas encendidas, así que no hay riesgo
+real, pero así queda correcto para el siguiente.
+
+### Pendiente
+
 - **Cartelera (TV) por sede.** §9.

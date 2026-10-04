@@ -27,6 +27,22 @@ function reservasPendientes(lista, hoy) {
   return (lista || []).filter(r => r.estado === 'pendiente' && String(r.fecha).slice(0, 10) >= hoy);
 }
 
+// ── POR SEDE ──────────────────────────────────────────────────
+// Un restaurante con sedes recibe reservas de todos sus locales en la misma lista, y
+// cada local solo quiere ver las suyas. El filtro solo sale si las reservas traen
+// DOS sedes o más: con una (o ninguna) no habría nada que elegir. El contador de la
+// pestaña NO se filtra: es lo que queda por confirmar en todo el restaurante.
+let reservasFiltroSede = '';
+
+// Los nombres de sede que aparecen en las reservas, sin repetir y en orden.
+function sedesDeLasReservas(lista) {
+  return [...new Set((lista || []).map(r => r.sede_nombre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+function reservasVisibles(lista, sede) {
+  return sede ? (lista || []).filter(r => r.sede_nombre === sede) : (lista || []);
+}
+
 // 'YYYY-MM-DD' y 'HH:MM[:SS]' → «vie 5 oct · 7:30 p. m.», sin pasar por Date
 // con zona: una fecha sola se lee como UTC y se correría un día.
 function fechaHoraReserva(fecha, hora) {
@@ -43,7 +59,7 @@ function fechaHoraReserva(fecha, hora) {
 function mensajeReserva(r, restauranteNombre) {
   const fecha = String(r.fecha).slice(0, 10).split('-').reverse().join('/');
   const detalle = `${fecha} a las ${String(r.hora).slice(0, 5)}, para ${r.personas} ${r.personas === 1 ? 'persona' : 'personas'}`;
-  const lugar = restauranteNombre ? ` en ${restauranteNombre}` : '';
+  const lugar = restauranteNombre ? ` en ${restauranteNombre}${r.sede_nombre ? ` (${r.sede_nombre})` : ''}` : '';
   if (r.estado === 'confirmada') return `Hola ${r.nombre}, tu reserva${lugar} está confirmada: ${detalle}. ¡Te esperamos!`;
   if (r.estado === 'cancelada') return `Hola ${r.nombre}, no pudimos confirmar tu reserva${lugar} para el ${detalle}. ¿Quieres que busquemos otra hora?`;
   return `Hola ${r.nombre}, te escribimos por tu reserva${lugar}: ${detalle}.`;
@@ -110,7 +126,8 @@ async function cambiarEstadoReserva(r, estado) {
 function pintarReservas() {
   const lista = document.getElementById('reservasLista'); const resumen = document.getElementById('reservasResumen');
   if (!lista || !resumen) return;
-  const todas = state.reservas || [];
+  pintarFiltroDeSedesDeReservas();
+  const todas = reservasVisibles(state.reservas, reservasFiltroSede);
   const hoy = hoyDelRestaurante();
   const proximas = todas.filter(r => String(r.fecha).slice(0, 10) >= hoy);
   const pasadas = todas.filter(r => String(r.fecha).slice(0, 10) < hoy).reverse();
@@ -130,12 +147,32 @@ function pintarReservas() {
   grupo('Pasadas', pasadas);
 }
 
+function pintarFiltroDeSedesDeReservas() {
+  const caja = document.getElementById('reservasFiltro');
+  if (!caja) return;
+  const sedes = sedesDeLasReservas(state.reservas);
+  if (!sedes.includes(reservasFiltroSede)) reservasFiltroSede = '';
+  caja.replaceChildren();
+  if (sedes.length < 2) return;
+  const etiqueta = document.createElement('label');
+  etiqueta.className = 'form-label'; etiqueta.htmlFor = 'reservasFiltroSede'; etiqueta.textContent = 'Ver reservas de';
+  const sel = document.createElement('select');
+  sel.id = 'reservasFiltroSede'; sel.className = 'form-select';
+  for (const [valor, texto] of [['', 'Todas las sedes'], ...sedes.map(s => [s, s])]) {
+    const o = document.createElement('option'); o.value = valor; o.textContent = texto; sel.appendChild(o);
+  }
+  sel.value = reservasFiltroSede;
+  sel.addEventListener('change', () => { reservasFiltroSede = sel.value; pintarReservas(); });
+  caja.append(etiqueta, sel);
+}
+
 function tarjetaReserva(r) {
   const caja = document.createElement('article'); caja.className = `reserva-card reserva-${r.estado}`;
   const nombre = state.restaurante?.nombre || '';
   const wa = enlaceReserva(r, nombre);
   const cuando = fechaHoraReserva(r.fecha, r.hora);
   caja.innerHTML = `<div class="reserva-info"><strong>${esc(r.nombre)}</strong> · ${esc(r.celular)}`
+    + (r.sede_nombre ? `<br><span class="reserva-sede">${esc(r.sede_nombre)}</span>` : '')
     + `<br><span class="reserva-cuando">${esc(cuando)} · ${r.personas} ${r.personas === 1 ? 'persona' : 'personas'}</span>`
     + `<br><span class="reserva-estado">${esc(ETIQUETAS_RESERVA[r.estado] || r.estado)}</span></div>`;
   const acciones = document.createElement('div'); acciones.className = 'reserva-acciones';

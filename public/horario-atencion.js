@@ -1,4 +1,5 @@
-// El editor del horario de atención, dentro de Ajustes → «Datos del negocio».
+// El editor del horario de atención, dentro de Ajustes → «Datos del negocio» y,
+// desde el 04/10/2026, también en el formulario de cada sede (docs/sedes.md §10).
 //
 // Es la forma de los horarios del panel de la televisión y de las promociones:
 // una fila por franja, con las fichas de los días (L M X J V S D) y la hora de
@@ -12,8 +13,20 @@
 // renderHorarioAtencion() si existe: las pruebas de Ajustes cargan negocio.js
 // solas, y lo mismo hace aspecto.js con renderBienvenida().
 //
+// ── UN EDITOR, DOS SITIOS ─────────────────────────────────────
+// El editor no sabe de dónde viene la lista de franjas ni en qué elementos se
+// dibuja: se lo dice un «contexto» —`lista()` y los tres ids—. Sin argumento es el
+// de Ajustes, y es lo que llaman negocio.js y los botones de siempre; la sede pasa
+// el suyo (HORARIO_SEDE, en sedes.js). Dos copias del editor habrían acabado
+// siendo dos editores distintos; así, lo que se arregle aquí se arregla en los dos.
+//
 // Se carga con un <script> clásico antes del script principal, como comun.js:
 // no se puede repetir aquí un nombre que ya exista en otro archivo del panel.
+
+const HORARIO_AJUSTES = {
+  lista: () => franjasEnEdicion,
+  ids: { franjas: 'ajHorarioFranjas', agregar: 'ajHorarioAgregar', resumen: 'ajHorarioResumen' },
+};
 
 // Los selectores de hora son los de siempre (opcionesDeHora, de index.html): 24 h
 // y de media en media hora, porque <input type="time"> enseña a.m./p.m. según el
@@ -37,7 +50,7 @@ function selectorDeHoraDeAtencion(valor, alCambiar) {
   return sel;
 }
 
-function filaDeFranjaDeAtencion(franja, indice) {
+function filaDeFranjaDeAtencion(franja, indice, ctx = HORARIO_AJUSTES) {
   const fila = document.createElement('div');
   fila.className = 'horario-franja';
 
@@ -53,7 +66,7 @@ function filaDeFranjaDeAtencion(franja, indice) {
     b.setAttribute('aria-pressed', franja.dias.includes(d) ? 'true' : 'false');
     b.onclick = () => {
       franja.dias = franja.dias.includes(d) ? franja.dias.filter(x => x !== d) : [...franja.dias, d];
-      renderHorarioAtencion();
+      renderHorarioAtencion(ctx);
     };
     dias.appendChild(b);
   }
@@ -73,7 +86,7 @@ function filaDeFranjaDeAtencion(franja, indice) {
     // vacíos que obliguen a elegir las dos horas de cero.
     if (marca.checked) { franja.desde = ''; franja.hasta = ''; }
     else { franja.desde = '11:00'; franja.hasta = '22:00'; }
-    renderHorarioAtencion();
+    renderHorarioAtencion(ctx);
   });
   caja.append(marca, ' Todo el día');
   horas.appendChild(caja);
@@ -81,10 +94,10 @@ function filaDeFranjaDeAtencion(franja, indice) {
   if (!todoElDia) {
     const abre = document.createElement('label');
     abre.className = 'horario-hora-campo';
-    abre.append('Abre ', selectorDeHoraDeAtencion(franja.desde, v => { franja.desde = v; actualizarResumenHorario(); }));
+    abre.append('Abre ', selectorDeHoraDeAtencion(franja.desde, v => { franja.desde = v; actualizarResumenHorario(ctx); }));
     const cierra = document.createElement('label');
     cierra.className = 'horario-hora-campo';
-    cierra.append('Cierra ', selectorDeHoraDeAtencion(franja.hasta, v => { franja.hasta = v; actualizarResumenHorario(); }));
+    cierra.append('Cierra ', selectorDeHoraDeAtencion(franja.hasta, v => { franja.hasta = v; actualizarResumenHorario(ctx); }));
     horas.append(abre, cierra);
   }
   fila.appendChild(horas);
@@ -94,38 +107,41 @@ function filaDeFranjaDeAtencion(franja, indice) {
   quitar.className = 'btn-sm horario-quitar';
   quitar.textContent = 'Quitar';
   quitar.setAttribute('aria-label', `Quitar el horario ${indice + 1}`);
-  quitar.onclick = () => { franjasEnEdicion.splice(indice, 1); renderHorarioAtencion(); };
+  quitar.onclick = () => { ctx.lista().splice(indice, 1); renderHorarioAtencion(ctx); };
   fila.appendChild(quitar);
   return fila;
 }
 
-function renderHorarioAtencion() {
-  const cont = document.getElementById('ajHorarioFranjas');
+function renderHorarioAtencion(ctx = HORARIO_AJUSTES) {
+  const cont = document.getElementById(ctx.ids.franjas);
   if (!cont) return;
   cont.replaceChildren();
-  franjasEnEdicion.forEach((f, i) => cont.appendChild(filaDeFranjaDeAtencion(f, i)));
-  document.getElementById('ajHorarioAgregar').disabled = franjasEnEdicion.length >= MAX_FRANJAS_ATENCION;
-  actualizarResumenHorario();
+  const lista = ctx.lista();
+  lista.forEach((f, i) => cont.appendChild(filaDeFranjaDeAtencion(f, i, ctx)));
+  document.getElementById(ctx.ids.agregar).disabled = lista.length >= MAX_FRANJAS_ATENCION;
+  actualizarResumenHorario(ctx);
 }
 
 // La primera franja que se añade es lo más corriente —de lunes a viernes— para
 // no empezar de cero; las siguientes, el resto de la semana.
-function agregarFranjaDeAtencion() {
-  if (franjasEnEdicion.length >= MAX_FRANJAS_ATENCION) return;
-  const usados = new Set(franjasEnEdicion.flatMap(f => f.dias));
+function agregarFranjaDeAtencion(ctx = HORARIO_AJUSTES) {
+  const lista = ctx.lista();
+  if (lista.length >= MAX_FRANJAS_ATENCION) return;
+  const usados = new Set(lista.flatMap(f => f.dias));
   const libres = ORDEN_DIAS_ATENCION.filter(d => !usados.has(d));
-  const dias = !franjasEnEdicion.length ? [1, 2, 3, 4, 5] : (libres.length ? libres : [1]);
-  franjasEnEdicion.push({ dias, desde: '11:00', hasta: '22:00' });
-  renderHorarioAtencion();
+  const dias = !lista.length ? [1, 2, 3, 4, 5] : (libres.length ? libres : [1]);
+  lista.push({ dias, desde: '11:00', hasta: '22:00' });
+  renderHorarioAtencion(ctx);
 }
 
 // Cómo lo leerá el cliente, con las mismas palabras que la carta: es lo que evita
 // la duda de «lo puse y no sé cómo queda».
-function actualizarResumenHorario() {
-  const resumen = document.getElementById('ajHorarioResumen');
+function actualizarResumenHorario(ctx = HORARIO_AJUSTES) {
+  const resumen = document.getElementById(ctx.ids.resumen);
   if (!resumen) return;
-  const error = errorDeHorarioAtencion(franjasEnEdicion);
-  const texto = textoHorarioAtencion(franjasEnEdicion);
+  const lista = ctx.lista();
+  const error = errorDeHorarioAtencion(lista);
+  const texto = textoHorarioAtencion(lista);
   if (error) { resumen.textContent = error; resumen.style.color = 'var(--warn)'; return; }
   resumen.textContent = texto
     ? `Tus clientes leen: ${texto}`

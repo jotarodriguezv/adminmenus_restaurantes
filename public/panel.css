@@ -1605,3 +1605,5 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 .sede-pegado-resultado{margin-top:10px;font-size:12px;line-height:1.6;}
 .sede-pegado-ok{color:var(--ok, #3fb68b);}
 .sede-pegado-falta{color:var(--warn, #e0a030);margin-top:4px;word-break:break-word;}
+.reservas-filtro{margin-bottom:12px;max-width:260px;}
+.reserva-sede{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);font-weight:700;}
