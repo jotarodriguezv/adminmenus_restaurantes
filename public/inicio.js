@@ -353,22 +353,6 @@ function pintarConfiguracion(items) {
   }
 }
 
-function pintarAccesos() {
-  const caja = document.getElementById('inicioAccesos');
-  if (!caja) return;
-  caja.replaceChildren();
-  const accesos = [
-    ['+ Nuevo producto', 'productos'], ['Organizar categorías', 'categorias'],
-    ['Configurar pedidos', 'ajustes'], ['Pantalla de TV', 'tv'],
-  ];
-  for (const [texto, tab] of accesos) {
-    const boton = el('button', 'btn-sm', texto);
-    boton.type = 'button';
-    boton.onclick = () => abrirDesdeInicio(tab);
-    caja.appendChild(boton);
-  }
-}
-
 function pintarPendientes({ pendientes, enOrden }) {
   const caja = document.getElementById('inicioPendientes');
   caja.replaceChildren();
@@ -439,5 +423,4 @@ function renderInicio() {
   pintarPendientes(revisionDeInicio(datos));
   pintarFunciones(funcionesDeInicio(datos));
   pintarConfiguracion(configuracionDeInicio({ ...datos, restaurante: state.restaurante }));
-  pintarAccesos();
 }
