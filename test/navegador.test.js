@@ -11062,7 +11062,10 @@ describe('las paletas al crear un restaurante', () => {
 
 	test('crear manda los colores de la paleta, y después la suelta', () => {
 		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
-		assert.match(crear, /nav:modelo,\.\.\.coloresPaletaNuevoResto\(\)\}/);
+		// La autorización de importar se manda junto con el modelo, antes de los
+		// colores adicionales. Se comprueban las tres partes: así añadir el
+		// interruptor no puede borrar la paleta al crear.
+		assert.match(crear, /nav:modelo,importar_carta,\.\.\.coloresPaletaNuevoResto\(\)\}/);
 		assert.match(crear, /soltarPaletaNuevoResto\(\);/);
 	});
 
