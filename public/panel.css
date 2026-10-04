@@ -634,6 +634,12 @@ a,button,input,select,textarea{font-family:inherit;}
 .modelo-vista-real{display:block;height:176px;margin-bottom:9px;overflow:hidden;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));border-radius:6px;background:var(--surface);pointer-events:none;}
 .modelo-vista-real iframe{display:block;width:333.334%;height:333.334%;border:0;transform:scale(.3);transform-origin:top left;background:var(--surface);}
 .modelo-pagina-texto{display:grid;gap:2px;}.modelo-pagina-texto strong{font-size:12px;line-height:1.3;}.modelo-pagina-texto small{color:var(--text-muted);font-size:10px;line-height:1.35;}
+/* La tarjeta se puede inspeccionar sin seleccionar nada. Solo en equipos con
+   cursor: en un teléfono un :hover pegado haría que la tarjeta saltara al tocarla. */
+@media (min-width:721px) and (hover:hover){
+  .modelo-pagina:not(:disabled):hover .modelo-vista-real{height:286px;}
+  .modelo-pagina:not(:disabled):hover .modelo-vista-real iframe{width:200%;height:200%;transform:scale(.5);}
+}
 @media(max-width:720px){.modelos-pagina{grid-template-columns:1fr;}.modelo-pagina{display:grid;grid-template-columns:124px 1fr;gap:11px;align-items:center;}.modelo-vista-real{height:112px;margin:0;}.modelo-pagina-texto strong{font-size:13px;}}
 /* Los controles nativos de fecha no heredan bien un fondo oscuro: sin este
    esquema el icono del calendario queda negro. El espacio extra evita que los

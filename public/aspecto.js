@@ -229,10 +229,27 @@ function pintarOpcionesModelo() {
   });
 }
 
-function seleccionarModeloPagina(modelo) {
+const NOMBRE_MODELO_PAGINA = {
+  topnav: 'Categorías arriba', sidebar: 'Menú lateral', explorar: 'Explorar y filtrar',
+  video: 'Video horizontal', vertical: 'Video vertical',
+};
+
+async function seleccionarModeloPagina(modelo) {
   const selector = document.getElementById('apNavModelo');
   const plan = planActual();
   if (!selector || selector.disabled || !plan?.modelos?.includes(modelo)) return;
+  if (selector.value === modelo) return;
+  const modeloActual = NOMBRE_MODELO_PAGINA[selector.value] || selector.value;
+  const modeloNuevo = NOMBRE_MODELO_PAGINA[modelo] || modelo;
+  const confirmar = typeof preguntar === 'function'
+    ? await preguntar({
+      titulo: '¿Cambiar el modelo de tu página?',
+      texto: `Vas a pasar de «${modeloActual}» a «${modeloNuevo}».`,
+      nota: 'Todavía no se publica: revisa la vista previa y guarda Apariencia cuando estés conforme.',
+      si: 'Cambiar modelo', no: 'Mantener el actual',
+    })
+    : false;
+  if (!confirmar) return;
   selector.value = modelo;
   ajustarEstiloAlModelo();
   pintarOpcionesModelo();
