@@ -712,13 +712,20 @@ const ATRIBUTOS_CLONABLES = ['nav', 'estilo', 'fuente_titulo', 'fuente_cuerpo', 
 app.post('/api/restaurantes', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo superadmin' });
   const { nombre, slug, color_primario, color_secundario, activo, pin, clonar_de, plan, nav,
-          color_surface, color_card, fondo_color, importar_carta } = req.body;
+          color_surface, color_card, fondo_color, importar_carta, es_prueba, dias_prueba_comercial } = req.body;
   if (!nombre || !slug) return res.status(400).json({ error: 'Nombre y slug requeridos' });
   const malSlug = errorDeSlug(slug);
   if (malSlug) return res.status(400).json({ error: malSlug });
   // Máximo 10: es lo que admite el campo del login. Uno más largo se guardaba y
   // no servía para entrar (visto en CL3).
   if (!pin || pin.length < 4 || pin.length > 10) return res.status(400).json({ error: 'El PIN debe tener entre 4 y 10 caracteres' });
+  if (es_prueba !== undefined && typeof es_prueba !== 'boolean')
+    return res.status(400).json({ error: 'es_prueba debe ser true o false' });
+  const diasPrueba = dias_prueba_comercial == null ? null : Number(dias_prueba_comercial);
+  if (diasPrueba !== null && (!Number.isInteger(diasPrueba) || diasPrueba < 1 || diasPrueba > 7))
+    return res.status(400).json({ error: 'El período de prueba debe ser de 1 a 7 días' });
+  if (es_prueba === true && diasPrueba !== null)
+    return res.status(400).json({ error: 'Una prueba interna no lleva período comercial' });
   const pin_hash = await bcrypt.hash(pin, 10);
 
   let atributos = {};
@@ -770,6 +777,25 @@ app.post('/api/restaurantes', auth, async (req, res) => {
     // creado e inaccesible, se deshace la creación.
     await supabase.from('restaurantes').delete().eq('id', data.id);
     return res.status(500).json({ error: errPin.message });
+  }
+
+  // La prueba interna y el período comercial viven en facturación, fuera de
+  // atributos públicos. El período cuenta el día de alta como primer día y el
+  // proceso nocturno suspende la carta al día siguiente de su fecha final.
+  if (es_prueba === true || diasPrueba !== null) {
+    const filaFacturacion = { restaurante_id: data.id, actualizado_at: new Date().toISOString() };
+    if (es_prueba === true) filaFacturacion.es_prueba = true;
+    if (diasPrueba !== null) {
+      const hasta = new Date(); hasta.setHours(0, 0, 0, 0);
+      hasta.setDate(hasta.getDate() + diasPrueba - 1);
+      filaFacturacion.prueba_gratuita_hasta = hasta.toISOString().slice(0, 10);
+    }
+    const { error: errFacturacion } = await supabase.from('restaurantes_facturacion')
+      .upsert(filaFacturacion, { onConflict: 'restaurante_id' });
+    if (errFacturacion) {
+      await supabase.from('restaurantes').delete().eq('id', data.id);
+      return res.status(500).json({ error: errFacturacion.message });
+    }
   }
   res.json(data);
 });

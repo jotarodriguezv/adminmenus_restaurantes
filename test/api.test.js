@@ -963,6 +963,31 @@ describe('POST /api/restaurantes · plan y modelo al crear', () => {
 		assert.equal(S.ultimaEscritura('restaurantes').atributos.importar_carta, true);
 	});
 
+	test('guarda una demo interna fuera de los atributos públicos', async () => {
+		conExito();
+		await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Demo', slug: 'demo-interna', pin: '1234', es_prueba: true }, tokenAdmin);
+		const fila = S.ultimaEscritura('restaurantes_facturacion');
+		assert.equal(fila.es_prueba, true);
+		assert.equal('prueba_gratuita_hasta' in fila, false);
+	});
+
+	test('una prueba comercial guarda una fecha final de uno a siete días', async () => {
+		conExito();
+		await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Comercial', slug: 'prueba-comercial', pin: '1234', es_prueba: false, dias_prueba_comercial: 5 }, tokenAdmin);
+		const fila = S.ultimaEscritura('restaurantes_facturacion');
+		assert.match(fila.prueba_gratuita_hasta, /^\d{4}-\d{2}-\d{2}$/);
+		assert.equal(fila.es_prueba, undefined);
+	});
+
+	test('rechaza los días fuera del período comercial ofrecido', async () => {
+		const r = await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'No válido', slug: 'prueba-invalida', pin: '1234', dias_prueba_comercial: 8 }, tokenAdmin);
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /1 a 7 días/);
+	});
+
 	test('un plan que no existe no se guarda, y sin ninguno de los dos el restaurante nace sin ellos', async () => {
 		conExito();
 		await S.pedir('POST', '/api/restaurantes',
