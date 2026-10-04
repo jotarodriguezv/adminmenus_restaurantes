@@ -387,3 +387,88 @@ describe('PATCH /api/restaurantes/:id · la sede de cada pantalla de TV', () => 
 		assert.equal(consultoSedes(), false);
 	});
 });
+
+describe('/api/promociones · el destacado por sede', () => {
+	const SEDE_PIE = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+	const PROMO = { restaurante_id: IDS.restaurante, imagen_url: 'https://x/p.jpg' };
+	const conPromos = ({ esDeEsteRestaurante = true, errorSedes = false } = {}) => conTabla(st => {
+		if (st.tabla === 'restaurantes') return { data: { atributos: { plan: 'pedidos' } }, error: null };
+		if (st.tabla === 'sedes') return errorSedes ? { data: null, error: { message: 'boom' } } : { data: esDeEsteRestaurante ? { id: SEDE_PIE } : null, error: null };
+		if (st.tabla === 'promociones' && st.opciones?.count) return { data: null, error: null, count: 0 };
+		if (st.tabla === 'promociones') return { data: { id: 'p1', restaurante_id: IDS.restaurante }, error: null };
+		return { data: null, error: null };
+	});
+	const consultaDeSedes = () => llamadas.filter(l => l.tabla === 'sedes');
+
+	test('se crea un destacado dirigido a una sede de este restaurante, y la consulta está acotada a él', async () => {
+		conPromos();
+		const r = await pedir('POST', '/api/promociones', { ...PROMO, sede_id: SEDE_PIE }, tokenCliente);
+		assert.equal(r.status, 200);
+		assert.equal(escrituras('promociones', 'insert')[0].payload[0].sede_id, SEDE_PIE);
+		const q = consultaDeSedes()[0];
+		assert.equal(q.filtros.id, SEDE_PIE);
+		assert.equal(q.filtros.restaurante_id, IDS.restaurante, 'sin esto valdría la sede de cualquier restaurante');
+	});
+
+	test('una sede de OTRO restaurante se rechaza y no se guarda nada', async () => {
+		conPromos({ esDeEsteRestaurante: false });
+		const r = await pedir('POST', '/api/promociones', { ...PROMO, sede_id: SEDE_PIE }, tokenCliente);
+		assert.equal(r.status, 400);
+		assert.match(r.body.error, /no es de este restaurante/);
+		assert.equal(escrituras('promociones', 'insert').length, 0);
+	});
+
+	test('una sede mal formada se rechaza sin consultar nada', async () => {
+		for (const sede_id of ['x', 12, {}, 'aaaa']) {
+			reiniciar(); conPromos();
+			const r = await pedir('POST', '/api/promociones', { ...PROMO, sede_id }, tokenCliente);
+			assert.equal(r.status, 400, JSON.stringify(sede_id));
+			assert.equal(consultaDeSedes().length, 0);
+		}
+	});
+
+	test('vacío o nulo es «todas las sedes» y no consulta nada', async () => {
+		for (const sede_id of [null, '']) {
+			reiniciar(); conPromos();
+			const r = await pedir('POST', '/api/promociones', { ...PROMO, sede_id }, tokenCliente);
+			assert.equal(r.status, 200);
+			assert.equal(escrituras('promociones', 'insert')[0].payload[0].sede_id, null);
+			assert.equal(consultaDeSedes().length, 0);
+		}
+	});
+
+	test('un destacado sin la clave no la escribe: los de siempre no cambian', async () => {
+		conPromos();
+		await pedir('POST', '/api/promociones', PROMO, tokenCliente);
+		assert.equal('sede_id' in escrituras('promociones', 'insert')[0].payload[0], false);
+	});
+
+	test('si no se puede comprobar la sede, 500 y nada guardado', async () => {
+		conPromos({ errorSedes: true });
+		const r = await pedir('POST', '/api/promociones', { ...PROMO, sede_id: SEDE_PIE }, tokenCliente);
+		assert.equal(r.status, 500);
+		assert.equal(escrituras('promociones', 'insert').length, 0);
+	});
+
+	test('al editar, la sede se comprueba contra el restaurante DEL destacado, no el que diga el cuerpo', async () => {
+		conPromos();
+		const r = await pedir('PATCH', '/api/promociones/p1', { sede_id: SEDE_PIE, restaurante_id: 'otro' }, tokenCliente);
+		assert.equal(r.status, 200);
+		assert.equal(consultaDeSedes()[0].filtros.restaurante_id, IDS.restaurante);
+		assert.equal(escrituras('promociones', 'update')[0].payload.sede_id, SEDE_PIE);
+	});
+
+	test('al editar, volver a «todas las sedes» es poner null', async () => {
+		conPromos();
+		await pedir('PATCH', '/api/promociones/p1', { sede_id: null }, tokenCliente);
+		assert.equal(escrituras('promociones', 'update')[0].payload.sede_id, null);
+		assert.equal(consultaDeSedes().length, 0);
+	});
+
+	test('al editar, una sede ajena se rechaza', async () => {
+		conPromos({ esDeEsteRestaurante: false });
+		const r = await pedir('PATCH', '/api/promociones/p1', { sede_id: SEDE_PIE }, tokenCliente);
+		assert.equal(r.status, 400);
+		assert.equal(escrituras('promociones', 'update').length, 0);
+	});
+});

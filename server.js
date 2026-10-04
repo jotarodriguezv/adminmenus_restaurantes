@@ -2412,9 +2412,26 @@ function promoDelCuerpo(body) {
       return { error: 'Solo se puede mostrar en las pantallas 1, 2 o 3' };
     fila.pantallas_tv = destinos;
   }
+  // La sede a la que va dirigido (sql/39): vacío = todas. Aquí solo la forma; que sea una sede
+  // de ESTE restaurante se comprueba en la ruta, que es quien sabe de qué restaurante hablamos.
+  if (body.sede_id !== undefined) {
+    if (body.sede_id === null || body.sede_id === '') fila.sede_id = null;
+    else if (typeof body.sede_id === 'string' && UUID_RE.test(body.sede_id)) fila.sede_id = body.sede_id;
+    else return { error: 'La sede del destacado no es válida' };
+  }
   if (body.orden !== undefined) fila.orden = Number.isInteger(body.orden) ? body.orden : 0;
   if (body.programacion !== undefined) fila.programacion = body.programacion || {};
   return fila;
+}
+
+// La sede de un destacado tiene que ser de este restaurante: el id lo manda el navegador y,
+// sin esta comprobación, se podría dirigir un destacado a la sede de otro restaurante
+// (que nunca lo vería salir, y que además ensuciaría la cascada de borrado ajena).
+async function errorDeLaSedeDelDestacado(restauranteId, sedeId) {
+  const { data, error } = await supabase.from('sedes').select('id')
+    .eq('id', sedeId).eq('restaurante_id', restauranteId).maybeSingle();
+  if (error) return { status: 500, error: 'No se pudo comprobar la sede' };
+  return data ? null : { status: 400, error: 'Esa sede no es de este restaurante' };
 }
 
 // Programar es de plan, igual que los horarios de categoría. Que un
@@ -2448,6 +2465,10 @@ app.post('/api/promociones', auth, async (req, res) => {
   if (malImagen) return res.status(400).json({ error: malImagen });
   const malProg = errorDeProgramacion(fila.programacion);
   if (malProg) return res.status(400).json({ error: malProg });
+  if (fila.sede_id) {
+    const malSede = await errorDeLaSedeDelDestacado(restaurante_id, fila.sede_id);
+    if (malSede) return res.status(malSede.status).json({ error: malSede.error });
+  }
 
   const { data: resto } = await supabase.from('restaurantes')
     .select('atributos').eq('id', restaurante_id).single();
@@ -2484,6 +2505,10 @@ app.patch('/api/promociones/:id', auth, async (req, res) => {
   if (fila.error) return res.status(400).json({ error: fila.error });
   // 'restaurante_id' no está en promoDelCuerpo, así que una promoción no se
   // puede mover al restaurante de otro mandándolo en el cuerpo.
+  if (fila.sede_id) {
+    const malSede = await errorDeLaSedeDelDestacado(actual.restaurante_id, fila.sede_id);
+    if (malSede) return res.status(malSede.status).json({ error: malSede.error });
+  }
   if (fila.imagen_url !== undefined) {
     const mal = errorDeImagen(fila.imagen_url);
     if (mal) return res.status(400).json({ error: mal });

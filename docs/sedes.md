@@ -405,12 +405,7 @@ menos una. Y el resumen de la pestaña TV («salen N destacados») ya cuenta sol
 pantalla, con la misma regla que `tv.html` (con destinos, solo en esos; sin destinos, solo
 en la 1).
 
-Esto cubre la **cartelera**. Queda abierto el destacado de la **carta** (el popup, `en_popup`):
-no tiene sede, así que sale igual en todas. Si un destacado lleva un precio u oferta de un
-local, hoy saldría también en el otro. Propuesta, sin hacer: `promociones.sede_id` opcional
-(vacío = todas las sedes) con `on delete cascade` —no `set null`: una promoción de una sede
-que se borra no puede pasar a valer para todas—, filtrado en `core/promociones.js` y en el
-formulario del destacado.
+Esto cubre la **cartelera**. El destacado de la **carta** (el popup) se resolvió después: §13.
 
 ### Orden de despliegue
 
@@ -418,3 +413,42 @@ Sin migraciones. La carta (`vmenus-app`, `tv.html`) y el panel son independiente
 una cartelera nueva con un panel viejo simplemente no tiene el selector (y las pantallas
 sin sede quedan en reposo); un panel nuevo con una cartelera vieja deja elegir la sede y la
 cartelera la ignora. Lo conveniente es desplegar los dos antes de asignar sedes.
+
+## 13. El destacado de la carta por sede (05/10/2026)
+
+Un destacado puede ser de **una sede o de todas**. Hasta aquí, el del popup de la carta (`en_popup`)
+salía igual en todas: si llevaba el precio o la oferta de un local, el otro lo veía también.
+
+- **Dato (`sql/39_promociones_por_sede.sql`):** `promociones.sede_id`, opcional. **Vacío = todas las
+  sedes**, que es lo que son todos los destacados que existen: ninguno cambia. Aditiva.
+- **`on delete cascade`, no `set null`** —al revés que `reservas.sede_id`, a propósito—: una reserva
+  sobrevive a su sede; un destacado dirigido a una sede que se borra **no puede pasar a valer para
+  todas** (el «2x1 en Bucaramanga» saldría en Piedecuesta justo al borrar Bucaramanga). Quien solo
+  quiera quitar una sede un tiempo la apaga, que no borra nada.
+- **Dónde se aplica:** en el popup de la carta (`core/promociones.js`, `deLaSede`) y en la cartelera
+  (`tv.html`, `promocionesDeAhora`), con la misma regla y un juego de casos compartido
+  (`test/casos-promo-sede.json` en `vmenus-app`). Es la **tercera** regla de «qué destacado sale»
+  que hay que mantener igual en dos sitios; las otras dos son la programación y las pantallas.
+- **El filtro de sede va ANTES de los niveles** (fondo y programada), igual que el de superficie. Si una
+  promoción programada para Bucaramanga compitiera en Piedecuesta, le quitaría el turno a la de fondo
+  de Piedecuesta sin enseñarse nunca.
+- **Un destacado atado a una sede no sale donde no hay sede:** un restaurante sin sedes, o con el
+  interruptor «Varias sedes» apagado, **no lo enseña**. Está dirigido, y enseñarlo a todos sería el
+  error que esto evita. **Apagar «Varias sedes» esconde esos destacados, no los borra**: al volver a
+  encenderlo reaparecen. Es lo único sorprendente del diseño.
+- **Panel:** en la tarjeta del destacado, «¿En qué sede sale?» (por defecto, «En todas las sedes»),
+  solo con sedes encendidas y al menos una activa. Con una sede elegida, si alguna de las **pantallas
+  de TV** marcadas es de **otra** sede, la tarjeta lo avisa («TV 1 · Piedecuesta es de otra sede:
+  allí no saldrá este destacado»): son dos filtros que se multiplican y quien lo prepara tiene que
+  enterarse antes de preguntar por qué no se ve. El resumen de la pestaña TV cuenta solo los
+  destacados de la sede de **esa** pantalla.
+- **Servidor:** `sede_id` es un UUID o vacío, y tiene que ser **una sede de este restaurante** (se
+  comprueba contra el restaurante del destacado, no contra lo que diga el cuerpo). Sin la clave,
+  el destacado no la escribe.
+
+### Orden de despliegue
+
+1. **`sql/39`** — aditivo. La cartelera nueva pide `sede_id` **por nombre**: sin la columna esa
+   petición da 400, y la cartelera trata las promociones como «hoy no hay» (no se cae), pero no hay
+   por qué pasar por ahí.
+2. La carta (`vmenus-app`) y el panel, en cualquier orden entre sí.
