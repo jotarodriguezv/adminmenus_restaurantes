@@ -16,6 +16,7 @@ const VALORES_BIENVENIDA = {
   intro_mapa_modo: 'mapa', intro_mapa_boton_fondo: '#17120b', intro_mapa_boton_color: '#ffffff', intro_mapa_boton_fuente: '',
   intro_tarjeta_fondo: '#17120b', intro_tarjeta_borde: '#ffffff', intro_tarjeta_borde_grosor: 1, intro_textos: {}
 };
+let sedePreviaElegida = 0;
 
 function campoBienvenida(id) { return document.getElementById(id); }
 function valorBienvenida(id, defecto = '') { return campoBienvenida(id)?.value ?? defecto; }
@@ -151,6 +152,42 @@ async function resolverFuenteMapaBienvenida(url) {
   } catch { return ''; }
 }
 
+function sedesGuardadasBienvenida(at = {}) {
+  if (Array.isArray(at.intro_sedes) && at.intro_sedes.length) return at.intro_sedes;
+  return at.direccion || at.intro_mapa_url ? [{ nombre: '', direccion: at.direccion || '', mapa_url: at.intro_mapa_url || '' }] : [];
+}
+
+function recolectarSedesBienvenida() {
+  return [...document.querySelectorAll('#apIntroSedes [data-sede]')].map((fila, indice) => ({
+    nombre: fila.querySelector('[data-sede-nombre]').value.trim() || `Sede ${indice + 1}`,
+    direccion: fila.querySelector('[data-sede-direccion]').value.trim(),
+    mapa_url: fila.querySelector('[data-sede-mapa]').value.trim()
+  })).filter(sede => sede.direccion || sede.mapa_url || sede.nombre);
+}
+
+function pintarSedesBienvenida(sedes = []) {
+  const zona = campoBienvenida('apIntroSedes'); if (!zona) return;
+  zona.replaceChildren();
+  sedes.forEach((sede, indice) => {
+    const fila = document.createElement('div'); fila.className = 'bienvenida-sede-config'; fila.dataset.sede = String(indice);
+    const titulo = document.createElement('strong'); titulo.textContent = sede.nombre || `Sede ${indice + 1}`; fila.appendChild(titulo);
+    const crearCampo = (etiqueta, dato, tipo, valor, marcador) => {
+      const grupo = document.createElement('label'); grupo.textContent = etiqueta;
+      const input = document.createElement('input'); input.type = tipo; input.className = 'form-input'; input.dataset[dato] = ''; input.value = valor || ''; input.placeholder = marcador;
+      input.addEventListener('input', () => { titulo.textContent = fila.querySelector('[data-sede-nombre]').value.trim() || `Sede ${indice + 1}`; actualizarVistaPreviaBienvenida(); }); grupo.appendChild(input); fila.appendChild(grupo);
+    };
+    crearCampo('Nombre de la sede', 'sedeNombre', 'text', sede.nombre, `Sede ${indice + 1}`);
+    crearCampo('Dirección', 'sedeDireccion', 'text', sede.direccion, 'Cra 7 # 12-34, Bogotá');
+    crearCampo('Enlace de Google Maps', 'sedeMapa', 'url', sede.mapa_url, 'https://maps.google.com/...');
+    const acciones = document.createElement('div'); acciones.className = 'bienvenida-sede-acciones';
+    [['↑ Subir', -1], ['↓ Bajar', 1]].forEach(([texto, cambio]) => { const mover = document.createElement('button'); mover.type = 'button'; mover.className = 'btn-sm'; mover.textContent = texto; mover.disabled = indice + cambio < 0 || indice + cambio >= sedes.length; mover.addEventListener('click', () => moverSedeBienvenida(indice, cambio)); acciones.appendChild(mover); });
+    const quitar = document.createElement('button'); quitar.type = 'button'; quitar.className = 'btn-danger'; quitar.textContent = 'Quitar sede'; quitar.addEventListener('click', () => { fila.remove(); actualizarVistaPreviaBienvenida(); }); acciones.appendChild(quitar); fila.appendChild(acciones); zona.appendChild(fila);
+  });
+}
+
+function agregarSedeBienvenida() { const sedes = recolectarSedesBienvenida(); sedes.push({ nombre: `Sede ${sedes.length + 1}`, direccion: '', mapa_url: '' }); pintarSedesBienvenida(sedes); actualizarVistaPreviaBienvenida(); }
+function moverSedeBienvenida(indice, cambio) { const sedes = recolectarSedesBienvenida(); const destino = indice + cambio; if (destino < 0 || destino >= sedes.length) return; [sedes[indice], sedes[destino]] = [sedes[destino], sedes[indice]]; pintarSedesBienvenida(sedes); actualizarVistaPreviaBienvenida(); }
+
 function recolectarTextosBienvenida() {
   const salida = {};
   document.querySelectorAll('#apIntroTextosControles [data-texto]').forEach(el => {
@@ -184,7 +221,7 @@ function ajustarInterruptoresBienvenida() {
     apIntroSocialInstagram: !!textoDelNegocio(at.social_instagram),
     apIntroSocialFacebook: !!textoDelNegocio(at.social_facebook),
     apIntroSocialTiktok: !!textoDelNegocio(at.social_tiktok),
-    apIntroMapaActivo: hayDatoDelNegocio('mapa', at),
+    apIntroMapaActivo: hayDatoDelNegocio('mapa', at) || (Array.isArray(at.intro_sedes) && at.intro_sedes.some(sede => textoDelNegocio(sede?.mapa_url))),
     apIntroResenaActivo: hayDatoDelNegocio('resena', at),
     apIntroHorarioActivo: hayDatoDelNegocio('horario', at),
     apIntroCorreoActivo: hayDatoDelNegocio('correo', at),
@@ -200,6 +237,7 @@ function ajustarInterruptoresBienvenida() {
 
 function valoresBienvenida() {
   const imagen = campoBienvenida('apIntroImagenPreview');
+  const sedes = recolectarSedesBienvenida();
   return {
     intro_activo: campoBienvenida('apIntroActivo').checked,
     intro_nombre: nombreDeBienvenidaParaGuardar(), intro_eslogan: valorBienvenida('apIntroEslogan').trim(),
@@ -218,7 +256,7 @@ function valoresBienvenida() {
     intro_reservas_activo: campoBienvenida('apIntroReservasActivo').checked, intro_reservas_texto: valorBienvenida('apIntroReservasTexto').trim(),
     intro_social_icono_color: valorBienvenida('apIntroSocialIconoColor'), intro_social_fondo: valorBienvenida('apIntroSocialFondo'),
     intro_social_borde: valorBienvenida('apIntroSocialBorde'), intro_social_tamano: Number(valorBienvenida('apIntroSocialTamano')),
-    intro_mapa_activo: campoBienvenida('apIntroMapaActivo').checked, intro_mapa_modo: valorBienvenida('apIntroMapaModo'),
+    intro_mapa_activo: campoBienvenida('apIntroMapaActivo').checked, intro_mapa_modo: valorBienvenida('apIntroMapaModo'), intro_sedes: sedes,
     intro_mapa_boton_fondo: valorBienvenida('apIntroMapaBotonFondo'), intro_mapa_boton_color: valorBienvenida('apIntroMapaBotonColor'), intro_mapa_boton_fuente: valorBienvenida('apIntroMapaBotonFuente')
   };
 }
@@ -390,9 +428,13 @@ function actualizarVistaPreviaBienvenida() {
   campoBienvenida('apIntroOverlayOpacidadValor').textContent = `${datos.intro_overlay_opacidad}%`;
   campoBienvenida('apIntroTarjetaBordeGrosorValor').textContent = `${datos.intro_tarjeta_borde_grosor} px`;
   campoBienvenida('apIntroSocialTamanoValor').textContent = `${datos.intro_social_tamano} px`;
+  const sedes = datos.intro_sedes.length ? datos.intro_sedes : (datos.direccion || datos.intro_mapa_url ? [{ nombre: '', direccion: datos.direccion, mapa_url: datos.intro_mapa_url }] : []);
+  sedePreviaElegida = Math.min(sedePreviaElegida, Math.max(0, sedes.length - 1)); const sede = sedes[sedePreviaElegida] || {};
+  const selectorSedes = campoBienvenida('apIntroPreviewSedes'); selectorSedes.replaceChildren(); selectorSedes.hidden = sedes.length < 2;
+  if (sedes.length > 1) sedes.forEach((s, indice) => { const botonSede = document.createElement('button'); botonSede.type = 'button'; botonSede.textContent = s.nombre || `Sede ${indice + 1}`; botonSede.className = indice === sedePreviaElegida ? 'active' : ''; botonSede.onclick = () => { sedePreviaElegida = indice; actualizarVistaPreviaBienvenida(); }; selectorSedes.appendChild(botonSede); });
   const r = state.restaurante || {}; aplicarTextoPrevisualizacion('nombre', datos.intro_nombre || r.nombre || 'Tu restaurante');
   aplicarTextoPrevisualizacion('eslogan', datos.intro_eslogan || 'Hecho con cariño'); aplicarTextoPrevisualizacion('adicional', datos.intro_texto_adicional);
-  aplicarTextoPrevisualizacion('cta', datos.intro_cta); aplicarTextoPrevisualizacion('direccion', datos.direccion);
+  aplicarTextoPrevisualizacion('cta', datos.intro_cta); aplicarTextoPrevisualizacion('direccion', sede.direccion || datos.direccion);
   aplicarTextoPrevisualizacion('horario', datos.intro_horario_activo ? datos.horario_texto : '');
   aplicarTextoPrevisualizacion('correo', datos.intro_correo_activo && datos.correo ? `✉ ${datos.correo}` : ''); const logo = campoBienvenida('apIntroPreviewLogo');
   logo.replaceChildren();
@@ -413,12 +455,13 @@ function actualizarVistaPreviaBienvenida() {
   social.style.border = `1px solid ${datos.intro_social_borde}`; social.style.fontSize = `${Math.round(datos.intro_social_tamano * .45)}px`; social.style.padding = `7px ${datos.intro_social_estilo === 'pildora' ? 14 : 9}px`;
   social.style.borderRadius = datos.intro_social_estilo === 'circular' ? '999px' : datos.intro_social_estilo === 'redondeado' ? '10px' : '999px';
   const mapa = campoBienvenida('apIntroPreviewMapa'); mapa.replaceChildren();
-  if (datos.intro_mapa_activo && datos.intro_mapa_url) {
+  if (datos.intro_mapa_activo && (sede.mapa_url || datos.intro_mapa_url)) {
+    const mapaUrl = sede.mapa_url || datos.intro_mapa_url;
     if (datos.intro_mapa_modo !== 'boton') {
-      const fuente = fuenteMapaBienvenida(datos.intro_mapa_url);
+      const fuente = fuenteMapaBienvenida(mapaUrl);
       if (fuente) { const iframe = document.createElement('iframe'); iframe.title = 'Vista previa de ubicación'; iframe.loading = 'lazy'; iframe.src = fuente; mapa.appendChild(iframe); }
-      else resolverFuenteMapaBienvenida(datos.intro_mapa_url).then(resuelta => {
-        if (!resuelta || mapaDelNegocio(state.restaurante?.atributos) !== datos.intro_mapa_url) return;
+      else resolverFuenteMapaBienvenida(mapaUrl).then(resuelta => {
+        if (!resuelta || sedes[sedePreviaElegida]?.mapa_url !== mapaUrl) return;
         const iframe = document.createElement('iframe'); iframe.title = 'Vista previa de ubicación'; iframe.loading = 'lazy'; iframe.src = resuelta;
         const boton = mapa.querySelector('span'); if (boton) boton.before(iframe); else mapa.appendChild(iframe);
       });
@@ -441,6 +484,7 @@ function renderBienvenida(at = {}) {
   const datos = { ...VALORES_BIENVENIDA, ...at }; pintarControlesTextoBienvenida(datos.intro_textos || {});
   const poner = (id, valor) => { const el = campoBienvenida(id); if (el) el.value = valor ?? ''; };
   const marcar = (id, valor) => { const el = campoBienvenida(id); if (el) el.checked = !!valor; };
+  const sedes = sedesGuardadasBienvenida({ ...datos, ...datosDelNegocioParaLaVista() }); pintarSedesBienvenida(sedes);
   marcar('apIntroActivo', datos.intro_activo); poner('apIntroNombre', datos.intro_nombre || state.restaurante?.nombre); poner('apIntroEslogan', datos.intro_eslogan); poner('apIntroTextoAdicional', datos.intro_texto_adicional); poner('apIntroCta', datos.intro_cta);
   poner('apIntroFondoColor', datos.intro_fondo_color); poner('apIntroFondoColorHex', datos.intro_fondo_color); marcar('apIntroOverlayActivo', datos.intro_overlay_activo); poner('apIntroOverlayColor', datos.intro_overlay_color); poner('apIntroOverlayColorHex', datos.intro_overlay_color); poner('apIntroOverlayOpacidad', datos.intro_overlay_opacidad); poner('apIntroImagenAjuste', datos.intro_imagen_ajuste);
   poner('apIntroTarjetaFondo', datos.intro_tarjeta_fondo); poner('apIntroTarjetaBorde', datos.intro_tarjeta_borde); poner('apIntroTarjetaBordeGrosor', datos.intro_tarjeta_borde_grosor);
