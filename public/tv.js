@@ -388,7 +388,26 @@ function tvAlternarMostrarPersonas() {
   filaFormato.style.opacity = on ? '1' : '.5';
 }
 
+// El interruptor es de la pantalla que se está mirando, y el texto lo dice con su nombre y su
+// estado: «Pantalla Bucaramanga» encendida / apagada. Antes decía «Encender la cartelera» en
+// las tres, y con tres pantallas no había forma de saber cuál se apagaba. El estado va en el
+// texto (no solo en la posición del interruptor) y también en el nombre accesible, que dice
+// la acción que haría: «Apagar la cartelera «X»».
+function tvPintarEtiquetaActiva() {
+  const caja = document.getElementById('tvActiva');
+  const texto = document.getElementById('tvActivaTexto');
+  if (!caja || !texto) return;
+  const on = caja.checked;
+  const nombre = (document.getElementById('tvNombre')?.value || '').trim() || tvNombrePorDefecto(tvPantallaActual);
+  texto.textContent = `«${nombre}» ${on ? 'encendida' : 'apagada'}`;
+  caja.setAttribute('aria-label', `${on ? 'Apagar' : 'Encender'} la cartelera «${nombre}»`);
+  const ayuda = document.getElementById('tvActivaAyuda');
+  // Solo hace falta aclararlo cuando hay más de una pantalla de la que dudar; y se aplica al guardar.
+  if (ayuda) ayuda.textContent = `Solo esta pantalla (la ${tvPantallaActual} de 3): las otras no cambian. Se aplica al guardar.`;
+}
+
 function tvAlternarActiva() {
+  tvPintarEtiquetaActiva();
   const on = document.getElementById('tvActiva').checked;
   document.getElementById('tvCuerpo').style.display = on ? 'block' : 'none';
   document.getElementById('tvAjustes').style.display = on ? 'block' : 'none';
