@@ -189,7 +189,7 @@ describe('el botón de WhatsApp de Ajustes no se deja encender sin número', () 
 });
 
 // ═══════════════════════════════════════════════════════════════
-describe('la dirección, junto a la ubicación', () => {
+describe('sedes y direcciones en la bienvenida', () => {
 	const html = leer('index.html');
 	const seccion = (titulo) => {
 		const i = html.indexOf(`<summary>${titulo}</summary>`);
@@ -197,21 +197,21 @@ describe('la dirección, junto a la ubicación', () => {
 		return html.slice(i, html.indexOf('</details>', i));
 	};
 
-	test('la sección se llama «Dirección y ubicación» y lleva la dirección arriba', () => {
-		const s = seccion('Dirección y ubicación');
-		assert.ok(s.includes('id="apDireccionTexto"'));
-		assert.ok(s.indexOf('apDireccionTexto') < s.indexOf('apIntroMapaActivo'), 'la dirección, antes del interruptor de la ubicación');
-		assert.match(s, /irADatosDelNegocio\('ajNegocioDireccion'\)/);
+	test('la sección permite gestionar las sedes antes de configurar cómo se muestra el mapa', () => {
+		const s = seccion('Sedes y direcciones');
+		assert.ok(s.includes('id="apIntroSedes"'));
+		assert.match(s, /agregarSedeBienvenida\(\)/);
+		assert.ok(s.indexOf('apIntroSedes') < s.indexOf('apIntroMapaActivo'), 'las sedes van antes del interruptor de ubicación');
 	});
 
-	test('ya no queda suelta después de las reservas', () => {
+	test('la gestión de sedes no queda suelta después de las reservas', () => {
 		const despues = html.slice(html.indexOf('<summary>Botón «Reservar mesa»</summary>'));
 		const hasta = despues.slice(0, despues.indexOf('bienvenida-reset'));
-		assert.ok(!hasta.includes('apDireccionTexto'), 'sigue suelta entre las reservas y «Restaurar»');
+		assert.ok(!hasta.includes('apIntroSedes'), 'sigue suelta entre las reservas y «Restaurar»');
 	});
 
-	test('la dirección está en la pantalla una sola vez', () => {
-		assert.equal((html.match(/id="apDireccionTexto"/g) || []).length, 1);
+	test('hay un solo contenedor para las sedes', () => {
+		assert.equal((html.match(/id="apIntroSedes"/g) || []).length, 1);
 	});
 
 	test('ya no existe una sección llamada solo «Ubicación en el menú»', () => {

@@ -128,13 +128,12 @@ describe('la bienvenida toma lo del negocio (paso 2)', () => {
 		assert.match(html, /id="ajNegocioDireccion"[^>]*maxlength="120"/);
 	});
 
-	test('el formulario de la bienvenida ya NO los pide: dice cuál es cada uno y lleva a donde se cambia', () => {
+	test('la bienvenida conserva los datos generales y permite configurar sus propias sedes', () => {
 		for (const id of ['apDireccion', 'apIntroMapaUrl', 'apIntroResenaUrl'])
 			assert.ok(!html.includes(`id="${id}"`), `${id} no debería seguir en la bienvenida`);
-		for (const id of ['apDireccionTexto', 'apIntroMapaUrlTexto', 'apIntroResenaUrlTexto'])
-			assert.ok(html.includes(`id="${id}"`), id);
-		// Los tres de siempre (dirección, mapa, reseñas) y, desde el paso 4, el horario y el correo.
-		assert.equal((html.match(/irADatosDelNegocio\('/g) || []).length, 5, 'un enlace por dato');
+		assert.ok(html.includes('id="apIntroSedes"'), 'las sedes se configuran en Bienvenida');
+		assert.ok(html.includes('id="apIntroResenaUrlTexto"'), 'las reseñas siguen siendo un dato general');
+		assert.equal((html.match(/irADatosDelNegocio\('/g) || []).length, 3, 'reseñas, horario y correo siguen llevando a sus datos generales');
 	});
 
 	test('los enlaces de «Cambiarlo» apuntan a campos que existen', () => {
