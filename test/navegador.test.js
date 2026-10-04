@@ -1622,14 +1622,14 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 		// mismo patrón de los demás textos de ayuda de la ficha.
 		for (const nav of ['video', 'vertical']) {
 			const mapa = conModelo(nav);
-			assert.equal(mapa.labelImagen.textContent, 'Imagen', `en ${nav}`);
+			assert.equal(mapa.labelImagen.textContent, 'Imagen principal', `en ${nav}`);
 			assert.match(mapa.ayudaImagen.textContent, /mientras el producto no tenga video/, `en ${nav}`);
 		}
 	});
 
 	test('en los demás la etiqueta se queda limpia', () => {
 		const mapa = conModelo('topnav');
-		assert.equal(mapa.labelImagen.textContent, 'Imagen');
+		assert.equal(mapa.labelImagen.textContent, 'Imagen principal');
 		assert.doesNotMatch(mapa.ayudaImagen.textContent, /video/);
 	});
 
@@ -1637,7 +1637,7 @@ describe('ajustarFichaAlModelo · cada modelo enseña lo suyo', () => {
 		// atributos.nav vacío es 'topnav' por defecto en el menú público.
 		const mapa = conModelo(undefined);
 		assert.equal(mapa.extraImgsGroup.style.display, '');
-		assert.equal(mapa.labelImagen.textContent, 'Imagen');
+		assert.equal(mapa.labelImagen.textContent, 'Imagen principal');
 	});
 
 	test('la proporción prometida es la que el worker va a cortar', () => {
