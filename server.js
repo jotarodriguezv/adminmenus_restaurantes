@@ -920,7 +920,7 @@ const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 's
   'intro_resena_activo', 'intro_resena_url', 'intro_resena_texto', 'intro_horario_activo', 'intro_correo_activo',
   'intro_reservas_activo', 'intro_reservas_texto',
   'intro_social_icono_color', 'intro_social_fondo', 'intro_social_borde',
-  'intro_social_tamano', 'intro_mapa_activo', 'intro_mapa_url', 'intro_mapa_modo', 'intro_mapa_boton_fondo', 'intro_mapa_boton_color', 'intro_mapa_boton_fuente', 'intro_tarjeta_fondo', 'intro_tarjeta_borde', 'intro_tarjeta_borde_grosor'];
+  'intro_social_tamano', 'intro_mapa_activo', 'intro_mapa_url', 'intro_mapa_modo', 'intro_mapa_boton_fondo', 'intro_mapa_boton_color', 'intro_mapa_boton_fuente', 'intro_tarjeta_fondo', 'intro_tarjeta_borde', 'intro_tarjeta_borde_grosor', 'intro_sedes'];
 
 // ── EL MODELO SEGÚN EL PLAN, PARA UN CLIENTE ──────────────────
 // Duplica MODELOS de vmenus-app/core/planes.js (y el PLANES de este mismo
@@ -1099,6 +1099,20 @@ function limpiarIntroTextos(valor) {
   return limpios;
 }
 
+function limpiarIntroSedes(valor) {
+  if (!Array.isArray(valor)) return [];
+  if (valor.length > 12) throw new Error('Puedes agregar hasta 12 sedes');
+  return valor.map((origen, indice) => {
+    const nombre = String(origen?.nombre ?? '').trim().slice(0, 80);
+    const direccion = String(origen?.direccion ?? '').trim().slice(0, DIRECCION_MAX);
+    const mapa_url = String(origen?.mapa_url ?? '').trim();
+    if (!nombre || !direccion || !mapa_url) throw new Error(`Completa nombre, dirección y enlace de Google Maps para la sede ${indice + 1}`);
+    let destino; try { destino = new URL(mapa_url); } catch { destino = null; }
+    if (!destino || destino.protocol !== 'https:' || !/(^|\.)google\.[a-z.]+$/.test(destino.hostname) && !/(^|\.)goo\.gl$/.test(destino.hostname)) throw new Error(`El enlace de la sede ${indice + 1} debe ser seguro y de Google Maps`);
+    return { nombre, direccion, mapa_url };
+  });
+}
+
 function validarIntro(atributos) {
   if ('intro_activo' in atributos) atributos.intro_activo = atributos.intro_activo === true;
   if ('intro_overlay_activo' in atributos) atributos.intro_overlay_activo = atributos.intro_overlay_activo === true;
@@ -1221,6 +1235,10 @@ function validarIntro(atributos) {
     return 'Agrega el enlace de reseñas de Google para encender el botón';
   if ('intro_mapa_modo' in atributos && !INTRO_MAPA_MODOS.includes(atributos.intro_mapa_modo))
     return 'La forma de mostrar la ubicación no es válida';
+  if ('intro_sedes' in atributos) {
+    try { atributos.intro_sedes = limpiarIntroSedes(atributos.intro_sedes); }
+    catch (error) { return error.message; }
+  }
   return null;
 }
 
