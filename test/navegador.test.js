@@ -9106,8 +9106,10 @@ describe('la pestaña Superadmin: qué se lee primero', () => {
 		// 7 desde el 27/09/2026: el logo, la imagen de fondo, los colores, los
 		// de superficie, el color de fondo, el modelo de página y la tipografía
 		// se mudaron a la pestaña Apariencia (siete menos que las 14 de antes).
-		assert.equal(orden.length, 7);
-		assert.equal(new Set(orden).size, 7, 'ninguna repetida');
+		// 8 desde el 04/10/2026: «Varias sedes», el interruptor del superadmin.
+		assert.equal(orden.length, 8);
+		assert.equal(new Set(orden).size, 8, 'ninguna repetida');
+		assert.ok(orden.includes('Varias sedes'));
 	});
 
 	test('el botón de guardar ya no se llama «apariencia»', () => {
@@ -9597,6 +9599,47 @@ describe('Inicio: qué pide una acción y qué tiene encendido la carta', () => 
 		const f = [...ctx.funcionesDeInicio({ promociones: [{ activa: true, en_popup: false, en_tv: true }], atributos: {}, plan: PLAN })]
 			.find(x => x.clave === 'destacados');
 		assert.equal(f.encendido, true);
+	});
+
+	// 04/10/2026 (docs/sedes.md): una carta con sedes se ve distinta desde la primera
+	// pantalla, y el restaurante tiene que enterarse en su resumen.
+	describe('la fila de sedes', () => {
+		const sedesDe = (atributos, sedes) => [...reglas().funcionesDeInicio({ atributos, plan: PLAN, sedes })]
+			.find(f => f.clave === 'sedes');
+
+		test('un restaurante sin el interruptor no la ve: no le diría nada', () => {
+			assert.equal(sedesDe({}, []), undefined);
+			assert.equal(sedesDe({ con_sedes: false }, [{ nombre: 'A', activa: true }]), undefined);
+			assert.equal(sedesDe({ con_sedes: 'true' }, []), undefined, 'solo el booleano de verdad la enciende');
+		});
+
+		test('con dos sedes activas dice cuántas y cuáles, y que la carta pregunta', () => {
+			const f = sedesDe({ con_sedes: true }, [{ nombre: 'Piedecuesta', activa: true }, { nombre: 'Bucaramanga', activa: true }]);
+			assert.equal(f.encendido, true);
+			assert.match(f.detalle, /2 sedes activas: Piedecuesta, Bucaramanga/);
+			assert.match(f.detalle, /pregunta en cuál/);
+			assert.equal(f.tab, 'sedes');
+		});
+
+		test('una sede apagada no cuenta', () => {
+			const f = sedesDe({ con_sedes: true }, [{ nombre: 'A', activa: true }, { nombre: 'B', activa: false }]);
+			assert.match(f.detalle, /1 sede activa: A\./);
+			assert.doesNotMatch(f.detalle, /B/);
+		});
+
+		test('encendido el interruptor y ninguna sede: lo dice, y no promete selector', () => {
+			for (const lista of [[], [{ nombre: 'A', activa: false }]]) {
+				const f = sedesDe({ con_sedes: true }, lista);
+				assert.equal(f.encendido, false);
+				assert.match(f.detalle, /ninguna sede activa/);
+			}
+		});
+
+		test('mientras no se saben las sedes, no afirma nada', () => {
+			const f = sedesDe({ con_sedes: true }, null);
+			assert.equal(f.encendido, false);
+			assert.match(f.detalle, /Revisando/);
+		});
 	});
 });
 

@@ -538,6 +538,20 @@
 					</div>
 
 					<div class="section-card">
+						<div class="section-title">Varias sedes</div>
+						<div class="form-check" style="margin-bottom:10px">
+							<label class="toggle"><input type="checkbox" id="apSedes"><span class="toggle-slider"></span></label>
+							<span style="font-size:13px;color:var(--text-muted)">Este restaurante tiene varias sedes</span>
+						</div>
+						<div style="font-size:11px;color:var(--text-dim);line-height:1.6;">
+							Enciende la pestaña <strong>Sedes</strong>, donde creas cada local y le pones
+							sus precios, y hace que la carta pregunte en qué sede está el cliente. Apagado,
+							la carta ignora las sedes —sin borrarlas— y se ve la general.
+							Solo tú lo ves y solo tú lo puedes cambiar.
+						</div>
+					</div>
+
+					<div class="section-card">
 						<div class="section-title">Importar la carta</div>
 						<div class="form-check" style="margin-bottom:10px">
 							<label class="toggle"><input type="checkbox" id="apImportar"><span class="toggle-slider"></span></label>
@@ -8339,6 +8353,8 @@ function recolectarApariencia() {
       // Va aquí y no en su propio botón porque es una capacidad del
       // restaurante, como el plan, y se concede en el mismo sitio.
       importar_carta: document.getElementById('apImportar').checked,
+      // Igual: lo concede el superadmin. Ver docs/sedes.md.
+      con_sedes: document.getElementById('apSedes').checked,
       url_modo: document.getElementById('apUrlModo').value,
       zona_horaria: document.getElementById('apZonaHoraria').value,
       portada_activa: document.getElementById('apPortadaActiva').checked,
@@ -8435,6 +8451,8 @@ function renderPlan() {
   // concede el superadmin, restaurante por restaurante.
   const imp = document.getElementById('apImportar');
   if (imp) imp.checked = !!state.restaurante?.atributos?.importar_carta;
+  const sed = document.getElementById('apSedes');
+  if (sed) sed.checked = state.restaurante?.atributos?.con_sedes === true;
 }
 
 // Qué pestañas tienen sentido con la configuración de ahora mismo.

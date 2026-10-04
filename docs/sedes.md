@@ -61,16 +61,39 @@ Con **una sola sede** no se pregunta nada: se entra directo a ella.
 Un slug de sede no puede ser `tv`: nginx sirve `/<restaurante>/tv` como la
 cartelera antes de que la carta lo vea.
 
-## 4. La marca `atributos.con_sedes`
+## 4. El interruptor `atributos.con_sedes` (Superadmin → Varias sedes)
 
-La carta solo pide `sedes` si el restaurante tiene `con_sedes: true`. La pone el
-servidor al crear la primera sede y la quita al borrar la última. Es la que hace
-que (a) ningún restaurante existente pague una petición de más y (b) la carta no
-dependa de que las tablas existan.
+Lo enciende **el superadmin**, restaurante por restaurante, en la pestaña
+Superadmin (tarjeta «Varias sedes», junto a «Importar la carta»). Es el que decide
+si un restaurante *tiene* sedes. Hasta el 04/10/2026 se encendía solo al crear la
+primera sede y se apagaba al borrar la última; se cambió porque el superadmin tiene
+que poder **activarlas y desactivarlas** sin tocar los datos.
 
-**No está en `ATRIBUTOS_CLIENTE_PERMITIDOS`**: un cliente no puede encenderla ni
-apagarla desde Ajustes. El PATCH de `atributos` se funde, así que guardar
-Apariencia no la pisa.
+Lo que hace:
+
+- **Encendido:** aparece la pestaña **Sedes** (para el superadmin y para el dueño),
+  se pueden crear sedes, la carta las lee y pregunta en cuál está el cliente, y
+  Inicio dice cuántas sedes activas tiene la carta.
+- **Apagado:** la pestaña desaparece, `POST /api/sedes` contesta 409, y la carta
+  **ignora** las sedes y se ve la general. Las sedes y sus precios **no se borran**:
+  encenderlo otra vez lo devuelve todo como estaba.
+- Crear o borrar sedes **no lo mueve**. Borrar la última deja el interruptor
+  encendido (la carta se ve como la de un solo local hasta que haya otra).
+
+Es también lo que hace que la carta no pida `sedes` a nadie más: un restaurante sin
+el interruptor no paga una petición de más ni depende de que las tablas existan.
+
+**No está en `ATRIBUTOS_CLIENTE_PERMITIDOS`**: un cliente no puede encenderlo ni
+apagarlo desde Ajustes. El PATCH de `atributos` se funde, así que guardar Apariencia
+no lo pisa, y el servidor lo fuerza a booleano (`=== true`).
+
+### Inicio avisa
+
+Una carta con sedes se ve distinta de una de un solo local desde su primera pantalla
+(selector, precios propios), así que el resumen de Inicio lleva una fila **Varias
+sedes** —solo si el interruptor está encendido— con las sedes activas por nombre y
+el aviso de que la carta pregunta en cuál está el cliente. La fila lleva a la
+pestaña Sedes.
 
 ## 5. Quién puede qué
 
@@ -96,6 +119,8 @@ eso no la hace el cliente solo. Ajustar precios es el trabajo de todos los días
 - **`PUT /api/productos-sedes` es por lote** y borra las filas que no cambian
   nada: la tabla solo guarda excepciones. Una carta de 75 platos se carga de una
   vez; 75 peticiones sueltas dejan la sede a medias si una falla.
+- **Encender las sedes es de superadmin** (§4): crear una sede con el interruptor
+  apagado se rechaza, para no dejar una sede que nadie ve.
 - **Apagar vs. borrar:** borrar una sede se lleva sus precios (`on delete
   cascade`). Apagarla (`activa = false`) los conserva. El panel lo dice al pedir
   confirmación.
@@ -122,7 +147,7 @@ algo que no existe (PostgREST responde 400).
 - **Estadísticas por sede.** Hoy una visita cuenta para el restaurante.
 - **Reservas por sede.** La reserva no sabe a qué sede va.
 - **Televisor por sede.** `tv.html` no entiende la sede, y la ruta
-  `/<restaurante>/<sede>/tv` no la sirve nginx.
+  `/<restaurante>/<sede>/tv` no la sirve nginx. Propuesta y problema de precios en §9.
 - **QR por sede.** La pestaña QR genera el del restaurante; el de cada sede se
   hace hoy con el enlace que enseña la pestaña Sedes.
 - **Ofertas por sede.**
@@ -136,3 +161,72 @@ algo que no existe (PostgREST responde 400).
 - Los precios de las **variantes** de un plato («Desde $ 25.000», por proteína o
   tamaño) viven donde ya vivían, en el plato; esta función no los distingue por
   sede.
+
+## 9. Anotado para después: la cartelera (TV) y los precios por sede
+
+*Pedido por Jota el 04/10/2026: que quede escrito. **No está hecho** y no entra en
+el PR de las sedes.*
+
+### El problema
+
+`tv.html` lee `productos` directamente, con el precio **base**. Una pantalla puesta
+en un local con precios propios enseñaría los precios del otro, y esa es la peor
+clase de error: un cliente lee en la pared un precio y en la caja le cobran otro.
+Hoy, con sedes encendidas, la cartelera sigue siendo del restaurante a secas.
+
+### La idea que se propuso: ligar cada pantalla a una sede
+
+`atributos.tv_pantallas` ya soporta hasta **tres** carteleras por restaurante
+(`docs/pantalla-tv.md` §14): la primera en `atributos.tv` (`/{slug}/tv`) y las
+adicionales en `tv_pantallas["2"|"3"]` (`/{slug}/tv/2`, `/tv/3`). Cada una guarda su
+propia configuración y un `nombre` que solo identifica el televisor desde el panel.
+
+En vez de tocar esa lógica, **cada pantalla recibiría un campo `sede`** (el slug de
+la sede a la que pertenece): «esta pantalla es la de Bucaramanga, esta la de
+Piedecuesta». El panel lo elegiría en la tarjeta de la pantalla.
+
+Ventajas de ligarla por configuración y no por URL:
+
+- **No cambia ninguna URL ni hay que tocar nginx.** La regla de `tv.html` en
+  `nginx.conf` (`^/([^/]+/)?tv(?:/[123])?/?$`) no admite un trozo de sede
+  (`/{slug}/{sede}/tv`); haría falta ampliarla, y cada televisor ya encendido
+  seguiría en su enlace de siempre.
+- La lógica de pantallas, horarios y ritmo **no se toca**.
+- Un restaurante con tres pantallas y dos sedes ya cabe: dos pantallas de una sede y
+  una de la otra, o la que quiera.
+
+### Lo que sí hay que resolver (y es lo interesante): los precios
+
+Ligar la pantalla a la sede resuelve *qué pantalla es de quién*, no *qué precio
+enseña*. Con precios distintos por sede, `tv.html` tendría que:
+
+1. leer las sedes del restaurante y encontrar la suya por el slug;
+2. pedir sus `productos_sedes`;
+3. aplicar **la misma regla** que la carta (`productosDeLaSede` en
+   `vmenus-app/core/sedes.js`): precio propio, plato no servido y, en la cartelera,
+   también la ausencia de la categoría que la sede dejó vacía.
+
+`tv.html` está escrito en el JavaScript conservador de los televisores viejos y **no
+puede importar** módulos ES. Eso es una **cuarta copia de una regla** (la carta, el
+panel, el servidor y ahora la TV), con el mismo coste que ya se pagó con las
+ofertas (`test/casos-oferta.json`) y los datos del negocio (`casos-negocio.json`):
+un juego de casos compartido y duplicado en los dos repositorios, y una prueba por
+sitio, para que ninguna copia se separe sin que salte algo.
+
+Preguntas que quedan abiertas:
+
+- **¿Y si la pantalla no tiene sede asignada** en un restaurante con sedes? Lo
+  prudente es enseñar solo los platos sin ningún precio de sede... o avisar en el
+  panel y no dejar encenderla. No decidido.
+- **Platos que no se sirven en esa sede** deben salir también de la selección que ya
+  hizo la cartelera, no solo de la carta.
+- **El `fetch` se hace desde el televisor**: dos peticiones más cada recarga, en
+  aparatos lentos. Medirlo antes de decidir.
+- **La oferta de precio** (`oferta_*`) se apaga en una sede con precio propio en la
+  carta (§6); la TV tiene que hacer lo mismo o enseñaría un tachado que la carta no.
+
+### Mientras tanto
+
+Si una sede con precios distintos necesita cartelera **ya**, lo que no engaña es no
+encender la pantalla de ese restaurante, o dejarla solo con platos de precio igual en
+todas las sedes. Está dicho aquí para que no se descubra frente a un cliente.

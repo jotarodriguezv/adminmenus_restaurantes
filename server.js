@@ -1498,6 +1498,10 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
     delete body.atributos.dia_pago;
     delete body.atributos.ultimo_pago;
     delete body.atributos.es_prueba;
+    // 'con_sedes' es el interruptor de superadmin que enciende las sedes (docs/sedes.md):
+    // la carta lo compara con `=== true`, así que aquí se fuerza a booleano para que
+    // un 'false' escrito como texto no deje las sedes encendidas.
+    if ('con_sedes' in body.atributos) body.atributos.con_sedes = body.atributos.con_sedes === true;
   }
 
   const { data, error } = await supabase.from('restaurantes').update(body).eq('id', req.params.id).select().single();
@@ -2559,12 +2563,6 @@ function atributosDeSede(entrada) {
   return { atributos };
 }
 
-async function marcarConSedes(restauranteId, valor) {
-  const { data } = await supabase.from('restaurantes').select('atributos').eq('id', restauranteId).single();
-  const atributos = { ...(data?.atributos || {}), con_sedes: valor };
-  return supabase.from('restaurantes').update({ atributos }).eq('id', restauranteId);
-}
-
 const errorDuplicada = (error) => error.code === '23505' ? 'Ya hay una sede con ese enlace' : error.message;
 
 app.get('/api/sedes', auth, async (req, res) => {
@@ -2581,6 +2579,13 @@ app.post('/api/sedes', auth, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo el administrador puede crear sedes' });
   const { restaurante_id } = req.body;
   if (!restaurante_id) return res.status(400).json({ error: 'Falta restaurante_id' });
+
+  // Las sedes se encienden aparte, en Superadmin (atributos.con_sedes): es lo que
+  // decide si la carta las lee. Crear una con el interruptor apagado dejaría una
+  // sede que nadie ve y un administrador sin saber por qué.
+  const { data: resto } = await supabase.from('restaurantes').select('atributos').eq('id', restaurante_id).single();
+  if (resto?.atributos?.con_sedes !== true)
+    return res.status(409).json({ error: 'Enciende «Varias sedes» en Superadmin antes de crear una sede' });
 
   const malNombre = errorDeNombre(req.body.nombre, 'de la sede');
   if (malNombre) return res.status(400).json({ error: malNombre });
@@ -2603,11 +2608,6 @@ app.post('/api/sedes', auth, async (req, res) => {
     .insert([{ restaurante_id, nombre, slug, atributos: a.atributos, orden: (existentes || []).length }])
     .select().single();
   if (error) return res.status(error.code === '23505' ? 409 : 500).json({ error: errorDuplicada(error) });
-
-  // Con la primera sede, el restaurante pasa a «tener sedes»: es la marca que
-  // mira la carta para pedirlas (y que ahorra la petición a quien no las tiene).
-  const { error: errMarca } = await marcarConSedes(restaurante_id, true);
-  if (errMarca) console.warn('no se pudo marcar con_sedes:', errMarca.message);
   res.json(data);
 });
 
@@ -2656,15 +2656,10 @@ app.delete('/api/sedes/:id', auth, async (req, res) => {
     .select('restaurante_id').eq('id', req.params.id).single();
   if (!actual) return res.status(404).json({ error: 'No existe' });
 
+  // Borrar la última NO apaga «Varias sedes»: el interruptor es del superadmin y lo
+  // decide él, no el borrado.
   const { error } = await supabase.from('sedes').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
-
-  const { count } = await supabase.from('sedes')
-    .select('id', { count: 'exact', head: true }).eq('restaurante_id', actual.restaurante_id);
-  if (!count) {
-    const { error: errMarca } = await marcarConSedes(actual.restaurante_id, false);
-    if (errMarca) console.warn('no se pudo quitar con_sedes:', errMarca.message);
-  }
   res.json({ ok: true });
 });
 

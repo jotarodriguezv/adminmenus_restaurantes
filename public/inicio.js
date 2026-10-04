@@ -27,7 +27,7 @@ function productoGratis(producto) {
 function abrirDesdeInicio(tab) {
   const botones = {
     productos: 'tabBtnProductos', categorias: 'tabBtnCategorias',
-    promo: 'tabBtnPromo', tv: 'tabBtnTv', ajustes: 'tabBtnAjustes',
+    promo: 'tabBtnPromo', tv: 'tabBtnTv', ajustes: 'tabBtnAjustes', sedes: 'tabBtnSedes',
   };
   const boton = document.getElementById(botones[tab]);
   if (boton) switchTab(tab, boton);
@@ -209,14 +209,14 @@ function revisionDeInicio({ productos = [], categorias = [], atributos = {}, pla
 // Con la MISMA regla que la carta o que la lista del superadmin, no con el
 // interruptor a secas: un buscador encendido en una carta de cinco platos no
 // sale, y decirle «encendido» al restaurante es prometerle algo que no ve.
-function funcionesDeInicio({ productos = [], promociones = [], atributos = {}, plan = {} } = {}) {
+function funcionesDeInicio({ productos = [], promociones = [], atributos = {}, plan = {}, sedes = null } = {}) {
   const destacados = promociones.filter(p => p.activa && (p.en_popup || p.en_tv)).length;
   const carrito = cartaTieneCarrito(atributos, plan);
   const nFiltros = Array.isArray(atributos.filtros_disponibles) ? atributos.filtros_disponibles.length : 0;
   const filtros = nFiltros > 0 && atributos.filtros_activos !== false;
   const buscador = atributos.buscador !== false && productos.length >= MINIMO_PLATOS_BUSCADOR;
 
-  return [
+  const funciones = [
     { clave: 'carrito', titulo: 'Carrito de pedidos', tab: 'ajustes', encendido: carrito,
       detalle: carrito ? (recibePedidos(atributos) ? 'Los pedidos te llegan por WhatsApp.' : 'Falta el número de WhatsApp.')
                        : 'Tu carta funciona como catálogo.' },
@@ -231,6 +231,19 @@ function funcionesDeInicio({ productos = [], promociones = [], atributos = {}, p
     { clave: 'filtros', titulo: 'Filtros', tab: 'ajustes', encendido: filtros,
       detalle: filtros ? `${plural(nFiltros, 'filtro', 'filtros')} para tus clientes.` : 'Sin filtros en tu carta.' },
   ];
+
+  // Las sedes solo salen si el superadmin las encendió: a un restaurante de un solo
+  // local una fila «Varias sedes: apagado» no le dice nada. Y la fila cuenta lo que
+  // la carta HARÁ de verdad —dos sedes activas, su selector—, porque una carta con
+  // sedes se ve distinta de una sola sede desde la primera pantalla.
+  if (atributos.con_sedes === true) {
+    const activas = Array.isArray(sedes) ? sedes.filter(s => s.activa) : null;
+    funciones.push({ clave: 'sedes', titulo: 'Varias sedes', tab: 'sedes', encendido: !!activas?.length,
+      detalle: activas === null ? 'Revisando tus sedes…'
+             : activas.length ? `${plural(activas.length, 'sede activa', 'sedes activas')}: ${activas.map(s => s.nombre).join(', ')}. Tu carta pregunta en cuál está el cliente.`
+             : 'Todavía no hay ninguna sede activa: la carta se ve como la de un solo local.' });
+  }
+  return funciones;
 }
 
 // ── PINTAR ────────────────────────────────────────────────────
@@ -409,6 +422,8 @@ function renderInicio() {
     promociones: state.promociones || [],
     atributos: state.restaurante.atributos || {},
     plan: planActual(),
+    // null = todavía no se sabe; [] = se sabe que no hay.
+    sedes: state.sedesDe === state.restaurante.id ? (state.sedes || []) : null,
   };
   const nombre = document.getElementById('inicioNombre');
   if (nombre) nombre.textContent = state.restaurante.nombre || 'tu carta';
@@ -423,4 +438,24 @@ function renderInicio() {
   pintarPendientes(revisionDeInicio(datos));
   pintarFunciones(funcionesDeInicio(datos));
   pintarConfiguracion(configuracionDeInicio({ ...datos, restaurante: state.restaurante }));
+  cargarSedesParaInicio();
+}
+
+// Las sedes no viajan con el restaurante: se piden la primera vez que Inicio las
+// necesita y se repinta. Si falla, la fila queda en «Revisando…» y no se rompe nada.
+let sedesInicioPidiendo = false;
+async function cargarSedesParaInicio() {
+  const resto = state.restaurante;
+  if (!resto || resto.atributos?.con_sedes !== true) return;
+  if (state.sedesDe === resto.id || sedesInicioPidiendo) return;
+  sedesInicioPidiendo = true;
+  try {
+    const lista = await apiFetch('GET', `/api/sedes?restaurante_id=${resto.id}`);
+    // Si mientras tanto se cambió de restaurante, la respuesta ya no es de este.
+    if (state.restaurante?.id !== resto.id) return;
+    state.sedes = lista || [];
+    state.sedesDe = resto.id;
+    renderInicio();
+  } catch { /* sin sedes que enseñar: la fila se queda como está */ }
+  finally { sedesInicioPidiendo = false; }
 }

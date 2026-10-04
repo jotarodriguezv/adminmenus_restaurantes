@@ -16,18 +16,18 @@ let sedeEnEdicionId = null; // null = el formulario crea; un id = edita esa
 const esAdminDeSedes = () => state.rol === 'admin';
 
 // ── LA PESTAÑA ────────────────────────────────────────────────
-// La ve el administrador siempre (es por donde se crea la primera sede) y el
-// dueño solo si su restaurante ya tiene. Esconderla es cortesía: el servidor es
-// quien cierra el paso.
+// Existe solo si el superadmin encendió «Varias sedes» para este restaurante
+// (Superadmin → Varias sedes): él decide quién las tiene, también para sí mismo.
+// Esconderla es cortesía: el servidor es quien cierra el paso.
 function restauranteTieneSedes() {
-  return esAdminDeSedes() || state.restaurante?.atributos?.con_sedes === true;
+  return state.restaurante?.atributos?.con_sedes === true;
 }
 
 function ajustarPestanaSedes() {
   const boton = document.getElementById('tabBtnSedes');
   if (!boton) return;
   boton.style.display = restauranteTieneSedes() ? 'block' : 'none';
-  if (!restauranteTieneSedes()) { sedesLista = []; sedeAbiertaId = null; }
+  if (!restauranteTieneSedes()) { sedesLista = []; sedeAbiertaId = null; state.sedes = undefined; }
 }
 
 // Dirección pública de una sede, con la forma oficial del restaurante: por ruta
@@ -46,6 +46,9 @@ async function renderSedes() {
     cont.textContent = 'No se pudieron cargar las sedes: ' + e.message;
     return;
   }
+  // Inicio resume las sedes con lo mismo que acaba de leer esta pestaña.
+  state.sedes = sedesLista;
+  state.sedesDe = state.restaurante.id;
   document.getElementById('sedesAdmin').style.display = esAdminDeSedes() ? 'block' : 'none';
   if (sedeAbiertaId && !sedesLista.some(s => s.id === sedeAbiertaId)) sedeAbiertaId = null;
   pintarSedes();
@@ -133,8 +136,6 @@ async function guardarSede() {
     } else {
       cuerpo.restaurante_id = state.restaurante.id;
       const nueva = await apiFetch('POST', '/api/sedes', cuerpo);
-      // La carta ahora pide sedes: se refleja en lo que el panel ya cargó.
-      state.restaurante.atributos = { ...(state.restaurante.atributos || {}), con_sedes: true };
       sedeAbiertaId = nueva?.id || null;
       showToast('Sede creada', 'success');
     }
@@ -165,9 +166,6 @@ async function borrarSede(id) {
   })) return;
   try {
     await apiFetch('DELETE', `/api/sedes/${id}`);
-    if (!sedesLista.some(x => x.id !== id)) {
-      state.restaurante.atributos = { ...(state.restaurante.atributos || {}), con_sedes: false };
-    }
     if (sedeAbiertaId === id) sedeAbiertaId = null;
     showToast('Sede borrada', 'success');
     await renderSedes();
