@@ -1486,6 +1486,13 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
 
     body.atributos = { ...(actual?.atributos || {}), ...entrantes };
 
+    // Cada pantalla de TV pertenece a una sede (docs/sedes.md §12). Solo se mira si esta
+    // petición toca las pantallas.
+    if ('tv' in entrantes || 'tv_pantallas' in entrantes) {
+      const malPantalla = await errorDeSedesDeLasPantallas(req.params.id, body.atributos);
+      if (malPantalla) return res.status(malPantalla.status).json({ error: malPantalla.error });
+    }
+
     // La cobranza tiene su propia tabla, fuera de la lectura pública. Se quita
     // DESPUÉS de fundir y no antes: así no vuelve a colarse ni por lo que
     // mande una pantalla vieja ni por lo que arrastre la fila guardada.
@@ -2553,6 +2560,43 @@ function topeDeSedes(atributos) {
 function slugDeSede(texto) {
   return String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+}
+
+// ── LA SEDE DE CADA PANTALLA DE TV ────────────────────────────
+// La cartelera enseña los precios de la sede de SU pantalla (atributos.tv.sede y
+// atributos.tv_pantallas[n].sede, el slug). Se valida aquí, y no solo en el panel,
+// porque esconder un campo no impide una llamada directa.
+//
+//  · la forma: un slug o vacío, nunca otra cosa;
+//  · con sedes encendidas y al menos una activa, una pantalla ENCENDIDA tiene que
+//    tener sede, y la sede tiene que existir: una pantalla sin sede se queda en
+//    reposo en la pared (tv.html), y mejor decirlo al guardar que descubrirlo en el local;
+//  · sin sedes, o con el interruptor apagado, el campo se ignora.
+//
+// Se miran las TRES pantallas de lo que quedará guardado, no solo la que se edita: el
+// panel manda el mapa de tv_pantallas entero y no se sabe cuál se tocó. Por eso el
+// mensaje nombra la pantalla.
+async function errorDeSedesDeLasPantallas(restauranteId, atributos) {
+  const pantallas = [[1, atributos.tv], [2, atributos.tv_pantallas?.['2']], [3, atributos.tv_pantallas?.['3']]]
+    .filter(([, cfg]) => cfg && typeof cfg === 'object');
+  for (const [n, cfg] of pantallas) {
+    const s = cfg.sede;
+    if (s !== undefined && s !== null && s !== '' && (typeof s !== 'string' || !SLUG_SEDE.test(s)))
+      return { status: 400, error: `La sede de la pantalla ${n} no es válida` };
+  }
+  if (atributos.con_sedes !== true) return null;
+  const { data: sedes, error } = await supabase.from('sedes').select('slug, activa').eq('restaurante_id', restauranteId);
+  if (error) return { status: 500, error: 'No se pudieron comprobar las sedes' };
+  if (!(sedes || []).some(s => s.activa)) return null;
+  const existentes = new Set((sedes || []).map(s => s.slug));
+  for (const [n, cfg] of pantallas) {
+    if (cfg.sede) {
+      if (!existentes.has(cfg.sede)) return { status: 400, error: `La pantalla ${n} apunta a una sede que ya no existe. Elige otra.` };
+    } else if (cfg.activa === true) {
+      return { status: 400, error: `Elige la sede de la pantalla ${n} antes de encenderla.` };
+    }
+  }
+  return null;
 }
 
 function errorDeSlugSede(slug) {

@@ -67,6 +67,64 @@ function tvConfiguracionDePantalla(numero = tvPantallaActual) {
 
 function tvNombrePorDefecto(numero) { return `Pantalla ${numero}`; }
 
+// ── LA SEDE DE CADA PANTALLA ──────────────────────────────────
+// Con sedes encendidas, cada pantalla pertenece a una sede y enseña SUS precios
+// (docs/sedes.md §12). El slug se guarda en la configuración de la pantalla.
+function tvNombreDeSede(slug) {
+  return (state.sedes || []).find(s => s.slug === slug)?.nombre || slug;
+}
+
+// «Pantalla del salón · Bucaramanga»: cómo se llama una pantalla donde haya que
+// elegirla (los destacados). Sin sede, solo su nombre.
+function etiquetaDePantallaTv(numero) {
+  const cfg = tvConfiguracionDePantalla(numero);
+  const nombre = cfg.nombre || tvNombrePorDefecto(numero);
+  return cfg.sede ? `${nombre} · ${tvNombreDeSede(cfg.sede)}` : nombre;
+}
+
+// Lo que va a la configuración: la sede solo si el selector está a la vista. Sin sedes
+// no se escribe la clave, para no dejar un dato que nada lee.
+function tvSedeDelFormulario() {
+  const bloque = document.getElementById('tvSedeBloque');
+  if (!bloque || bloque.style.display === 'none') return {};
+  return { sede: document.getElementById('tvSede').value };
+}
+
+async function tvPrepararSedes() {
+  const bloque = document.getElementById('tvSedeBloque');
+  const sel = document.getElementById('tvSede');
+  if (!bloque || !sel) return;
+  const resto = state.restaurante;
+  if (resto?.atributos?.con_sedes !== true) { bloque.style.display = 'none'; return; }
+  const id = resto.id, pantalla = tvPantallaActual;
+  let sedes = state.sedesDe === id ? state.sedes : null;
+  if (!sedes) {
+    try {
+      sedes = await apiFetch('GET', `/api/sedes?restaurante_id=${id}`) || [];
+      state.sedes = sedes; state.sedesDe = id;
+    } catch { sedes = []; }
+    // Mientras llegaba la respuesta pudo cambiar el restaurante o la pantalla.
+    if (state.restaurante?.id !== id || tvPantallaActual !== pantalla) return;
+  }
+  // Las tarjetas de pantalla nombran la sede, y se pintaron antes de saber sus nombres.
+  tvPintarPantallas();
+  const activas = sedes.filter(s => s.activa);
+  if (!activas.length) { bloque.style.display = 'none'; return; }
+  // Rellenar el selector no es un cambio del usuario: si no había cambios antes, la
+  // foto de «cómo estaba» se toma de nuevo con la sede ya puesta.
+  const sinCambios = !tvFormularioTieneCambios();
+  const actual = tvConfiguracionDePantalla(pantalla).sede || '';
+  sel.replaceChildren();
+  const opcion = (valor, texto) => { const o = document.createElement('option'); o.value = valor; o.textContent = texto; sel.appendChild(o); };
+  opcion('', 'Elige una sede…');
+  for (const s of activas) opcion(s.slug, s.nombre);
+  // Una sede guardada que ya no está entre las activas se deja a la vista, no se borra en silencio.
+  if (actual && !activas.some(s => s.slug === actual)) opcion(actual, `${actual} (apagada o borrada)`);
+  sel.value = actual;
+  bloque.style.display = 'block';
+  if (sinCambios) tvFormularioInicial = tvSerializar(tvDelFormulario());
+}
+
 function tvEnlaceDePantalla(numero = tvPantallaActual) {
   return urlPublica(state.restaurante) + '/tv' + (numero === 1 ? '' : '/' + numero);
 }
@@ -88,7 +146,7 @@ function tvPintarPantallas() {
     const estado = boton.querySelector('.tv-pantalla-estado');
     estado.textContent = cfg.activa ? 'ENCENDIDA' : (Object.keys(cfg).length ? 'PREPARADA' : 'SIN CONFIGURAR');
     estado.classList.toggle('encendida', !!cfg.activa);
-    boton.querySelector('.tv-pantalla-nombre').textContent = cfg.nombre || tvNombrePorDefecto(numero);
+    boton.querySelector('.tv-pantalla-nombre').textContent = etiquetaDePantallaTv(numero);
     boton.querySelector('.tv-pantalla-url').textContent = tvEnlaceDePantalla(numero);
     boton.onclick = () => tvCambiarPantalla(numero);
     cont.appendChild(boton);
@@ -172,6 +230,7 @@ function renderTV() {
   tvSeleccion = Array.isArray(cfg.productos) ? [...cfg.productos] : [];
 
   tvPintarPantallas();
+  tvPrepararSedes();
   document.getElementById('tvNombre').value = cfg.nombre || tvNombrePorDefecto(tvPantallaActual);
   document.getElementById('tvActiva').checked = !!cfg.activa;
   document.getElementById('tvModo').value = cfg.modo || 'todos';
@@ -554,6 +613,13 @@ function tvPintarSecuencia(pantallas) {
     ', la siguiente ' + nombre(lista[huecos % lista.length]) + '.';
 }
 
+// ¿Sale este destacado en esa pantalla? La MISMA regla que promocionesDeAhora() de
+// tv.html: con destinos, solo en esos; sin destinos, solo en la 1.
+function saleEnLaPantallaTv(promo, numero) {
+  const destinos = Array.isArray(promo?.pantallas_tv) ? promo.pantallas_tv.map(Number) : [];
+  return destinos.length ? destinos.includes(numero) : numero === 1;
+}
+
 // Los que la cartelera va a poder pintar de verdad. Una promoción apagada no
 // ocupa turno, y contarla prometería una vuelta más larga de la que se ve en la
 // pared. Es el mismo filtro que hace listaIntercalados() en tv.html.
@@ -561,7 +627,8 @@ function tvDestacadosVisibles() {
   const zona = zonaRestaurante();
   const todas = state.promociones || [];
   const vivas = todas.filter(p =>
-    p && p.activa && p.en_tv && p.imagen_url && vigenteAhora(programacionDe(p), zona));
+    p && p.activa && p.en_tv && p.imagen_url && saleEnLaPantallaTv(p, tvPantallaActual) &&
+    vigenteAhora(programacionDe(p), zona));
   // Sin respaldo en las columnas viejas (promo_activa / promo_imagen_url,
   // quitado el 02/10/2026): la pared ya solo lee la tabla, y contar una imagen
   // que no sale prometería una vuelta más larga de la que se ve.
@@ -1286,6 +1353,7 @@ function tvDelFormulario() {
     // El nombre no lo usa la cartelera pública: sirve para que quien administra
     // reconozca a qué televisor físico corresponde cada URL.
     nombre: document.getElementById('tvNombre').value.trim().slice(0, 60) || tvNombrePorDefecto(tvPantallaActual),
+    ...tvSedeDelFormulario(),
     activa: document.getElementById('tvActiva').checked,
     orientacion: document.getElementById('tvOrientacion').value,
     por_slide: parseInt(document.getElementById('tvPorSlide').value, 10) || 2,
@@ -1345,6 +1413,15 @@ async function saveTV() {
   if (activa && !tvCuantos()) {
     showToast('Con esa selección no se mostraría ningún plato', 'error');
     st.textContent = 'Revisa qué platos se muestran'; st.style.color = 'var(--danger)';
+    return;
+  }
+
+  // Con sedes, una pantalla encendida tiene que saber de cuál es: sin sede se queda en
+  // reposo en la pared. El servidor lo exige también; aquí se dice antes y en su sitio.
+  if (activa && tvSedeDelFormulario().sede === '') {
+    showToast('Elige la sede de esta pantalla', 'error');
+    st.textContent = 'Elige la sede de esta pantalla'; st.style.color = 'var(--danger)';
+    document.getElementById('tvSede').focus();
     return;
   }
 

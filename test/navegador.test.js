@@ -11470,3 +11470,92 @@ describe('El editor de horario con un segundo contexto (sedes)', () => {
 		assert.equal(largo(ctx, 'deLaSede'), 0);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('TV por sede (panel)', () => {
+	const tv = (state, pantalla = 1) => cargar('tv.js', [
+		['tv.js', 'function tvConfiguracionDePantalla', 'function tvPintarPantallas'],
+		['tv.js', 'function saleEnLaPantallaTv', '// Los que la cartelera va a poder pintar de verdad.'],
+	], { state, tvPantallaActual: pantalla });
+	const estado = (extra = {}) => ({
+		sedes: [{ slug: 'bucaramanga', nombre: 'Bucaramanga' }, { slug: 'piedecuesta', nombre: 'Piedecuesta' }],
+		restaurante: { atributos: { tv: { nombre: 'Salón', sede: 'bucaramanga' }, tv_pantallas: { 2: { sede: 'piedecuesta' }, 3: {} } } },
+		...extra,
+	});
+
+	test('el nombre de una pantalla lleva su sede donde haya que elegirla', () => {
+		const c = tv(estado());
+		assert.equal(c.etiquetaDePantallaTv(1), 'Salón · Bucaramanga');
+		assert.equal(c.etiquetaDePantallaTv(2), 'Pantalla 2 · Piedecuesta');
+		assert.equal(c.etiquetaDePantallaTv(3), 'Pantalla 3', 'sin sede, solo su nombre');
+	});
+
+	test('una sede que ya no está cargada se enseña por su slug en vez de desaparecer', () => {
+		const c = tv(estado({ sedes: [] }));
+		assert.equal(c.etiquetaDePantallaTv(1), 'Salón · bucaramanga');
+	});
+
+	test('un destacado sale en las pantallas que dice; sin destinos, solo en la 1 (como tv.html)', () => {
+		const c = tv(estado());
+		assert.equal(c.saleEnLaPantallaTv({ pantallas_tv: [2, 3] }, 1), false);
+		assert.equal(c.saleEnLaPantallaTv({ pantallas_tv: [2, 3] }, 3), true);
+		assert.equal(c.saleEnLaPantallaTv({ pantallas_tv: ['1', '2'] }, 2), true, 'los números como texto se entienden');
+		assert.equal(c.saleEnLaPantallaTv({ pantallas_tv: [] }, 1), true);
+		assert.equal(c.saleEnLaPantallaTv({ pantallas_tv: [] }, 2), false);
+		assert.equal(c.saleEnLaPantallaTv({}, 1), true);
+		assert.equal(c.saleEnLaPantallaTv({}, 3), false);
+	});
+
+	test('la regla de qué pantalla ve un destacado es la misma que la de tv.html', () => {
+		// No se puede importar entre repositorios; si el hermano no está (en CI no lo está), la
+		// comprobación no aplica.
+		const ruta = path.join(__dirname, '..', '..', 'vmenus-app', 'tv.html');
+		if (!fs.existsSync(ruta)) return;
+		const html = fs.readFileSync(ruta, 'utf8');
+		if (!html.includes('function promocionesDeAhora')) return;
+		assert.match(html, /else if \(pantalla !== 1\) continue;/);
+	});
+
+	test('la sede solo va a la configuración si el selector está a la vista', () => {
+		const montar = bloque => cargar('tv.js', 'function tvSedeDelFormulario', 'async function tvPrepararSedes', {
+			document: { getElementById: id => id === 'tvSedeBloque' ? bloque : { value: 'bucaramanga' } },
+		});
+		assert.deepEqual(JSON.parse(JSON.stringify(montar({ style: { display: 'block' } }).tvSedeDelFormulario())), { sede: 'bucaramanga' });
+		assert.deepEqual(JSON.parse(JSON.stringify(montar({ style: { display: 'none' } }).tvSedeDelFormulario())), {});
+		assert.deepEqual(JSON.parse(JSON.stringify(montar(null).tvSedeDelFormulario())), {});
+	});
+
+	test('guardar una pantalla encendida sin sede lo dice antes de llamar al servidor', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'tv.js'), 'utf8');
+		assert.match(src, /if \(activa && tvSedeDelFormulario\(\)\.sede === ''\) \{[\s\S]*?Elige la sede de esta pantalla[\s\S]*?return;/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Destacados · en qué pantallas de TV salen', () => {
+	const f = (state = {}) => cargar('promocion.js', 'function pantallasDeDestacado', 'async function guardarPromo', { state });
+
+	test('sin pantallas guardadas, la 1 (como la columna y como tv.html)', () => {
+		const c = f();
+		for (const p of [{}, { pantallas_tv: [] }, { pantallas_tv: null }, undefined])
+			assert.deepEqual(Array.from(c.pantallasDeDestacado(p)), [1]);
+	});
+
+	test('las guardadas, como números y solo del 1 al 3', () => {
+		const c = f();
+		assert.deepEqual(Array.from(c.pantallasDeDestacado({ pantallas_tv: ['2', 3] })), [2, 3]);
+		assert.deepEqual(Array.from(c.pantallasDeDestacado({ pantallas_tv: [0, 4, 2] })), [2]);
+		assert.deepEqual(Array.from(c.pantallasDeDestacado({ pantallas_tv: [9] })), [1], 'si no queda ninguna válida, la 1');
+	});
+
+	test('la fila de pantallas solo aparece si hay más de una pantalla de la que hablar', () => {
+		assert.equal(f({ restaurante: { atributos: {} } }).hayVariasPantallasTv(), false);
+		assert.equal(f({ restaurante: { atributos: { tv_pantallas: {} } } }).hayVariasPantallasTv(), false);
+		assert.equal(f({ restaurante: { atributos: { tv_pantallas: { 2: {} } } } }).hayVariasPantallasTv(), true);
+	});
+
+	test('el cuerpo que se guarda lleva las pantallas solo si la tarjeta las tiene', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'promocion.js'), 'utf8');
+		assert.match(src, /\.\.\.\(caja\._pantallas \? \{ pantallas_tv: \[\.\.\.caja\._pantallas\]\.sort\(\) \} : \{\}\),/);
+	});
+});
