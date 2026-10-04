@@ -8025,6 +8025,17 @@ describe('el formulario de crear restaurante va plegado', () => {
 		assert.match(crear, /getElementById\('newRestoModelo'\)\.value/);
 		assert.match(crear, /plan,nav:modelo/);
 	});
+
+	test('permite conceder desde el alta la importación de la carta', () => {
+		const i = src.indexOf('id="nuevoRestoPanel"');
+		const f = src.indexOf('</details>', i);
+		const cuerpo = src.slice(i, f);
+		assert.match(cuerpo, /id="newRestoImportar"/);
+		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
+		assert.match(crear, /getElementById\('newRestoImportar'\)\.checked/);
+		assert.match(crear, /nav:modelo,importar_carta/);
+		assert.match(crear, /getElementById\('newRestoImportar'\)\.checked=false/);
+	});
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -11051,7 +11062,10 @@ describe('las paletas al crear un restaurante', () => {
 
 	test('crear manda los colores de la paleta, y después la suelta', () => {
 		const crear = src.match(/async function crearRestaurante\(\) \{[\s\S]*?\n\}/)[0];
-		assert.match(crear, /nav:modelo,\.\.\.coloresPaletaNuevoResto\(\)\}/);
+		// La autorización de importar se manda junto con el modelo, antes de los
+		// colores adicionales. Se comprueban las tres partes: así añadir el
+		// interruptor no puede borrar la paleta al crear.
+		assert.match(crear, /nav:modelo,importar_carta,\.\.\.coloresPaletaNuevoResto\(\)\}/);
 		assert.match(crear, /soltarPaletaNuevoResto\(\);/);
 	});
 

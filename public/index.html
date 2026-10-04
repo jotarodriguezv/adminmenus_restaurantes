@@ -150,6 +150,17 @@
 							<select class="form-select" id="newRestoModelo"></select>
 						</div>
 					</div>
+					<!-- La importación se autoriza por restaurante. Ponerlo al darlo de alta
+					     evita tener que crear, entrar y volver a Superadmin solo para abrir
+					     la pestaña donde el cliente sube su carta. Después se conserva el
+					     mismo interruptor de Superadmin para apagarlo cuando ya la montó. -->
+					<div class="form-check" style="margin:-2px 0 16px">
+						<label class="toggle"><input type="checkbox" id="newRestoImportar"><span class="toggle-slider"></span></label>
+						<span style="font-size:13px;color:var(--text-muted)">Permitir que suba su carta</span>
+					</div>
+					<div style="margin:-10px 0 16px;font-size:11px;color:var(--text-dim);line-height:1.6;">
+						Le muestra la pestaña para importar un PDF o una foto y crear los productos. Puedes apagarla después desde Superadmin.
+					</div>
 					<!-- Las mismas paletas de Superadmin → Colores (public/paletas.js). Aquí
 					     no hay «De tu logo»: el logo se sube después, y en Superadmin ya sale. -->
 					<div class="form-label">Paleta de colores <span style="color:var(--text-dim)">(opcional; pone también el fondo y las cajas. Si no eliges, se usan los de siempre)</span></div>
@@ -9399,6 +9410,7 @@ async function crearRestaurante() {
   const slug=document.getElementById('newRestoSlug').value.trim();
   const plan=document.getElementById('newRestoPlan').value;
   const modelo=document.getElementById('newRestoModelo').value;
+	const importar_carta=document.getElementById('newRestoImportar').checked;
   const color1=document.getElementById('newRestoColor1').value.trim();
   const color2=document.getElementById('newRestoColor2').value.trim();
   const pin=document.getElementById('newRestoPin').value.trim();
@@ -9411,13 +9423,14 @@ async function crearRestaurante() {
 
   status.textContent='Creando...'; status.style.color='var(--text-muted)';
   try {
-    const creado = await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de,plan,nav:modelo,...coloresPaletaNuevoResto()});
+    const creado = await apiFetch('POST','/api/restaurantes',{nombre,slug,color_primario:color1,color_secundario:color2,activo:true,promo_activa:false,pin,clonar_de,plan,nav:modelo,importar_carta,...coloresPaletaNuevoResto()});
     // Si venía de una solicitud de alta, queda aprobada y enlazada a él.
     if (creado?.id) await marcarSolicitudCreada(creado.id);
     status.textContent='✓ Restaurante creado correctamente'; status.style.color='var(--success)';
     document.getElementById('newRestoNombre').value='';
     document.getElementById('newRestoSlug').value='';
     document.getElementById('newRestoPin').value='';
+		document.getElementById('newRestoImportar').checked=false;
     document.getElementById('newRestoClonar').value='';
     document.getElementById('newRestoPlan').value=PLAN_POR_DEFECTO;
     filtrarModeloNuevoResto();

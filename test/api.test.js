@@ -956,6 +956,13 @@ describe('POST /api/restaurantes · plan y modelo al crear', () => {
 		assert.equal(guardado.atributos.nav, 'vertical');
 	});
 
+	test('puede conceder la importación de carta al crear', async () => {
+		conExito();
+		await S.pedir('POST', '/api/restaurantes',
+			{ nombre: 'Nueva', slug: 'nueva-importar', pin: '1234', importar_carta: true }, tokenAdmin);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.importar_carta, true);
+	});
+
 	test('un plan que no existe no se guarda, y sin ninguno de los dos el restaurante nace sin ellos', async () => {
 		conExito();
 		await S.pedir('POST', '/api/restaurantes',
