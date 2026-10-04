@@ -1998,7 +1998,7 @@ describe('donde la carta tiene carrito se configuran los pedidos', () => {
 				state: { restaurante: { atributos } },
 				planActual: () => plan,
 				document: { getElementById: id => mapa[id] },
-				actualizarAvisoPedidos() {}, marcarBordesDeTabs() {}, ajustarPestanaReservas() {},
+				actualizarAvisoPedidos() {}, marcarBordesDeTabs() {}, ajustarPestanaReservas() {}, ajustarPestanaSedes() {},
 			});
 		ctx.ajustarPestanasAlModelo();
 		ctx.pintarPedidos();

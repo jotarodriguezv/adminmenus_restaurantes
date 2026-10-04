@@ -1575,3 +1575,25 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 .bienvenida-avisos li{margin:3px 0;}
 .bienvenida-avisos p{margin:0;font-size:11px;}
 .bienvenida-details.con-aviso>summary::before{content:'⚠';margin-right:8px;color:var(--warn);}
+
+/* ── SEDES ─────────────────────────────────────────────────── */
+.sede-fila{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--border);}
+.sede-fila:first-child{border-top:0;}
+.sede-apagada .sede-info{opacity:.55;}
+.sede-nombre{font-weight:700;font-size:15px;}
+.sede-etiqueta{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-left:6px;}
+.sede-enlace{display:block;font-family:var(--mono);font-size:12px;color:var(--accent);word-break:break-all;margin-top:2px;}
+.sede-dato{font-size:12px;color:var(--text-muted);margin-top:2px;}
+.sede-acciones{display:flex;gap:6px;flex-wrap:wrap;}
+.sede-cat{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin:18px 0 6px;}
+.sede-plato{display:grid;grid-template-columns:1fr 90px 130px auto;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--border);}
+.sede-plato-nombre{font-size:14px;}
+.sede-plato-base{font-family:var(--mono);font-size:12px;color:var(--text-dim);text-align:right;}
+.sede-precio{padding:7px 10px;}
+.sede-sirve{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);white-space:nowrap;}
+@media (max-width:640px){
+  .sede-plato{grid-template-columns:1fr 1fr;}
+  .sede-plato-nombre{grid-column:1 / -1;font-weight:600;}
+  .sede-plato-base{text-align:left;}
+  .sede-sirve{grid-column:1 / -1;}
+}
