@@ -13,6 +13,14 @@ let sedesLista = [];
 let sedeAbiertaId = null;   // la que tiene la tabla de precios abierta
 let sedeEnEdicionId = null; // null = el formulario crea; un id = edita esa
 
+// El horario propio de la sede que se está editando. Es una lista aparte de la de
+// Ajustes (`franjasEnEdicion`): el editor trabaja sobre la que le diga su contexto.
+let sedeFranjas = [];
+const HORARIO_SEDE = {
+  lista: () => sedeFranjas,
+  ids: { franjas: 'sedHorarioFranjas', agregar: 'sedHorarioAgregar', resumen: 'sedHorarioResumen' },
+};
+
 const esAdminDeSedes = () => state.rol === 'admin';
 
 // ── LA PESTAÑA ────────────────────────────────────────────────
@@ -64,6 +72,7 @@ async function renderSedes() {
     + (lleno && esAdminDeSedes() ? ' · para añadir otra, súbele el tope en Superadmin → Varias sedes' : '');
   if (sedeAbiertaId && !sedesLista.some(s => s.id === sedeAbiertaId)) sedeAbiertaId = null;
   pintarSedes();
+  pintarHorarioPropioDeSede();   // el aviso de qué horario hereda el formulario
   if (sedeAbiertaId) await abrirPreciosDeSede(sedeAbiertaId);
   else document.getElementById('sedesPrecios').style.display = 'none';
 }
@@ -85,6 +94,9 @@ function pintarSedes() {
         <div class="sede-nombre">${esc(s.nombre)}${s.activa ? '' : ' <span class="sede-etiqueta">apagada</span>'}</div>
         <a class="sede-enlace" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a>
         ${a.direccion ? `<div class="sede-dato">${esc(a.direccion)}</div>` : ''}
+        <div class="sede-dato">${a.horario_atencion !== undefined && a.horario_atencion !== null
+          ? `Horario propio: ${esc(textoHorarioAtencion(franjasNormalizadas(a.horario_atencion)) || 'sin horario')}`
+          : 'Horario del restaurante'}</div>
       </div>
       <div class="sede-acciones">
         <button class="btn-sm accent" onclick="abrirPreciosDeSede('${esc(s.id)}')">Precios y platos</button>
@@ -107,6 +119,9 @@ function limpiarFormularioSede() {
   sedeEnEdicionId = null;
   for (const [id] of CAMPOS_SEDE) document.getElementById(id).value = '';
   document.getElementById('sedSlugGrupo').style.display = 'none';
+  sedeFranjas = [];
+  document.getElementById('sedHorarioPropio').checked = false;
+  pintarHorarioPropioDeSede();
   document.getElementById('sedFormularioTitulo').textContent = 'Nueva sede';
   document.getElementById('sedGuardar').textContent = 'Crear sede';
   document.getElementById('sedCancelar').style.display = 'none';
@@ -121,6 +136,12 @@ function editarSede(id) {
   document.getElementById('sedSlug').value = s.slug;
   for (const [campo, clave] of CAMPOS_SEDE) if (clave) document.getElementById(campo).value = a[clave] ?? '';
   document.getElementById('sedSlugGrupo').style.display = 'block';
+  // Con la clave puesta la sede tiene horario propio (aunque sea vacío: «sin horario»);
+  // sin ella, hereda el del restaurante.
+  const propio = a.horario_atencion !== undefined && a.horario_atencion !== null;
+  sedeFranjas = propio ? franjasNormalizadas(a.horario_atencion) : [];
+  document.getElementById('sedHorarioPropio').checked = propio;
+  pintarHorarioPropioDeSede();
   document.getElementById('sedFormularioTitulo').textContent = `Editar «${s.nombre}»`;
   document.getElementById('sedGuardar').textContent = 'Guardar cambios';
   document.getElementById('sedCancelar').style.display = 'inline-flex';
@@ -133,12 +154,39 @@ function editarSede(id) {
 function atributosDelFormularioDeSede() {
   const a = {};
   for (const [campo, clave] of CAMPOS_SEDE) if (clave) a[clave] = document.getElementById(campo).value.trim();
+  // El horario SOLO viaja si la sede tiene uno propio. Sin la clave, la sede hereda el
+  // del restaurante: es lo que hace que cambiarlo en Ajustes llegue a las sedes que no
+  // lo cambiaron. Mandarlo siempre las desligaría de él sin que nadie lo decidiera.
+  if (document.getElementById('sedHorarioPropio').checked) a.horario_atencion = franjasNormalizadas(sedeFranjas);
   return a;
+}
+
+// Muestra u oculta el editor según la casilla, y dice qué horario hereda si no hay propio.
+function pintarHorarioPropioDeSede() {
+  const propio = document.getElementById('sedHorarioPropio').checked;
+  document.getElementById('sedHorarioBloque').style.display = propio ? 'block' : 'none';
+  const heredado = textoHorarioAtencion(franjasDelNegocio(state.restaurante?.atributos));
+  document.getElementById('sedHorarioHeredado').textContent = propio
+    ? 'Solo esta sede usa este horario; las demás siguen con el del restaurante.'
+    : (heredado ? `Usa el horario del restaurante: ${heredado}.` : 'El restaurante todavía no tiene horario (se pone en Ajustes → Datos del negocio).');
+  if (propio) renderHorarioAtencion(HORARIO_SEDE);
+}
+
+// Al encender la casilla se parte del horario del restaurante, no de una lista vacía:
+// lo normal es que la sede difiera en un día o en una hora.
+function alternarHorarioPropioDeSede() {
+  if (document.getElementById('sedHorarioPropio').checked && !sedeFranjas.length)
+    sedeFranjas = franjasDelNegocio(state.restaurante?.atributos).map(f => ({ ...f, dias: [...f.dias] }));
+  pintarHorarioPropioDeSede();
 }
 
 async function guardarSede() {
   const nombre = document.getElementById('sedNombre').value.trim();
   if (!nombre) { showToast('Ponle un nombre a la sede', 'error'); return; }
+  if (document.getElementById('sedHorarioPropio').checked) {
+    const malHorario = errorDeHorarioAtencion(sedeFranjas);
+    if (malHorario) { showToast(malHorario, 'error'); return; }
+  }
   const cuerpo = { nombre, atributos: atributosDelFormularioDeSede() };
   try {
     if (sedeEnEdicionId) {

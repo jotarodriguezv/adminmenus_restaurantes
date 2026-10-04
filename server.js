@@ -3445,6 +3445,24 @@ app.post('/api/reservas', async (req, res) => {
   const { datos, error } = reservas.validarReserva(b, { zona: zonaDe(resto.atributos) });
   if (error) return res.status(400).json({ error });
 
+  // ── LA SEDE ───────────────────────────────────────────────
+  // En un restaurante con sedes la reserva tiene que decir para qué local es: se
+  // EXIGE, y tiene que ser una sede ACTIVA de este restaurante (el id lo manda el
+  // navegador: no se fía). Sin sedes, o con el interruptor apagado, el campo se
+  // ignora. Se lee aquí y no antes de validar la reserva para no gastar una
+  // consulta en lo que ya iba a rechazarse.
+  let sede = null;
+  if (resto.atributos?.con_sedes === true) {
+    const { data: sedes, error: errSedes } = await supabase.from('sedes')
+      .select('id, nombre, activa').eq('restaurante_id', resto.id);
+    if (errSedes) { console.error('[reservas] no se pudieron leer las sedes:', errSedes.message); return res.status(500).json({ error: 'No se pudo registrar la reserva' }); }
+    const activas = (sedes || []).filter(s => s.activa);
+    if (activas.length) {
+      sede = UUID_RE.test(b.sede_id || '') ? activas.find(s => s.id === b.sede_id) || null : null;
+      if (!sede) return res.status(400).json({ error: 'Elige la sede de la reserva' });
+    }
+  }
+
   // Tope de pendientes por celular en este restaurante.
   const { count, error: errCuenta } = await supabase.from('reservas')
     .select('id', { count: 'exact', head: true })
@@ -3453,7 +3471,12 @@ app.post('/api/reservas', async (req, res) => {
   if ((count || 0) >= reservas.PENDIENTES_MAX_POR_CELULAR)
     return res.status(429).json({ error: 'Ya tienes reservas pendientes en este restaurante. Espera a que las confirmen o escríbenos directamente.' });
 
-  const { error: errGuardar } = await supabase.from('reservas').insert([{ restaurante_id: resto.id, ...datos }]);
+  // Las claves de la sede solo viajan si hay sede: un restaurante de un solo local
+  // inserta exactamente lo de siempre, con o sin la migración sql/38 aplicada.
+  const { error: errGuardar } = await supabase.from('reservas').insert([{
+    restaurante_id: resto.id, ...datos,
+    ...(sede ? { sede_id: sede.id, sede_nombre: sede.nombre } : {}),
+  }]);
   if (errGuardar) { console.error('[reservas] no se pudo guardar:', errGuardar.message); return res.status(500).json({ error: 'No se pudo registrar la reserva' }); }
   res.status(201).json({ ok: true });
 });

@@ -2159,6 +2159,20 @@
 						<div class="form-group"><label for="sedMapa" class="form-label">Ubicación en Google Maps <span style="color:var(--text-dim)">(enlace)</span></label><input type="url" class="form-input" id="sedMapa" placeholder="https://maps.google.com/..." autocomplete="off"></div>
 						<div class="form-group"><label for="sedResena" class="form-label">Reseñas de Google <span style="color:var(--text-dim)">(enlace)</span></label><input type="url" class="form-input" id="sedResena" placeholder="https://g.page/r/…/review" autocomplete="off"></div>
 						<div class="form-group"><label for="sedCorreo" class="form-label">Correo <span style="color:var(--text-dim)">(opcional)</span></label><input type="email" class="form-input" id="sedCorreo" maxlength="120" autocomplete="off"></div>
+						<!-- El horario se hereda del restaurante salvo que esta sede abra distinto: con la casilla
+						     puesta, sale el mismo editor de franjas de Ajustes (horario-atencion.js, con su contexto). -->
+						<div class="form-group">
+							<div class="form-check" style="padding-bottom:0">
+								<label class="toggle"><input type="checkbox" id="sedHorarioPropio" onchange="alternarHorarioPropioDeSede()"><span class="toggle-slider"></span></label>
+								<span>Esta sede tiene otro horario</span>
+							</div>
+							<small class="bienvenida-ayuda" id="sedHorarioHeredado"></small>
+							<div id="sedHorarioBloque" style="display:none;margin-top:12px">
+								<div id="sedHorarioFranjas"></div>
+								<button type="button" class="btn-sm" id="sedHorarioAgregar" onclick="agregarFranjaDeAtencion(HORARIO_SEDE)">＋ Añadir un horario</button>
+								<div id="sedHorarioResumen" style="margin-top:10px;font-family:var(--mono);font-size:12px;line-height:1.5"></div>
+							</div>
+						</div>
 						<div style="display:flex;gap:8px;flex-wrap:wrap">
 							<button class="btn-sm accent" id="sedGuardar" onclick="guardarSede()">Crear sede</button>
 							<button class="btn-sm" id="sedCancelar" onclick="limpiarFormularioSede()" style="display:none">Cancelar</button>
@@ -2199,7 +2213,7 @@
 					</div>
 				</div>
 				<div id="tabReservas" class="hidden">
-					<div class="section-card"><div class="section-header"><div class="section-title">Reservas de mesa</div><button class="btn-sm" onclick="cargarReservas()">Actualizar</button></div><p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Las que piden tus clientes desde la pantalla de bienvenida de la carta. Confírmalas o cancélalas y escríbeles por WhatsApp: no se les avisa solas.</p><div id="reservasResumen" class="reservas-resumen"></div><div id="reservasLista"></div></div>
+					<div class="section-card"><div class="section-header"><div class="section-title">Reservas de mesa</div><button class="btn-sm" onclick="cargarReservas()">Actualizar</button></div><p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Las que piden tus clientes desde la pantalla de bienvenida de la carta. Confírmalas o cancélalas y escríbeles por WhatsApp: no se les avisa solas.</p><div id="reservasFiltro" class="reservas-filtro"></div><div id="reservasResumen" class="reservas-resumen"></div><div id="reservasLista"></div></div>
 				</div>
 				<div id="tabOrdenes" class="hidden">
 					<div class="section-card"><div class="section-header"><div class="section-title">Pedidos desde la carta</div><button class="btn-sm" onclick="cargarOrdenes()">Actualizar</button></div><p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Son pedidos que el cliente confirmó haber enviado por WhatsApp. Confirma su atención aquí.</p><div id="ordenesResumen"></div><div id="ordenesLista"></div></div>

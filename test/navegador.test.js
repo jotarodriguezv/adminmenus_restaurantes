@@ -11332,3 +11332,141 @@ describe('Sedes · cargar precios sin teclear plato por plato', () => {
 		}
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════
+describe('Reservas por sede (panel)', () => {
+	const f = () => cargar('reservas.js', [
+		['reservas.js', 'let reservasFiltroSede', 'function fechaHoraReserva'],
+		['reservas.js', 'function mensajeReserva', 'function pintarContadorReservas'],
+	], {});
+
+	test('el filtro solo ofrece las sedes que aparecen en las reservas, sin repetir y en orden', () => {
+		const c = f();
+		const lista = [{ sede_nombre: 'Piedecuesta' }, { sede_nombre: 'Bucaramanga' }, { sede_nombre: 'Piedecuesta' }, {}, { sede_nombre: null }];
+		assert.deepEqual(Array.from(c.sedesDeLasReservas(lista)), ['Bucaramanga', 'Piedecuesta']);
+		assert.deepEqual(Array.from(c.sedesDeLasReservas(undefined)), []);
+	});
+
+	test('filtrar por sede deja solo las de ese local; sin filtro, todas', () => {
+		const c = f();
+		const lista = [{ id: 1, sede_nombre: 'A' }, { id: 2, sede_nombre: 'B' }, { id: 3 }];
+		assert.equal(c.reservasVisibles(lista, '').length, 3);
+		assert.deepEqual(Array.from(c.reservasVisibles(lista, 'B'), r => r.id), [2]);
+		assert.deepEqual(Array.from(c.reservasVisibles(undefined, 'B')), []);
+	});
+
+	test('el mensaje de WhatsApp nombra la sede, y sin sede es el de siempre', () => {
+		const c = f();
+		const r = { nombre: 'Ana', fecha: '2026-10-05', hora: '19:30:00', personas: 4, estado: 'confirmada' };
+		assert.match(c.mensajeReserva({ ...r, sede_nombre: 'Bucaramanga' }, 'Enchulados'), /reserva en Enchulados \(Bucaramanga\) está confirmada/);
+		assert.equal(c.mensajeReserva(r, 'Bonzas'), 'Hola Ana, tu reserva en Bonzas está confirmada: 05/10/2026 a las 19:30, para 4 personas. ¡Te esperamos!');
+	});
+
+	test('el contador de la pestaña no se filtra por sede', () => {
+		const src = fs.readFileSync(path.join(PUBLIC, 'reservas.js'), 'utf8');
+		const contador = src.match(/function pintarContadorReservas\(\) \{[\s\S]*?\n\}/)[0];
+		assert.doesNotMatch(contador, /reservasFiltroSede|reservasVisibles/);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('Sedes · horario propio o heredado', () => {
+	const campos = (extra = {}) => {
+		const m = {};
+		const $ = id => (m[id] ||= { value: '', checked: false });
+		for (const [id, v] of Object.entries(extra)) Object.assign($(id), v);
+		return $;
+	};
+	const montar = ($, franjas = []) => cargar('sedes.js', [
+		['sedes.js', 'const CAMPOS_SEDE', 'function pintarHorarioPropioDeSede'],
+		['negocio.js', 'function franjasNormalizadas', 'function franjasDelNegocio'],
+	], { document: { getElementById: $ }, sedeFranjas: franjas, Set, Array, Number });
+
+	test('sin la casilla, el horario NO viaja: la sede hereda el del restaurante', () => {
+		const c = montar(campos({ sedDireccion: { value: 'Calle 1' }, sedHorarioPropio: { checked: false } }), [{ dias: [1], desde: '11:00', hasta: '22:00' }]);
+		const a = c.atributosDelFormularioDeSede();
+		assert.equal('horario_atencion' in a, false);
+		assert.equal(a.direccion, 'Calle 1');
+	});
+
+	test('con la casilla, viaja el horario propio, normalizado', () => {
+		const c = montar(campos({ sedHorarioPropio: { checked: true } }), [{ dias: [2, 1, 1], desde: ' 11:00 ', hasta: '22:00' }]);
+		const a = c.atributosDelFormularioDeSede();
+		assert.deepEqual(JSON.parse(JSON.stringify(a.horario_atencion)), [{ dias: [1, 2], desde: '11:00', hasta: '22:00' }]);
+	});
+
+	test('con la casilla y ninguna franja viaja una lista vacía: «esta sede no tiene horario»', () => {
+		const c = montar(campos({ sedHorarioPropio: { checked: true } }), []);
+		assert.deepEqual(JSON.parse(JSON.stringify(c.atributosDelFormularioDeSede().horario_atencion)), []);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('El editor de horario con un segundo contexto (sedes)', () => {
+	function nodo(etiqueta) {
+		return {
+			etiqueta, hijos: [], className: '', textContent: '', style: {}, value: '', checked: false, disabled: false, type: '',
+			title: '', onclick: null, atributos: {}, escuchas: {},
+			setAttribute(k, v) { this.atributos[k] = v; }, addEventListener(ev, fn) { this.escuchas[ev] = fn; },
+			appendChild(h) { this.hijos.push(h); return h; }, append(...xs) { for (const x of xs) this.hijos.push(x); },
+			replaceChildren() { this.hijos = []; },
+		};
+	}
+	function montar() {
+		const ids = {};
+		const $ = id => (ids[id] ||= nodo('#' + id));
+		const ctx = vm.createContext({
+			document: { getElementById: $, createElement: nodo },
+			DIAS_CORTOS: ['D', 'L', 'M', 'X', 'J', 'V', 'S'], DIAS_LARGOS: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'],
+			opcionesDeHora: () => ['10:00', '11:00', '22:00'], String, Set, Array, Number,
+		});
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'negocio.js'), 'utf8'), ctx);
+		vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'horario-atencion.js'), 'utf8'), ctx);
+		vm.runInContext(`franjasEnEdicion = [{ dias: [1], desde: '11:00', hasta: '22:00' }];
+			var deLaSede = [];
+			var CTX_SEDE = { lista: () => deLaSede, ids: { franjas: 'sFr', agregar: 'sAg', resumen: 'sRes' } };`, ctx);
+		return { ctx, $ };
+	}
+	const largo = (ctx, nombre) => vm.runInContext(`${nombre}.length`, ctx);
+
+	test('añadir una franja en la sede no toca la lista de Ajustes', () => {
+		const { ctx, $ } = montar();
+		ctx.agregarFranjaDeAtencion(vm.runInContext('CTX_SEDE', ctx));
+		assert.equal(largo(ctx, 'deLaSede'), 1);
+		assert.equal(largo(ctx, 'franjasEnEdicion'), 1, 'la de Ajustes sigue como estaba');
+		assert.equal($('sFr').hijos.length, 1, 'se dibuja en el contenedor de la sede');
+		assert.equal($('ajHorarioFranjas').hijos.length, 0, 'y no en el de Ajustes');
+	});
+
+	test('la primera franja de la sede es de lunes a viernes, como en Ajustes', () => {
+		const { ctx } = montar();
+		ctx.agregarFranjaDeAtencion(vm.runInContext('CTX_SEDE', ctx));
+		assert.equal(vm.runInContext('JSON.stringify(deLaSede[0].dias)', ctx), '[1,2,3,4,5]');
+	});
+
+	test('quitar una franja de la sede solo la quita de la sede', () => {
+		const { ctx, $ } = montar();
+		const sede = vm.runInContext('CTX_SEDE', ctx);
+		ctx.agregarFranjaDeAtencion(sede);
+		const quitar = $('sFr').hijos[0].hijos.find(h => h.className?.includes('horario-quitar'));
+		quitar.onclick();
+		assert.equal(largo(ctx, 'deLaSede'), 0);
+		assert.equal(largo(ctx, 'franjasEnEdicion'), 1);
+	});
+
+	test('el resumen de la sede dice cómo lo leerá el cliente, en su propio elemento', () => {
+		const { ctx, $ } = montar();
+		ctx.agregarFranjaDeAtencion(vm.runInContext('CTX_SEDE', ctx));
+		assert.match($('sRes').textContent, /Tus clientes leen: Lun a Vie 11:00–22:00/);
+		assert.equal($('ajHorarioResumen').textContent, '');
+	});
+
+	test('sin argumento sigue siendo el editor de Ajustes (lo que llaman negocio.js y los botones de siempre)', () => {
+		const { ctx, $ } = montar();
+		ctx.renderHorarioAtencion();
+		assert.equal($('ajHorarioFranjas').hijos.length, 1);
+		ctx.agregarFranjaDeAtencion();
+		assert.equal(largo(ctx, 'franjasEnEdicion'), 2);
+		assert.equal(largo(ctx, 'deLaSede'), 0);
+	});
+});

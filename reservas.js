@@ -101,7 +101,8 @@ function textoDelBoton(atributos) {
 function mensajeParaElComensal(r, restauranteNombre, estado = r.estado) {
   const fecha = String(r.fecha).slice(0, 10).split('-').reverse().join('/');
   const hora = String(r.hora).slice(0, 5);
-  const lugar = restauranteNombre ? ` en ${restauranteNombre}` : '';
+  // Con sede, el local entre paréntesis: «en Enchulados (Bucaramanga)».
+  const lugar = restauranteNombre ? ` en ${restauranteNombre}${r.sede_nombre ? ` (${r.sede_nombre})` : ''}` : '';
   const detalle = `${fecha} a las ${hora}, para ${r.personas} ${r.personas === 1 ? 'persona' : 'personas'}`;
   if (estado === 'confirmada') return `Hola ${r.nombre}, tu reserva${lugar} está confirmada: ${detalle}. ¡Te esperamos!`;
   if (estado === 'cancelada') return `Hola ${r.nombre}, no pudimos confirmar tu reserva${lugar} para el ${detalle}. ¿Quieres que busquemos otra hora?`;
