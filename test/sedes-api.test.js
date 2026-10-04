@@ -13,7 +13,7 @@ const PLATO_AJENO = '55555555-5555-4555-8555-555555555555';
 const escrituras = (tabla, op) => llamadas.filter(l => l.tabla === tabla && l.op === op);
 
 // Un mundo mínimo: un restaurante, una sede de ese restaurante y dos platos.
-function conMundo({ sedes = [], restaurante = { atributos: {} } } = {}) {
+function conMundo({ sedes = [], restaurante = { atributos: { con_sedes: true } } } = {}) {
 	conTabla(st => {
 		if (st.tabla === 'restaurantes') return { data: restaurante, error: null };
 		if (st.tabla === 'sedes' && st.op === 'select') {
@@ -40,23 +40,26 @@ describe('POST /api/sedes', () => {
 		assert.equal(escrituras('sedes', 'insert').length, 0);
 	});
 
-	test('crea la sede con el enlace sacado del nombre y marca al restaurante con_sedes', async () => {
+	test('crea la sede con el enlace sacado del nombre, y no toca el restaurante', async () => {
 		conMundo();
 		const r = await pedir('POST', '/api/sedes', cuerpo({ nombre: 'Cañaveral Ruitoque' }), tokenAdmin);
 		assert.equal(r.status, 200);
 		const fila = escrituras('sedes', 'insert')[0].payload[0];
 		assert.equal(fila.slug, 'canaveral-ruitoque');
 		assert.equal(fila.restaurante_id, IDS.restaurante);
-		const marca = escrituras('restaurantes', 'update')[0];
-		assert.equal(marca.payload.atributos.con_sedes, true);
+		// El interruptor es del superadmin (Superadmin → Varias sedes): crear una sede no lo enciende.
+		assert.equal(escrituras('restaurantes', 'update').length, 0);
 	});
 
-	test('conserva los demás atributos del restaurante al marcarlo', async () => {
-		conMundo({ restaurante: { atributos: { nav: 'topnav', plan: 'x' } } });
-		await pedir('POST', '/api/sedes', cuerpo(), tokenAdmin);
-		const a = escrituras('restaurantes', 'update')[0].payload.atributos;
-		assert.equal(a.nav, 'topnav');
-		assert.equal(a.plan, 'x');
+	test('con el interruptor «Varias sedes» apagado no se crea ninguna', async () => {
+		for (const atributos of [{}, { con_sedes: false }, { con_sedes: 'true' }]) {
+			reiniciar();
+			conMundo({ restaurante: { atributos } });
+			const r = await pedir('POST', '/api/sedes', cuerpo(), tokenAdmin);
+			assert.equal(r.status, 409, JSON.stringify(atributos));
+			assert.match(r.body.error, /Varias sedes/);
+			assert.equal(escrituras('sedes', 'insert').length, 0);
+		}
 	});
 
 	test('rechaza enlaces mal formados y el reservado de la cartelera', async () => {
@@ -117,14 +120,9 @@ describe('PATCH y DELETE /api/sedes/:id', () => {
 		assert.equal(escrituras('sedes', 'update')[0].payload.activa, false);
 	});
 
-	test('borrar la última sede quita la marca con_sedes; si quedan otras, no', async () => {
+	test('borrar la última sede NO apaga «Varias sedes»: el interruptor es del superadmin', async () => {
 		conMundo({ sedes: [], restaurante: { atributos: { con_sedes: true } } });
 		assert.equal((await pedir('DELETE', `/api/sedes/${SEDE}`, null, tokenAdmin)).status, 200);
-		assert.equal(escrituras('restaurantes', 'update')[0].payload.atributos.con_sedes, false);
-
-		reiniciar();
-		conMundo({ sedes: [{ id: 'otra' }], restaurante: { atributos: { con_sedes: true } } });
-		await pedir('DELETE', `/api/sedes/${SEDE}`, null, tokenAdmin);
 		assert.equal(escrituras('restaurantes', 'update').length, 0);
 	});
 });
@@ -197,5 +195,32 @@ describe('PUT /api/productos-sedes · precios y disponibilidad por sede', () => 
 		conMundo();
 		assert.equal((await pedir('PUT', '/api/productos-sedes', { filas: [] }, tokenCliente)).status, 400);
 		assert.equal((await pedir('PUT', '/api/productos-sedes', { sede_id: SEDE }, tokenCliente)).status, 400);
+	});
+});
+
+describe('PATCH /api/restaurantes/:id · el interruptor «Varias sedes»', () => {
+	const guardar = (atributos, token) => pedir('PATCH', `/api/restaurantes/${IDS.restaurante}`, { atributos }, token);
+	const conRestaurante = (atributos = {}) => conTabla(st => (st.tabla === 'restaurantes' && st.op === 'select' ? { data: { atributos }, error: null } : { data: { id: IDS.restaurante, atributos: {} }, error: null }));
+
+	test('el superadmin lo enciende y se guarda como booleano de verdad', async () => {
+		conRestaurante({ nav: 'topnav' });
+		const r = await guardar({ con_sedes: true }, tokenAdmin);
+		assert.equal(r.status, 200);
+		const a = escrituras('restaurantes', 'update').pop().payload.atributos;
+		assert.equal(a.con_sedes, true);
+		assert.equal(a.nav, 'topnav', 'se funde con lo guardado');
+	});
+
+	test('un valor que no es booleano de verdad deja las sedes apagadas', async () => {
+		conRestaurante();
+		await guardar({ con_sedes: 'false' }, tokenAdmin);
+		assert.equal(escrituras('restaurantes', 'update').pop().payload.atributos.con_sedes, false);
+	});
+
+	test('el dueño del restaurante no puede encenderlo', async () => {
+		conRestaurante();
+		await guardar({ con_sedes: true }, tokenCliente);
+		const guardado = escrituras('restaurantes', 'update').pop()?.payload.atributos || {};
+		assert.equal('con_sedes' in guardado, false);
 	});
 });
