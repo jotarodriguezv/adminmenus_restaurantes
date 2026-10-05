@@ -1549,6 +1549,46 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
   .reserva-card{flex-direction:column;align-items:stretch;}
   .reserva-acciones{justify-content:flex-start;}
 }
+
+/* Pedidos y reservas: mismo sistema de lectura rápida. La tarjeta separa los
+   datos de la acción sin convertir cada línea en una etiqueta llamativa. */
+.gestion-lista-card{border-color:color-mix(in srgb,var(--accent) 35%,var(--border));background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 95%,var(--accent) 5%),var(--panel));box-shadow:0 10px 24px rgba(54,30,13,.08);}
+.gestion-lista-card .section-header{align-items:center;gap:14px;padding-bottom:14px;border-bottom:1px solid color-mix(in srgb,var(--accent) 18%,var(--border));}
+.gestion-lista-titulo{display:inline-flex;align-items:center;min-height:34px;margin:0;padding:8px 13px;border:1px solid #82502e;border-radius:999px;background:linear-gradient(135deg,#553019,#704326);color:#fff;font-family:'Montserrat',var(--sans);font-size:12px;font-weight:850;letter-spacing:.28px;box-shadow:0 4px 10px rgba(69,35,16,.23);transition:transform .18s ease,filter .18s ease,box-shadow .18s ease;}
+.gestion-lista-titulo:hover{transform:translateY(-1px);filter:brightness(1.1);box-shadow:0 7px 14px rgba(69,35,16,.3);}
+.gestion-actualizar{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 13px!important;border-color:#e87809!important;border-radius:999px!important;background:#ed7c00!important;color:#fff!important;font-family:'Montserrat',var(--sans)!important;font-size:11px!important;font-weight:850!important;letter-spacing:.2px;box-shadow:0 5px 12px rgba(237,124,0,.28);transition:transform .18s ease,filter .18s ease,box-shadow .18s ease!important;}
+.gestion-actualizar span{font-size:16px;line-height:1;transition:transform .32s ease;}
+.gestion-actualizar:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 8px 17px rgba(237,124,0,.38)!important;}
+.gestion-actualizar:hover span{transform:rotate(160deg);}
+.gestion-actualizar:active{transform:translateY(0) scale(.98);}
+.gestion-lista-intro{margin:14px 0 16px;color:var(--text-muted);font-size:12px;line-height:1.55;}
+.reservas-resumen,#ordenesResumen{display:inline-flex;flex-wrap:wrap;gap:4px;margin:0 0 14px;padding:8px 11px;border-radius:10px;background:color-mix(in srgb,var(--accent) 8%,var(--card));color:var(--text-muted);font-size:12px;line-height:1.45;}
+.reservas-resumen strong,#ordenesResumen strong{color:var(--text);font-weight:850;}
+.reservas-grupo{margin:18px 0 8px;padding:0 2px;color:var(--accent-texto);}
+.reserva-card,.orden-card{margin:0 0 9px;padding:14px;border:1px solid color-mix(in srgb,var(--border) 82%,var(--accent) 18%);border-radius:13px;background:var(--card);box-shadow:0 3px 10px rgba(35,18,7,.04);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;}
+.reserva-card:hover,.orden-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--accent) 48%,var(--border));box-shadow:0 8px 18px rgba(35,18,7,.1);}
+.reserva-card:first-of-type,.orden-card:first-child{border-top:1px solid color-mix(in srgb,var(--border) 82%,var(--accent) 18%);}
+.reserva-info,.orden-info{min-width:0;color:var(--text);}
+.reserva-cliente,.orden-cliente{font-family:'Montserrat',var(--sans);font-size:14px;font-weight:850;}
+.reserva-contacto,.orden-contacto,.orden-meta,.orden-items{color:var(--text-muted);font-size:12px;line-height:1.6;}
+.reserva-cuando strong,.orden-meta strong,.orden-total{color:var(--text);font-weight:850;}
+.reserva-estado{display:inline-flex;margin-top:3px;padding:3px 8px;border-radius:999px;background:var(--accent-dim);color:var(--accent-texto);font-size:11px;}
+.reserva-confirmada .reserva-estado{background:var(--success-dim);color:var(--success);}
+.reserva-cancelada .reserva-estado{background:rgba(191,53,53,.12);color:#b72d35;}
+.reserva-cancelada{opacity:.82;}
+.reserva-acciones{gap:8px;}
+.reserva-acciones .btn-sm{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:8px 11px;border-radius:9px;font-family:'Montserrat',var(--sans);font-size:11px;font-weight:800;transition:transform .18s ease,filter .18s ease,box-shadow .18s ease,background .18s ease;}
+.reserva-acciones .btn-sm:hover{transform:translateY(-1px);filter:brightness(1.06);box-shadow:0 6px 12px rgba(32,18,9,.16);}
+.reserva-ok{border-color:#138b52!important;background:#159957!important;color:#fff!important;}
+.reserva-cancelar{border-color:#a74946!important;background:#813937!important;color:#fff!important;}
+.reserva-restaurar{border-color:#855b37!important;background:#6c482d!important;color:#fff!important;}
+.reserva-wa{border-color:#168f56!important;background:#1ba765!important;color:#fff!important;box-shadow:0 4px 11px rgba(27,167,101,.2);}
+.reserva-wa span{font-size:13px;}
+.orden-estado-selector{width:166px!important;min-height:39px;padding:8px 30px 8px 10px!important;border-color:#996033!important;border-radius:9px!important;background-color:#fff8f1!important;color:#4a2a18!important;font-family:'Montserrat',var(--sans)!important;font-size:11px!important;font-weight:800!important;box-shadow:0 2px 6px rgba(50,27,10,.08);}
+.orden-estado-selector:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px var(--accent-dim)!important;}
+.orden-estado-selector:disabled,.reserva-acciones .btn-sm:disabled,.gestion-actualizar:disabled{opacity:.52;cursor:not-allowed;transform:none;box-shadow:none!important;filter:none;}
+@media(max-width:640px){.gestion-lista-card .section-header{align-items:flex-start;flex-direction:column;}.gestion-actualizar{width:100%;}.gestion-lista-titulo{font-size:11px;}.reservas-resumen,.ordenes-resumen{display:flex;}.reserva-card,.orden-card{padding:13px;}.reserva-acciones{display:grid;grid-template-columns:1fr;}.reserva-acciones .btn-sm{width:100%;}.orden-estado-selector{width:100%!important;}.reserva-card:hover,.orden-card:hover{transform:none;}}
+@media(prefers-reduced-motion:reduce){.gestion-lista-titulo,.gestion-actualizar,.gestion-actualizar span,.reserva-card,.orden-card,.reserva-acciones .btn-sm{transition:none;}}
 /* ── SECCIONES DE AJUSTES ──────────────────────────────────── */
 /* Fila de chips con scroll horizontal, como los de categoría de la carta: en un
    móvil no hay que adivinar que hay más. 44 px de alto, la guía de Apple y de

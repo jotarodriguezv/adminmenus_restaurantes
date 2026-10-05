@@ -171,18 +171,19 @@ function tarjetaReserva(r) {
   const nombre = state.restaurante?.nombre || '';
   const wa = enlaceReserva(r, nombre);
   const cuando = fechaHoraReserva(r.fecha, r.hora);
-  caja.innerHTML = `<div class="reserva-info"><strong>${esc(r.nombre)}</strong> · ${esc(r.celular)}`
+  caja.innerHTML = `<div class="reserva-info"><strong class="reserva-cliente">${esc(r.nombre)}</strong> <span class="reserva-contacto">· ${esc(r.celular)}</span>`
     + (r.sede_nombre ? `<br><span class="reserva-sede">${esc(r.sede_nombre)}</span>` : '')
-    + `<br><span class="reserva-cuando">${esc(cuando)} · ${r.personas} ${r.personas === 1 ? 'persona' : 'personas'}</span>`
-    + `<br><span class="reserva-estado">${esc(ETIQUETAS_RESERVA[r.estado] || r.estado)}</span></div>`;
+    + `<br><span class="reserva-cuando"><strong>${esc(cuando)} · ${r.personas} ${r.personas === 1 ? 'persona' : 'personas'}</strong></span>`
+    + `<br><span class="reserva-estado"><strong>${esc(ETIQUETAS_RESERVA[r.estado] || r.estado)}</strong></span></div>`;
   const acciones = document.createElement('div'); acciones.className = 'reserva-acciones';
   const boton = (texto, clase, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = `btn-sm ${clase}`; b.textContent = texto; b.onclick = fn; acciones.appendChild(b); };
   if (r.estado !== 'confirmada') boton('Confirmar', 'reserva-ok', () => cambiarEstadoReserva(r, 'confirmada'));
-  if (r.estado !== 'cancelada') boton('Cancelar', '', () => cambiarEstadoReserva(r, 'cancelada'));
-  if (r.estado !== 'pendiente') boton('Volver a pendiente', '', () => cambiarEstadoReserva(r, 'pendiente'));
+  if (r.estado !== 'cancelada') boton('Cancelar', 'reserva-cancelar', () => cambiarEstadoReserva(r, 'cancelada'));
+  if (r.estado !== 'pendiente') boton('Volver a pendiente', 'reserva-restaurar', () => cambiarEstadoReserva(r, 'pendiente'));
   if (wa) {
     const a = document.createElement('a'); a.className = 'btn-sm reserva-wa'; a.href = wa; a.target = '_blank'; a.rel = 'noopener';
-    a.textContent = 'Escribir por WhatsApp'; acciones.appendChild(a);
+    a.setAttribute('aria-label', `Escribir a ${r.nombre} por WhatsApp`);
+    a.innerHTML = '<span aria-hidden="true">◉</span> Escribir por WhatsApp'; acciones.appendChild(a);
   }
   caja.appendChild(acciones);
   return caja;

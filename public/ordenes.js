@@ -44,15 +44,15 @@ function pintarOrdenes() {
   pintarFiltroDeSedesDeOrdenes();
   const ordenes = reservasVisibles(state.ordenes, ordenesFiltroSede);
   const abiertos = ordenes.filter(o => !['completado', 'cancelado'].includes(o.estado));
-  resumen.textContent = `${ordenes.length} registrados · ${abiertos.length} por atender · Total informado ${dineroOrden(ordenes.reduce((s, o) => s + Number(o.total_reportado || 0), 0))}`;
-  resumen.style.cssText = 'font-size:12px;color:var(--text-muted);margin-bottom:14px;';
+  const total = dineroOrden(ordenes.reduce((s, o) => s + Number(o.total_reportado || 0), 0));
+  resumen.innerHTML = `<strong>${ordenes.length}</strong> registrados · <strong>${abiertos.length}</strong> por atender · Total informado <strong>${total}</strong>`;
   lista.replaceChildren();
   if (!ordenes.length) { lista.textContent = 'Aún no hay pedidos registrados.'; return; }
   ordenes.forEach(o => {
     const caja = document.createElement('article'); caja.className = 'orden-card';
     const items = (o.items || []).map(i => `${i.nombre} ×${i.cantidad}`).join(', ');
-    caja.innerHTML = `<div><strong>${esc(o.cliente_nombre)}</strong> · ${esc(o.cliente_telefono)}${o.sede_nombre ? `<br><span class="reserva-sede">${esc(o.sede_nombre)}</span>` : ''}<br><span>${esc(ETIQUETAS_ORDEN[o.estado] || o.estado)} · ${esc(o.tipo_entrega)} · ${dineroOrden(o.total_reportado)} · ${fechaOrden(o.creado_en)}</span><br><span>${esc(items)}${o.direccion_entrega ? ` · ${esc(o.direccion_entrega)}` : ''}</span></div>`;
-    const select = document.createElement('select'); select.className = 'form-input';
+    caja.innerHTML = `<div class="orden-info"><strong class="orden-cliente">${esc(o.cliente_nombre)}</strong> <span class="orden-contacto">· ${esc(o.cliente_telefono)}</span>${o.sede_nombre ? `<br><span class="reserva-sede">${esc(o.sede_nombre)}</span>` : ''}<br><span class="orden-meta"><strong>${esc(ETIQUETAS_ORDEN[o.estado] || o.estado)}</strong> · ${esc(o.tipo_entrega)} · <strong class="orden-total">${dineroOrden(o.total_reportado)}</strong> · ${fechaOrden(o.creado_en)}</span><br><span class="orden-items">${esc(items)}${o.direccion_entrega ? ` · ${esc(o.direccion_entrega)}` : ''}</span></div>`;
+    const select = document.createElement('select'); select.className = 'form-input orden-estado-selector';
     Object.entries(ETIQUETAS_ORDEN).forEach(([valor, texto]) => { const op = document.createElement('option'); op.value = valor; op.textContent = texto; op.selected = valor === o.estado; select.appendChild(op); });
     select.onchange = async () => { await apiFetch('PATCH', `/api/pedidos/${o.id}`, { estado: select.value }); o.estado = select.value; pintarOrdenes(); };
     caja.appendChild(select); lista.appendChild(caja);
