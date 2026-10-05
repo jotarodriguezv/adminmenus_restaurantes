@@ -2252,12 +2252,10 @@
 				<div class="modal-head">
 					<div class="modal-head-titulo">
 						<span class="modal-title" id="productModalTitle">Editar producto</span>
-						<!-- Solo con un producto ya guardado: uno nuevo o con cambios
-						     sin guardar todavía no se ve así en la carta de verdad.
-						     Reusa urlPublica(), el mismo helper de abrirVistaPrevia()
-						     en Superadmin — no hace falta nada nuevo. -->
-						<a href="#" id="linkVerEnCarta" class="modal-ver-carta" style="display:none" target="_blank" rel="noopener" onclick="event.preventDefault();verEnMiCarta();">👁 Ver en mi carta</a>
 					</div>
+					<!-- Solo con un producto ya guardado: va como acción secundaria
+					     alineada al cierre, no pegada al título de la ficha. -->
+					<a href="#" id="linkVerEnCarta" class="modal-ver-carta" style="display:none" target="_blank" rel="noopener" onclick="event.preventDefault();verEnMiCarta();">👁 Ver en mi carta</a>
 					<button class="modal-close" onclick="intentarCerrarProducto()">✕</button>
 				</div>
 				<!-- Pestañas de la ficha (25/09/2026, diagnóstico de UX). No mueven ni
