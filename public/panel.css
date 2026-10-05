@@ -407,6 +407,23 @@ a,button,input,select,textarea{font-family:inherit;}
 .aj-seccion-tab:hover{color:var(--titulo-pill-text);background:var(--titulo-pill-bg);transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 7px 15px var(--titulo-pill-shadow);}
 .aj-seccion-tab.active{border-color:var(--accent);background:var(--accent);color:#fff;box-shadow:0 5px 13px var(--accent-glow);}
 
+/* Un mismo lenguaje para TODOS los títulos y subtítulos en píldora del
+   panel. Las variables invierten el contraste entre los dos temas: café con
+   texto claro al ver la interfaz clara, crema con texto café al verla oscura.
+   Así tampoco se pierde un encabezado pequeño entre controles de formulario. */
+#appScreen .section-title{display:inline-flex;align-items:center;gap:7px;min-height:36px;max-width:100%;margin-bottom:13px;padding:8px 14px;border:1px solid var(--titulo-pill-border);border-radius:999px;background:var(--titulo-pill-bg);color:var(--titulo-pill-text);font-family:'Montserrat',var(--sans);font-size:12px;font-weight:850;letter-spacing:.18px;line-height:1.2;text-transform:uppercase;box-shadow:0 4px 10px var(--titulo-pill-shadow);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease,background .18s ease;}
+#appScreen .section-title:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 8px 16px var(--titulo-pill-shadow);}
+#appScreen .section-title:active{transform:translateY(0) scale(.985);}
+#appScreen .section-title :is(svg,.section-title-icon){color:currentColor;fill:currentColor;}
+/* Los números siempre se leen como una pequeña llamada de atención, nunca
+   como texto naranja perdido sobre el café o la crema de la píldora. */
+#appScreen .section-title .inicio-cuenta:not(:empty),
+#appScreen .section-title .tab-contador{display:inline-grid;place-items:center;min-width:22px;min-height:22px;margin-left:2px;padding:2px 7px;border:1px solid rgba(255,255,255,.42);border-radius:999px;background:var(--accent);color:#fff;font-family:'Montserrat',var(--sans);font-size:11px;font-weight:900;letter-spacing:0;line-height:1;box-shadow:0 2px 5px rgba(86,43,11,.22);}
+/* «Pon tu carta a punto» guía el bloque; la acción verde continúa siendo
+   visible, pero su escala no compite con el título. */
+#tabInicio .inicio-titulo-pildora--cta{min-height:45px;padding:10px 17px;font-size:15px;font-weight:900;letter-spacing:.1px;box-shadow:0 6px 15px var(--titulo-pill-shadow);}
+@media (width <= 640px){#appScreen .section-title{min-height:38px;padding:8px 12px;font-size:11px;}#tabInicio .inicio-titulo-pildora--cta{min-height:44px;padding:10px 14px;font-size:14px;}}
+
 /* Inicio: la acción pública destaca sin mezclarse con los botones de estado. */
 .inicio-abrir-carta{display:inline-flex!important;align-items:center;justify-content:center;min-height:38px;border-color:#1e9b5d!important;background:#159957!important;color:#fff!important;font-family:'Montserrat',var(--sans)!important;font-size:10px!important;font-weight:850!important;box-shadow:0 5px 13px rgba(21,153,87,.3);animation:inicio-cta-respiro 3.5s ease-in-out infinite;}
 .inicio-abrir-carta:hover{background:#1bad66!important;transform:translateY(-2px);box-shadow:0 9px 19px rgba(21,153,87,.38)!important;}
