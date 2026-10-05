@@ -363,7 +363,7 @@ function pintarConfiguracion(items) {
     const fila = el('div', 'inicio-configuracion' + (item.listo ? ' lista' : ''));
     const texto = el('div', 'inicio-configuracion-texto');
     texto.append(el('div', 'inicio-configuracion-titulo', item.titulo), el('div', 'inicio-configuracion-detalle', item.detalle));
-    const boton = el('button', 'btn-sm' + (item.listo ? '' : ' accent'), item.accion);
+    const boton = el('button', 'btn-sm inicio-atajo' + (item.listo ? '' : ' accent'), item.accion);
     boton.type = 'button';
     // Con `campo`, a ese campo; sin él, a la pestaña a secas.
     boton.onclick = () => (item.campo ? irADatosDelNegocio(item.campo) : abrirDesdeInicio(item.tab));

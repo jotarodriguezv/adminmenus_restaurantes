@@ -333,7 +333,7 @@
 								<span class="inicio-estado-badge" id="inicioEstadoPublico"></span>
 							</div>
 							<p class="inicio-estado-detalle" id="inicioEstadoPublicoDetalle"></p>
-							<a class="btn-sm" id="inicioEstadoPublicoAccion" target="_blank" rel="noopener noreferrer">Abrir mi carta ↗</a>
+							<a class="btn-sm inicio-abrir-carta" id="inicioEstadoPublicoAccion" target="_blank" rel="noopener noreferrer">Abrir mi carta ↗</a>
 						</section>
 					</div>
 					<section class="inicio-renovacion" id="inicioRenovacion" hidden aria-live="polite">
@@ -347,17 +347,17 @@
 					</section>
 					<div class="inicio-grid">
 						<section class="section-card inicio-tarjeta">
-							<div class="section-title">Para revisar <span class="inicio-cuenta" id="inicioPendientesCuenta"></span></div>
+							<div class="section-title inicio-titulo-pildora">Para revisar <span class="inicio-cuenta" id="inicioPendientesCuenta"></span></div>
 							<div id="inicioPendientes"></div>
 						</section>
 						<section class="section-card inicio-tarjeta">
 							<!-- «Tu carta tiene» y no «Funciones en uso»: la lista enseña también las
 							     apagadas, y el título decía lo contrario. -->
-							<div class="section-title">Tu carta tiene</div>
+							<div class="section-title inicio-titulo-pildora">Tu carta tiene</div>
 							<div id="inicioFunciones"></div>
 						</section>
 						<section class="section-card inicio-tarjeta inicio-tarjeta-ancha">
-							<div class="section-title">Pon tu carta a punto <span class="inicio-cuenta" id="inicioConfiguracionCuenta"></span></div>
+							<div class="section-title inicio-titulo-pildora inicio-titulo-pildora--cta">Pon tu carta a punto <span class="inicio-cuenta" id="inicioConfiguracionCuenta"></span></div>
 							<div id="inicioConfiguracion"></div>
 						</section>
 					</div>
@@ -1950,9 +1950,9 @@
 							</div>
 							<div class="qr-descargas">
 								<button class="btn-save" onclick="qrDescargarPNG()">Descargar PNG</button>
-								<button class="btn-sm" style="padding:11px 14px;" onclick="qrDescargarSVG()">SVG</button>
+								<button class="btn-sm qr-descarga-svg" style="padding:11px 14px;" onclick="qrDescargarSVG()">Formato SVG</button>
 							</div>
-							<button class="btn-sm" style="width:100%;padding:11px;margin-top:8px;" onclick="qrVistaPreviaCartel()">Ver cartel para imprimir</button>
+							<button class="btn-sm qr-ver-cartel" style="width:100%;padding:11px;margin-top:8px;" onclick="qrVistaPreviaCartel()">Ver cartel para imprimir</button>
 						</div>
 
 						<!-- Columna derecha: controles -->
@@ -2168,7 +2168,7 @@
 				</div>
 				<div id="tabSedes" class="hidden">
 					<div class="section-card">
-						<div class="section-header"><div class="section-title">Sedes</div><button class="btn-sm" onclick="renderSedes()">Actualizar</button></div>
+						<div class="section-header"><div class="section-title sedes-titulo">Sedes</div><button class="btn-sm sedes-actualizar" onclick="renderSedes()"><span aria-hidden="true">↻</span> Actualizar</button></div>
 						<p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5">Los locales de este restaurante. Comparten la carta, pero cada uno puede tener sus propios precios, sus platos y sus datos (dirección, WhatsApp). Cada sede tiene su enlace y su QR; el enlace sin sede le pregunta al cliente en cuál está.</p>
 						<div id="sedesCupo" class="sede-cupo"></div>
 						<div id="sedesLista"></div>
@@ -3069,7 +3069,7 @@
       <p style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;">Si sales ahora se pierden.</p>
     </div>
     <div class="modal-foot">
-      <button class="btn-cancel" onclick="closeModal('cambiosModal')">Seguir editando</button>
+					<button class="btn-cancel seguir-editando" onclick="closeModal('cambiosModal')">✎ Seguir editando</button>
       <button class="btn-save" style="background:var(--danger);color:#fff;" onclick="salirSinGuardar()">Salir sin guardar</button>
     </div>
   </div>
@@ -3087,7 +3087,7 @@
       <p style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:8px;">Si cambias de pestaña ahora se pierden.</p>
     </div>
     <div class="modal-foot">
-      <button class="btn-cancel" onclick="closeModal('pestanaCambiosModal')">Seguir editando</button>
+					<button class="btn-cancel seguir-editando" onclick="closeModal('pestanaCambiosModal')">✎ Seguir editando</button>
       <button class="btn-save" style="background:var(--danger);color:#fff;" onclick="salirDePestanaSinGuardar()">Salir sin guardar</button>
     </div>
   </div>

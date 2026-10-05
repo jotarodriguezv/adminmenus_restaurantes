@@ -100,8 +100,8 @@ function pintarSedes() {
       </div>
       <div class="sede-acciones">
         <button class="btn-sm accent" onclick="abrirPreciosDeSede('${esc(s.id)}')">Precios y platos</button>
-        ${admin ? `<button class="btn-sm" onclick="editarSede('${esc(s.id)}')">Editar</button>
-        <button class="btn-sm" onclick="alternarSedeActiva('${esc(s.id)}')">${s.activa ? 'Apagar' : 'Encender'}</button>
+        ${admin ? `<button class="btn-sm sede-editar" onclick="editarSede('${esc(s.id)}')">✎ Editar</button>
+        <button class="btn-sm sede-encendido" onclick="alternarSedeActiva('${esc(s.id)}')">${s.activa ? '⏻ Apagar' : '⏻ Encender'}</button>
         <button class="btn-sm eliminar" onclick="borrarSede('${esc(s.id)}')">Borrar</button>` : ''}
       </div>
     </div>`;
