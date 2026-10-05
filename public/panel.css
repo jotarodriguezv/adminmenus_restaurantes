@@ -138,12 +138,23 @@ a,button,input,select,textarea{font-family:inherit;}
    esconde; el nombre del restaurante puede partir en dos líneas, como ya
    hacía «BONZAS BURGER GRILL». */
 @media (max-width:480px){
-  .topbar{padding:0 12px;gap:8px;}
-  .brand-pill-app{padding:5px;}
+  /* La barra no puede llevar a la vez nombre, marca y tres acciones con
+     texto: se montaban unas sobre otras. El nombre ya se lee en el contenido;
+     aquí quedan marca, rol y tres acciones circulares centradas. */
+  .topbar{height:54px;padding:0 10px;gap:6px;}
+  .topbar-left{flex:1 1 auto;gap:6px;overflow:hidden;}
+  .topbar-resto,.topbar-version{display:none;}
+  .brand-pill-app{width:36px;height:36px;padding:5px;justify-content:center;}
   .brand-pill-app span{display:none;}
-  .topbar-version{display:none;}
+  .topbar-badge{padding:5px 8px;font-size:8px;letter-spacing:.55px;white-space:nowrap;}
+  .topbar-right{gap:6px;}
+  .topbar-right .nav-icon-btn,.topbar-right .nav-restaurantes,.topbar-right .nav-salir{width:36px;min-width:36px;height:36px;min-height:36px;padding:0;border-radius:50%;gap:0;}
+  .topbar-right .nav-restaurantes span,.topbar-right .nav-salir span{display:none;}
+  .topbar-right .nav-icon-btn{font-size:15px!important;line-height:1!important;}
+  .topbar-right .nav-restaurantes svg,.topbar-right .nav-salir svg{width:16px;height:16px;margin:0;}
   .solo-ancho{display:none;}
 }
+@media (max-width:350px){.topbar-badge{padding:5px 6px;font-size:7px;letter-spacing:.25px;}.topbar-right{gap:4px;}}
 .btn-sm{padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:transparent;
   color:var(--text-muted);font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;cursor:pointer;transition:transform .2s ease,border-color .2s ease,color .2s ease,background .2s ease,box-shadow .2s ease;}
 .btn-sm:hover{border-color:var(--border2);color:var(--text);transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.12);}
