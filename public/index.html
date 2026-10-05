@@ -2256,7 +2256,7 @@
 					</div>
 					<!-- Solo con un producto ya guardado: va como acción secundaria
 					     alineada al cierre, no pegada al título de la ficha. -->
-					<a href="#" id="linkVerEnCarta" class="modal-ver-carta" style="display:none" target="_blank" rel="noopener" onclick="event.preventDefault();verEnMiCarta();">👁 Ver en mi carta</a>
+					<a href="#" id="linkVerEnCarta" class="modal-ver-carta" style="display:none" target="_blank" rel="noopener" onclick="event.preventDefault();verEnMiCarta();"><svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M2.5 12s3.4-5.5 9.5-5.5S21.5 12 21.5 12 18.1 17.5 12 17.5 2.5 12 2.5 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg><span>Ver en mi carta</span></a>
 					<button class="modal-close" onclick="intentarCerrarProducto()">✕</button>
 				</div>
 				<!-- Pestañas de la ficha (25/09/2026, diagnóstico de UX). No mueven ni
@@ -4296,7 +4296,7 @@ function openEditProductModal(id) {
 	document.getElementById('editProductId').value=p.id;
 	// La misma guarda que ya usa avisarGuardadoConCarta: sin restaurante, sin
 	// slug o suspendido, el botón prometería una carta que no se ve así.
-	document.getElementById('linkVerEnCarta').style.display=destinoVerCarta(state.restaurante) ? 'inline' : 'none';
+	document.getElementById('linkVerEnCarta').style.display=destinoVerCarta(state.restaurante) ? 'inline-flex' : 'none';
 	// El estado de la generación es de la ficha anterior: si no se limpia, el
 	// plato nuevo abre diciendo "generando..." de otro.
 	//
