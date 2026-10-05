@@ -9856,7 +9856,65 @@ function habilitarArrastre() {
 	}
 }
 
+// ── ACORDEONES DE CONFIGURACIÓN ───────────────────────────────
+// Agrupa controles ya existentes sin recrearlos: sus ids, listeners y valores
+// permanecen intactos. <details> da teclado, foco e independencia entre grupos
+// de forma nativa, sin que abrir uno fuerce el cierre de otro.
+function tarjetaDeConfiguracion(panel, titulo) {
+	return [...panel.children].find(nodo =>
+		nodo.matches?.('.section-card') &&
+		nodo.querySelector('.section-title')?.textContent.trim().startsWith(titulo)
+	) || null;
+}
+
+function crearAcordeonDeConfiguracion(panelId, titulo, ayuda, titulosTarjeta) {
+	const panel = document.getElementById(panelId);
+	if (!panel || panel.dataset.acordeonesListos) return;
+	const tarjetas = titulosTarjeta.map(tituloTarjeta => tarjetaDeConfiguracion(panel, tituloTarjeta)).filter(Boolean);
+	if (!tarjetas.length) return;
+
+	const acordeon = document.createElement('details');
+	acordeon.className = 'panel-acordeon';
+	const resumen = document.createElement('summary');
+	const texto = document.createElement('span');
+	texto.className = 'panel-acordeon-titulo';
+	texto.textContent = titulo;
+	const nota = document.createElement('small');
+	nota.textContent = ayuda;
+	resumen.append(texto, nota);
+	const cuerpo = document.createElement('div');
+	cuerpo.className = 'panel-acordeon-cuerpo';
+	acordeon.append(resumen, cuerpo);
+	panel.insertBefore(acordeon, tarjetas[0]);
+	tarjetas.forEach(tarjeta => cuerpo.appendChild(tarjeta));
+}
+
+function organizarPanelesDeConfiguracion() {
+	const superadmin = document.getElementById('tabApariencia');
+	if (superadmin) {
+		crearAcordeonDeConfiguracion('tabApariencia', 'Restaurante y plan', 'Datos principales, facturación y plan contratado.', ['Datos del restaurante', 'Plan']);
+		crearAcordeonDeConfiguracion('tabApariencia', 'Enlace y operación', 'Dirección pública, horario, sedes e importación.', ['Dirección del menú', 'Zona horaria', 'Varias sedes', 'Importar la carta']);
+		crearAcordeonDeConfiguracion('tabApariencia', 'Contenido avanzado', 'Portada y ajustes especiales del restaurante.', ['Portada', 'CSS personalizado']);
+		superadmin.dataset.acordeonesListos = '1';
+	}
+
+	const aspecto = document.getElementById('tabAspecto');
+	if (aspecto) {
+		crearAcordeonDeConfiguracion('tabAspecto', 'Fondo y color', 'Imagen, color base y superficies de la carta.', ['Imagen de fondo', 'Color de fondo', 'Colores de superficie']);
+		crearAcordeonDeConfiguracion('tabAspecto', 'Logo e identidad', 'Logo, paleta y colores principales de tu marca.', ['Logo', 'Colores']);
+		crearAcordeonDeConfiguracion('tabAspecto', 'Estructura y tipografía', 'Modelo de carta, fuentes y estilo de sus textos.', ['Modelo de página', 'Tipografía']);
+		// Este panel ya era un <details>; se suma al grupo tipográfico sin tocar
+		// su contenido ni los controles que crea aspecto.js.
+		const tipografia = [...aspecto.querySelectorAll(':scope > .panel-acordeon')]
+			.find(grupo => grupo.querySelector('.panel-acordeon-titulo')?.textContent === 'Estructura y tipografía');
+		const textos = aspecto.querySelector(':scope > #apTextoMenuPanel');
+		if (tipografia && textos) tipografia.querySelector('.panel-acordeon-cuerpo').appendChild(textos);
+		aspecto.dataset.acordeonesListos = '1';
+	}
+}
+
 // ── ARRANQUE ──────────────────────────────────────────────────
+organizarPanelesDeConfiguracion();
 filtrarModeloNuevoResto();
 actualizarEstadoNuevoResto();
 renderPaletasNuevoResto();

@@ -347,6 +347,27 @@ a,button,input,select,textarea{font-family:inherit;}
 .plan-summary span{font-weight:800;}
 .plan-note{margin-top:14px;padding:10px 12px;border-left:3px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;background:rgba(237,124,0,.08);font-family:var(--sans);font-size:11px;font-weight:600;color:var(--text-muted);line-height:1.6;}
 
+/* Grupos plegables de Apariencia y Superadmin. El resumen es una píldora
+   completa para que el panel se pueda recorrer sin desplegar controles que no
+   se van a usar. Los <details> son independientes y mantienen el teclado
+   accesible sin JavaScript adicional. */
+.panel-acordeon{margin:0 0 12px;font-family:var(--sans);}
+.panel-acordeon>summary{display:flex;align-items:center;gap:12px;min-height:58px;padding:10px 16px;border:1px solid color-mix(in srgb,var(--accent) 32%,var(--border));border-radius:999px;background:linear-gradient(120deg,color-mix(in srgb,var(--panel) 92%,var(--accent) 8%),var(--panel));color:var(--text);cursor:pointer;list-style:none;box-shadow:0 4px 13px rgba(50,27,10,.08);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease;}
+.panel-acordeon>summary::-webkit-details-marker{display:none;}
+.panel-acordeon>summary::after{content:'⌄';display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;margin-left:auto;border-radius:50%;background:var(--accent-dim);color:var(--accent);font-size:20px;font-weight:800;line-height:1;transition:transform .2s ease,background .2s ease,color .2s ease;}
+.panel-acordeon-titulo{font-family:'Montserrat',var(--sans);font-size:13px;font-weight:850;letter-spacing:.15px;}
+.panel-acordeon>summary small{margin-left:auto;max-width:52%;color:var(--text-muted);font-size:11px;font-weight:600;line-height:1.35;text-align:right;}
+.panel-acordeon>summary:hover{transform:translateY(-2px);border-color:var(--accent);background:linear-gradient(120deg,color-mix(in srgb,var(--panel) 84%,var(--accent) 16%),var(--panel));box-shadow:0 8px 18px rgba(50,27,10,.15);}
+.panel-acordeon>summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px;}
+.panel-acordeon[open]>summary{border-color:var(--accent);box-shadow:0 6px 16px rgba(50,27,10,.14);}
+.panel-acordeon[open]>summary::after{transform:rotate(180deg);background:var(--accent);color:#fff;}
+.panel-acordeon-cuerpo{display:grid;gap:10px;padding:11px 3px 3px;animation:panel-acordeon-abrir .18s ease both;}
+.panel-acordeon-cuerpo>.section-card{margin:0;}
+.panel-acordeon-cuerpo>.section-card .section-title{font-family:'Montserrat',var(--sans);}
+@keyframes panel-acordeon-abrir{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:680px){.panel-acordeon>summary{min-height:62px;padding:10px 13px;gap:9px;border-radius:18px;}.panel-acordeon>summary small{max-width:none;margin-left:0;text-align:left;}.panel-acordeon>summary::after{flex-basis:28px;width:28px;height:28px;}.panel-acordeon-titulo{font-size:12px;}.panel-acordeon-cuerpo{padding:9px 0 2px;gap:8px;}.panel-acordeon-cuerpo>.section-card{padding:14px 12px;}}
+@media(prefers-reduced-motion:reduce){.panel-acordeon>summary,.panel-acordeon>summary::after{transition:none;}.panel-acordeon-cuerpo{animation:none;}}
+
 /* Eliminar logo es una acción destructiva: se separa de los controles de subida
    con rojo sólido, texto de alto contraste y una respuesta inequívoca al puntero. */
 .btn-remove-logo{margin-top:12px;padding:9px 13px;border:1px solid #ef5350;border-radius:8px;background:#b7262b;color:#fff;font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.25px;cursor:pointer;box-shadow:0 3px 10px rgba(183,38,43,.22);transition:transform .2s ease,background .2s ease,box-shadow .2s ease;}
