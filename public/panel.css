@@ -32,6 +32,10 @@
   --sans: 'Montserrat', sans-serif;
   --radius: 8px;
   --r-lg: 12px;
+  --titulo-pill-bg: #fff7ef;
+  --titulo-pill-text: #56301b;
+  --titulo-pill-border: #f2c69e;
+  --titulo-pill-shadow: rgba(0,0,0,.2);
 }
 
 /* ── VISTA CLARA ──
@@ -67,6 +71,10 @@
   --topbar-bg: rgba(255,255,255,.94);
   --overlay: rgba(48,27,11,0.45);
   --img-overlay: rgba(0,0,0,.45);
+  --titulo-pill-bg: #58311c;
+  --titulo-pill-text: #ffffff;
+  --titulo-pill-border: #70452a;
+  --titulo-pill-shadow: rgba(72,38,17,.18);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;font-weight:500;line-height:1.5;min-height:100vh;}
@@ -365,8 +373,59 @@ a,button,input,select,textarea{font-family:inherit;}
 .panel-acordeon-cuerpo>.section-card{margin:0;}
 .panel-acordeon-cuerpo>.section-card .section-title{font-family:'Montserrat',var(--sans);}
 @keyframes panel-acordeon-abrir{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:680px){.panel-acordeon>summary{min-height:62px;padding:10px 13px;gap:9px;border-radius:18px;}.panel-acordeon>summary small{max-width:none;margin-left:0;text-align:left;}.panel-acordeon>summary::after{flex-basis:28px;width:28px;height:28px;}.panel-acordeon-titulo{font-size:12px;}.panel-acordeon-cuerpo{padding:9px 0 2px;gap:8px;}.panel-acordeon-cuerpo>.section-card{padding:14px 12px;}}
+@media (width <= 680px){.panel-acordeon>summary{min-height:62px;padding:10px 13px;gap:9px;border-radius:18px;}.panel-acordeon>summary small{max-width:none;margin-left:0;text-align:left;}.panel-acordeon>summary::after{flex-basis:28px;width:28px;height:28px;}.panel-acordeon-titulo{font-size:12px;}.panel-acordeon-cuerpo{padding:9px 0 2px;gap:8px;}.panel-acordeon-cuerpo>.section-card{padding:14px 12px;}}
 @media(prefers-reduced-motion:reduce){.panel-acordeon>summary,.panel-acordeon>summary::after{transition:none;}.panel-acordeon-cuerpo{animation:none;}}
+
+/* Píldoras de navegación y gestión: el mismo contraste cambia de lado con el
+   tema. En claro, café sobre superficie clara; en oscuro, crema legible sobre
+   la superficie oscura. Se limita a los títulos funcionales, no a etiquetas de
+   formularios ni a títulos dentro de tablas. */
+#tabInicio .inicio-titulo-pildora,
+#tabCategorias>.section-card>.section-title,
+#tabPromo>.section-card>.section-header>.section-title,
+#tabTv>.section-card>.section-header>.section-title,
+#tabImportar>.section-card>.section-title,
+#tabQr .section-card>.section-title,
+#tabEstadisticas .section-card>.section-title,
+#tabSedes .section-card>.section-header>.section-title,
+#tabSedes .section-card>.section-title{display:inline-flex;align-items:center;width:max-content;max-width:100%;min-height:34px;margin-bottom:12px;padding:8px 13px;border:1px solid var(--titulo-pill-border);border-radius:999px;background:var(--titulo-pill-bg);color:var(--titulo-pill-text);font-family:'Montserrat',var(--sans);font-size:12px;font-weight:850;letter-spacing:.18px;line-height:1.15;box-shadow:0 4px 10px var(--titulo-pill-shadow);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease,background .18s ease;}
+#tabInicio .inicio-titulo-pildora:hover,
+#tabCategorias>.section-card>.section-title:hover,
+#tabPromo>.section-card>.section-header>.section-title:hover,
+#tabTv>.section-card>.section-header>.section-title:hover,
+#tabImportar>.section-card>.section-title:hover,
+#tabQr .section-card>.section-title:hover,
+#tabEstadisticas .section-card>.section-title:hover,
+#tabSedes .section-card>.section-header>.section-title:hover,
+#tabSedes .section-card>.section-title:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 8px 16px var(--titulo-pill-shadow);}
+#tabInicio .inicio-titulo-pildora--cta{font-size:13px;padding:9px 15px;}
+#tabAspecto .panel-acordeon>summary{border-color:var(--titulo-pill-border);background:var(--titulo-pill-bg);color:var(--titulo-pill-text);box-shadow:0 4px 10px var(--titulo-pill-shadow);}
+#tabAspecto .panel-acordeon>summary small{color:var(--titulo-pill-text);opacity:.76;}
+#tabAspecto .panel-acordeon>summary:hover{background:var(--titulo-pill-bg);filter:brightness(1.06);box-shadow:0 8px 16px var(--titulo-pill-shadow);}
+/* Los chips de Ajustes son las categorías visibles de esa pestaña. */
+.aj-seccion-tab{min-height:44px;border-color:var(--titulo-pill-border);background:var(--titulo-pill-bg);color:var(--titulo-pill-text);font-family:'Montserrat',var(--sans);font-weight:850;box-shadow:0 3px 9px var(--titulo-pill-shadow);}
+.aj-seccion-tab:hover{color:var(--titulo-pill-text);background:var(--titulo-pill-bg);transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 7px 15px var(--titulo-pill-shadow);}
+.aj-seccion-tab.active{border-color:var(--accent);background:var(--accent);color:#fff;box-shadow:0 5px 13px var(--accent-glow);}
+
+/* Inicio: la acción pública destaca sin mezclarse con los botones de estado. */
+.inicio-abrir-carta{display:inline-flex!important;align-items:center;justify-content:center;min-height:38px;border-color:#1e9b5d!important;background:#159957!important;color:#fff!important;font-family:'Montserrat',var(--sans)!important;font-size:10px!important;font-weight:850!important;box-shadow:0 5px 13px rgba(21,153,87,.3);animation:inicio-cta-respiro 3.5s ease-in-out infinite;}
+.inicio-abrir-carta:hover{background:#1bad66!important;transform:translateY(-2px);box-shadow:0 9px 19px rgba(21,153,87,.38)!important;}
+@keyframes inicio-cta-respiro{0%,100%{box-shadow:0 5px 13px rgba(21,153,87,.28)}50%{box-shadow:0 5px 0 5px rgba(21,153,87,.11),0 9px 18px rgba(21,153,87,.32)}}
+.inicio-configuracion .inicio-atajo{min-height:34px;border-color:#895333;background:#6b4027;color:#fff;font-family:'Montserrat',var(--sans);font-size:10px;font-weight:800;letter-spacing:.2px;text-transform:none;box-shadow:0 3px 9px rgba(65,35,17,.18);}
+.inicio-configuracion .inicio-atajo:hover{border-color:#a76a41;background:#794a2d;color:#fff;transform:translateY(-2px);box-shadow:0 7px 14px rgba(65,35,17,.27);}
+.inicio-configuracion .inicio-atajo.accent{border-color:#e87809;background:var(--accent);}
+
+/* Sedes, QR, destacados y la salida segura comparten acciones con peso claro. */
+.sedes-actualizar{display:inline-flex;align-items:center;gap:6px;min-height:38px;border-color:#e87809!important;background:var(--accent)!important;color:#fff!important;font-family:'Montserrat',var(--sans)!important;font-weight:850!important;box-shadow:0 5px 12px var(--accent-glow);}
+.sedes-actualizar span{font-size:15px;transition:transform .28s ease;}.sedes-actualizar:hover span{transform:rotate(150deg);}
+.sede-acciones .btn-sm{display:inline-flex;align-items:center;justify-content:center;min-height:36px;font-family:'Montserrat',var(--sans);font-size:10px;font-weight:800;letter-spacing:.1px;text-transform:none;box-shadow:0 3px 9px rgba(0,0,0,.12);}
+.sede-acciones .sede-editar{border-color:#9b653c;background:#74472b;color:#fff;}.sede-acciones .sede-encendido{border-color:#a94745;background:#813b38;color:#fff;}.sede-acciones .sede-encendido:hover{background:#a24843;}.sede-acciones .btn-sm:hover{transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 7px 14px rgba(0,0,0,.2);}
+.qr-ver-cartel,.qr-descarga-svg{min-height:40px;border-radius:10px!important;font-family:'Montserrat',var(--sans)!important;font-size:11px!important;font-weight:850!important;text-transform:none!important;box-shadow:0 4px 11px rgba(0,0,0,.15);}
+.qr-ver-cartel{border-color:#895333!important;background:#663b24!important;color:#fff!important;}.qr-descarga-svg{border-color:#e87809!important;background:var(--accent)!important;color:#fff!important;}.qr-ver-cartel:hover,.qr-descarga-svg:hover{transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 8px 16px rgba(0,0,0,.23)!important;}
+.p-borrar{display:inline-flex;align-items:center;min-height:36px;border-color:#b4383d!important;border-radius:9px!important;background:#b82f38!important;color:#fff!important;font-family:'Montserrat',var(--sans)!important;font-size:10px!important;font-weight:850!important;letter-spacing:.1px!important;box-shadow:0 4px 10px rgba(184,47,56,.22);transition:transform .18s ease,background .18s ease,box-shadow .18s ease!important;}.p-borrar:hover{background:#d13a44!important;transform:translateY(-2px);box-shadow:0 8px 15px rgba(184,47,56,.34)!important;}
+.seguir-editando{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border-color:#8e5d39!important;border-radius:10px!important;background:#70452b!important;color:#fff!important;font-family:'Montserrat',var(--sans)!important;font-size:11px!important;font-weight:850!important;letter-spacing:.12px;box-shadow:0 4px 11px rgba(58,31,14,.2);}.seguir-editando:hover{border-color:#ae7448!important;background:#815233!important;color:#fff!important;transform:translateY(-2px);box-shadow:0 8px 16px rgba(58,31,14,.3);}
+@media(max-width:640px){.inicio-configuracion .inicio-atajo{width:100%;min-height:38px;margin-left:0;}.sede-acciones{display:grid;grid-template-columns:1fr 1fr;width:100%;}.sede-acciones .btn-sm{width:100%;}.qr-descargas{display:grid;grid-template-columns:1fr 1fr;}.seguir-editando{width:100%;}.inicio-abrir-carta{width:100%;}}
+@media(prefers-reduced-motion:reduce){.inicio-abrir-carta{animation:none;}.inicio-abrir-carta,.inicio-configuracion .inicio-atajo,.sedes-actualizar,.sedes-actualizar span,.sede-acciones .btn-sm,.qr-ver-cartel,.qr-descarga-svg,.p-borrar,.seguir-editando{transition:none;}}
 
 /* Eliminar logo es una acción destructiva: se separa de los controles de subida
    con rojo sólido, texto de alto contraste y una respuesta inequívoca al puntero. */
