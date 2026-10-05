@@ -373,7 +373,7 @@ a,button,input,select,textarea{font-family:inherit;}
 .panel-acordeon-cuerpo>.section-card{margin:0;}
 .panel-acordeon-cuerpo>.section-card .section-title{font-family:'Montserrat',var(--sans);}
 @keyframes panel-acordeon-abrir{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:680px){.panel-acordeon>summary{min-height:62px;padding:10px 13px;gap:9px;border-radius:18px;}.panel-acordeon>summary small{max-width:none;margin-left:0;text-align:left;}.panel-acordeon>summary::after{flex-basis:28px;width:28px;height:28px;}.panel-acordeon-titulo{font-size:12px;}.panel-acordeon-cuerpo{padding:9px 0 2px;gap:8px;}.panel-acordeon-cuerpo>.section-card{padding:14px 12px;}}
+@media (width <= 680px){.panel-acordeon>summary{min-height:62px;padding:10px 13px;gap:9px;border-radius:18px;}.panel-acordeon>summary small{max-width:none;margin-left:0;text-align:left;}.panel-acordeon>summary::after{flex-basis:28px;width:28px;height:28px;}.panel-acordeon-titulo{font-size:12px;}.panel-acordeon-cuerpo{padding:9px 0 2px;gap:8px;}.panel-acordeon-cuerpo>.section-card{padding:14px 12px;}}
 @media(prefers-reduced-motion:reduce){.panel-acordeon>summary,.panel-acordeon>summary::after{transition:none;}.panel-acordeon-cuerpo{animation:none;}}
 
 /* Píldoras de navegación y gestión: el mismo contraste cambia de lado con el
