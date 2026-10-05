@@ -403,7 +403,7 @@ a,button,input,select,textarea{font-family:inherit;}
 #tabAspecto .panel-acordeon>summary small{color:var(--titulo-pill-text);opacity:.76;}
 #tabAspecto .panel-acordeon>summary:hover{background:var(--titulo-pill-bg);filter:brightness(1.06);box-shadow:0 8px 16px var(--titulo-pill-shadow);}
 /* Los chips de Ajustes son las categorías visibles de esa pestaña. */
-.aj-seccion-tab{border-color:var(--titulo-pill-border);background:var(--titulo-pill-bg);color:var(--titulo-pill-text);font-family:'Montserrat',var(--sans);font-weight:850;box-shadow:0 3px 9px var(--titulo-pill-shadow);}
+.aj-seccion-tab{min-height:44px;border-color:var(--titulo-pill-border);background:var(--titulo-pill-bg);color:var(--titulo-pill-text);font-family:'Montserrat',var(--sans);font-weight:850;box-shadow:0 3px 9px var(--titulo-pill-shadow);}
 .aj-seccion-tab:hover{color:var(--titulo-pill-text);background:var(--titulo-pill-bg);transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 7px 15px var(--titulo-pill-shadow);}
 .aj-seccion-tab.active{border-color:var(--accent);background:var(--accent);color:#fff;box-shadow:0 5px 13px var(--accent-glow);}
 
