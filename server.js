@@ -920,7 +920,7 @@ const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 's
   'intro_resena_activo', 'intro_resena_url', 'intro_resena_texto', 'intro_horario_activo', 'intro_correo_activo',
   'intro_reservas_activo', 'intro_reservas_texto',
   'intro_social_icono_color', 'intro_social_fondo', 'intro_social_borde',
-  'intro_social_tamano', 'intro_mapa_activo', 'intro_mapa_url', 'intro_mapa_modo', 'intro_mapa_boton_fondo', 'intro_mapa_boton_color', 'intro_mapa_boton_fuente', 'intro_tarjeta_fondo', 'intro_tarjeta_borde', 'intro_tarjeta_borde_grosor', 'intro_sedes'];
+  'intro_social_tamano', 'intro_mapa_activo', 'intro_mapa_url', 'intro_mapa_modo', 'intro_mapa_boton_fondo', 'intro_mapa_boton_color', 'intro_mapa_boton_fuente', 'intro_tarjeta_fondo', 'intro_tarjeta_borde', 'intro_tarjeta_borde_grosor', 'intro_sedes', 'intro_estilo_carta'];
 
 // ── EL MODELO SEGÚN EL PLAN, PARA UN CLIENTE ──────────────────
 // Duplica MODELOS de vmenus-app/core/planes.js (y el PLANES de este mismo
@@ -1116,6 +1116,8 @@ function limpiarIntroSedes(valor) {
 function validarIntro(atributos) {
   if ('intro_activo' in atributos) atributos.intro_activo = atributos.intro_activo === true;
   if ('intro_overlay_activo' in atributos) atributos.intro_overlay_activo = atributos.intro_overlay_activo === true;
+  // «Usar los colores y la tipografía de la carta»: solo el true explícito lo enciende (la carta lo exige igual).
+  if ('intro_estilo_carta' in atributos) atributos.intro_estilo_carta = atributos.intro_estilo_carta === true;
   if ('intro_eslogan' in atributos)
     atributos.intro_eslogan = String(atributos.intro_eslogan ?? '').trim().slice(0, ESLOGAN_MAX);
   if ('direccion' in atributos)

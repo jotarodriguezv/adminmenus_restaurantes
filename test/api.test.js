@@ -2326,6 +2326,17 @@ describe('la pantalla de bienvenida (intro) · la enciende el restaurante', () =
 		assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_activo, false);
 	});
 
+	test('«Usar los colores y la tipografía de la carta»: se guarda, y solo el true explícito la enciende', async () => {
+		let r = await guardar({ intro_estilo_carta: true });
+		assert.equal(r.status, 200);
+		assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_estilo_carta, true);
+		for (const valor of ['true', 1, 'false', null]) {
+			r = await guardar({ intro_estilo_carta: valor });
+			assert.equal(r.status, 200);
+			assert.equal(S.ultimaEscritura('restaurantes').atributos.intro_estilo_carta, false, String(valor));
+		}
+	});
+
 	test('el eslogan y la dirección se recortan, no se rechazan', async () => {
 		const r = await guardar({ intro_eslogan: 'x'.repeat(200), direccion: 'y'.repeat(200) });
 		assert.equal(r.status, 200);

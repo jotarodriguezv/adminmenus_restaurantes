@@ -125,6 +125,13 @@ corregir el documento en la misma tarea.
   tiraría lo que se esté escribiendo. Los ids de sus campos siguen siendo
   `apIntro*`.
 
+  **«Usar los colores y la tipografía de la carta»** (`intro_estilo_carta`, 06/10/2026,
+  opt-in): la bienvenida toma de la carta fondo, tarjeta, borde, texto y fuentes
+  (lo hace `core/intro.js` de `vmenus-app`). Los campos de color manuales **se
+  conservan guardados** y se atenúan (`.bv-color-manual-off`) mientras está
+  encendido; la vista previa enseña los colores de la carta, aproximados. El
+  servidor solo acepta el `true` explícito.
+
   **El interruptor dice su estado y la vista previa se queda a la vista**
   (BV4 y BV5, 03/10/2026). «Encendida»/«Apagada» va escrito al lado
   (`pintarEstadoDeBienvenida`); apagada, sale una nota y la vista previa se

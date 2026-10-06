@@ -6,6 +6,7 @@ const TIPOS_TEXTO_BIENVENIDA = [
   ['adicional', 'Texto adicional'], ['cta', 'Botón principal'], ['direccion', 'Dirección, horario y correo']
 ];
 const VALORES_BIENVENIDA = {
+  intro_estilo_carta: false,
   intro_fondo_color: '#111827', intro_overlay_activo: true, intro_overlay_color: '#0a0a0f',
   intro_overlay_opacidad: 50, intro_imagen_ajuste: 'cover', intro_cta: 'Ver carta',
   intro_social_tiktok: false, intro_resena_activo: false, intro_resena_texto: '',
@@ -240,6 +241,7 @@ function valoresBienvenida() {
   const sedes = recolectarSedesBienvenida();
   return {
     intro_activo: campoBienvenida('apIntroActivo').checked,
+    intro_estilo_carta: campoBienvenida('apIntroEstiloCarta')?.checked === true,
     intro_nombre: nombreDeBienvenidaParaGuardar(), intro_eslogan: valorBienvenida('apIntroEslogan').trim(),
     intro_texto_adicional: valorBienvenida('apIntroTextoAdicional').trim(), intro_cta: valorBienvenida('apIntroCta').trim() || 'Ver carta',
     intro_fondo_url: imagen?.dataset.url || '',
@@ -425,6 +427,13 @@ function actualizarVistaPreviaBienvenida() {
   campoBienvenida('apIntroOverlayControles').hidden = !datos.intro_overlay_activo;
   campoBienvenida('apIntroMapaBotonControles').hidden = datos.intro_mapa_modo === 'mapa';
   content.style.background = datos.intro_tarjeta_fondo; content.style.border = `${datos.intro_tarjeta_borde_grosor}px solid ${datos.intro_tarjeta_borde}`;
+  // «Usar los colores de la carta»: la vista previa enseña los de la carta (aproximados: el color del borde
+  // se deriva en la carta) y los controles manuales se atenúan, porque no se aplican.
+  document.querySelectorAll('.bienvenida-formulario details.bienvenida-details').forEach(d => { if (/^(Fondo de la bienvenida|Recuadro de bienvenida)$/.test(d.querySelector('summary')?.textContent.trim() || '')) d.classList.toggle('bv-color-manual-off', !!datos.intro_estilo_carta); });
+  if (datos.intro_estilo_carta) {
+    preview.style.backgroundColor = atNegocio.fondo_color || '#0a0a0f'; preview.style.backgroundImage = 'none'; overlay.style.opacity = '0';
+    content.style.background = atNegocio.color_card || '#1a1825'; content.style.border = `1px solid ${atNegocio.color_border || '#2a2640'}`;
+  }
   campoBienvenida('apIntroOverlayOpacidadValor').textContent = `${datos.intro_overlay_opacidad}%`;
   campoBienvenida('apIntroTarjetaBordeGrosorValor').textContent = `${datos.intro_tarjeta_borde_grosor} px`;
   campoBienvenida('apIntroSocialTamanoValor').textContent = `${datos.intro_social_tamano} px`;
@@ -485,7 +494,7 @@ function renderBienvenida(at = {}) {
   const poner = (id, valor) => { const el = campoBienvenida(id); if (el) el.value = valor ?? ''; };
   const marcar = (id, valor) => { const el = campoBienvenida(id); if (el) el.checked = !!valor; };
   const sedes = sedesGuardadasBienvenida({ ...datos, ...datosDelNegocioParaLaVista() }); pintarSedesBienvenida(sedes);
-  marcar('apIntroActivo', datos.intro_activo); poner('apIntroNombre', datos.intro_nombre || state.restaurante?.nombre); poner('apIntroEslogan', datos.intro_eslogan); poner('apIntroTextoAdicional', datos.intro_texto_adicional); poner('apIntroCta', datos.intro_cta);
+  marcar('apIntroActivo', datos.intro_activo); marcar('apIntroEstiloCarta', datos.intro_estilo_carta); poner('apIntroNombre', datos.intro_nombre || state.restaurante?.nombre); poner('apIntroEslogan', datos.intro_eslogan); poner('apIntroTextoAdicional', datos.intro_texto_adicional); poner('apIntroCta', datos.intro_cta);
   poner('apIntroFondoColor', datos.intro_fondo_color); poner('apIntroFondoColorHex', datos.intro_fondo_color); marcar('apIntroOverlayActivo', datos.intro_overlay_activo); poner('apIntroOverlayColor', datos.intro_overlay_color); poner('apIntroOverlayColorHex', datos.intro_overlay_color); poner('apIntroOverlayOpacidad', datos.intro_overlay_opacidad); poner('apIntroImagenAjuste', datos.intro_imagen_ajuste);
   poner('apIntroTarjetaFondo', datos.intro_tarjeta_fondo); poner('apIntroTarjetaBorde', datos.intro_tarjeta_borde); poner('apIntroTarjetaBordeGrosor', datos.intro_tarjeta_borde_grosor);
   marcar('apIntroSocialInstagram', datos.intro_social_instagram); marcar('apIntroSocialFacebook', datos.intro_social_facebook); marcar('apIntroSocialTiktok', datos.intro_social_tiktok);
