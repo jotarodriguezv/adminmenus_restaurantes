@@ -9898,7 +9898,7 @@ describe('guardar con un video elegido · se sube al guardar, y no se pierde', (
 			editDescAvanzada: { value: '' },
 			editDisponible:   { checked: true },
 			editPrecioGratis: { checked: false },
-			editSinFoto:      { checked: false },
+			editSinFoto:      { checked: false }, presAviso: { textContent: '' },
 		};
 		for (const el of Object.values(mapa)) {
 			el.classList = { add() {}, remove() {} };
@@ -9915,7 +9915,7 @@ describe('guardar con un video elegido · se sube al guardar, y no se pierde', (
 			videoElegido,
 			document: { getElementById: x => mapa[x], querySelectorAll: () => [] },
 			trabajoEnCursoDe: () => null,
-			erroresDeFicha: () => [], limpiarErroresFicha() {}, ofertaLeerDeFicha: () => ({}), ofertaErrores: () => null, formatPrecio: n => String(n),
+			erroresDeFicha: () => [], limpiarErroresFicha() {}, presLeerDeFicha: () => ({ lista: [] }), ofertaLeerDeFicha: () => ({}), ofertaErrores: () => null, formatPrecio: n => String(n),
 			precioNumericoDe: v => { const d = String(v ?? '').replace(/\D/g, ''); return d === '' ? NaN : Number(d); },
 			apiFetch: async () => { orden.push('guardado'); if (falla) throw new Error('sin red'); return {}; },
 			renderCatFilter() {}, renderProducts() {}, renderInicio() {},
@@ -10254,7 +10254,7 @@ describe('guardar un producto con foto nueva en una carta de video · la ficha s
 			editDescAvanzada: { value: '' },
 			editDisponible:   { checked: true },
 			editPrecioGratis: { checked: false },
-			editSinFoto:      { checked: false },
+			editSinFoto:      { checked: false }, presAviso: { textContent: '' },
 			// cambiarPestanaProducto viene en el mismo tramo de código, así que no se
 			// sustituye: se mira lo que de verdad hace, que es marcar la pestaña.
 			productModal:     { dataset: { fichaTab: 'general' } },
@@ -10274,7 +10274,7 @@ describe('guardar un producto con foto nueva en una carta de video · la ficha s
 			videoElegido: null,
 			document: { getElementById: x => mapa[x], querySelectorAll: () => [] },
 			trabajoEnCursoDe: () => null,
-			erroresDeFicha: () => [], limpiarErroresFicha() {}, ofertaLeerDeFicha: () => ({}), ofertaErrores: () => null, formatPrecio: n => String(n),
+			erroresDeFicha: () => [], limpiarErroresFicha() {}, presLeerDeFicha: () => ({ lista: [] }), ofertaLeerDeFicha: () => ({}), ofertaErrores: () => null, formatPrecio: n => String(n),
 			precioNumericoDe: v => { const d = String(v ?? '').replace(/\D/g, ''); return d === '' ? NaN : Number(d); },
 			apiFetch: async () => { if (falla) throw new Error('sin red'); return respuesta; },
 			renderCatFilter() {}, renderProducts() {}, renderInicio() {},
@@ -10358,7 +10358,7 @@ describe('guardar con el video en marcha · guarda, pero no saca de la ficha', (
 			editDescAvanzada: { value: '' },
 			editDisponible:   { checked: true },
 			editPrecioGratis: { checked: false },
-			editSinFoto:      { checked: false },
+			editSinFoto:      { checked: false }, presAviso: { textContent: '' },
 		};
 		// Lo que toca limpiarErroresFicha, que viene cargada con el primer trozo.
 		for (const el of Object.values(mapa)) {
@@ -10375,7 +10375,7 @@ describe('guardar con el video en marcha · guarda, pero no saca de la ficha', (
 			videoElegido,
 			document: { getElementById: id => mapa[id], querySelectorAll: () => [] },
 			trabajoEnCursoDe: () => enCurso,
-			erroresDeFicha: () => [], limpiarErroresFicha() {}, ofertaLeerDeFicha: () => ({}), ofertaErrores: () => null, formatPrecio: n => String(n),
+			erroresDeFicha: () => [], limpiarErroresFicha() {}, presLeerDeFicha: () => ({ lista: [] }), ofertaLeerDeFicha: () => ({}), ofertaErrores: () => null, formatPrecio: n => String(n),
 			precioNumericoDe: v => { const d = String(v ?? '').replace(/\D/g, ''); return d === '' ? NaN : Number(d); },
 			apiFetch: async () => ({}),
 			renderCatFilter() {}, renderProducts() {}, renderInicio() {},

@@ -262,11 +262,15 @@ async function abrirPreciosDeSede(id) {
       const f = porPlato.get(p.id);
       const propio = f && f.precio_numerico !== null && f.precio_numerico !== undefined ? Number(f.precio_numerico) : '';
       const sirve = !(f && f.disponible === false);
+      // Un plato con presentaciones no tiene UN precio por sede: no sabría a cuál se refiere. Se queda con las
+      // suyas en todas las sedes (precio por sede de cada presentación: pendiente) y solo se decide si se sirve.
+      const conPres = typeof presentacionesDelPlato === 'function' && presentacionesDelPlato(p).length > 0;
       html += `<div class="sede-plato" data-plato="${esc(p.id)}">
         <div class="sede-plato-nombre">${esc(p.nombre)}</div>
-        <div class="sede-plato-base">${esc(pesos(p.precio_numerico))}</div>
-        <input type="number" class="form-input sede-precio" min="0" step="any" inputmode="numeric"
-          value="${esc(propio)}" placeholder="${esc(Math.round(Number(p.precio_numerico) || 0))}"
+        <div class="sede-plato-base">${esc(conPres ? 'Desde ' + pesos(p.precio_numerico) : pesos(p.precio_numerico))}</div>
+        <input type="${conPres ? 'text' : 'number'}" class="form-input sede-precio" min="0" step="any" inputmode="numeric"
+          value="${conPres ? '' : esc(propio)}" placeholder="${conPres ? 'Tiene presentaciones' : esc(Math.round(Number(p.precio_numerico) || 0))}"
+          ${conPres ? 'disabled title="Un plato con presentaciones conserva las suyas en todas las sedes (el precio por sede de cada presentación, pendiente)"' : ''}
           aria-label="Precio de ${esc(p.nombre)} en ${esc(sede.nombre)}">
         <label class="sede-sirve"><input type="checkbox" class="sede-sirve-caja"${sirve ? ' checked' : ''}> Se sirve</label>
       </div>`;

@@ -41,6 +41,7 @@ la tarea roza alguno de estos temas, leer el documento primero:
 | `docs/datos-del-negocio.md` | Lo que el restaurante dice una vez en Ajustes → «Datos del negocio» (WhatsApp, y después dirección, mapa, reseñas, horario, correo) y que varias funciones de la carta usan. El WhatsApp único, el botón aparte, y por qué las claves viejas solo se leen cuando la nueva no existe. |
 | `docs/ofertas.md` | La oferta de precio de un plato (precio rebajado, con fechas opcionales). No es la «promoción». Qué guarda `sql/35`, qué valida el servidor y la regla de «rige hoy», que vive en tres sitios. |
 | `docs/reservas.md` | Las reservas de mesa desde la bienvenida de la carta: qué protege el endpoint público, la retención de 90 días y el orden de despliegue. |
+| `docs/presentaciones.md` | Un plato en versiones (1X/2X, 500/750 ml) con una sola foto: `atributos.presentaciones`, el precio del plato = el de la más barata, qué valida el servidor, la ficha, la carta, y lo que falta (precio por sede y oferta por presentación, importador). |
 | `docs/sedes.md` | Varios locales con la misma carta y precios propios (`sql/37`): el modelo, la URL `/<restaurante>/<sede>`, el interruptor `con_sedes` y el tope `max_sedes` de Superadmin, quién puede qué, el QR por sede, la carga de precios, las reservas y el horario por sede, la cartelera (TV) por sede, los destacados por sede (carta y TV), y el carrito con sedes (pedidos y WhatsApp por sede). |
 | `docs/pruebas-manuales-ux.md` | **Qué comprobar a mano** de todo lo que cambió con la revisión de UX, ordenado por pantalla, con casillas. |
 | `docs/revision-ux.md` | **Revisión de UX de los tres repositorios**, con una casilla por hallazgo. Leerlo antes de proponer cambios de interfaz: trae lo ya detectado, lo comprobado que **no** es un fallo, y las decisiones tomadas a propósito. |
@@ -94,6 +95,7 @@ corregir el documento en la misma tarea.
   marca de la lista. Es el espejo en el panel de la regla de la carta; el juego
   de casos es `test/casos-oferta.json`, **duplicado en `vmenus-app`**. La
   validación del servidor es `normalizarOferta()` en `precios.js`.
+- `public/presentaciones.js` — las presentaciones de un plato en la ficha; las valida `normalizarPresentaciones` de `precios.js` y las aplica `aplicarPresentaciones` en `server.js`. Ver `docs/presentaciones.md`.
 - `public/sedes.js` — la pestaña Sedes (crear locales, precios por sede); las rutas son `/api/sedes` y `/api/productos-sedes` en `server.js`. La carta lee las sedes con `core/sedes.js` de `vmenus-app`. Ver `docs/sedes.md`.
 - `reservas.js` — las reglas de las reservas de mesa (validación en el reloj del restaurante, enlace de WhatsApp, purga a los 90 días). Es la hermana de `solicitudes.js`; ver `docs/reservas.md`.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.

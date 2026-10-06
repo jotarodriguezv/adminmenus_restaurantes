@@ -2646,6 +2646,22 @@
 						     legítimos —una paella para ocho, un catering— y el sistema no
 						     puede distinguirlos. Esto solo pregunta. -->
 						<div id="precioAviso" style="margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--warn)"></div>
+						<!-- Presentaciones: un mismo plato en versiones (1X / 2X, 500 ml / 750 ml). Una sola foto
+						     y una sola descripción; cada presentación con su nombre y su precio. Con ellas, el precio de
+						     arriba pasa a ser «Desde» (el más bajo) y se esconden «Es gratis» y la oferta. Ver presentaciones.js. -->
+						<div class="pres-bloque" id="presBloque">
+							<div class="form-check">
+								<label class="toggle"><input type="checkbox" id="editPresActiva" aria-labelledby="editPresActivaLabel" onchange="presAlternar()"><span class="toggle-slider"></span></label>
+								<span id="editPresActivaLabel">Viene en varias presentaciones</span>
+							</div>
+							<div id="presCampos" hidden>
+								<p class="pres-ayuda">Por ejemplo «1X $12.000» y «2X $20.000», o un jugo de 500 ml y de 750 ml. Es el mismo plato, con la misma foto: el cliente elige la presentación al pedir. El precio de arriba pasa a ser el más bajo.</p>
+								<div id="presLista"></div>
+								<button type="button" class="btn-sm" id="presAgregar" onclick="presAgregar()">＋ Añadir presentación</button>
+								<div id="presResumen" class="pres-resumen"></div>
+								<div id="presAviso" class="oferta-aviso"></div>
+							</div>
+						</div>
 						<!-- La oferta no es la «promoción»: no es una imagen al abrir la
 						     carta, es un precio menor para este plato. Ver oferta.js. -->
 						<div class="oferta-bloque" id="ofertaBloque">
@@ -3213,6 +3229,7 @@
 <script src="restaurantes-filtros.js"></script>
 <script src="productos-marcas.js"></script>
 <script src="oferta.js"></script>
+<script src="presentaciones.js"></script>
 <script src="ver-en-la-carta.js"></script>
 <script src="paletas.js"></script>
 <script>
@@ -4053,6 +4070,7 @@ function openNewProductModal() {
 	actualizarPrecioGratis(false);
 	document.getElementById('precioPreview').textContent='—';
 	ofertaPintarEnFicha(null);
+	presLimpiar();
 	// Los avisos blandos son del plato anterior: dejarlos puestos sobre una
 	// ficha vacía sería decir algo que no viene de nada que se vea.
 	document.getElementById('precioAviso').textContent='';
@@ -4322,6 +4340,7 @@ function openEditProductModal(id) {
 	avisarSiElPrecioSeSale();
 	actualizarPrecioGratis(false);
 	ofertaPintarEnFicha(p);
+	presCargarEnFicha(p);
 	document.getElementById('editDesc').value=p.descripcion||'';
 	document.getElementById('editDescAvanzada').value=p.descripcion_avanzada||'';
 	contarCaracteres('editDesc','editDescContador');
@@ -6373,6 +6392,8 @@ function firmaProducto() {
 		document.getElementById('editPrecioGratis')?.checked,
 		document.getElementById('editSinFoto')?.checked,
 		state.pendingImgUrl ?? null,
+		// Las presentaciones también son trabajo por perder. (typeof: este tramo se evalúa suelto en las pruebas.)
+		typeof presActiva !== 'undefined' ? presActiva : null, typeof presFilas !== 'undefined' ? presFilas : null,
 		state.extraImgs || [],
 		state.prodFiltros || [],
 		state.prodBadges || {},
@@ -6772,10 +6793,20 @@ async function saveProduct() {
 		showToast(errores.length===1 ? errores[0].mensaje : `Faltan ${errores.length} datos del producto`,'error');
 		btn.disabled=false;btn.textContent=etiquetaGuardarProducto();return;
 	}
+	// Las presentaciones, antes que la oferta: con ellas el precio sale de ellas y la oferta se apaga.
+	const pres=presLeerDeFicha();
+	if(pres.error){
+		cambiarPestanaProducto('general', document.querySelector('.ficha-tabs .ficha-tab'));
+		document.getElementById('presAviso').textContent=pres.error;
+		showToast(pres.error,'error');
+		btn.disabled=false;btn.textContent=etiquetaGuardarProducto();return;
+	}
+	document.getElementById('presAviso').textContent='';
 	// La oferta se comprueba aparte de erroresDeFicha(): vive en una tarjeta
-	// propia y su mensaje sale ahí, junto a lo que hay que corregir.
-	const oferta=ofertaLeerDeFicha();
-	const errOferta=ofertaErrores(precioNumericoDe(document.getElementById('editPrecioNum').value)||0, oferta);
+	// propia y su mensaje sale ahí, junto a lo que hay que corregir. Con presentaciones no hay oferta
+	// (no distingue cuál presentación rebaja): se manda apagada y no se valida.
+	const oferta=pres.lista.length ? { ...ofertaLeerDeFicha(), oferta_activa:false } : ofertaLeerDeFicha();
+	const errOferta=pres.lista.length ? null : ofertaErrores(precioNumericoDe(document.getElementById('editPrecioNum').value)||0, oferta);
 	if(errOferta){
 		cambiarPestanaProducto('general', document.querySelector('.ficha-tabs .ficha-tab'));
 		document.getElementById('ofertaAviso').textContent=errOferta;
@@ -6819,6 +6850,9 @@ async function saveProduct() {
 		nuevo: !!state.prodBadges.nuevo,
 		precio_gratis: document.getElementById('editPrecioGratis').checked,
 		sin_foto: document.getElementById('editSinFoto').checked,
+		// Una lista vacía es como se le dice al servidor que las quite; con ellas, él las valida, les pone
+		// ids estables y deja el precio del plato en el de la más barata.
+		presentaciones: pres.lista,
 	};
 	// La copia del catálogo que llevaban los platos viejos ya quedó traducida
 	// a 'personalizacion' al abrir la ficha. Se retira aquí para que no queden
