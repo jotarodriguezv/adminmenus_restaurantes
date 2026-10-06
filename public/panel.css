@@ -1796,3 +1796,8 @@ input.color-preview::-moz-color-swatch{border:none;border-radius:5px;}
 .pres-resumen{margin-top:10px;font-family:var(--mono);font-size:12px;line-height:1.5;}
 .pres-precio-derivado{opacity:.7;cursor:default;}
 @media (max-width:520px){.pres-fila{grid-template-columns:1fr 100px auto;}}
+/* La ficha del plato en pantallas de escritorio: el cuadro corta lo que sobra (overflow:hidden, por las esquinas
+   redondeadas) y nada hacía scroll, así que con una ventana baja lo de abajo —sobre todo las presentaciones—
+   quedaba inalcanzable. Aquí scrollea el cuerpo y la cabecera, las pestañas y los botones se quedan. En móvil
+   ya era así (más arriba). */
+@media(min-width:641px){#productModal .modal-box{display:flex;flex-direction:column;}#productModal .modal-head,#productModal .ficha-tabs,#productModal .modal-foot{flex:0 0 auto;}#productModal .modal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;}}
