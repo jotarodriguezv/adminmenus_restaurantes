@@ -97,4 +97,64 @@ function normalizarOferta(body, precioNormal, guardada = {}) {
   return null;
 }
 
-module.exports = { formatoPrecio, numeroDeTexto, normalizarOferta, esFechaValida, CAMPOS_OFERTA };
+// ── PRESENTACIONES DE UN PLATO ────────────────────────────────
+// Un mismo plato en versiones (1X $12.000 · 2X $20.000; 500 ml · 750 ml): una lista dentro de
+// `producto.atributos.presentaciones`, cada una con su id, su nombre y su precio (docs/presentaciones.md).
+// Aquí va solo la validación al guardar; cómo se pintan lo deciden la carta y la cartelera
+// (vmenus-app, core/presentaciones.js y tv.html).
+//
+// Dos o más, o ninguna: con UNA sola no hay nada que elegir, es un plato con su precio, y dejarla
+// guardada solo confundiría a quien la lee.
+const MIN_PRESENTACIONES = 2;
+const MAX_PRESENTACIONES = 8;
+const NOMBRE_PRESENTACION_MAX = 40;
+const PRECIO_PRESENTACION_MAX = 99_999_999;
+const ID_PRESENTACION = /^[a-z0-9]{3,24}$/;
+
+// El id es estable: una línea del carrito guarda cuál presentación era, y debe poder encontrarla
+// aunque el restaurante la renombre o la reordene. El navegador manda los que ya existen; los
+// nuevos los pone el servidor. `actuales` son las que el plato ya tenía.
+function normalizarPresentaciones(entrada, actuales = []) {
+  if (entrada === null || entrada === undefined) return { lista: [] };
+  if (!Array.isArray(entrada)) return { error: 'Las presentaciones deben ser una lista' };
+  if (!entrada.length) return { lista: [] };
+  if (entrada.length > MAX_PRESENTACIONES) return { error: `Un plato puede tener hasta ${MAX_PRESENTACIONES} presentaciones` };
+
+  const conocidos = new Set((Array.isArray(actuales) ? actuales : []).map((x) => String(x?.id)));
+  const usadosId = new Set();
+  const usadosNombre = new Set();
+  const lista = [];
+  for (const x of entrada) {
+    const nombre = String(x?.nombre ?? '').replace(/\s+/g, ' ').trim();
+    if (!nombre) return { error: 'Cada presentación necesita un nombre, por ejemplo «1X» o «500 ml»' };
+    if (nombre.length > NOMBRE_PRESENTACION_MAX) return { error: `El nombre de una presentación puede tener hasta ${NOMBRE_PRESENTACION_MAX} letras` };
+    const clave = nombre.toLowerCase();
+    if (usadosNombre.has(clave)) return { error: `Dos presentaciones se llaman «${nombre}»` };
+    usadosNombre.add(clave);
+
+    const crudo = x?.precio_numerico;
+    const precio = typeof crudo === 'number' ? Math.round(crudo) : numeroDeTexto(crudo ?? '');
+    if (precio === null || !Number.isFinite(precio) || precio < 0) return { error: `Escribe el precio de «${nombre}», solo el número` };
+    if (precio > PRECIO_PRESENTACION_MAX) return { error: `El precio de «${nombre}» es demasiado alto` };
+
+    // Un id que ya tenía el plato se respeta; uno nuevo lo pone el servidor aunque el navegador mande otro,
+    // para que nadie pueda escoger el id de una línea de un carrito ajeno.
+    let id = typeof x?.id === 'string' && ID_PRESENTACION.test(x.id) && conocidos.has(x.id) && !usadosId.has(x.id) ? x.id : '';
+    while (!id || usadosId.has(id)) id = 'p' + require('crypto').randomBytes(4).toString('hex');
+    usadosId.add(id);
+    lista.push({ id, nombre, precio_numerico: precio });
+  }
+  if (lista.length < MIN_PRESENTACIONES) return { error: 'Una sola presentación no es una presentación: añade otra o quítala' };
+  return { lista };
+}
+
+// El precio base de un plato con presentaciones: el de la más barata. Es lo que ordena la carta y lo
+// que dice «Desde».
+function precioBaseDePresentaciones(lista) {
+  return lista.reduce((min, x) => Math.min(min, x.precio_numerico), Infinity);
+}
+
+module.exports = {
+  formatoPrecio, numeroDeTexto, normalizarOferta, esFechaValida, CAMPOS_OFERTA,
+  normalizarPresentaciones, precioBaseDePresentaciones, MIN_PRESENTACIONES, MAX_PRESENTACIONES,
+};

@@ -2180,7 +2180,7 @@ function normalizarPersonas(body) {
 // 'sin_foto' (18/09/2026): el restaurante dice que a ESTE plato no le toca foto
 // —una bebida en una categoría que sí las lleva—. Sin estar en esta lista, la
 // casilla del panel se descartaría en silencio al guardar.
-const ATRIBUTOS_PRODUCTO_PERMITIDOS = ['imagenes', 'personalizacion', 'filtros', 'popular', 'chef', 'nuevo', 'precio_gratis', 'sin_foto'];
+const ATRIBUTOS_PRODUCTO_PERMITIDOS = ['imagenes', 'personalizacion', 'filtros', 'popular', 'chef', 'nuevo', 'precio_gratis', 'sin_foto', 'presentaciones'];
 
 // 'video' lo escribe el worker cuando termina de convertir, nunca el
 // navegador. Pero NO se puede simplemente descartar: el panel manda el
@@ -2198,6 +2198,36 @@ function atributosProducto(entrantes, actuales) {
   for (const clave of ATRIBUTOS_PRODUCTO_DEL_SERVIDOR)
     if (actuales?.[clave] !== undefined) out[clave] = actuales[clave];
   return out;
+}
+
+// ── LAS PRESENTACIONES DE UN PLATO ────────────────────────────
+// Devuelve un mensaje de error, o null. Muta `atributos` (lo que se va a guardar), `precio` y `oferta`.
+//
+//  · Se validan con la regla de precios.js y se guardan con ids estables.
+//  · Con presentaciones, el precio del plato (`precio_numerico` y `precio`) pasa a ser el de la MÁS
+//    BARATA: es lo que ordena la carta, la cartelera y las estadísticas, y así nada de eso necesita saber
+//    que existen. Por eso el precio que mande el navegador se ignora.
+//  · La oferta de precio se apaga: no distingue presentaciones (docs/presentaciones.md §3). No se borran
+//    sus fechas ni su precio, para que quitar las presentaciones no resucite una oferta olvidada por sorpresa
+//    —sale apagada.
+//  · Si el guardado NO trae la clave, se conservan las que ya tenía el plato: un panel viejo abierto en
+//    otra pestaña no puede borrarlas al guardar otra cosa.
+function aplicarPresentaciones(entrantes, actuales, atributos, precio, oferta) {
+  let lista;
+  if (entrantes && entrantes.presentaciones !== undefined) {
+    const r = precios.normalizarPresentaciones(entrantes.presentaciones, actuales?.presentaciones);
+    if (r.error) return r.error;
+    lista = r.lista;
+  } else {
+    lista = Array.isArray(actuales?.presentaciones) ? actuales.presentaciones : [];
+  }
+  if (!lista.length) { delete atributos.presentaciones; return null; }
+  atributos.presentaciones = lista;
+  const base = precios.precioBaseDePresentaciones(lista);
+  precio.precio_numerico = base;
+  precio.precio = formatoPrecio(base);
+  oferta.oferta_activa = false;
+  return null;
 }
 
 // Una categoría de OTRO restaurante no se puede usar. El permiso se
@@ -2249,8 +2279,11 @@ app.post('/api/productos', auth, async (req, res) => {
   if (errOferta) return res.status(400).json({ error: errOferta });
   const errCat = await categoriaAjena(categoria_id, restaurante_id);
   if (errCat) return res.status(400).json({ error: errCat });
+  const atributosFinales = atributosProducto(atributos, null);
+  const errPres = aplicarPresentaciones(atributos, null, atributosFinales, p, oferta);
+  if (errPres) return res.status(400).json({ error: errPres });
   const { data, error } = await supabase.from('productos')
-    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, personas: req.body.personas ?? 1, atributos: atributosProducto(atributos, null), ...oferta }])
+    .insert([{ restaurante_id, categoria_id, nombre, descripcion: descripcion || null, descripcion_avanzada: descripcion_avanzada || null, precio: p.precio ?? formatoPrecio(0), precio_numerico: p.precio_numerico ?? 0, imagen_url: imagen_url || null, disponible: disponible !== false, orden: parseInt(orden) || 0, personas: req.body.personas ?? 1, atributos: atributosFinales, ...oferta }])
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -2279,7 +2312,15 @@ app.patch('/api/productos/:id', auth, async (req, res) => {
   // plato, que es el nuevo si llega en este mismo guardado.
   const errOferta = precios.normalizarOferta(body, body.precio_numerico ?? prod.precio_numerico, prod);
   if (errOferta) return res.status(400).json({ error: errOferta });
-  if (body.atributos !== undefined) body.atributos = atributosProducto(body.atributos, prod.atributos);
+  if (body.atributos !== undefined) {
+    const entrantes = body.atributos;
+    body.atributos = atributosProducto(entrantes, prod.atributos);
+    const errPres = aplicarPresentaciones(entrantes, prod.atributos, body.atributos, body, body);
+    if (errPres) return res.status(400).json({ error: errPres });
+  } else if (Array.isArray(prod.atributos?.presentaciones) && prod.atributos.presentaciones.length) {
+    // Un guardado parcial que toca el precio de un plato con presentaciones: el precio sale de ellas, no se pisa.
+    delete body.precio; delete body.precio_numerico;
+  }
   // Mover un plato de categoría es normal; moverlo a la de otro negocio no.
   if (body.categoria_id !== undefined) {
     const errCat = await categoriaAjena(body.categoria_id, prod.restaurante_id);
@@ -2797,9 +2838,12 @@ app.put('/api/productos-sedes', auth, async (req, res) => {
   // Los platos tienen que ser de ESTE restaurante: sin esto, mandando el id de un
   // plato ajeno se le pondría precio en una sede que no es suya.
   const { data: platos, error: errPlatos } = await supabase.from('productos')
-    .select('id').eq('restaurante_id', sede.restaurante_id);
+    .select('id, atributos').eq('restaurante_id', sede.restaurante_id);
   if (errPlatos) return res.status(500).json({ error: errPlatos.message });
   const propios = new Set((platos || []).map(p => p.id));
+  // Un plato con presentaciones no admite UN precio por sede: no sabría a cuál de ellas se refiere
+  // (docs/presentaciones.md §3). Sí admite «no se sirve aquí».
+  const conPresentaciones = new Set((platos || []).filter(p => Array.isArray(p.atributos?.presentaciones) && p.atributos.presentaciones.length).map(p => p.id));
 
   const guardar = [];
   const quitar = [];
@@ -2807,6 +2851,8 @@ app.put('/api/productos-sedes', auth, async (req, res) => {
     if (!f || !propios.has(f.producto_id)) return res.status(400).json({ error: 'Hay un plato que no es de este restaurante' });
     const p = { precio_numerico: f.precio_numerico };
     const tienePrecio = f.precio_numerico !== undefined && f.precio_numerico !== null && f.precio_numerico !== '';
+    if (tienePrecio && conPresentaciones.has(f.producto_id))
+      return res.status(400).json({ error: 'Un plato con presentaciones no tiene un solo precio por sede (todavía): quítale el precio o déjalo vacío' });
     if (tienePrecio) {
       const mal = normalizarPrecio(p);
       if (mal) return res.status(400).json({ error: mal });

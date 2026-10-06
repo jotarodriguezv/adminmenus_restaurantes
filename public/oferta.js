@@ -106,6 +106,9 @@ function ofertaEtiqueta(p, hoy = ofertaHoy()) {
 // nuevo al lado. Por DOM, no por innerHTML: aquí hay datos de un restaurante.
 function ofertaPintarPrecio(el, p, hoy = ofertaHoy()) {
   el.textContent = '';
+  // Con presentaciones, la lista dice «Desde $X · N presentaciones»; la oferta no distingue cuál rebaja.
+  const conPres = typeof textoPrecioConPresentaciones === 'function' ? textoPrecioConPresentaciones(p) : '';
+  if (conPres) { el.textContent = conPres; return; }
   if (ofertaEstado(p, hoy) !== 'vigente') { el.textContent = p.precio || formatPrecio(p.precio_numerico); return; }
   const antes = document.createElement('s');
   antes.textContent = p.precio || formatPrecio(p.precio_numerico);

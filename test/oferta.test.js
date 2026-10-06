@@ -207,7 +207,7 @@ describe('la ficha y la lista conectan con oferta.js', () => {
 	});
 
 	test('al guardar viaja la oferta, y se valida antes', () => {
-		assert.match(html, /const oferta=ofertaLeerDeFicha\(\)/);
+		assert.match(html, /ofertaLeerDeFicha[(][)]/);
 		assert.match(html, /\.\.\.oferta,/);
 		assert.match(html, /ofertaErrores\(/);
 	});
