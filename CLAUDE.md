@@ -96,6 +96,7 @@ corregir el documento en la misma tarea.
   de casos es `test/casos-oferta.json`, **duplicado en `vmenus-app`**. La
   validación del servidor es `normalizarOferta()` en `precios.js`.
 - `public/presentaciones.js` — las presentaciones de un plato en la ficha; las valida `normalizarPresentaciones` de `precios.js` y las aplica `aplicarPresentaciones` en `server.js`. Ver `docs/presentaciones.md`.
+- `public/adicionales-carta.js` — «Adicionales de tu carta» (Ajustes → Pedidos, dentro de la tarjeta de adicionales, solo con carrito encendido): `atributos.adicionales_carta = { activo, categoria_id, categorias }` para ofrecer en el modal del pedido los platos de una categoría de adicionales de la propia carta. Lo valida `validarAdicionalesCarta` en `server.js` (las categorías tienen que ser de ese restaurante) y lo lee `core/adicionales.js` de `vmenus-app`; viaja con los toppings en `recolectarAjustes`.
 - `public/sedes.js` — la pestaña Sedes (crear locales, precios por sede); las rutas son `/api/sedes` y `/api/productos-sedes` en `server.js`. La carta lee las sedes con `core/sedes.js` de `vmenus-app`. Ver `docs/sedes.md`.
 - `reservas.js` — las reglas de las reservas de mesa (validación en el reloj del restaurante, enlace de WhatsApp, purga a los 90 días). Es la hermana de `solicitudes.js`; ver `docs/reservas.md`.
 - `limpieza.js` — borra del disco los archivos que ya no referencia nadie.

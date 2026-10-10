@@ -33,7 +33,7 @@ function clienteFalso() {
         upsert(o, x) { st.op = 'upsert'; st.payload = o; st.opts = x; return q; },
         delete() { st.op = 'delete'; return q; },
         eq(c, v) { st.filtros[c] = v; return q; },
-        neq() { return q; }, in() { return q; },
+        neq() { return q; }, in(c, v) { (st.en ||= {})[c] = v; return q; },
         // 'is' lo usan las consultas de "sin revisar" (aprobado is null). Sin
         // él la cadena revienta a mitad y lo que se mide es el fallo del
         // simulador, no el del servidor.

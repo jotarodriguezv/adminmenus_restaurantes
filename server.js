@@ -908,7 +908,7 @@ const CAMPOS_RESTAURANTE_CLIENTE = ['promo_activa', 'promo_imagen_url', 'promo_n
 // 'mostrar_hero' —ese es el encabezado de la carta (logo, nombre y subtítulo),
 // que hasta el 03/10/2026 se llamaba «mensaje de bienvenida» en el panel—.
 // Se llama 'intro' a propósito para no chocar con ninguno de los dos.
-const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'whatsapp_pedidos', 'whatsapp_negocio', 'whatsapp_boton', 'mapa_url', 'resena_url', 'horario_atencion', 'correo', 'metodos_pago', 'qr', 'orden_productos', 'tv', 'tv_pantallas',
+const ATRIBUTOS_CLIENTE_PERMITIDOS = ['toppings_platino', 'toppings_premium', 'salsas', 'adicionales_carta', 'whatsapp_pedidos', 'whatsapp_negocio', 'whatsapp_boton', 'mapa_url', 'resena_url', 'horario_atencion', 'correo', 'metodos_pago', 'qr', 'orden_productos', 'tv', 'tv_pantallas',
   'social_bar', 'social_instagram', 'social_facebook', 'social_tiktok', 'social_whatsapp',
   'filtros_disponibles', 'filtros_activos', 'carrito', 'buscador',
   'color_surface', 'color_card', 'fondo_color', 'fondo_intensidad', 'fondo_tipo',
@@ -958,6 +958,32 @@ function nombrePlanDe(atributos) {
 // Se descarta lo que sobra de cada filtro: solo viajan id, label y emoji.
 const FILTROS_MAX = 40;
 const FILTRO_ID = /^[a-z0-9_]{1,60}$/;
+
+// ── LOS ADICIONALES DE LA CARTA EN EL MODAL DEL PEDIDO ────────
+// `adicionales_carta = { activo, categoria_id, categorias }` (vmenus-app, core/adicionales.js). Las categorías
+// tienen que ser de ESTE restaurante: sin esa comprobación, un cliente podría apuntar a la categoría de otro y
+// la carta ofrecería sus platos. Encendido pide la categoría fuente y al menos una donde ofrecerlos; apagado
+// se conserva lo elegido, para encontrarlo al volver a encenderlo. Normaliza lo que se guarda.
+const ADICIONALES_CARTA_MAX_CATEGORIAS = 60;
+async function validarAdicionalesCarta(atributos, restauranteId) {
+  if (!('adicionales_carta' in atributos)) return null;
+  const c = atributos.adicionales_carta;
+  if (c === null || typeof c !== 'object' || Array.isArray(c)) return 'La configuración de los adicionales de la carta no es válida';
+  const fuente = typeof c.categoria_id === 'string' ? c.categoria_id : '';
+  const categorias = [...new Set((Array.isArray(c.categorias) ? c.categorias : []).map(String))].filter(id => id !== fuente);
+  if (categorias.length > ADICIONALES_CARTA_MAX_CATEGORIAS) return 'Hay demasiadas categorías marcadas para los adicionales';
+  const ids = [...(fuente ? [fuente] : []), ...categorias];
+  if (ids.some(id => !UUID_RE.test(id))) return 'Una categoría de los adicionales no es válida';
+  const activo = c.activo === true;
+  if (activo && (!fuente || !categorias.length)) return 'Para ofrecer los adicionales elige la categoría donde están y al menos una donde ofrecerlos';
+  if (ids.length) {
+    const { data, error } = await supabase.from('categorias').select('id').eq('restaurante_id', restauranteId).in('id', ids);
+    if (error) return 'No se pudieron comprobar las categorías de los adicionales';
+    if ((data || []).length !== ids.length) return 'Una categoría de los adicionales no es de este restaurante';
+  }
+  atributos.adicionales_carta = { activo, categoria_id: fuente, categorias };
+  return null;
+}
 
 function validarFiltros(atributos) {
   if (!('filtros_disponibles' in atributos)) return null;
@@ -1503,6 +1529,8 @@ app.patch('/api/restaurantes/:id', auth, async (req, res) => {
       if (k in entrantes) entrantes[k] = entrantes[k] === true;
     const errorAjustes = validarRedes(entrantes) || negocio.validarNegocio(entrantes) || validarFiltros(entrantes) || validarColores(entrantes) || validarTipografiaYEstilo(entrantes) || validarIntro(entrantes);
     if (errorAjustes) return res.status(400).json({ error: errorAjustes });
+    const errorAdicionales = await validarAdicionalesCarta(entrantes, req.params.id);
+    if (errorAdicionales) return res.status(400).json({ error: errorAdicionales });
 
     body.atributos = { ...(actual?.atributos || {}), ...entrantes };
 

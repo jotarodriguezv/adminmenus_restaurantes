@@ -146,6 +146,8 @@ function renderAjustes() {
   // lo que hay en la base y esos avisos ya no hablan de nada.
   pintarErroresEnCampos([], CAMPOS_METODOS_PAGO);
   renderToppings();
+  // typeof: este tramo se evalúa suelto en las pruebas, sin el archivo de los adicionales.
+  if (typeof renderAdicionalesCarta === 'function') renderAdicionalesCarta();
   pintarNotaCarrito();
   const st = document.getElementById('ajustesStatus');
   st.textContent = ''; st.style.color = 'var(--text-muted)';
@@ -169,6 +171,8 @@ function recolectarAjustes() {
     toppings_platino: toppingState.platino,
     toppings_premium: toppingState.premium,
     salsas:           toppingState.salsas,
+    // Los adicionales de la carta viajan con los toppings: se enseñan y se esconden juntos.
+    ...(typeof recolectarAdicionalesCarta === 'function' ? recolectarAdicionalesCarta() : {}),
   } : {};
   return {
     // El número del negocio viaja SIEMPRE: ya no es de los pedidos, y lo usan
