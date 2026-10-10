@@ -52,6 +52,11 @@ const DURACION_MIN     = 3;
 const INTENTOS_MAX     = 3;
 const LIMITE_FFMPEG_MS = 10 * 60 * 1000;    // ~86 s esperados; 10 min es un cuelgue
 const INTERVALO_MS     = 15_000;
+// Con la cola vacía no se pregunta a la base cada 15 s: eran ~5.700 consultas
+// al día para casi siempre oír «nada» (octubre de 2026, cuota de registros de
+// Supabase). El reloj de 15 s sigue girando, pero es solo memoria; a la base
+// se va cada OCIOSO_MS, o enseguida si encolar() avisa de un trabajo nuevo.
+const OCIOSO_MS        = 5 * 60 * 1000;
 // Un trabajo lleva menos de dos minutos. Si uno lleva una hora en
 // 'procesando' es que el proceso murió a mitad, no que vaya lento.
 const RESCATE_MS       = 60 * 60 * 1000;
@@ -782,8 +787,19 @@ async function rescatarColgados(supabase) {
   const { data } = await supabase
     .from('trabajos_video').update({ estado: 'pendiente' })
     .eq('estado', 'procesando').lt('actualizado_en', limite).select('id');
-  if (data?.length) console.log(`♻️  ${data.length} trabajo(s) de video rescatados`);
+  if (data?.length) {
+    despertar();   // vuelven a 'pendiente': que no esperen al ratito ocioso
+    console.log(`♻️  ${data.length} trabajo(s) de video rescatados`);
+  }
 }
+
+// ── Cuándo mirar la cola ──────────────────────────────────────
+// `despertares` cuenta los avisos para cerrar una carrera: si encolar() avisa
+// MIENTRAS una vuelta consulta y la consulta ya volvió vacía, esa vuelta no
+// puede dormir la cola, porque el trabajo nuevo no estaba en su respuesta.
+let proximaConsulta = 0;
+let despertares = 0;
+function despertar() { despertares++; proximaConsulta = 0; }
 
 // Cada cuánto se vuelve a mirar si hay trabajos abandonados. No en cada
 // vuelta de la cola: son 15 segundos y esto es una consulta que casi siempre
@@ -816,8 +832,15 @@ function arrancar(supabase) {
         ultimoRescate = Date.now();
         await rescatarColgados(supabase);
       }
+      if (Date.now() < proximaConsulta) return;
+      const avisos = despertares;
       const t = await tomarSiguiente(supabase);
-      if (t) await procesarTrabajo(supabase, t);
+      if (t) {
+        proximaConsulta = 0;   // tras un trabajo puede haber otro esperando
+        await procesarTrabajo(supabase, t);
+      } else if (avisos === despertares) {
+        proximaConsulta = Date.now() + OCIOSO_MS;
+      }
     } catch (e) {
       console.error('⚠️  error en la cola de video:', e.message);
     } finally {
@@ -838,6 +861,7 @@ async function encolar(supabase, { restaurante_id, producto_id, origen, desde = 
     .insert([{ restaurante_id, producto_id: producto_id || null, origen, desde, formato, origen_tipo, aprobado }])
     .select().single();
   if (error) throw new Error(error.message);
+  despertar();
   return data;
 }
 
@@ -884,6 +908,7 @@ async function reconvertir(supabase, trabajo, formato) {
 
 module.exports = {
   arrancar, encolar, reconvertir, esReconversion, detener,
+  INTERVALO_MS, OCIOSO_MS,
   CARPETAS, DURACION_MAX, DURACION_MIN, MEDIDAS, FORMATOS, ENCAJE_AVISA,
   formatoDe, medidasDe, encajeDeFoto, recorteIdeal,
   recorteCentradoEn, encuadreValido, argumentosRecorteFoto, recortarFoto,
@@ -895,5 +920,5 @@ module.exports = {
   // La parada, para probarla sin ffmpeg: vigilarHijo acepta cualquier proceso,
   // y con la parada en marcha procesarTrabajo no llega a lanzar ffmpeg.
   procesarTrabajo, devolverALaCola, vigilarHijo, ejecutar,
-  _reiniciarParada: () => { parando = false; hijoFfmpeg = null; archivosEnCurso = null; pasadaEnCurso = null; },
+  _reiniciarParada: () => { proximaConsulta = 0; despertares = 0; parando = false; hijoFfmpeg = null; archivosEnCurso = null; pasadaEnCurso = null; },
 };
