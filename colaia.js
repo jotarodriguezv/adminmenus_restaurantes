@@ -34,6 +34,15 @@ const RAIZ = path.join(__dirname, 'uploads');
 // tarda minutos. Mirar cada 15 s solo añadiría tráfico.
 const INTERVALO_MS = 20_000;
 
+// Sin ninguna generación en curso no hay nada que preguntar a la base cada
+// 20 s (eran ~4.300 consultas al día para oír «nada»). El reloj sigue, pero a
+// la base se va cada OCIOSO_MS o en cuanto lanzar() avisa de una nueva.
+const OCIOSO_MS = 5 * 60 * 1000;
+
+// El rescate de reservas solo toca filas de más de 15 min (cupo.RESCATE_MS);
+// lanzarlo en cada vuelta mandaba un UPDATE cada 20 s para no cambiar nada.
+const RESCATE_CADA_MS = 5 * 60 * 1000;
+
 // Un video de 6 s a 768p ronda los 3 MB. El tope no está para acotar lo
 // normal sino para que una respuesta rara de un tercero no llene el disco:
 // con el disco lleno no se cae el video, se cae el servidor entero.
@@ -99,6 +108,7 @@ async function lanzar(supabase, { restaurante_id, producto_id, foto_url, prompt 
   }
 
   await cupo.anotarPrediccion(supabase, reserva.id, prediccion.id);
+  despertar();
   return { generacion_id: reserva.id, prediction_id: prediccion.id };
 }
 
@@ -159,6 +169,7 @@ async function pasada(supabase) {
     .select('id, restaurante_id, producto_id, prediction_id, creado_en')
     .eq('estado', 'generando').order('creado_en').limit(10);
 
+  vacia = !(enCurso && enCurso.length);
   let recogidas = 0;
   for (const gen of enCurso || []) {
     if (!gen.prediction_id) continue;
@@ -172,17 +183,32 @@ async function pasada(supabase) {
   return recogidas;
 }
 
+// Si la última consulta no encontró ninguna generación en curso. Lo lee el
+// reloj para decidir si duerme; `despertares` cierra la carrera con lanzar()
+// igual que en video.js.
+let vacia = false;
+let proximaConsulta = 0;
+let despertares = 0;
+function despertar() { despertares++; proximaConsulta = 0; }
+
 let temporizador = null;
 let vueltaEnCurso = null;   // la vuelta que está corriendo, para esperarla al parar
 
 function arrancar(supabase) {
+  let ultimoRescate = -Infinity;   // nunca: la primera vuelta rescata
   const tick = async () => {
     // La marca es suya, no la de la conversión: las dos colas avanzan a la vez.
     if (vueltaEnCurso) return;
     vueltaEnCurso = (async () => {
       try {
-        await cupo.rescatarReservas(supabase);
+        if (Date.now() - ultimoRescate >= RESCATE_CADA_MS) {
+          ultimoRescate = Date.now();
+          await cupo.rescatarReservas(supabase);
+        }
+        if (Date.now() < proximaConsulta) return;
+        const avisos = despertares;
         await pasada(supabase);
+        if (vacia && avisos === despertares) proximaConsulta = Date.now() + OCIOSO_MS;
       } catch (e) {
         console.error('⚠️  error en la cola de IA:', e.message);
       }
@@ -211,5 +237,5 @@ async function detener() {
 
 module.exports = {
   arrancar, detener, lanzar, pasada, recoger, descargar,
-  INTERVALO_MS, MAX_DESCARGA_MB, LIMITE_GENERACION_MS,
+  INTERVALO_MS, OCIOSO_MS, RESCATE_CADA_MS, MAX_DESCARGA_MB, LIMITE_GENERACION_MS,
 };
