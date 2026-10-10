@@ -80,6 +80,7 @@ describe('public/adicionales-carta.js · lo que viaja', () => {
 			ajAdicActivo: { checked: false },
 			ajAdicCategoria: { value: '', options: [], replaceChildren() { this.options = []; }, appendChild(o) { this.options.push(o); } },
 			ajAdicCampos: { hidden: true },
+			ajAdicOfrecer: { hidden: true },
 			ajAdicCategorias: { replaceChildren() {}, appendChild() {} },
 			ajAdicAviso: { textContent: '' },
 		};
@@ -108,5 +109,25 @@ describe('public/adicionales-carta.js · lo que viaja', () => {
 		assert.equal(g.activo, false);
 		assert.deepEqual(g.categorias, []);
 		assert.match(els.ajAdicAviso.textContent, /al menos una categoría/);
+	});
+
+	test('la lista de dónde se ofrece no sale hasta elegir la categoría de adicionales', () => {
+		const { ctx, els } = montar(CATS, { adicionales_carta: { activo: true, categoria_id: '', categorias: [] } });
+		ctx.renderAdicionalesCarta();
+		assert.equal(els.ajAdicOfrecer.hidden, true);
+		els.ajAdicCategoria.value = FUENTE; ctx.adicCartaPintar();
+		assert.equal(els.ajAdicOfrecer.hidden, false);
+	});
+
+	test('encendido a medias no se guarda en silencio: dice qué falta', () => {
+		const { ctx, els } = montar(CATS);
+		ctx.renderAdicionalesCarta();
+		assert.equal(ctx.errorDeAdicionalesCarta(), '', 'apagado no avisa');
+		els.ajAdicActivo.checked = true;
+		assert.match(ctx.errorDeAdicionalesCarta(), /Elige primero la categoría/);
+		els.ajAdicCategoria.value = FUENTE;
+		assert.match(ctx.errorDeAdicionalesCarta(), /Marca en qué categorías/);
+		ctx.adicCategoriasMarcadas.add(BURGERS);
+		assert.equal(ctx.errorDeAdicionalesCarta(), '');
 	});
 });

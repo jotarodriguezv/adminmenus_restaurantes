@@ -1488,8 +1488,12 @@
 							<div id="ajAdicCampos" hidden>
 								<label class="form-label" for="ajAdicCategoria">La categoría donde están tus adicionales</label>
 								<select id="ajAdicCategoria" class="form-select" onchange="adicCartaPintar()"></select>
-								<div class="form-label" style="margin-top:12px">Ofrecerlos en los platos de estas categorías</div>
-								<div id="ajAdicCategorias" class="aj-adic-categorias"></div>
+								<!-- Hasta elegir la categoría de adicionales no se enseña esta lista: en ella estaría la propia
+								     categoría de adicionales, y marcarla aquí en vez de arriba dejaba todo sin guardar. -->
+								<div id="ajAdicOfrecer" hidden>
+									<div class="form-label" style="margin-top:12px">Ofrecerlos en los platos de estas categorías</div>
+									<div id="ajAdicCategorias" class="aj-adic-categorias"></div>
+								</div>
 								<div id="ajAdicAviso" class="oferta-aviso" role="status"></div>
 							</div>
 						</div>
