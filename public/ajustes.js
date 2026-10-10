@@ -206,6 +206,16 @@ async function saveAjustes() {
     showToast(errorNegocio, 'error');
     return;
   }
+  // Los adicionales de la carta, encendidos a medias: se avisa y se deja donde está, en vez de guardarlos apagados.
+  const errorAdicionales = hayQueEnsenarToppings() && typeof errorDeAdicionalesCarta === 'function' ? errorDeAdicionalesCarta() : '';
+  if (errorAdicionales) {
+    st.textContent = errorAdicionales; st.style.color = 'var(--danger)';
+    showToast(errorAdicionales, 'error');
+    const campo = document.getElementById(document.getElementById('ajAdicCategoria').value ? 'ajAdicCategorias' : 'ajAdicCategoria');
+    campo?.scrollIntoView?.({ block: 'center' });
+    document.getElementById('ajAdicCategoria').value ? campo?.querySelector?.('input')?.focus() : campo?.focus();
+    return;
+  }
   if (carritoEnPantalla()) {
     const errores = erroresDeMetodosPago(recolectarMetodosPago());
     if (errores.length) {

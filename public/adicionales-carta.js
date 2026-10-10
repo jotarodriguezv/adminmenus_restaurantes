@@ -43,6 +43,8 @@ function adicCartaPintar() {
   const activo = document.getElementById('ajAdicActivo').checked;
   document.getElementById('ajAdicCampos').hidden = !activo;
   const fuente = document.getElementById('ajAdicCategoria').value;
+  // Primero la categoría de adicionales: sin ella, la lista de abajo incluiría a la propia categoría de adicionales.
+  document.getElementById('ajAdicOfrecer').hidden = !fuente;
 
   const lista = document.getElementById('ajAdicCategorias');
   lista.replaceChildren();
@@ -62,7 +64,7 @@ function adicCartaPintar() {
   const aviso = document.getElementById('ajAdicAviso');
   if (!activo) { aviso.textContent = ''; return; }
   const hay = adicCartaMarcadas(fuente).length;
-  aviso.textContent = !fuente ? 'Elige la categoría donde tienes tus adicionales.'
+  aviso.textContent = !fuente ? 'Elige la categoría donde tienes tus adicionales; después podrás marcar dónde se ofrecen.'
     : !hay ? 'Marca al menos una categoría donde se ofrezcan, por ejemplo las hamburguesas.'
     : '';
 }
@@ -71,6 +73,17 @@ function adicCartaPintar() {
 function adicCartaMarcadas(fuente) {
   const existen = new Set(adicCategoriasDelRestaurante().map(c => c.id));
   return [...adicCategoriasMarcadas].filter(id => existen.has(id) && id !== fuente);
+}
+
+// Encendido pero incompleto no se guarda en silencio: antes se mandaba apagado y, al repintar, el interruptor
+// se apagaba solo sin decir por qué. Devuelve el aviso, o '' si está bien o apagado.
+function errorDeAdicionalesCarta() {
+  const caja = document.getElementById('ajAdicActivo');
+  if (!caja || !caja.checked) return '';
+  const fuente = document.getElementById('ajAdicCategoria').value;
+  if (!fuente) return 'Elige primero la categoría donde están tus adicionales';
+  if (!adicCartaMarcadas(fuente).length) return 'Marca en qué categorías de platos se ofrecen los adicionales';
+  return '';
 }
 
 // Lo que viaja al guardar. Encendido sin lo necesario no se manda encendido: la carta lo ignoraría igual, y
