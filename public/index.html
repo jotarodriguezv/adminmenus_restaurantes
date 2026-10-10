@@ -1478,6 +1478,21 @@
 							</div>
 							<div id="listToppingsSalsas" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;"></div>
 						</div>
+						<!-- Los adicionales de la propia carta en la ventana del pedido (adicionales-carta.js). -->
+						<div class="aj-bloque" id="ajAdicCartaBloque">
+							<div class="section-header">
+								<div class="aj-subtitulo">Adicionales de tu carta</div>
+							</div>
+							<p class="aj-adic-ayuda">Si tu carta ya tiene una categoría de adicionales —porción de papa, de tocineta…—, puedes ofrecerlos también al agregar un plato, sin crearlos otra vez aquí. El precio y si hay o no se cambian en un solo sitio: esa categoría. Siguen pudiéndose pedir sueltos.</p>
+							<div class="form-check aj-adic-switch"><label class="toggle"><input type="checkbox" id="ajAdicActivo" aria-labelledby="ajAdicActivoTitulo" onchange="adicCartaPintar()"><span class="toggle-slider"></span></label><span id="ajAdicActivoTitulo">Ofrecer los adicionales de mi carta al agregar un plato</span></div>
+							<div id="ajAdicCampos" hidden>
+								<label class="form-label" for="ajAdicCategoria">La categoría donde están tus adicionales</label>
+								<select id="ajAdicCategoria" class="form-select" onchange="adicCartaPintar()"></select>
+								<div class="form-label" style="margin-top:12px">Ofrecerlos en los platos de estas categorías</div>
+								<div id="ajAdicCategorias" class="aj-adic-categorias"></div>
+								<div id="ajAdicAviso" class="oferta-aviso" role="status"></div>
+							</div>
+						</div>
 					</div>
 					</div>
 					</div><!-- /ajSeccionPedidos -->
@@ -3233,6 +3248,7 @@
 <script src="productos-marcas.js"></script>
 <script src="oferta.js"></script>
 <script src="presentaciones.js"></script>
+<script src="adicionales-carta.js"></script>
 <script src="ver-en-la-carta.js"></script>
 <script src="paletas.js"></script>
 <script>
